@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "codex": {
+      "type": "stdio",
+      "command": "codex",
+      "args": ["mcp-server"],
+      "env": {
+        "OPENAI_API_KEY": "${user_config.OPENAI_API_KEY}"
+      }
+    },
+    "gemini": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@fre4x/gemini"],
+      "env": {
+        "GEMINI_API_KEY": "${user_config.GEMINI_API_KEY}"
+      }
+    },
+    "nano-banana": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@akashvekariya/nano-banana-mcp"],
+      "env": {
+        "GEMINI_API_KEY": "${user_config.GEMINI_API_KEY}"
+      }
+    }
+  }
+}

@@ -1,0 +1,189 @@
+---
+name: bug-report
+description: "웹앱 LNB 전체 메뉴를 자동 순회하며 기능 오류·레이아웃 이슈를 탐지하고 bug-report 표준 포맷(BUG-NNN, 6하원칙, INDEX.md)으로 저장. 트리거: 'QA 해줘', '버그 찾아줘', '메뉴 돌아봐줘', URL+로그인 정보 주면서 탐색 요청, 레이아웃 확인 요청."
+---
+
+# Web QA
+
+**입력**: 접속 URL, 로그인 계정(선택), 프로젝트 루트 경로, 테스트 범위(전체/특정 메뉴).
+**출력**: `docs/bug_report/BUG-NNN-{slug}.md` (bug-report 표준 포맷) + `INDEX.md` 갱신 + 스크린샷.
+
+---
+
+## 사전 확인
+
+작업 전 확인:
+1. **접속 URL** — 테스트 대상 주소
+2. **로그인 계정** — ID/PW (없으면 이미 로그인 상태인지 확인)
+   - 복수 계정 시: **계정1로 전체 탐색 → 버그 발견 시 계정2로 동일 재현 여부 확인**
+3. **프로젝트 루트** — 버그 저장 경로 기준
+4. **테스트 범위** — LNB 전체 vs 특정 메뉴
+
+---
+
+## Step 1: 접속 및 로그인
+
+`mcp__Claude_in_Chrome__navigate`로 URL 접속 후 로그인 폼에 자격증명 입력.
+로그인 성공 여부를 페이지 텍스트로 확인 후 진행.
+
+## Step 2: LNB 메뉴 목록 파악
+
+`mcp__Claude_in_Chrome__get_page_text`로 메뉴 구조 추출.
+서브메뉴(드롭다운·트리) 모두 펼쳐서 목록화 → 내부 체크리스트로 관리.
+
+## Step 3: 페이지별 순차 탐색
+
+각 메뉴 하나씩 클릭 → 아래 항목 점검.
+**오류 발생해도 기록 후 다음 메뉴 계속 진행 — 절대 중단 금지.**
+
+**기능 오류 체크**:
+- HTTP 오류 (404/500/502) — URL + 상태코드 기록
+- 빈 화면 / 로딩 스피너 미해제
+- JS 콘솔 에러 (`read_console_messages`)
+- 네트워크 요청 실패 (`read_network_requests`)
+- 버튼/링크 클릭 불가·무반응
+- 데이터 테이블 빈 칸·오류 메시지
+
+**레이아웃 이슈 체크**:
+- 요소 겹침(overlap) / overflow / 정렬 틀어짐
+- 여백 불균일 / 이미지·아이콘 깨짐·미표시
+- 테이블 컬럼 width 이상 / 불필요한 스크롤바
+
+## Step 4: 버그 발견 시 즉시 처리
+
+버그 발견 즉시:
+
+**① 스크린샷 캡처 (PIL 가짜 이미지 절대 금지)**
+```
+1. request_access 필수 호출 (캡처 권한 확인)
+2. 권한 있으면: mcp__computer-use__screenshot 으로 실제 캡처
+   저장: {프로젝트 루트}/docs/bug_report/screenshots/BUG-{NNN}-red-{메뉴명}.png
+3. 권한 없으면: "캡처 실패 — 권한 없음" 기록 후 다음 진행 (중단 금지)
+```
+
+**② API 응답 캡처** (데이터 관련 페이지)
+```
+read_network_requests 로 API 응답 확인 → 3-way 분류:
+- 200 + 빈배열/null → "데이터 없음" (버그 아님, 정상)
+- 4xx / 5xx          → 버그 (API 오류)
+- 200 + data 있음 + 화면 미표시 → 렌더링 버그
+```
+버그 판정 시 엔드포인트·상태코드·응답 요약 리포트에 저장.
+
+**③ BUG ID 채번**
+```bash
+bash ~/.claude/skills/bug-report/scripts/next-bug-id.sh {프로젝트 루트}/docs/bug_report
+```
+
+**④** 6하원칙 + 재현 계정 메모 기록 → 다음 메뉴 즉시 계속
+
+## Step 5: 버그 리포트 파일 작성
+
+경로: `{프로젝트 루트}/docs/bug_report/{BUG-ID}-{slug}.md`
+
+```markdown
+# {BUG-ID} — {버그 제목}
+
+**심각도**: Critical | High | Medium | Low
+**상태**: Open
+**발견일**: YYYY-MM-DD HH:MM
+**발견자**: web-qa 자동탐색
+**담당자**: (미배정)
+
+## 6하원칙
+
+| 항목 | 내용 |
+|------|------|
+| **WHO** | {계정명} 계정 / 재현 계정: {test_j만 / test_j+test_m 동일 / 모든 계정} |
+| **WHAT** | {발생한 현상 — 구체적으로} |
+| **WHEN** | {YYYY-MM-DD HH:MM} |
+| **WHERE** | {메뉴명} > {페이지명} (`{URL}`) |
+| **WHY** | {추정 원인 — 모르면 "미확인"} |
+| **HOW** | 1. {재현 단계} 2. {재현 단계} 3. {결과} |
+
+**스크린샷**: `screenshots/{BUG-ID}-red-{메뉴명}.png` (캡처 실패 시 "캡처 실패 — 권한 없음")
+
+**API 응답** (데이터 버그 시):
+- 엔드포인트: `{URL}`
+- 상태코드: `{200/4xx/5xx}`
+- 응답 요약: `{빈배열 / 데이터N건 / 오류메시지}`
+- 판정: `데이터없음(정상) / API오류(버그) / 렌더링버그`
+
+## Failure Attribution
+
+- **컴포넌트**: (URL + 오류 유형)
+- **연관 버그**: —
+
+## 처리 이력
+
+| 날짜 | 작업자 | 내용 |
+|------|--------|------|
+| YYYY-MM-DD | web-qa | Open |
+```
+
+## Step 6: INDEX.md 갱신
+
+`docs/bug_report/INDEX.md` 없으면 신규 생성:
+```markdown
+# Bug Index
+
+| ID | 제목 | 심각도 | 상태 | 발견일 | 담당자 |
+|----|------|--------|------|--------|--------|
+```
+
+발견 버그마다 행 추가:
+```
+| {BUG-ID} | {slug} | {심각도} | Open | {발견일} | — |
+```
+
+## Step 7: 탐색 완료 요약
+
+탐색 전체 완료 후 출력:
+
+```markdown
+## QA 탐색 결과 요약
+
+**테스트 URL**: {URL}  **일시**: {YYYY-MM-DD}  **총 메뉴**: {N}개  **발견 버그**: {N}개
+
+| 메뉴명 | URL | 상태 | 버그 수 |
+|--------|-----|------|---------|
+| 대시보드 | /dashboard | ✅ 정상 | 0 |
+| 회원관리 | /users | ⚠️ 레이아웃 | 1 |
+| 정산관리 | /settlement | ❌ 500 오류 | 1 |
+
+### 우선순위 권고
+**즉시 조치 (Critical/High)**: BUG-NNN — {사유}
+**다음 스프린트 (Medium/Low)**: BUG-NNN — {사유}
+```
+
+상태 아이콘: ✅ 정상 / ⚠️ 레이아웃 / ❌ 기능오류
+
+---
+
+## 심각도 기준
+
+→ `~/.claude/skills/bug-report/references/severity.md` 참조
+
+| 심각도 | 기준 |
+|--------|------|
+| Critical | 5xx 오류, 로그인 불가, 데이터 유실 |
+| High | 핵심 기능 불작동, 데이터 오표시 |
+| Medium | 부분 오작동, 레이아웃 크게 깨짐 |
+| Low | 사소한 여백·아이콘·텍스트 이슈 |
+
+---
+
+## 주의사항
+
+- 오류 페이지 만나도 절대 중단 금지 — 기록 후 다음 메뉴
+- 기획 의도 불분명 시 Low + "(기획 확인 필요)" 명시
+- 스크린샷 파일명 공백 → 언더스코어(_) 사용
+
+## Workflow 통합 (계획서 P1)
+
+병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Navigate→Detect(4개씩 배치 parallel)→Report.
+
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/bug-report/workflow.js") })`
+
+`CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
+

@@ -1,0 +1,36 @@
+{
+  "name": "forge-core",
+  "version": "0.1.0",
+  "description": "Forge 시스템 핵심 스킬 + MCP 서버 + 온보딩 훅. 6-plugin 패키지의 공통 기반.",
+  "author": {
+    "name": "forge"
+  },
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/forge-onboard.sh\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
+  "userConfig": {
+    "GEMINI_API_KEY": {
+      "title": "Gemini API Key",
+      "type": "string",
+      "sensitive": true,
+      "description": "Google Gemini API key — gemini MCP + nano-banana image generation에 사용"
+    },
+    "OPENAI_API_KEY": {
+      "title": "OpenAI / Codex API Key",
+      "type": "string",
+      "sensitive": true,
+      "description": "OpenAI API key — codex MCP 서버에 사용 (시스템 환경변수로도 대체 가능)"
+    }
+  }
+}
