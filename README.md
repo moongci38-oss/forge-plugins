@@ -2,8 +2,7 @@
 
 Forge Claude Code Plugin Marketplace — 6개 플러그인 패키지.
 
-> **레포**: `github.com/moongci38-oss/forge-plugins` (private)  
-> **현재 Claude Code는 `/plugin install` 미지원** → 로컬 클론 후 `--plugin-dir` 방식으로 사용 (아래 참조).
+> **레포**: `github.com/moongci38-oss/forge-plugins` (private)
 
 ---
 
@@ -20,18 +19,35 @@ Forge Claude Code Plugin Marketplace — 6개 플러그인 패키지.
 
 ---
 
-## 팀원 신규 설치 (처음 한 번)
+## 팀원 신규 설치
 
-### 1. 레포 클론
+### 방법 A — Marketplace (권장)
 
 ```bash
-git clone git@github.com:moongci38-oss/forge-plugins.git ~/forge-plugins-repo
+# 1. forge marketplace 등록 (최초 1회)
+claude plugin marketplace add moongci38-oss/forge-plugins
+
+# 2. 플러그인 설치
+claude plugin install forge-core
+claude plugin install forge-dev       # 개발자
+claude plugin install forge-plan      # 기획자/PM
+claude plugin install forge-research  # 리서처
+claude plugin install forge-design    # 디자이너
+claude plugin install forge-game      # 게임 개발자 (forge-design도 설치됨)
 ```
 
-### 2. Claude Code에 플러그인 경로 등록
+### 방법 B — 로컬 클론
 
-`~/.claude/settings.json` 에 직접 추가:
+```bash
+# 1. 레포 클론
+git clone git@github.com:moongci38-oss/forge-plugins.git ~/forge-plugins-repo
 
+# 2. Claude Code 실행 시 직접 로드
+claude --plugin-dir ~/forge-plugins-repo/forge-core \
+       --plugin-dir ~/forge-plugins-repo/forge-dev
+```
+
+또는 `~/.claude/settings.json` 에 영구 등록:
 ```json
 {
   "plugins": [
@@ -41,18 +57,11 @@ git clone git@github.com:moongci38-oss/forge-plugins.git ~/forge-plugins-repo
 }
 ```
 
-또는 `claude` 실행 시 플래그로 일시 로드:
+---
 
-```bash
-claude --plugin-dir ~/forge-plugins-repo/forge-core \
-       --plugin-dir ~/forge-plugins-repo/forge-dev
-```
+## 첫 세션 자동 온보딩
 
-> **forge-core는 반드시 첫 번째** — 다른 플러그인이 core에 의존.
-
-### 3. 첫 세션 시작
-
-Claude Code 세션을 열면 `forge-core`의 `SessionStart` 훅이 자동 실행:
+Claude Code 세션 시작 시 `forge-core`의 SessionStart 훅이 자동 실행:
 
 ```
 [forge-onboard] orch-token.key created: ~/.config/forge/orch-token.key
@@ -61,10 +70,12 @@ Claude Code 세션을 열면 `forge-core`의 `SessionStart` 훅이 자동 실행
 [forge-onboard] rules installed: tool-rules.md
 ```
 
-- **orch-token.key** — forge 내부 approve-worker 인증 토큰 (자동 생성, 재생성 불필요)
-- **rules** — `~/.claude/rules/` 에 forge 규칙 3종 설치 (이미 있으면 스킵)
+- **orch-token.key** — forge approve-worker 인증 토큰 (없으면 자동 생성, 이후 스킵)
+- **rules** — `~/.claude/rules/`에 forge 규칙 3종 설치 (이미 있으면 스킵)
 
-### 4. MCP API 키 설정 (선택)
+---
+
+## MCP API 키 설정 (선택)
 
 `forge-core`는 Codex/Gemini MCP를 포함. 사용하려면 환경변수 설정:
 
@@ -74,7 +85,7 @@ export OPENAI_API_KEY="sk-..."       # Codex MCP (cr-triple 2차 검수)
 export GEMINI_API_KEY="AIza..."      # Gemini MCP (vision 분석)
 ```
 
-> MCP 없이도 forge-core/forge-dev 기본 스킬은 정상 동작.
+> MCP 없이도 forge-core/forge-dev 기본 스킬 정상 동작.
 
 ---
 
@@ -118,16 +129,19 @@ forge-plugins-repo/
 
 ## 업데이트
 
-플러그인 업데이트 시 레포 pull 후 Claude Code 재시작:
-
 ```bash
+# Marketplace 경유 설치한 경우
+claude plugin update forge-core
+claude plugin update forge-dev
+
+# 로컬 클론 경우
 cd ~/forge-plugins-repo && git pull
 # Claude Code 재시작 → 새 버전 자동 로드
 ```
 
 ---
 
-## 도메인별 설치 추천
+## 역할별 설치 추천
 
 | 역할 | 설치 플러그인 |
 |------|------------|
