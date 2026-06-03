@@ -1,0 +1,89 @@
+name: Version Sync
+
+on:
+  push:
+    tags:
+      - 'forge-*@*'   # e.g. forge-dev@0.2.0  or  forge-core@1.0.0
+
+jobs:
+  update-marketplace:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PLUGIN="${TAG%@*}"     # forge-dev
+          VERSION="${TAG#*@}"    # 0.2.0
+          echo "plugin=$PLUGIN" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update marketplace.json
+        run: |
+          PLUGIN="${{ steps.tag.outputs.plugin }}"
+          VERSION="${{ steps.tag.outputs.version }}"
+          python3 - <<'PYEOF'
+          import json, os, sys
+
+          plugin = os.environ['PLUGIN']
+          version = os.environ['VERSION']
+
+          with open('marketplace.json') as f:
+              data = json.load(f)
+
+          found = False
+          for p in data['plugins']:
+              if p['name'] == plugin:
+                  p['version'] = version
+                  found = True
+                  break
+
+          if not found:
+              print(f"ERROR: plugin '{plugin}' not in marketplace.json", file=sys.stderr)
+              sys.exit(1)
+
+          with open('marketplace.json', 'w') as f:
+              json.dump(data, f, indent=2, ensure_ascii=False)
+              f.write('\n')
+
+          print(f"Updated {plugin} → v{version}")
+          PYEOF
+        env:
+          PLUGIN: ${{ steps.tag.outputs.plugin }}
+          VERSION: ${{ steps.tag.outputs.version }}
+
+      - name: Update plugin.json
+        env:
+          PLUGIN: ${{ steps.tag.outputs.plugin }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          PLUGIN_JSON="${PLUGIN}/.claude-plugin/plugin.json"
+          if [ -f "$PLUGIN_JSON" ]; then
+            python3 -c "
+          import json, sys, os
+          path = sys.argv[1]; ver = os.environ['VERSION']
+          with open(path) as f: d = json.load(f)
+          d['version'] = ver
+          with open(path, 'w') as f: json.dump(d, f, indent=2, ensure_ascii=False); f.write('\n')
+          print(f'Updated {path} → v{ver}')
+          " "$PLUGIN_JSON"
+          fi
+
+      - name: Commit & push
+        env:
+          PLUGIN: ${{ steps.tag.outputs.plugin }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add marketplace.json "${PLUGIN}/.claude-plugin/plugin.json" || true
+          git diff --cached --quiet && echo "nothing to commit" && exit 0
+          git commit -m "chore(release): ${PLUGIN} v${VERSION}"
+          git push origin main

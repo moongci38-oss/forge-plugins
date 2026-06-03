@@ -9,11 +9,7 @@
       "description": "Forge 시스템 핵심 스킬 + MCP 서버 + 온보딩 훅. 6-plugin 패키지의 공통 기반.",
       "path": "./forge-core",
       "dependencies": [],
-      "tags": [
-        "forge",
-        "core",
-        "required"
-      ]
+      "tags": ["forge", "core", "required"]
     },
     {
       "name": "forge-dev",
@@ -21,80 +17,44 @@
       "version": "0.1.0",
       "description": "Forge 개발 파이프라인 — QA/헬러/보안검수/성능/playwright/MAS 검수. Phase 1~12 도구.",
       "path": "./forge-dev",
-      "dependencies": [
-        "forge-core"
-      ],
-      "tags": [
-        "forge",
-        "dev",
-        "qa",
-        "test"
-      ]
+      "dependencies": ["forge-core"],
+      "tags": ["forge", "dev", "qa", "test"]
     },
     {
       "name": "forge-plan",
       "slug": "forge-plan",
       "version": "0.1.0",
-      "description": "Forge 기획 파이프라인 — spec-write/writing-plans/requirements-clarity. (P2)",
+      "description": "Forge 기획 파이프라인 — spec-write/writing-plans/requirements-clarity/autoplan. S1~S3 도구.",
       "path": "./forge-plan",
-      "dependencies": [
-        "forge-core"
-      ],
-      "status": "planned",
-      "tags": [
-        "forge",
-        "plan",
-        "spec"
-      ]
+      "dependencies": ["forge-core"],
+      "tags": ["forge", "plan", "spec"]
     },
     {
       "name": "forge-research",
       "slug": "forge-research",
       "version": "0.1.0",
-      "description": "Forge 리서치 도구 — article/yt/site-deep-analyze/rag-search. (P2)",
+      "description": "Forge 리서치 도구 — article/yt/site-deep-analyze/rag-search. 분석·지식 파이프라인.",
       "path": "./forge-research",
-      "dependencies": [
-        "forge-core"
-      ],
-      "status": "planned",
-      "tags": [
-        "forge",
-        "research",
-        "yt"
-      ]
+      "dependencies": ["forge-core"],
+      "tags": ["forge", "research", "yt"]
     },
     {
       "name": "forge-design",
       "slug": "forge-design",
       "version": "0.1.0",
-      "description": "Forge 디자인 도구 — figma-sync/screenshot-analyze/generate-image. (P2)",
+      "description": "Forge 디자인 도구 — figma-sync/image-orchestrate/multiformat-image. UI·에셋 파이프라인.",
       "path": "./forge-design",
-      "dependencies": [
-        "forge-core"
-      ],
-      "status": "planned",
-      "tags": [
-        "forge",
-        "design",
-        "figma"
-      ]
+      "dependencies": ["forge-core"],
+      "tags": ["forge", "design", "figma"]
     },
     {
       "name": "forge-game",
       "slug": "forge-game",
       "version": "0.1.0",
-      "description": "Forge 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract. GodBlade/Unity 전용. (P2)",
+      "description": "Forge 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract. GodBlade/Unity 전용.",
       "path": "./forge-game",
-      "dependencies": [
-        "forge-core",
-        "forge-design"
-      ],
-      "status": "planned",
-      "tags": [
-        "forge",
-        "game",
-        "unity"
-      ]
+      "dependencies": ["forge-core", "forge-design"],
+      "tags": ["forge", "game", "unity"]
     }
   ]
 }
