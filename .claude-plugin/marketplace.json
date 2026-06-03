@@ -1,0 +1,47 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "forge-plugins",
+  "description": "Forge AI development system — 6-plugin package for Claude Code (core/dev/plan/research/design/game)",
+  "owner": {
+    "name": "moongci38",
+    "url": "https://github.com/moongci38-oss"
+  },
+  "plugins": [
+    {
+      "name": "forge-core",
+      "description": "Forge 시스템 핵심 — cr-multi/approve-worker + 온보딩 훅 + 규칙 3종. 6-plugin 공통 기반.",
+      "source": "./forge-core",
+      "category": "productivity"
+    },
+    {
+      "name": "forge-dev",
+      "description": "Forge 개발 파이프라인 — qa/healer/investigate/api-e2e/playwright (21 skills, 10 agents).",
+      "source": "./forge-dev",
+      "category": "development"
+    },
+    {
+      "name": "forge-plan",
+      "description": "Forge 기획 파이프라인 — spec-write/writing-plans/requirements-clarity/autoplan.",
+      "source": "./forge-plan",
+      "category": "productivity"
+    },
+    {
+      "name": "forge-research",
+      "description": "Forge 리서치 도구 — article/yt/rag-search/site-deep-analyze.",
+      "source": "./forge-research",
+      "category": "productivity"
+    },
+    {
+      "name": "forge-design",
+      "description": "Forge 디자인 도구 — figma-sync/image-orchestrate/multiformat-image.",
+      "source": "./forge-design",
+      "category": "design"
+    },
+    {
+      "name": "forge-game",
+      "description": "Forge 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용).",
+      "source": "./forge-game",
+      "category": "development"
+    }
+  ]
+}
