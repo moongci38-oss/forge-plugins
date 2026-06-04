@@ -172,7 +172,7 @@ cd ~/forge-plugins-repo && git pull
 | `/api-e2e` | `/api-e2e` | API E2E 테스트 |
 | `/playwright` | `/playwright` | Playwright 브라우저 테스트 |
 | `/forge-fix` | `/forge-fix <파일>` | 핫픽스 |
-| `/sdd` | `/sdd` | Spec 기반 개발 (spec-write → 구현 → qa → pr) |
+| `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa → /forge-pr 순서) |
 
 ### forge-plan (기획자/PM)
 
@@ -228,6 +228,7 @@ cd ~/forge-plugins-repo && git pull
 
 # Spec 작성 후 구현
 /spec-write 사용자 알림 기능
+/forge-implement
 ```
 
 ---
