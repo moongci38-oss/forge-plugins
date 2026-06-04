@@ -103,6 +103,25 @@ Triage 합산 후 확정 finding만 Phase 5로.
 
 산출물: `MIGRATION-AUDIT-REPORT.md` + `SYNC-STATUS.md`
 
+분류 모호 finding 존재 시 (`MIGRATION-DRIFT` vs `INTENTIONAL-IMPROVEMENT` git blame으로 판정 불가) AND `FORGE_ADVISOR_AUTO` ≠ `"off"`:
+
+```
+Agent(
+  subagent_type="advisor-strategist",
+  prompt="""
+<맥락 (500토큰 이내)>
+- 모호 finding 목록: {ambiguous_findings}
+- git blame 결과 (커밋 메시지 불명확): {blame_summary}
+
+질문:
+1. DRIFT vs INTENTIONAL 분류 시 놓치기 쉬운 판단 기준 1~2개.
+2. 각 모호 finding의 권장 분류 + 근거 1~2개만.
+"""
+)
+```
+
+Advisor 응답 → `MIGRATION-AUDIT-REPORT.md`의 `## Advisor 분류 조언` 섹션에 첨부.
+
 **→ [STOP] M1 사용자 승인 게이트**
 
 ### Phase 6 — 수정 루프 (`--fix=propose|auto`)
@@ -128,6 +147,26 @@ commit: `fix(migration): BUG-NNN`
 ```
 
 **STOP**: 사이클 캡(6) / plateau(2연속) / 진동(동일 finding 2회)
+
+plateau(2연속) 감지 시 AND `FORGE_ADVISOR_AUTO` ≠ `"off"`:
+
+```
+Agent(
+  subagent_type="advisor-strategist",
+  prompt="""
+<맥락 (500토큰 이내)>
+- 사이클 현황: {cycle}/6, plateau: {plateau_count}연속
+- 미해결 CRITICAL/HIGH: {critical_count}/{high_count}
+- 반복 발생 finding 요약: {stalled_findings}
+
+질문:
+1. plateau 돌파 방법 또는 루프 종료 근거 1~2개.
+2. STOP vs 추가 사이클 권고 + 핵심 이유 1~2개만.
+"""
+)
+```
+
+Advisor 응답 → `SYNC-STATUS.md`의 `## Advisor 루프 판단` 섹션에 첨부.
 
 ## 100% sync 종료조건
 

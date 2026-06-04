@@ -1,0 +1,41 @@
+{
+  "skill_name": "investigate",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/investigate '로그인 후 세션이 5분 만에 만료되는 문제' — Stage 0~5 전체 실행. 관련 파일: auth.ts, session.middleware.ts. 증상 재현 가능, 에러 로그 없음",
+      "expected_output": "4단계 구조화 분석(Stage 0 RAG→Stage 1 조사→Stage 2 가설→Stage 3 검증→Stage 4 재현 테스트→Stage 5 수정), 근본 원인 1문장, bug log 저장",
+      "expectations": [
+        "Stage 0에서 learnings.jsonl bug-fix-pattern 검색과 rag-search가 먼저 실행되는가?",
+        "Stage 1에서 증상/재현단계/기대-실제 동작이 구조화되어 기록되는가?",
+        "Stage 2에서 최소 2개 이상의 가설(5 Whys 포함)이 나열되는가?",
+        "Stage 4에서 재현 테스트를 먼저 작성하고 FAIL 확인 후 Stage 5 수정을 진행하는가?",
+        "Stage 6에서 forge-outputs/01-research/bugs/ 경로에 bug log가 저장되는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/investigate 'API GET /users/:id가 다른 사용자 데이터를 반환' — 다층 시스템(Frontend → .NET API → MySQL). 각 컴포넌트 경계 진단 적용하라",
+      "expected_output": "다층 boundary 진단 실행, 각 레이어에 로깅 instrumentation 추가, 깨진 경계 식별 후 해당 레이어만 집중 분석",
+      "expectations": [
+        "Frontend/API/DB 각 컴포넌트 경계에 입출력 로깅 instrumentation이 추가되는가?",
+        "4 layer 동시 추측 없이 1회 실행 후 증거 수집으로 깨진 경계를 먼저 식별하는가?",
+        "Advisor subagent가 3개 이상 가설 시 우선순위 조언을 제공하는가?",
+        "근본 원인(예: 쿼리에서 user_id 필터 누락)이 1문장으로 정확히 기술되는가?",
+        "Stage 6 learnings.jsonl append 명령이 1줄 요약 형식으로 실행되는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/investigate 'Node.js 서버 메모리가 24시간마다 OOM으로 크래시' — 간헐적 재현, 스택 트레이스 없음. 가설 3개 이상 도출 후 Stage 3 검증하라",
+      "expected_output": "가설 목록(메모리 누수 후보 3개+), 증거 기반 가설 좁히기, 제외 가설 명시, 재현 테스트",
+      "expectations": [
+        "Stage 2에서 가설이 3개 이상 나열되고 각각 가능성과 근거가 명시되는가?",
+        "제외된 가설에 대해 제외 이유가 구체적으로 기술되는가?",
+        "가설 검증 방법(메모리 프로파일링, 이벤트 리스너 누수 확인 등)이 Stage 3에서 실행되는가?",
+        "Prove-It 원칙에 따라 재현 테스트가 FAIL을 먼저 확인한 후 수정이 이루어지는가?",
+        "간헐적 재현 문제에 대해 재현 조건을 명확히 특정하려는 시도가 있는가?"
+      ]
+    }
+  ]
+}

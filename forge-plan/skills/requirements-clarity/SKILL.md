@@ -268,6 +268,32 @@ Thank you for the additional information!
 [If score ≥ 90: "Perfect! I will now generate the complete PRD document..."]
 ```
 
+### Advisor 발화 (경계 케이스)
+
+다음 조건 중 하나일 때 AND `FORGE_ADVISOR_AUTO` ≠ `"off"`:
+- 업데이트 점수 **80~89점** (PRD 생성 임계값 직전 경계)
+- **YAGNI Check와 KISS Check 충돌**: YAGNI("Why?") 판정이 부정("필요 없을 수 있다")인데 사용자가 계속 진행 의사 표명 → 요구사항 의도 불명확 신호
+
+```
+Agent(
+  subagent_type="advisor-strategist",
+  prompt="""
+<맥락 (500토큰 이내)>
+- 현재 Clarity Score: {score}/100
+- 주요 감점 항목: {gaps}
+- YAGNI 판정 요약: {yagni_result}
+- KISS 제안: {kiss_suggestion}
+- 충돌 내용: {conflict_description}
+
+질문:
+1. 이 요구사항의 놓치기 쉬운 모호성 1~2개.
+2. PRD 생성으로 진행해야 하는지, 추가 라운드가 필요한지 의견 + 핵심 근거 1~2개만.
+"""
+)
+```
+
+Advisor 응답 → PRD의 `## Advisor 조언` 섹션에 첨부.
+
 ### Step 4: PRD Generation
 
 Once clarity score ≥ 90, generate comprehensive PRD.
@@ -406,6 +432,38 @@ Use the `Write` tool to create or update this file. Derive `{version}` from the 
 - User approves final PRD
 - Ready for development handoff
 
+
+---
+
+## Spec Ambiguity Scan & Auto-Clear (doc-oracle-pev C3)
+
+forge-implement 진입 전 C3 hook(`spec-ambiguity-gate`) 선결조건 충족용 모드.
+`.specify/specs/*.md` 대상으로 호출 시 ambiguity scan → 마커 자동 생성 또는 Human 명확화 요청.
+
+### 호출 패턴
+```
+/requirements-clarity --spec .specify/specs/{feature}.spec.md
+```
+
+### Ambiguity Scan 절차
+
+1. **FR 전수 스캔**: Spec 파일의 모든 Functional Requirement 항목 검사
+   - 불명확: "빠르게", "충분히", "적절히" 등 측정 불가 표현
+   - 상충: 동일 기능에 두 FR이 서로 다른 동작 정의
+   - 미정의: 에러 케이스·경계값·예외 처리 누락
+   - **AI 임의해석·코드역산 금지** (AD-92-2)
+
+2. **판정 및 마커 처리**:
+   - **모호 항목 0** → `.specify/ambiguity-cleared.json` 자동 생성:
+     ```json
+     {"status": "cleared", "ambiguous": 0, "timestamp": "YYYY-MM-DDTHH:MM:SSZ"}
+     ```
+     → C3 hook 자동 통과, forge-implement 진입 가능
+   - **모호 ≥ 1** → 마커 생성 X. 모호 항목 목록 출력 (FR-ID + 유형 + 명확화 제안).
+     Human 수정 완료 후 `/requirements-clarity --spec ...` 재실행.
+
+3. **마커 경로**: `{project_root}/.specify/ambiguity-cleared.json`
+   - 절대경로 사용 금지 — 현재 프로젝트 루트 기준 상대경로로 Write
 
 ---
 

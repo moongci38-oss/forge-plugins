@@ -1,0 +1,41 @@
+{
+  "skill_name": "api-e2e",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/api-e2e .specify/specs/auth.md --base-url http://localhost:3000 실행. Spec에 POST /auth/login, GET /auth/me, DELETE /auth/logout 3개 엔드포인트. 각각 4종 케이스 생성 후 curl로 실행하라",
+      "expected_output": "3 엔드포인트 × 4 케이스 = 12개 테스트, happy path/인증실패/잘못된입력/경계값, 결과 리포트",
+      "expectations": [
+        "각 엔드포인트마다 happy path/인증실패/잘못된입력/경계값 4종 케이스가 생성되는가?",
+        "curl 명령에 status code와 응답시간(time_total)이 모두 수집되는가?",
+        "실제 status code와 기대 status code가 비교되어 PASS/FAIL이 결정되는가?",
+        "리포트가 forge-outputs/docs/qa/YYYY-MM-DD-auth-api-e2e-report.md 경로에 저장되는가?",
+        "서버 연결 불가 시 'base-url 확인' 안내 후 SKIP 처리가 되는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/api-e2e openapi.yaml 실행. GET /users/:id의 happy path 응답에 스펙 미정의 필드 'internalId'와 'debugToken' 존재. 스키마 드리프트를 감지하라",
+      "expected_output": "WARN: schema-drift 감지, 스펙에 없는 응답 필드 목록, 내부 데이터 노출 경고",
+      "expectations": [
+        "OpenAPI 스펙 입력 시 응답 body를 schema와 자동 대조하는가?",
+        "'internalId'와 'debugToken'이 WARN: schema-drift로 감지되는가?",
+        "schema-drift WARN이 FAIL이 아닌 WARN 상태로 반환되는가(FAIL 아님)?",
+        "내부 데이터 노출 가능성 경고가 드리프트 항목에 명시되는가?",
+        "Spec.md 입력(OpenAPI 미입력) 시 Step 4 스키마 검증이 스킵되는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/api-e2e .specify/specs/payment.md 실행. POST /payment/charge에 Authorization 헤더 없이 요청 시 401 반환 확인. 인증 실패 케이스와 경계값(amount=-1) 케이스를 실행하라",
+      "expected_output": "인증 실패 케이스 401 PASS, 경계값(음수 금액) 400 또는 422 기대, 결과 테이블",
+      "expectations": [
+        "인증 실패 케이스(토큰 없음)에서 401 응답이 기대값과 일치하면 PASS가 되는가?",
+        "경계값(amount=-1) 케이스에서 400/422 기대 status code로 검증이 이루어지는가?",
+        "결과 테이블에 엔드포인트/케이스/기대/실제/결과/응답시간 6열이 모두 포함되는가?",
+        "FAIL 케이스에 대해 응답 body를 포함한 상세 설명이 리포트에 제공되는가?",
+        "/qa 파이프라인 연동 시 프로젝트가 API 타입이면 자동 호출이 되는가?"
+      ]
+    }
+  ]
+}

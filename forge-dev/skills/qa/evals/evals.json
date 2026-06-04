@@ -1,0 +1,41 @@
+{
+  "skill_name": "qa",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/qa --spec auth.md 실행. auth.md에 FR-01(로그인), FR-02(로그아웃), FR-03(세션 갱신) 3개 FR 존재. 각 FR에 happy path/edge/error 시나리오 생성 후 실행하라",
+      "expected_output": "3개 FR × 3 시나리오 = 9개 최소, PASS/FAIL 결과, Rubric 점수(70점 기준), QA 보고서 저장",
+      "expectations": [
+        "각 FR마다 최소 1개 이상의 시나리오(happy path 포함)가 생성되었는가?",
+        "시나리오 결과에 PASS/FAIL이 명확히 표시되어 있는가?",
+        "Rubric 4항목(기능성/코드품질/아키텍처/문서)이 가중 점수로 계산되었는가?",
+        "QA 보고서가 docs/qa/ 경로에 저장되었는가?",
+        "AI 슬롭 체크리스트(중복 로직, 미사용 코드 등)가 확인되었는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "QA Cycle 1에서 FR-02 로그아웃 테스트가 FAIL(세션 삭제 미작동). Cycle 2 재검증 로직을 실행하라. 수정 후 재실행 결과와 regression 확인 포함",
+      "expected_output": "Cycle 2 재검증 — 수정 시나리오만 재실행, 기존 PASS 항목 regression 확인, 최종 PASS/FAIL 결정",
+      "expectations": [
+        "Cycle 1 FAIL 시나리오만 대상으로 Cycle 2가 실행되는가?",
+        "수정 후 해당 시나리오가 PASS로 전환되었는지 확인하는가?",
+        "기존 PASS 항목에 regression이 없음을 verify.sh 등으로 확인하는가?",
+        "2사이클 종료 후 FAIL 잔존 시 [STOP] Human 에스컬레이션을 명시하는가?",
+        "3회 연속 같은 항목 FAIL 시 구현 방식 변경 지시 로직이 포함되어 있는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "payment.ts 구현 산출물 QA 수행. 코드에 동일한 결제 검증 로직 3회 중복, 미사용 import 2개, 하드코딩된 API 키 발견. AI 슬롭 감지 및 판정하라",
+      "expected_output": "코드 품질 항목 0점(AI 슬롭 감지), 즉시 FAIL 판정, 위치+이유+방법 피드백",
+      "expectations": [
+        "AI 슬롭(중복 로직, 미사용 import) 감지 시 코드 품질 항목이 0점으로 처리되는가?",
+        "하드코딩된 API 키 발견 시 즉시 불합격 처리가 되는가?",
+        "피드백이 위치+이유+방법 3요소를 포함하는가? (예: 'payment.ts 45줄 — 토큰 검증 3회 중복 — validateToken() 공통 함수로 추출')",
+        "단순 '코드가 지저분합니다' 수준의 모호한 피드백 없이 구체적인가?",
+        "전체 Rubric 합산이 70점 미만으로 FAIL 판정이 올바른가?"
+      ]
+    }
+  ]
+}

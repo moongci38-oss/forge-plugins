@@ -1,0 +1,41 @@
+{
+  "skill_name": "visual-loop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/visual-loop http://localhost:3000/dashboard 실행. desktop 1440x900 스크린샷에서 navigation overflow 감지, mobile 375x667에서 버튼이 잘림. 정적 분석에서는 모두 PASS였음. Delta 분석하라",
+      "expected_output": "3 viewport 스크린샷, Gemini Vision 분석, 독립 Evaluator 판정, '시각 발견(정적 누락)' Delta 리포트",
+      "expectations": [
+        "정적 PASS였던 항목이 시각 분석에서 WARN/FAIL로 감지되어 '시각 발견'으로 분류되는가?",
+        "독립 Evaluator subagent가 Generator(Lead) 컨텍스트 없이 시각 결과만으로 판정하는가?",
+        "desktop/tablet/mobile 3 viewport 스크린샷이 모두 캡처되는가?",
+        "Delta 분석 테이블(정적결과/시각결과/판정/처리)이 리포트에 포함되는가?",
+        "Evaluator 최종 판정(PASS/FAIL)이 '시각 발견 2건 이상 OR P0 이슈 1건 이상' 기준으로 결정되는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/visual-loop http://localhost:3000/checkout --viewport=mobile 실행. dev server 미기동 상태(ECONNREFUSED 127.0.0.1:3000). 에러 처리 동작 확인하라",
+      "expected_output": "서버 미가동 감지 → 사용자에게 'npm run dev' 실행 안내 → 대기 없이 즉시 종료",
+      "expectations": [
+        "dev server 연결 실패(ECONNREFUSED) 감지 시 스크린샷 없이 즉시 종료하는가?",
+        "사용자에게 별도 터미널에서 'npm run dev' 실행을 안내하는가?",
+        "무한 대기나 retry 없이 즉시 종료 처리가 되는가?",
+        "--viewport=mobile 옵션이 인식되어 모바일만 검증 대상으로 한정되는가?",
+        "에러 상태에서도 불필요한 Gemini API 호출이 발생하지 않는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/visual-loop http://localhost:3000/game/lobby --viewport=desktop 실행. 독립 Evaluator가 시각 분석 결과를 검토하고 Step 6 자동 fix PR을 제안하라. 명확한 시각 발견 존재(헤더 overlap)",
+      "expected_output": "Evaluator 판정 FAIL, 변경 제안 PR diff 출력, [STOP] 게이트 실행, 사용자 승인 후 수정",
+      "expectations": [
+        "시각 발견이 명확한 경우(헤더 overlap) Evaluator가 FAIL 판정을 내리는가?",
+        "자동 fix PR diff가 출력되고 [STOP] 게이트 후 사용자 승인을 기다리는가?",
+        "사용자 승인 없이 파일이 자동 수정되지 않는가?",
+        "리포트가 forge-outputs/docs/reviews/visual-loop/ 경로에 저장되는가?",
+        "'절대 관대하게 보지 않는다' 원칙에 따라 Evaluator가 Generator 의도 추정 없이 판정하는가?"
+      ]
+    }
+  ]
+}

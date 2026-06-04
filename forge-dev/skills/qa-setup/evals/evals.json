@@ -1,0 +1,38 @@
+{
+  "skill_name": "qa-setup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Node.js 프로젝트에서 /qa 실행. 서버 미기동 상태, seed.sql 존재, scenarios.md 없음.",
+      "expected_output": "서버 자동 기동 (npm run dev) + seed.sql 주입 + gitnexus route_map으로 API 전수 발견 + scenarios.md 생성 + Phase 1 진입 허가",
+      "expectations": [
+        "서버 기동 후 ready 폴링(60s 이내) 완료",
+        "seed.sql 주입 로그 출력",
+        "scenarios.md에 발견된 모든 API 엔드포인트 등록",
+        "기대값 출처가 Spec FR 또는 [STOP] Human 입력 요청 — 코드 역산 없음",
+        "docs/qa/artifacts/ 디렉토리 생성됨"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "seed 파일이 없는 프로젝트에서 /qa 실행.",
+      "expected_output": "[STOP] — seed 파일 작성 필요 메시지 출력, Phase 1 진입 불가",
+      "expectations": [
+        "[STOP] 메시지에 seed 경로(seed.sql 또는 seed.ts) 명시",
+        "Phase 1 진입 차단됨",
+        "서버는 기동 완료 상태이어도 seed 없으면 블록"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "서버가 이미 3000번 포트에서 실행 중인 상태. qa-setup 재실행.",
+      "expected_output": "REUSE 감지 — 서버 새로 기동하지 않음. seed 재주입 후 scenarios.md 존재 확인 후 Phase 1 진입",
+      "expectations": [
+        "health check 성공 후 기존 서버 재사용 (새 프로세스 미기동)",
+        "/tmp/qa-server.pid 파일 덮어쓰기 없음",
+        "scenarios.md 이미 존재하면 Feature Discovery 건너뜀",
+        "seed 재주입은 항상 실행 (상태 격리)"
+      ]
+    }
+  ]
+}

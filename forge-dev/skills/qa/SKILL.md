@@ -327,6 +327,7 @@ for s in serial_cats:
 - DB seed 격리 (매 사이클 재주입)
 - API 전수 발견 (gitnexus route_map → scenarios.md)
 - verify.sh 생성 (인증 하네스 포함)
+- **oracle-manifest 감지** (`{project}/.specify/oracle-manifest.json`): 존재 시 T1 axis 5 scope 확장 (uiux 화면명세 포함) + oracle-pev 모드 활성화. `frontend_source=extracted` → uiux 검증 면제.
 - Phase 0 완료 조건 미충족 시 → **[STOP]** (진입 불가)
 
 ## Phase 1 — 테스트 실행 (메인 → 서브에이전트, 1레벨)
@@ -341,7 +342,7 @@ for s in serial_cats:
 | 2 | Response schema | OpenAPI 스키마 대조 | drift 0건 |
 | 3 | Server log ERROR/FATAL | tail -f server.log + grep | ERROR/FATAL 0건 (allowlist 외) |
 | 4 | **데이터 무결성** (5 하위) | (아래 참조) | 5개 모두 PASS |
-| 5 | Spec FR / API 계약 | spec-compliance-checker | FR-ID ↔ 엔드포인트 동작 |
+| 5 | Spec FR / API 계약 + oracle-PEV | spec-compliance-checker | FR-ID ↔ 엔드포인트 동작. oracle-manifest 존재 시: uiux 화면 scope 추가, `unmappedFRs` 출력 → PEV 라우팅 (미구현FR→forge-implement / 버그RED→healer / 디자인→직접Edit) |
 | 6 | Latency SLO | performance-checker | p95 < threshold |
 | 7 | 트랜잭션 정합 | 동시 요청 + race | 데드락/lost update 0건 |
 

@@ -1,0 +1,41 @@
+{
+  "skill_name": "benchmark",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/benchmark 실행. feature 브랜치 번들 크기 251KB, develop baseline 245KB(+2.4%). 테스트 시간 13.1s vs 12.3s(+6.5%). 모든 메트릭 +10% 미만. 비교 리포트를 생성하라",
+      "expected_output": "PASS verdict, PR 본문 삽입용 마크다운 테이블, Baseline/Current/Δ/Status 4열 포함",
+      "expectations": [
+        "번들 크기(+2.4%)와 테스트 시간(+6.5%) 변화량이 % 형식으로 계산되어 있는가?",
+        "두 메트릭 모두 +10% 미만이므로 PASS 판정이 부여되는가?",
+        "PR 본문 삽입용 마크다운 테이블(Metric/Baseline/Current/Δ/Status) 형식인가?",
+        "develop 브랜치를 baseline으로 측정한 후 복귀하는 git stash 프로세스가 포함되는가?",
+        "각 메트릭에 절대값뿐만 아니라 % 변화량이 모두 명시되어 있는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/benchmark 실행. feature 브랜치 번들 크기가 develop 대비 +31% 증가. 테스트 시간 +8%. FAIL 조건 확인 및 처리하라",
+      "expected_output": "FAIL verdict, 번들 크기 +31% > +25% 임계값 초과로 [STOP], 성능 최적화 필요 메시지",
+      "expectations": [
+        "번들 크기 +31%가 FAIL 임계값(+25%)을 초과함이 감지되는가?",
+        "+25% 초과 시 [STOP] 에스컬레이션과 '성능 최적화 필요' 메시지가 출력되는가?",
+        "테스트 시간 +8%는 PASS 범위이므로 PASS로 별도 표시되는가?",
+        "전체 판정이 번들 크기 FAIL로 인해 FAIL이 되는가?",
+        "Evaluator 원칙(관대하게 보지 않음)에 따라 임계값 초과를 정확히 판정하는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/benchmark 실행. release-config.json에 benchmarkEnabled: false 설정. 또는 변경 파일이 docs/*.md만 존재하는 PR. 스킵 조건 확인하라",
+      "expected_output": "benchmarkEnabled: false 또는 docs-only PR 감지 → 벤치마크 스킵, 사유 명시",
+      "expectations": [
+        "benchmarkEnabled: false 설정 감지 시 측정을 스킵하는가?",
+        "docs/config만 변경된 PR에서도 스킵이 적용되는가?",
+        "스킵 사유(benchmarkEnabled: false 또는 docs-only)가 사용자에게 명시되는가?",
+        "Hotfix 규모 PR에서도 스킵 처리가 되는가?",
+        "스킵 시 불필요한 git stash/checkout 동작이 실행되지 않는가?"
+      ]
+    }
+  ]
+}

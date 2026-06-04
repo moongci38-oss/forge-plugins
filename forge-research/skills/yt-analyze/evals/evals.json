@@ -1,0 +1,41 @@
+{
+  "skill_name": "yt-analyze",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Re-analyze the pre-extracted YouTube JSON for deeper system insights",
+      "expected_output": "Deep re-analysis with Steps 2-9 and ACHCE-tagged improvements",
+      "expectations": [
+        "기존 JSON 데이터 로드가 계획되어 있는가?",
+        "Step 2-9 분석(비판적 분석, 웹리서치, GTC, 시스템비교)이 포함되어 있는가?",
+        "GTC 게이트 검증이 언급되어 있는가?",
+        "시스템 개선 제안이 ACHCE 축에 매핑되어 있는가?",
+        "분석 결과 저장 경로가 명시되어 있는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run Steps 2-9 analysis on existing YouTube transcript data",
+      "expected_output": "Deep re-analysis with Steps 2-9 and ACHCE-tagged improvements",
+      "expectations": [
+        "기존 JSON 데이터 로드가 계획되어 있는가?",
+        "Step 2-9 분석(비판적 분석, 웹리서치, GTC, 시스템비교)이 포함되어 있는가?",
+        "GTC 게이트 검증이 언급되어 있는가?",
+        "시스템 개선 제안이 ACHCE 축에 매핑되어 있는가?",
+        "분석 결과 저장 경로가 명시되어 있는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Generate improvement proposals from previously extracted video analysis",
+      "expected_output": "Deep re-analysis with Steps 2-9 and ACHCE-tagged improvements",
+      "expectations": [
+        "기존 JSON 데이터 로드가 계획되어 있는가?",
+        "Step 2-9 분석(비판적 분석, 웹리서치, GTC, 시스템비교)이 포함되어 있는가?",
+        "GTC 게이트 검증이 언급되어 있는가?",
+        "시스템 개선 제안이 ACHCE 축에 매핑되어 있는가?",
+        "분석 결과 저장 경로가 명시되어 있는가?"
+      ]
+    }
+  ]
+}

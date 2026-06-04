@@ -1,0 +1,41 @@
+{
+  "skill_name": "yt",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Analyze this YouTube video: https://www.youtube.com/watch?v=example123",
+      "expected_output": "Full YouTube analysis pipeline with transcript, GTC verification, and system mapping",
+      "expectations": [
+        "트랜스크립트 추출 단계가 포함되어 있는가?",
+        "AI 분석(TL;DR, 비판적 분석, 팩트체크) 단계가 계획되어 있는가?",
+        "GTC 4단계 검증이 언급되어 있는가?",
+        "ACHCE 축 태깅 또는 시스템 개선 제안이 포함되어 있는가?",
+        "저장 경로 또는 Notion 등록이 계획되어 있는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Extract and analyze the transcript from a tech conference talk video",
+      "expected_output": "Full YouTube analysis pipeline with transcript, GTC verification, and system mapping",
+      "expectations": [
+        "트랜스크립트 추출 단계가 포함되어 있는가?",
+        "AI 분석(TL;DR, 비판적 분석, 팩트체크) 단계가 계획되어 있는가?",
+        "GTC 4단계 검증이 언급되어 있는가?",
+        "ACHCE 축 태깅 또는 시스템 개선 제안이 포함되어 있는가?",
+        "저장 경로 또는 Notion 등록이 계획되어 있는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run full YouTube video analysis pipeline on a game development tutorial",
+      "expected_output": "Full YouTube analysis pipeline with transcript, GTC verification, and system mapping",
+      "expectations": [
+        "트랜스크립트 추출 단계가 포함되어 있는가?",
+        "AI 분석(TL;DR, 비판적 분석, 팩트체크) 단계가 계획되어 있는가?",
+        "GTC 4단계 검증이 언급되어 있는가?",
+        "ACHCE 축 태깅 또는 시스템 개선 제안이 포함되어 있는가?",
+        "저장 경로 또는 Notion 등록이 계획되어 있는가?"
+      ]
+    }
+  ]
+}

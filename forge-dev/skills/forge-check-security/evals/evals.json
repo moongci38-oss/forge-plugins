@@ -1,0 +1,39 @@
+{
+  "skill_name": "forge-check-security",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "intofeel 프로젝트 보안 스캔 실행. 프로젝트 루트: /home/damools/mywsl_workspace/intofeel",
+      "expected_output": "docs/qa/security-report.md 생성. 판정: PASS 또는 WARN. CRITICAL 0건.",
+      "expectations": [
+        "check-security.sh 스크립트 실행",
+        "docs/qa/security-report.md 생성됨",
+        "CRITICAL 0건 → FAIL 아님",
+        "하드코딩 시크릿 스캔 항목 포함",
+        "최종 판정(PASS/WARN/FAIL) 명시"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "하드코딩된 api_key='sk-1234abcd' 가 있는 파일이 포함된 프로젝트 스캔",
+      "expected_output": "판정: FAIL. CRITICAL 1건 이상. S1 패턴 감지.",
+      "expectations": [
+        "S1(하드코딩 시크릿) CRITICAL 등급으로 감지",
+        "파일명과 라인 번호 명시",
+        "최종 판정 FAIL",
+        "수정 방법 제시 (환경변수 이동)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "HIGH 취약점만 있는 프로젝트 스캔 (CRITICAL 없음)",
+      "expected_output": "판정: WARN. CRITICAL 0건 HIGH 1건 이상. Phase 4 Human 확인 안내.",
+      "expectations": [
+        "최종 판정 WARN (FAIL 아님)",
+        "HIGH 항목 리포트에 명시",
+        "CRITICAL 0건 확인",
+        "Phase 4 PR 본문 기록 안내 포함"
+      ]
+    }
+  ]
+}
