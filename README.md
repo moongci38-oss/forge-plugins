@@ -167,10 +167,12 @@ cd ~/forge-plugins-repo && git pull
 | 스킬 | 사용법 | 설명 |
 |------|--------|------|
 | `/qa` | `/qa` | QA 파이프라인 실행 |
+| `/qa-setup` | `/qa-setup` | QA 환경 초기 설정 |
 | `/healer` | `/healer` | 버그 자동 수정 |
 | `/investigate` | `/investigate <증상>` | 버그 원인 분석 |
 | `/api-e2e` | `/api-e2e` | API E2E 테스트 |
 | `/playwright-cli` | `/playwright-cli` | Playwright 브라우저 테스트 |
+| `/playwright-parallel-test` | `/playwright-parallel-test` | Playwright 병렬 테스트 |
 | `/bug-report` | `/bug-report` | 버그 리포트 생성 |
 | `/unit-test-gen` | `/unit-test-gen <파일>` | 유닛 테스트 자동 생성 |
 | `/benchmark` | `/benchmark` | 성능 벤치마크 |
@@ -179,6 +181,12 @@ cd ~/forge-plugins-repo && git pull
 | `/migration-audit` | `/migration-audit` | DB 마이그레이션 감사 |
 | `/pre-mortem` | `/pre-mortem` | 사전 위험 분석 |
 | `/forge-check-security` | `/forge-check-security` | 보안 체크 |
+| `/spec-compliance-checker` | `/spec-compliance-checker` | Spec 준수 여부 검증 |
+| `/inspection-checklist` | `/inspection-checklist` | 코드 인스펙션 체크리스트 |
+| `/screenshot-analyze` | `/screenshot-analyze <이미지>` | 스크린샷 UI 분석 |
+| `/visual-loop` | `/visual-loop` | 시각적 반복 검증 |
+| `/codex-review` | `/codex-review <파일>` | Codex 단독 코드 리뷰 |
+| `/agent-drift-auditor` | `/agent-drift-auditor` | 에이전트 드리프트 감사 |
 | `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa 순서) |
 
 ### forge-plan (기획자/PM)
@@ -194,13 +202,13 @@ cd ~/forge-plugins-repo && git pull
 
 ### forge-research (리서처)
 
-| 스킬 | 사용법 | 설명 |
-|------|--------|------|
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
 | `/article` | `/article <URL>` | 기사 분석 |
 | `/yt` | `/yt <URL>` | YouTube 영상 분석 |
+| `/yt-analyze` | `/yt-analyze <URL>` | YouTube 심층 분석 |
 | `/rag-search` | `/rag-search <질문>` | 프로젝트 자료 검색 |
 | `/site-deep-analyze` | `/site-deep-analyze <URL>` | 사이트 심층 분석 |
-| `/weekly-research` | `/weekly-research` | 주간 리서치 파이프라인 |
 
 ### forge-design (디자이너)
 
@@ -214,9 +222,9 @@ cd ~/forge-plugins-repo && git pull
 
 | 스킬 | 사용법 | 설명 |
 |------|--------|------|
-| `/gdd` | `/gdd <게임명>` | GDD(게임 디자인 문서) 작성 |
 | `/game-qa` | `/game-qa` | 게임 QA 파이프라인 |
 | `/game-asset-pipeline` | `/game-asset-pipeline` | 게임 에셋 파이프라인 |
+| `/game-asset-generate` | `/game-asset-generate` | 게임 에셋 생성 |
 | `/asset-extract` | `/asset-extract` | Unity 에셋 추출 |
 
 ### 빠른 시작 예시
