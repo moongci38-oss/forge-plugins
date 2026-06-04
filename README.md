@@ -157,9 +157,17 @@ cd ~/forge-plugins-repo && git pull
 
 ### forge-core (모든 역할 공통)
 
-| 스킬 | 사용법 | 설명 |
-|------|--------|------|
-| `/cr-multi` | `/cr-multi <파일경로>` | 멀티 모델 검수 오케스트레이터 — `/cr-double` (Codex+Gemini) / `/cr-triple` (Opus+Codex+Gemini) 포함 |
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
+| `/cr-triple` | `/cr-triple <파일>` | Opus+Codex+Gemini 3중 검수 (중요 Spec/PR) |
+| `/cr-double` | `/cr-double <파일>` | Codex+Gemini 2중 검수 (기본) |
+| `/cr-multi` | `/cr-multi <파일>` | 멀티 검수 오케스트레이터 (double/triple 통합) |
+| `/cr-code` | `/cr-code <파일>` | 코드 전용 검수 |
+| `/cr-plan` | `/cr-plan <파일>` | 계획서/ADR 검수 |
+| `/cr-bug` | `/cr-bug <파일>` | 버그 리포트 검수 |
+| `/cr-test` | `/cr-test <파일>` | 테스트 코드 검수 |
+| `/cr-analysis` | `/cr-analysis <파일>` | 분석 문서 검수 |
+| `/cr-final` | `/cr-final <PR번호>` | PR 머지 직전 최종 검수 (blocking) |
 | `/approve-worker` | `/approve-worker` | forge 승인 워커 실행 |
 
 ### forge-dev (개발자)

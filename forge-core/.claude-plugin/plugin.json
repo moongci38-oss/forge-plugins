@@ -6,6 +6,7 @@
     "name": "forge"
   },
   "skills": "./skills/",
+  "commands": "./commands/",
   "hooks": {
     "SessionStart": [
       {
