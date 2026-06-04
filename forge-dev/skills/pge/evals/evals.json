@@ -1,0 +1,41 @@
+{
+  "skill_name": "pge",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/pge '결제 API /payment/charge 엔드포인트 구현' 실행. Sprint Contract 작성(scope: 결제 API, out_of_scope: 환불/이력, done_criteria: 단위테스트 PASS + Stripe sandbox 성공). Phase 0~4 전체 실행하라",
+      "expected_output": "PGE_SPEC.md 생성, Generator 구현, QA subagent 실행, Evaluator subagent 독립 판정, 최종 PGE 보고서",
+      "expectations": [
+        "Sprint Contract(scope/out_of_scope/done_criteria/rollback_trigger)가 Phase 0에서 명시되는가?",
+        "Planner+Generator는 메인 컨텍스트에서 실행되고 Evaluator만 subagent로 격리되는가?",
+        "PGE_SPEC.md가 .claude/state/에 저장되는가?",
+        "Evaluator가 Generator의 의도/가정 없이 코드 자체만으로 독립 판정하는가?",
+        "PGE 실행 보고서(QA 반복 횟수/최종 점수/실행 흐름)가 docs/pge/에 저장되는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "PGE Evaluator가 Cycle 1에서 FAIL 판정(요구사항 충족도 45점 — 핵심 엔드포인트 누락). Cycle 2 피드백 루프를 실행하라. PGE_QA_REPORT.md를 메인 컨텍스트가 읽고 Generator 재실행",
+      "expected_output": "Cycle 2 Generator 재실행, 이전 FAIL 원인 current-analysis.md에 기록, 동일 실수 방지 후 재평가",
+      "expectations": [
+        "Evaluator FAIL 후 PGE_QA_REPORT.md가 메인 컨텍스트로 전달되어 Generator가 재실행되는가?",
+        "이전 시도 실패 이력이 current-analysis.md '## 이전 시도 실패 이력' 섹션에 기록되는가?",
+        "Cycle 2에서 같은 실수(핵심 엔드포인트 누락)를 반복하지 않는가?",
+        "최대 3사이클 제한이 있고, 3회 FAIL 시 [STOP] Human 에스컬레이션이 발생하는가?",
+        "Codex Phase 4.5 자동 리뷰가 Evaluator 점수 80점+ 시 medium effort로 실행되는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/pge --rubric custom pge-security-rubric.yaml 실행. 보안 강화 rubric(OWASP 체크 추가) 적용. Rubric 교체 시 supersedes 표기 확인",
+      "expected_output": "커스텀 rubric 적용, OWASP 축 추가 채점, supersedes 메타데이터 포함",
+      "expectations": [
+        "--rubric 옵션으로 커스텀 yaml이 로드되어 적용되는가?",
+        "커스텀 rubric의 OWASP 등 추가 축이 채점에 반영되는가?",
+        "Evaluator subagent가 커스텀 rubric 기준으로 독립 평가를 수행하는가?",
+        "rubric yaml 변경 시 supersedes 표기가 확인/요구되는가?",
+        "커스텀 rubric으로도 PASS 기준(70점 이상 + 즉시 FAIL 없음)이 올바르게 적용되는가?"
+      ]
+    }
+  ]
+}
