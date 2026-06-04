@@ -18,7 +18,7 @@
     {
       "name": "forge-dev",
       "slug": "forge-dev",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Forge 개발 파이프라인 — QA/헬러/보안검수/성능/playwright/MAS 검수. Phase 1~12 도구.",
       "path": "./forge-dev",
       "dependencies": [
