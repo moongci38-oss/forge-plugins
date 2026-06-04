@@ -187,6 +187,8 @@ cd ~/forge-plugins-repo && git pull
 | `/visual-loop` | `/visual-loop` | 시각적 반복 검증 |
 | `/codex-review` | `/codex-review <파일>` | Codex 단독 코드 리뷰 |
 | `/agent-drift-auditor` | `/agent-drift-auditor` | 에이전트 드리프트 감사 |
+| `/pge` | `/pge <목표>` | Plan-Generate-Execute — 복잡한 구현 자동화 |
+| `/forge-fix` | `/forge-fix <이슈설명>` | Hotfix 흐름으로 빠른 버그 처리 |
 | `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa 순서) |
 
 ### forge-plan (기획자/PM)
