@@ -5,7 +5,7 @@
     {
       "name": "forge-core",
       "slug": "forge-core",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Forge 시스템 핵심 스킬 + MCP 서버 + 온보딩 훅. 6-plugin 패키지의 공통 기반.",
       "path": "./forge-core",
       "dependencies": [],
@@ -49,7 +49,7 @@
     {
       "name": "forge-research",
       "slug": "forge-research",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Forge 리서치 도구 — article/yt/site-deep-analyze/rag-search. 분석·지식 파이프라인.",
       "path": "./forge-research",
       "dependencies": [
@@ -79,7 +79,7 @@
     {
       "name": "forge-game",
       "slug": "forge-game",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Forge 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract. GodBlade/Unity 전용.",
       "path": "./forge-game",
       "dependencies": [

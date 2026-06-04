@@ -1,6 +1,6 @@
 {
   "name": "forge-game",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Forge 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract. GodBlade/Unity 전용.",
   "author": {"name": "forge"},
   "dependencies": ["forge-core", "forge-design"],
