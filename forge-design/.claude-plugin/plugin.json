@@ -2,8 +2,11 @@
   "name": "forge-design",
   "version": "0.1.0",
   "description": "Forge 디자인 도구 — figma-sync/image-orchestrate/multiformat-image. UI·에셋 파이프라인.",
-  "author": {"name": "forge"},
-  "dependencies": ["forge-core"],
-  "skills": "./skills/",
-  "agents": "./agents/"
+  "author": {
+    "name": "forge"
+  },
+  "dependencies": [
+    "forge-core"
+  ],
+  "skills": "./skills/"
 }
