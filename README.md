@@ -250,6 +250,9 @@ cd ~/forge-plugins-repo && git pull
 | `/pge` | `/pge <목표>` | Plan-Generate-Execute — 복잡한 구현 자동화 |
 | `/forge-fix` | `/forge-fix <이슈설명>` | Hotfix 흐름으로 빠른 버그 처리 |
 | `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa 순서) |
+| `/forge-pr` | `/forge-pr` | PR 자동 생성 (Check 9 기준 검증 + gh pr create) |
+| `/forge-check-traceability` | `/forge-check-traceability` | 추적성 체크 (Spec → 코드 → 테스트 연결 검증) |
+| `/forge-check-ui` | `/forge-check-ui` | UI 품질 체크 (Lighthouse/a11y 기준) |
 
 ### forge-plan (기획자/PM)
 
