@@ -5,7 +5,7 @@
     {
       "name": "forge-core",
       "slug": "forge-core",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "description": "Forge 시스템 핵심 스킬 + MCP 서버 + 온보딩 훅. 6-plugin 패키지의 공통 기반.",
       "path": "./forge-core",
       "dependencies": [],
@@ -18,7 +18,7 @@
     {
       "name": "forge-dev",
       "slug": "forge-dev",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "description": "Forge 개발 파이프라인 — QA/헬러/보안검수/성능/playwright/MAS 검수. Phase 1~12 도구.",
       "path": "./forge-dev",
       "dependencies": [
@@ -49,7 +49,7 @@
     {
       "name": "forge-research",
       "slug": "forge-research",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "description": "Forge 리서치 도구 — article/yt/site-deep-analyze/rag-search. 분석·지식 파이프라인.",
       "path": "./forge-research",
       "dependencies": [
@@ -64,7 +64,7 @@
     {
       "name": "forge-design",
       "slug": "forge-design",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Forge 디자인 도구 — figma-sync/image-orchestrate/multiformat-image. UI·에셋 파이프라인.",
       "path": "./forge-design",
       "dependencies": [

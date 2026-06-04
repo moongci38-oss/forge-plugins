@@ -1,8 +1,0 @@
-{
-  "skill_name": "multiformat-image",
-  "evals": [
-    {"id":1,"prompt":"/multiformat-image warrior-01.png webp","expected_output":"warrior-01.webp (smaller size)","expectations":["Pillow/ImageMagick 사용","RGBA 보존","파일 크기 감소"]},
-    {"id":2,"prompt":"/multiformat-image ./Effects/ sprite --cols 4","expected_output":"spritesheet.png (N×4 grid)","expectations":["모든 PNG 로드","4열 그리드 합성","RGBA 유지"]},
-    {"id":3,"prompt":"/multiformat-image nonexistent.png webp","expected_output":"ERROR: 파일 없음","expectations":["파일 존재 확인","exit 1","에러 메시지"]}
-  ]
-}
