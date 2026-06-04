@@ -237,12 +237,9 @@ cd ~/forge-plugins-repo && git pull
 | `/playwright-cli` | `/playwright-cli` | Playwright 브라우저 테스트 |
 | `/playwright-parallel-test` | `/playwright-parallel-test` | Playwright 병렬 테스트 |
 | `/bug-report` | `/bug-report` | 버그 리포트 생성 |
-| `/unit-test-gen` | `/unit-test-gen <파일>` | 유닛 테스트 자동 생성 |
 | `/benchmark` | `/benchmark` | 성능 벤치마크 |
-| `/load-test` | `/load-test` | 부하 테스트 |
 | `/canary` | `/canary` | 카나리 배포 모니터링 |
 | `/migration-audit` | `/migration-audit` | DB 마이그레이션 감사 |
-| `/pre-mortem` | `/pre-mortem` | 사전 위험 분석 |
 | `/forge-check-security` | `/forge-check-security` | 보안 체크 |
 | `/spec-compliance-checker` | `/spec-compliance-checker` | Spec 준수 여부 검증 |
 | `/inspection-checklist` | `/inspection-checklist` | 코드 인스펙션 체크리스트 |
