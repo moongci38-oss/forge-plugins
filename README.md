@@ -151,6 +151,87 @@ cd ~/forge-plugins-repo && git pull
 
 ---
 
+## 설치 후 사용법
+
+설치 완료 후 Claude Code 채팅창에서 `/` 입력하면 스킬 목록이 자동 표시됩니다.
+
+### forge-core (모든 역할 공통)
+
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/cr-multi` | `/cr-multi <파일경로>` | 멀티 모델 코드 검수 (Opus + Codex) |
+| `/approve-worker` | `/approve-worker` | forge 승인 워커 실행 |
+
+### forge-dev (개발자)
+
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/qa` | `/qa` | QA 파이프라인 실행 |
+| `/healer` | `/healer` | 버그 자동 수정 |
+| `/investigate` | `/investigate <증상>` | 버그 원인 분석 |
+| `/api-e2e` | `/api-e2e` | API E2E 테스트 |
+| `/playwright` | `/playwright` | Playwright 브라우저 테스트 |
+| `/forge-fix` | `/forge-fix <파일>` | 핫픽스 |
+| `/sdd` | `/sdd` | Spec 기반 개발 (spec-write → 구현 → qa → pr) |
+
+### forge-plan (기획자/PM)
+
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/spec-write` | `/spec-write <기능명>` | Spec 문서 작성 |
+| `/writing-plans` | `/writing-plans` | 기획서 작성 |
+| `/requirements-clarity` | `/requirements-clarity` | 요구사항 명확화 |
+| `/autoplan` | `/autoplan <목표>` | 자동 플랜 생성 |
+| `/forge-pr` | `/forge-pr` | PR 생성 |
+
+### forge-research (리서처)
+
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/article` | `/article <URL>` | 기사 분석 |
+| `/yt` | `/yt <URL>` | YouTube 영상 분석 |
+| `/rag-search` | `/rag-search <질문>` | 프로젝트 자료 검색 |
+| `/site-deep-analyze` | `/site-deep-analyze <URL>` | 사이트 심층 분석 |
+| `/weekly-research` | `/weekly-research` | 주간 리서치 파이프라인 |
+
+### forge-design (디자이너)
+
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 |
+| `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
+| `/multiformat-image` | `/multiformat-image <이미지>` | 이미지 포맷 변환 |
+
+### forge-game (게임 개발자)
+
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/gdd` | `/gdd <게임명>` | GDD(게임 디자인 문서) 작성 |
+| `/game-qa` | `/game-qa` | 게임 QA 파이프라인 |
+| `/game-asset-pipeline` | `/game-asset-pipeline` | 게임 에셋 파이프라인 |
+| `/asset-extract` | `/asset-extract` | Unity 에셋 추출 |
+
+### 빠른 시작 예시
+
+```
+# 코드 검수
+/cr-multi src/auth/login.ts
+
+# 버그 분석
+/investigate 로그인 시 토큰이 만료됨
+
+# 기사 분석
+/article https://techcrunch.com/...
+
+# 유튜브 요약
+/yt https://youtube.com/watch?v=...
+
+# Spec 작성 후 구현
+/spec-write 사용자 알림 기능
+```
+
+---
+
 ## 문제 해결
 
 ### 설치 후 스킬이 안 보임
