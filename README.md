@@ -108,6 +108,61 @@ claude plugin update forge-dev       # 설치한 것만
 
 ---
 
+## cr-* 커맨드 사전 조건
+
+`/cr-triple`, `/cr-double` 등 cr-* 계열은 **Codex MCP + Gemini MCP** 필수.
+MCP 없으면 cr-* 커맨드 동작 X.
+
+### Step 1 — API 키 환경변수 설정
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc 에 추가
+export OPENAI_API_KEY="sk-..."       # Codex MCP용
+export GEMINI_API_KEY="AIza..."      # Gemini MCP용
+```
+
+### Step 2 — MCP 서버 설치
+
+```bash
+# Codex MCP (npm 전역 설치)
+npm install -g @openai/codex
+
+# Gemini MCP (npx 자동 설치 — 별도 설치 불필요)
+```
+
+### Step 3 — ~/.claude.json MCP 서버 등록
+
+`~/.claude.json` 파일에 아래 추가:
+
+```json
+{
+  "mcpServers": {
+    "codex": {
+      "type": "stdio",
+      "command": "codex",
+      "args": ["mcp-server"],
+      "env": {}
+    },
+    "gemini": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@fre4x/gemini"],
+      "env": {
+        "GEMINI_API_KEY": "<your-gemini-api-key>"
+      }
+    }
+  }
+}
+```
+
+### Step 4 — Claude Code 재시작
+
+MCP 등록 후 재시작해야 적용됩니다.
+
+> MCP 없이도 forge-core 나머지 스킬과 forge-dev/plan/research/design/game 정상 동작.
+
+---
+
 ## MCP API 키 설정 (선택)
 
 `forge-core`는 Codex/Gemini MCP를 포함. 사용하려면 환경변수 설정:
