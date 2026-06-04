@@ -159,7 +159,7 @@ cd ~/forge-plugins-repo && git pull
 
 | 스킬 | 사용법 | 설명 |
 |------|--------|------|
-| `/cr-multi` | `/cr-multi <파일경로>` | 멀티 모델 코드 검수 (Opus + Codex) |
+| `/cr-multi` | `/cr-multi <파일경로>` | 멀티 모델 검수 오케스트레이터 — `/cr-double` (Codex+Gemini) / `/cr-triple` (Opus+Codex+Gemini) 포함 |
 | `/approve-worker` | `/approve-worker` | forge 승인 워커 실행 |
 
 ### forge-dev (개발자)
