@@ -170,19 +170,27 @@ cd ~/forge-plugins-repo && git pull
 | `/healer` | `/healer` | 버그 자동 수정 |
 | `/investigate` | `/investigate <증상>` | 버그 원인 분석 |
 | `/api-e2e` | `/api-e2e` | API E2E 테스트 |
-| `/playwright` | `/playwright` | Playwright 브라우저 테스트 |
-| `/forge-fix` | `/forge-fix <파일>` | 핫픽스 |
-| `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa → /forge-pr 순서) |
+| `/playwright-cli` | `/playwright-cli` | Playwright 브라우저 테스트 |
+| `/bug-report` | `/bug-report` | 버그 리포트 생성 |
+| `/unit-test-gen` | `/unit-test-gen <파일>` | 유닛 테스트 자동 생성 |
+| `/benchmark` | `/benchmark` | 성능 벤치마크 |
+| `/load-test` | `/load-test` | 부하 테스트 |
+| `/canary` | `/canary` | 카나리 배포 모니터링 |
+| `/migration-audit` | `/migration-audit` | DB 마이그레이션 감사 |
+| `/pre-mortem` | `/pre-mortem` | 사전 위험 분석 |
+| `/forge-check-security` | `/forge-check-security` | 보안 체크 |
+| `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa 순서) |
 
 ### forge-plan (기획자/PM)
 
-| 스킬 | 사용법 | 설명 |
-|------|--------|------|
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
 | `/spec-write` | `/spec-write <기능명>` | Spec 문서 작성 |
+| `/prd` | `/prd <제품명>` | PRD 작성 |
+| `/forge-plan` | `/forge-plan` | 기획 파이프라인 실행 |
 | `/writing-plans` | `/writing-plans` | 기획서 작성 |
 | `/requirements-clarity` | `/requirements-clarity` | 요구사항 명확화 |
 | `/autoplan` | `/autoplan <목표>` | 자동 플랜 생성 |
-| `/forge-pr` | `/forge-pr` | PR 생성 |
 
 ### forge-research (리서처)
 
