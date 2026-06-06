@@ -23,12 +23,12 @@ Forge Claude Code Plugin Marketplace — 6개 플러그인 패키지.
 
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
-| **forge-core** | v0.1.0 | 핵심 인프라 — cr-multi/approve-worker + 온보딩 훅 + 규칙 3종 | 없음 (기반) |
-| **forge-dev** | v0.1.0 | 개발 파이프라인 — qa/healer/investigate/api-e2e/playwright (21 skills, 10 agents) | forge-core |
-| **forge-plan** | v0.1.0 | 기획 파이프라인 — spec-write/writing-plans/requirements-clarity/autoplan | forge-core |
-| **forge-research** | v0.1.0 | 리서치 — article/yt/rag-search/site-deep-analyze | forge-core |
-| **forge-design** | v0.1.0 | 디자인 — figma-sync/image-orchestrate/multiformat-image | forge-core |
-| **forge-game** | v0.1.0 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
+| **forge-core** | v0.1.2 | 핵심 인프라 — cr-multi/approve-worker + 온보딩 훅 + 규칙 3종 | 없음 (기반) |
+| **forge-dev** | v0.1.2 | 개발 파이프라인 — qa/healer/investigate/api-e2e/playwright (21 skills, 10 agents) | forge-core |
+| **forge-plan** | v0.1.1 | 기획 파이프라인 — spec-write/writing-plans/requirements-clarity/autoplan | forge-core |
+| **forge-research** | v0.1.2 | 리서치 — article/yt/rag-search/site-deep-analyze | forge-core |
+| **forge-design** | v0.1.1 | 디자인 — figma-sync/image-orchestrate | forge-core |
+| **forge-game** | v0.1.1 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
 
 ---
 
@@ -271,7 +271,6 @@ cd ~/forge-plugins-repo && git pull
 |------------|--------|------|
 | `/article` | `/article <URL>` | 기사 분석 |
 | `/yt` | `/yt <URL>` | YouTube 영상 분석 |
-| `/yt-analyze` | `/yt-analyze <URL>` | YouTube 심층 분석 |
 | `/rag-search` | `/rag-search <질문>` | 프로젝트 자료 검색 |
 | `/site-deep-analyze` | `/site-deep-analyze <URL>` | 사이트 심층 분석 |
 
@@ -281,7 +280,6 @@ cd ~/forge-plugins-repo && git pull
 |------|--------|------|
 | `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 |
 | `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
-| `/multiformat-image` | `/multiformat-image <이미지>` | 이미지 포맷 변환 |
 
 ### forge-game (게임 개발자)
 
@@ -375,7 +373,7 @@ forge-plugins-repo/
 │   ├── commands/                      — weekly-research
 │   └── agents/                        — 7개 (yt-video-analyst/fact-checker 등)
 ├── forge-design/
-│   ├── skills/                        — figma-design-sync/image-orchestrate/multiformat-image
+│   ├── skills/                        — figma-design-sync/image-orchestrate
 │   └── agents/                        — 2개 (screenshot-business-analyzer 등)
 └── forge-game/
     ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
@@ -385,6 +383,17 @@ forge-plugins-repo/
 ---
 
 ## Changelog
+
+### v0.1.2 (2026-06-05)
+- forge-core: B2 게이트 + gemini-text 레그 변경분 반영
+- forge-dev: gemini-text MCP 정합 업데이트
+- forge-research: `yt-analyze` 제거 (Tier C 개인 워크플로우, 팀 공용 아님)
+- SHA-256 테스트 증명(AD-161) + MCP 파라미터 검증 반영
+
+### v0.1.1 (2026-06-04)
+- forge-plan / forge-design / forge-game: SSoT refresh (81개 항목 갱신)
+- forge-design: `multiformat-image` 제거 (Tier D, image-orchestrate와 중복)
+- forge-dev / forge-plan: 버전 bump (v0.1.0 → v0.1.1)
 
 ### v0.1.0 (2026-06-02)
 - forge-core / forge-dev / forge-plan / forge-research / forge-design / forge-game 최초 패키징
