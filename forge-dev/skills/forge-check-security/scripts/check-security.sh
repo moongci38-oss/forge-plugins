@@ -105,6 +105,29 @@ except: print(0)
   fi
 fi
 
+# S7: 취약 의존성 (Python) (HIGH) — pip-audit if available
+if command -v pip-audit &>/dev/null; then
+  PIP_VULN=0
+  if [ -f "$TARGET/requirements.txt" ]; then
+    PIP_VULN=$(pip-audit --format=json --progress-spinner off -r "$TARGET/requirements.txt" 2>/dev/null | python3 -c "
+import json,sys
+try:
+  d=json.load(sys.stdin); deps=d.get('dependencies',[]) if isinstance(d,dict) else d
+  print(sum(len(x.get('vulns',[])) for x in deps))
+except: print(0)" 2>/dev/null || echo 0)
+  elif [ -f "$TARGET/pyproject.toml" ]; then
+    PIP_VULN=$( (cd "$TARGET" && pip-audit --format=json --progress-spinner off 2>/dev/null) | python3 -c "
+import json,sys
+try:
+  d=json.load(sys.stdin); deps=d.get('dependencies',[]) if isinstance(d,dict) else d
+  print(sum(len(x.get('vulns',[])) for x in deps))
+except: print(0)" 2>/dev/null || echo 0)
+  fi
+  if [ "${PIP_VULN:-0}" -gt 0 ]; then
+    add_finding "HIGH" "S7" "requirements.txt/pyproject.toml" "-" "pip-audit: ${PIP_VULN}개 취약 Python 의존성 (OSV)" "pip-audit --fix 또는 해당 패키지 업데이트"
+  fi
+fi
+
 # 최종 판정
 if [ "$CRITICAL" -gt 0 ]; then
   VERDICT="FAIL"

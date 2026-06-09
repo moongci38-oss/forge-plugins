@@ -1,9 +1,9 @@
-// root-cause: S1~S6 보안 스캔 6종 parallel() 수행 → CRITICAL 즉시 차단. 계획서 P1.
+// root-cause: S1~S7 보안 스캔 7종 parallel() 수행 → CRITICAL 즉시 차단. 계획서 P1.
 export const meta = {
   name: 'forge-check-security',
-  description: 'OWASP Top 10 보안 스캔 — S1~S6 6종 parallel() + CRITICAL/HIGH/MEDIUM 등급 리포트',
+  description: 'OWASP Top 10 보안 스캔 — S1~S7 7종 parallel() + CRITICAL/HIGH/MEDIUM 등급 리포트',
   phases: [
-    { title: 'Scan', detail: 'S1(시크릿)~S6(취약의존성) 6종 병렬 정적 분석' },
+    { title: 'Scan', detail: 'S1(시크릿)~S7(취약Python의존성) 7종 병렬 정적 분석' },
     { title: 'Report', detail: '등급 집계 + PASS/WARN/FAIL 판정 + docs/qa/security-report.md 생성' },
   ],
 }
@@ -38,9 +38,11 @@ const SCANS = [
   { id: 'S4', name: '민감 데이터 로그', desc: 'console.log + password/token 패턴 (MEDIUM)' },
   { id: 'S5', name: 'XSS 위험', desc: 'innerHTML 미검증 입력 패턴 (MEDIUM)' },
   { id: 'S6', name: '취약 의존성', desc: 'npm audit CRITICAL/HIGH 결과 (HIGH)' },
+  // root-cause: S7 추가 — pip-audit OSV Python 의존성 취약점 검사 (S6 npm 대응)
+  { id: 'S7', name: '취약 의존성 (Python)', desc: 'pip-audit OSV 취약 Python 의존성 (HIGH)' },
 ]
 
-// ── Phase 1: Scan (S1~S6 parallel) ────────────────────────────────────────────
+// ── Phase 1: Scan (S1~S7 parallel) ────────────────────────────────────────────
 phase('Scan')
 const results = await parallel(SCANS.map(s => () =>
   agent(
@@ -58,7 +60,7 @@ if (valid.length === 0) {
   log('[FAIL] 전 스캔 실패 — 보안 감사 불가')
   return { verdict: 'FAIL', error: 'all_scans_failed' }
 }
-if (valid.length < SCANS.length) log(`[WARN] 스캔 ${valid.length}/${SCANS.length} — 부분 보안 감사`)
+if (valid.length < SCANS.length) log(`[WARN] 스캔 ${valid.length}/${SCANS.length} — 부분 보안 감사 (S7 pip-audit 미설치 시 정상)`) // root-cause: S7 pip-audit 미설치 환경 graceful 처리
 const report = await agent(
   `보안 스캔 결과 집계 + docs/qa/security-report.md 생성. ` +
   `스캔 결과: ${JSON.stringify(valid)}. ` +

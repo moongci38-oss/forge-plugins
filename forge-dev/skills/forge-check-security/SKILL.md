@@ -34,13 +34,14 @@ bash ~/forge/.claude/skills/forge-check-security/scripts/check-security.sh "$TAR
 | S4 | 민감 데이터 로그 | MEDIUM | console.log + password/token |
 | S5 | XSS 위험 | MEDIUM | innerHTML 미검증 입력 |
 | S6 | 취약 의존성 | HIGH | npm audit CRITICAL/HIGH |
+| S7 | 취약 의존성 (Python) | HIGH | pip-audit / OSV 취약 Python 의존성 |
 
 ### 3. 등급 판정
 
 | 등급 | 조건 | QA 게이트 행동 |
 |------|------|--------------|
 | CRITICAL | S1 하드코딩 / S2 고위험 | FAIL — Phase 1 즉시 [STOP] |
-| HIGH | S2 중위험 / S3 인증 누락 / S6 취약 의존성 | WARN — Phase 4 Human 확인 |
+| HIGH | S2 중위험 / S3 인증 누락 / S6 취약 의존성 / S7 Python 취약 의존성 | WARN — Phase 4 Human 확인 |
 | MEDIUM | S4 로그 노출 / S5 XSS | 리포트 기록만 |
 | LOW | 경고성 패턴 | 리포트 기록만 |
 
@@ -102,6 +103,6 @@ Evaluator 역할: 산출물 독립 검증
 eval_cases.jsonl에 결과 자동 누적.
 
 ## Workflow 통합 (계획서 P1)
-병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() S1~S6 6종 보안 스캔 → 집계.
+병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() S1~S7 7종 보안 스캔 → 집계.
 실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-check-security/workflow.js"), args: { target } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 check-security.sh 방식 fallback.
