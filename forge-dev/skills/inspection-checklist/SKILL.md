@@ -1,29 +1,29 @@
 ---
 name: inspection-checklist
-description: "Forge Dev 파이프라인 모든 Check(8.5, 8.6, 8.7, 8.8)를 통합한 최종 검수 체크리스트를 생성한다. Phase 8 모든 Check 완료 후 PR 생성 직전 또는 릴리스 전 최종 점검 시 실행. 빌드/테스트, Spec 추적성, UI 품질, 코드 리뷰, 보안 5개 영역을 종합 판정한다."
+description: "Forge Dev P5 모든 Check(P5.5, P5.6, P5.7, P5.8)를 통합한 최종 검수 체크리스트를 생성한다. P5 모든 Check 완료 후 PR 생성 직전 또는 릴리스 전 최종 점검 시 실행. 빌드/테스트, Spec 추적성, UI 품질, 코드 리뷰, 보안 5개 영역을 종합 판정한다."
 context: fork
 agent: general-purpose
 model: haiku
 ---
 
-**역할**: 당신은 Forge Dev Phase 8의 모든 Check(8.5, 8.6, 8.7, 8.8)를 통합한 최종 검수 전문가입니다.
+**역할**: 당신은 Forge Dev P5의 모든 Check(P5.5, P5.6, P5.7, P5.8)를 통합한 최종 검수 전문가입니다.
 **컨텍스트**: PR 생성 직전 또는 릴리스 전 최종 점검 시 호출됩니다.
 **출력**: 빌드/테스트/Spec/UI/보안 5개 영역 PASS/WARN/FAIL 체크리스트을 반환합니다.
 
 # Inspection Checklist
 
 Forge Dev 파이프라인의 모든 Check를 통합한 최종 검수 체크리스트를 생성하는 스킬.
-PR 생성 전(Phase 9 직전) 또는 릴리즈 전 최종 점검에 사용된다.
+PR 생성 전(P6 진입 직전) 또는 릴리즈 전 최종 점검에 사용된다.
 
 ## 사용 시점
 
-- Phase 8의 모든 Check (8.5, 8.6, 8.7, 8.8) 완료 후
-- Phase 9 PR 생성 직전 최종 검수
+- P5의 모든 Check (P5.5, P5.6, P5.7, P5.8) 완료 후
+- P6 PR 생성 직전 최종 검수
 - 릴리즈 전 종합 점검
 
 ## 체크리스트 항목
 
-### 1. 빌드/테스트 (Check 8)
+### 1. 빌드/테스트 (Check P5)
 
 - [ ] `verify.sh code` 통과 (빌드 성공)
 - [ ] `verify.sh test` 통과 (전체 테스트 PASS)
@@ -31,14 +31,14 @@ PR 생성 전(Phase 9 직전) 또는 릴리즈 전 최종 점검에 사용된다
 - [ ] 타입 체크 통과
 - [ ] 신규 경고 없음
 
-### 2. Spec 추적성 (Check 8.5)
+### 2. Spec 추적성 (Check P5.5)
 
 - [ ] 모든 기능 요구사항 구현됨
 - [ ] 모든 기능 요구사항에 테스트 존재
 - [ ] API 계약 일치 (Method, 경로, 요청/응답)
 - [ ] 데이터 모델 일치
 
-### 3. UI/품질 (Check 8.6) — Frontend 변경 시
+### 3. UI/품질 (Check P5.6) — Frontend 변경 시
 
 **기존 5카테고리:**
 
@@ -96,7 +96,7 @@ PR 생성 전(Phase 9 직전) 또는 릴리즈 전 최종 점검에 사용된다
 - [ ] Deep-linking 지원 (공유 URL로 동일 뷰 재현)
 - [ ] 현재 위치 표시 (active nav, breadcrumb)
 
-### 4. 코드 리뷰 (Check 8.7) — Hook + Agent 하이브리드
+### 4. 코드 리뷰 (Check P5.7) — Hook + Agent 하이브리드
 
 **Layer 1 — Git Hook (정적, 자동 실행):**
 
@@ -108,7 +108,7 @@ PR 생성 전(Phase 9 직전) 또는 릴리즈 전 최종 점검에 사용된다
 - [ ] dead i18n 키 없음 (pre-push: check-i18n.sh)
 - [ ] JSON 구조 유효 (pre-push: check-json-integrity.sh)
 
-**Layer 2 — Agent (시맨틱, Check 8.7 실행 시):**
+**Layer 2 — Agent (시맨틱, Check P5.7 실행 시):**
 
 - [ ] 불필요한 API 재호출 없음 (api-unnecessary-call)
 - [ ] 에러 삼킴 없음 (api-error-swallow) [Critical]
@@ -119,7 +119,7 @@ PR 생성 전(Phase 9 직전) 또는 릴리즈 전 최종 점검에 사용된다
 - [ ] 비동기 경합/cleanup 문제 없음 (logic-race-condition, logic-missing-cleanup) [Critical]
 - [ ] 중복 mutation 없음 (logic-redundant-mutation)
 
-### 5. 보안 (Check 8.8)
+### 5. 보안 (Check P5.8)
 
 - [ ] 입력 검증 (SQL Injection, XSS 방지)
 - [ ] 인증/인가 로직 검증
@@ -136,9 +136,9 @@ PR 생성 전(Phase 9 직전) 또는 릴리즈 전 최종 점검에 사용된다
 
 ### 7. Codex 2차 게이트 (Plan v2-C1)
 
-- [ ] `--stage code` 호출 결과 확인 (Check 8.7-X) — `forge-outputs/docs/reviews/code/`
-- [ ] `--stage test` 호출 결과 확인 (Check 8.8-X) — `forge-outputs/docs/reviews/test/`
-- [ ] `--stage final` 적대적 리뷰 PASS (Check 9-X, blocking) — `forge-outputs/docs/reviews/final/`
+- [ ] `--stage code` 호출 결과 확인 (Check P5.7-X) — `forge-outputs/docs/reviews/code/`
+- [ ] `--stage test` 호출 결과 확인 (Check P5.8-X) — `forge-outputs/docs/reviews/test/`
+- [ ] `--stage final` 적대적 리뷰 PASS (Check P6-X, blocking) — `forge-outputs/docs/reviews/final/`
 - [ ] Claude vs Codex delta 분류 = `agreement` 또는 `extension` (disagreement = Human 판단 필요)
 - [ ] 미호출 시 `/cr-final <PR-N or branch>` 수동 실행
 
@@ -168,7 +168,7 @@ PR 생성 전(Phase 9 직전) 또는 릴리즈 전 최종 점검에 사용된다
 
 1. 현재 세션의 Check 결과 수집 (session-state.mjs에서 읽기)
 2. 각 Check 영역별 상세 항목 검증
-3. Frontend 변경 없으면 Check 8.6은 N/A 처리
+3. Frontend 변경 없으면 Check P5.6은 N/A 처리
 4. 체크리스트 생성 + 최종 판정
 5. 결과를 세션 상태에 기록
 

@@ -1,6 +1,6 @@
 {
   "name": "forge-research",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Forge 리서치 도구 — article/yt/site-deep-analyze/rag-search. 분석·지식 파이프라인.",
   "author": {"name": "forge"},
   "dependencies": ["forge-core"],
