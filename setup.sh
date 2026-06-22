@@ -354,11 +354,21 @@ else
   claude plugin marketplace add forge-plugins github:moongci38-oss/forge-plugins 2>/dev/null || true
 
   for p in forge-core forge-dev forge-plan forge-research forge-design forge-game; do
-    if claude plugin list 2>/dev/null | grep -q "^  ❯ ${p}@"; then
-      claude plugin update "${p}@forge-plugins" 2>/dev/null | grep -v "^$" || true
-      ok "${p} 업데이트됨"
+    # root-cause: grep 패턴 대신 이름만 매칭 — 출력 형식(❯/공백) 무관
+    if claude plugin list 2>/dev/null | grep -q "${p}"; then
+      info "${p} 업데이트 중..."
+      if claude plugin update "${p}@forge-plugins" 2>/dev/null; then
+        ok "${p} 최신으로 업데이트됨"
+      else
+        warn "${p} 업데이트 실패 (수동: claude plugin update ${p}@forge-plugins)"
+      fi
     else
-      claude plugin install "${p}@forge-plugins" 2>/dev/null && ok "${p} 설치됨" || warn "${p} 설치 실패 (수동: claude plugin install ${p}@forge-plugins)"
+      info "${p} 설치 중..."
+      if claude plugin install "${p}@forge-plugins" 2>/dev/null; then
+        ok "${p} 설치됨"
+      else
+        warn "${p} 설치 실패 (수동: claude plugin install ${p}@forge-plugins)"
+      fi
     fi
     claude plugin enable "${p}" 2>/dev/null || true
   done
