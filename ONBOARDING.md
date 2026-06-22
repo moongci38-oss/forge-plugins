@@ -4,6 +4,19 @@
 
 ---
 
+## 전제조건 — Claude Code 설치 (1회만)
+
+아래 링크에서 Claude Code를 먼저 설치하세요.
+
+**https://claude.ai/code**
+
+설치 후 터미널에서 확인:
+```bash
+claude --version
+```
+
+---
+
 ## ⚡ 자동 설치 (권장 — 비개발자도 OK)
 
 터미널(또는 Claude Code에서 `!` 로 실행)에 아래 한 줄만 복붙하면 됩니다:
