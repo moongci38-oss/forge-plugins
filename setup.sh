@@ -222,6 +222,19 @@ banner "4단계: 프로그램 설치"
 echo "  (시간이 조금 걸릴 수 있습니다...)"
 echo ""
 
+# root-cause: playwright/jq/python 패키지 누락 추가, pip 설치를 헬퍼로 통합
+install_pip_pkgs() {
+  local to_install=()
+  for pkg in "$@"; do
+    local check="${pkg%%[=><\[]*}"
+    if pip show "$check" &>/dev/null 2>&1; then ok "${check} 이미 설치됨"; else to_install+=("$pkg"); fi
+  done
+  if [ ${#to_install[@]} -gt 0 ]; then
+    info "Python 패키지 설치 중: ${to_install[*]}"
+    pip install -q "${to_install[@]}" && ok "Python 패키지 설치 완료"
+  fi
+}
+
 # Codex
 install_npm_pkg "@openai/codex" "codex"
 
@@ -231,13 +244,34 @@ install_npm_pkg "gitnexus" "gitnexus"
 # Lighthouse
 install_npm_pkg "lighthouse" "lighthouse"
 
-# hwpx-mcp-server
-if pip show hwpx-mcp-server &>/dev/null 2>&1; then
-  ok "hwpx-mcp-server 이미 설치됨"
+# Playwright CLI
+if command -v playwright &>/dev/null; then
+  ok "playwright 이미 설치됨"
 else
-  info "hwpx-mcp-server 설치 중..."
-  pip install hwpx-mcp-server -q && ok "hwpx-mcp-server 설치 완료"
+  info "playwright 설치 중..."
+  npm install -g @playwright/cli 2>/dev/null && ok "playwright 설치 완료" || warn "playwright 설치 실패 (수동: npm install -g @playwright/cli)"
 fi
+if [ -d "${HOME_DIR}/.cache/ms-playwright" ]; then
+  ok "Playwright Chromium 이미 있음"
+else
+  info "Playwright Chromium 다운로드 중 (약 150MB, 한 번만)..."
+  playwright install chromium 2>/dev/null && ok "Chromium 준비됨" || warn "Chromium 설치 실패 (수동: playwright install chromium)"
+fi
+
+# jq (JSON 파싱 — 훅·QA 필수)
+if command -v jq &>/dev/null; then
+  ok "jq 이미 설치됨"
+elif command -v apt-get &>/dev/null; then
+  info "jq 설치 중..."
+  sudo apt-get install -y jq -q 2>/dev/null && ok "jq 설치 완료" || warn "jq 설치 실패 (수동: sudo apt install jq)"
+elif command -v brew &>/dev/null; then
+  brew install jq -q 2>/dev/null && ok "jq 설치 완료" || warn "jq 설치 실패 (수동: brew install jq)"
+else
+  warn "jq 자동 설치 불가 — 수동: sudo apt install jq"
+fi
+
+# Python 패키지 (pdf·이미지·브라우저 자동화 스킬용)
+install_pip_pkgs hwpx-mcp-server Pillow pytesseract pdf2image playwright
 
 # ══════════════════════════════════════════════════════
 banner "5단계: 스킬·에이전트 동기화 (forge-sync)"

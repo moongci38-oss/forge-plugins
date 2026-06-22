@@ -32,9 +32,21 @@ bash setup.sh
 ```
 
 스크립트가 자동으로 처리하는 것:
-- 저장소 클론, CLI 도구 설치, API 키 저장
-- MCP 서버 7종 연결, 플러그인 설치
-- 로그인 브라우저 자동 열기
+- CLI 도구 설치: Codex, GitNexus, Lighthouse, **Playwright** (+ Chromium), **jq**
+- Python 패키지: hwpx-mcp-server, Pillow, pytesseract, pdf2image, playwright
+- API 키 입력 안내 (브라우저 자동 열기)
+- MCP 서버 7종 `~/.claude.json` 등록
+- 플러그인 6종 설치·활성화
+- Codex 로그인 브라우저 열기
+
+역할별 추가 설치 (setup.sh 이후 필요 시):
+
+| 역할 | 추가 도구 | 설치 명령 |
+|------|-----------|----------|
+| 문서 (pptx/docx) | pandoc, LibreOffice | `sudo apt install pandoc libreoffice` |
+| 이미지 처리 고급 | imagemagick, rembg | `sudo apt install imagemagick && pip install rembg` |
+| 부하 테스트 | k6 | `sudo apt install k6` |
+| RAG 로컬 임베딩 | sentence-transformers | `pip install sentence-transformers` |
 
 > 아래는 **수동 설치 참고용**입니다. 문제가 생겼거나 세부 내용을 이해하고 싶을 때 참조하세요.
 
