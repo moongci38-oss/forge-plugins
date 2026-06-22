@@ -42,11 +42,10 @@ install_npm_pkg() {
     return
   fi
   info "${pkg} 설치 중..."
-  if npm install -g "$pkg" 2>&1 | tail -1 | grep -q "added\|changed\|up to date"; then
+  if npm install -g "$pkg" 2>&1; then
     ok "${check_bin} 설치 완료"
   else
-    npm install -g "$pkg"
-    ok "${check_bin} 설치 완료"
+    warn "${check_bin} 설치 실패 (수동: npm install -g ${pkg})"
   fi
 }
 
@@ -206,8 +205,25 @@ if [ ! -f "${ENV_FILE}" ]; then
   ok "API 키 저장 완료 → ${ENV_FILE}"
 fi
 
-# .env 로드
+# .env 로드 (현재 쉘)
 set -a; source "${ENV_FILE}" 2>/dev/null || true; set +a
+
+# root-cause: Claude Code는 별도 프로세스 — .bashrc에 source 라인 없으면 MCP가 env var 못 받음
+_SHELL_RC=""
+if [ -f "${HOME_DIR}/.zshrc" ]; then _SHELL_RC="${HOME_DIR}/.zshrc"
+elif [ -f "${HOME_DIR}/.bashrc" ]; then _SHELL_RC="${HOME_DIR}/.bashrc"
+fi
+if [ -n "${_SHELL_RC}" ]; then
+  _SOURCE_LINE="[ -f \"${ENV_FILE}\" ] && set -a && source \"${ENV_FILE}\" && set +a"
+  if ! grep -q "${ENV_FILE}" "${_SHELL_RC}" 2>/dev/null; then
+    echo "" >> "${_SHELL_RC}"
+    echo "# Forge API 키 (setup.sh 자동 추가)" >> "${_SHELL_RC}"
+    echo "${_SOURCE_LINE}" >> "${_SHELL_RC}"
+    ok "API 키 자동 로드 설정됨 (${_SHELL_RC})"
+  else
+    ok "API 키 로드 이미 설정됨"
+  fi
+fi
 
 # Gemini 키 별도 파일
 if [ -n "${GEMINI_API_KEY:-}" ] && [ ! -f "${GEMINI_KEY_FILE}" ]; then
@@ -225,13 +241,16 @@ echo ""
 # root-cause: playwright/jq/python 패키지 누락 추가, pip 설치를 헬퍼로 통합
 install_pip_pkgs() {
   local to_install=()
+  # root-cause: pip가 Python2를 가리킬 수 있음 — pip3 강제 사용
+  local PIP_CMD
+  if command -v pip3 &>/dev/null; then PIP_CMD="pip3"; else PIP_CMD="pip"; fi
   for pkg in "$@"; do
     local check="${pkg%%[=><\[]*}"
-    if pip show "$check" &>/dev/null 2>&1; then ok "${check} 이미 설치됨"; else to_install+=("$pkg"); fi
+    if $PIP_CMD show "$check" &>/dev/null 2>&1; then ok "${check} 이미 설치됨"; else to_install+=("$pkg"); fi
   done
   if [ ${#to_install[@]} -gt 0 ]; then
     info "Python 패키지 설치 중: ${to_install[*]}"
-    pip install -q "${to_install[@]}" && ok "Python 패키지 설치 완료"
+    $PIP_CMD install -q "${to_install[@]}" && ok "Python 패키지 설치 완료" || warn "일부 패키지 설치 실패 (수동: pip3 install ${to_install[*]})"
   fi
 }
 

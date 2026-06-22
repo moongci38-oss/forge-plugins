@@ -71,18 +71,16 @@ nvm use 22
 
 ---
 
-## 1. 레포 클론
+## 1. 레포 클론 (코어 팀원만)
+
+> **플러그인 사용자**: 이 단계 스킵 — 폴더는 setup.sh가 자동 생성합니다.
 
 ```bash
-# forge 시스템 (규칙·스킬·파이프라인)
+# forge 시스템 (규칙·스킬·파이프라인) — 코어 팀원만
 git clone git@github.com:moongci38-oss/forge.git ~/forge
-
-# forge-outputs (산출물 저장소)
-git clone git@github.com:moongci38-oss/forge-outputs.git ~/forge-outputs
-cd ~/forge-outputs && git checkout develop
 ```
 
-> **중요**: forge-outputs 작업 브랜치는 `develop`. main은 릴리스 전용.
+> forge-outputs 저장소 클론은 별도 승인 필요 — 관리자에게 문의하세요.
 
 ---
 
@@ -102,12 +100,12 @@ cp ~/forge/forge-workspace.example.json ~/forge/forge-workspace.json
 | `GEMINI_API_KEY` | Gemini MCP (cr-triple) | ✅ |
 | `TAVILY_API_KEY` | 웹 검색 MCP | ✅ |
 | `BRAVE_API_KEY` | Brave Search MCP | ✅ |
-| `NOTION_API_TOKEN` | Notion MCP 인증 | ✅ |
 | `FIGMA_API_KEY` | Figma MCP | 디자인 작업 시 |
 | `OPENAI_API_KEY` | Codex (GPT-5.5, cr-triple) | cr-triple 사용 시 |
 | `GITHUB_TOKEN` | GitHub API | PR/이슈 작업 시 |
 | `REPLICATE_API_TOKEN` | 이미지 생성 | 게임/디자인 트랙 |
-| `LUDO_API_KEY` | 게임 리서치 | 게임 트랙 |
+
+> **Notion 인증**: Notion MCP는 API 토큰이 아닌 **브라우저 OAuth** 방식입니다. Claude Code 첫 실행 시 자동으로 로그인 창이 열립니다.
 
 Gemini API 키는 별도 파일에도 저장 (gemini-text MCP가 읽음):
 ```bash
@@ -144,7 +142,29 @@ gitnexus setup   # Claude Code MCP 자동 등록
 pip install hwpx-mcp-server
 ```
 
-### 3-4. Lighthouse + Sentry CLI (QA 트랙)
+### 3-4. Playwright CLI (브라우저 자동화)
+
+```bash
+npm install -g @playwright/cli
+playwright install chromium
+```
+
+확인:
+```bash
+playwright --version
+```
+
+### 3-5. jq (JSON 처리 — 훅·QA 필수)
+
+```bash
+# Linux/WSL2
+sudo apt-get install -y jq
+
+# macOS
+brew install jq
+```
+
+### 3-6. Lighthouse + Sentry CLI (QA 트랙)
 
 ```bash
 bash ~/forge/shared/scripts/setup-cli.sh
@@ -219,8 +239,8 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
     },
     "gemini-text": {
       "type": "stdio",
-      "command": "bash",
-      "args": ["/home/유저명/forge/dev/scripts/gemini-text-mcp/start.sh"],
+      "command": "npx",
+      "args": ["-y", "@google/gemini-cli-mcp"],
       "env": { "GEMINI_API_KEY": "${GEMINI_API_KEY}" }
     },
     "brave-search": {
@@ -233,7 +253,7 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
 }
 ```
 
-> `gemini-text` args의 경로는 본인 홈 디렉토리로 수정하세요.
+> `gemini-text`는 공개 npm 패키지를 사용합니다. forge 레포가 있는 코어 팀원은 start.sh 경로로 교체하세요.
 
 ### 5-3. 프로젝트 MCP (`~/forge/.mcp.json`)
 
@@ -298,7 +318,9 @@ done
 
 ---
 
-## 7. forge-workspace.json 설정
+## 7. forge-workspace.json 설정 (코어 팀원만)
+
+> **플러그인 사용자**: 이 단계 스킵 — forge-outputs는 setup.sh가 `~/forge-outputs/`에 자동 생성합니다.
 
 ```json
 // ~/forge/forge-workspace.json
