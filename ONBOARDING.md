@@ -19,10 +19,16 @@ claude --version
 
 ## ⚡ 자동 설치 (권장 — 비개발자도 OK)
 
-터미널(또는 Claude Code에서 `!` 로 실행)에 아래 한 줄만 복붙하면 됩니다:
+Claude Code 세션에서 아래 한 줄을 입력하면 됩니다:
+
+```
+! bash setup.sh
+```
+
+또는 일반 터미널에서:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/moongci38-oss/forge-plugins/main/setup.sh)
+bash setup.sh
 ```
 
 스크립트가 자동으로 처리하는 것:
