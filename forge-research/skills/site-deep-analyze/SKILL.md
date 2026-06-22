@@ -53,8 +53,32 @@ eval_cases: off
 | 시나리오 검증 | 시나리오 텍스트 불명확 시 [STOP] 사용자 보완 요청 |
 
 ## Workflow 통합 (계획서 P2-6)
-Phase 2(정적 분석) + Phase 3(Gemini Vision) = 독립 → parallel() 동시 실행.
-패턴: Gate(윤리검증) → Crawl(Playwright) → parallel(Phase2 정적+Phase3 Vision) → Semantic(Tavily) → Output.
+
+**패턴 (Phase 2 deep-research a+e 적용)**:
+Gate(윤리검증) → Crawl(Playwright) → **parallel 5각도 fan-out** → **Coverage Loop(completeness critic, cap 2)** → **Phase 2.5 추론검증(adversarial)** → Semantic(Tavily) → Output.
+
+### (a) Fan-out 분석 각도 (multi-modal sweep)
+
+Analyze 단계에서 5개 독립 agent를 `parallel()`로 동시 스폰:
+
+| 각도 | label | 분석 대상 |
+|------|-------|----------|
+| by-component + by-API | `analyze:static` | DOM 컴포넌트 패턴 + CSS + HAR API 엔드포인트 |
+| by-page-type | `analyze:by-page-type` | 라우트 유형 분류 (auth/list/detail/dashboard/landing/form) |
+| by-interaction | `analyze:by-interaction` | 이벤트 핸들러·폼·내비게이션 패턴 |
+| by-css-token | `analyze:by-css-token` | CSS 변수·컬러 시스템·스페이싱 스케일 |
+| vision (skipGemini=false 시) | `analyze:vision` | Gemini Vision 레이아웃·UX 패턴 |
+
+### (e) Coverage Loop (completeness critic)
+
+fan-out 완료 후 completeness critic agent가 미탐색 항목 식별:
+1. 미분류 컴포넌트 유형 / 미크롤 페이지 카테고리 / 미매핑 API 패턴 감지
+2. gap 있으면 타겟 재분석 1회 실행 (round 1)
+3. 여전히 gap 있으면 round 2 (최대)
+4. **cap 2라운드** — 잔여 gap은 `log()`로 드롭 명시 후 Phase 2.5 진행
+
+참조: `~/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
+
 실행: `Workflow({ script: Bash("cat ~/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipGemini } })`
 skipGemini=true(Gemini 토큰 없는 경우 정적 분석만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 6 Phase 방식 fallback.
 
@@ -88,6 +112,31 @@ CSS → `/style-forge` Mode A 호환 형식 (color palette / typography / spacin
 핵심 화면 5-10개 선정 → `/screenshot-analyze` 호출:
 - Gemini Vision: 레이아웃 grid/flex + UX 패턴 분류 + 인터랙션 단서
 - 결과 → `components.md`
+
+### Phase 2.5 — 추론검증 (adversarial inference verification)
+
+Phase 2 정적 분석이 추론한 `apiEndpoints[]`·`components[]`를 Phase 5 산출물에 반영하기 전,
+이미 수집된 HAR·DOM 아티팩트만으로 각 추론의 근거를 역검증한다 (**신규 네트워크 호출 0**).
+
+**참조 표준**: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색
+
+검증 절차:
+1. **API 엔드포인트**: HAR 파일에서 해당 URL 패턴의 실제 요청 존재 여부 확인
+   - 존재 → `verifiedApis[]` `{endpoint, evidence_har_url, method}`
+   - 없음 → `unverifiedApis[]` `{endpoint, confidence:"low", unverified:true}`
+2. **컴포넌트**: DOM HTML에서 해당 컴포넌트를 지지하는 CSS class/selector 실재 여부 확인
+   - 근거 selector 존재 → `verifiedComponents[]` `{name, selector_evidence}`
+   - 근거 없음 → `unverifiedComponents[]` `{name, unverified:true}`
+3. 결과는 Phase 5 Output agent에 전달 — `[INFERRED — no direct evidence]` 라벨 부착 트리거
+
+**[INFERRED] 라벨링 규칙** (deep-research (d) 미검증 라벨 컨벤션):
+- `api-schema.json`: 미검증 엔드포인트 → `"x-inference-label": "[INFERRED — no direct evidence]"` + `"confidence": "low"`
+- `api-schema.json`: 검증된 엔드포인트 → `"confidence": "high"` + `"evidence": "<har_url>"`
+- `reconstruction-spec.md`: 미검증 컴포넌트명 뒤 **[INFERRED — no direct evidence]** 표기
+- `reconstruction-spec.md`: 검증된 컴포넌트 → `(selector: <selector_evidence>)` 증거 표기
+- `analysis-report.md`: 영감 고지 직후 추론검증 요약 섹션 삽입 (`verifyResult.summary`)
+
+workflow.js agent label: `verify:adversarial` / phase: `'Verify'`
 
 ### Phase 4 — 시맨틱 추출
 

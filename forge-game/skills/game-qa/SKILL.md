@@ -100,13 +100,75 @@ WARN만 → WARN / 전체 0건 → PASS
 실행: `Workflow({ script: Bash("cat ~/.claude/skills/game-qa/workflow.js"), args: { project } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 4단계 직접 실행 방식 fallback.
 
-## 자동 평가 (eval-rubric 통합)
+## FAIL 라우팅 + 재시도 루프 [BOUNDED]
 
-호출 시점: `docs/qa/game-qa-report.md` 생성 직후
+> 추정=보조, 결정론 bound=max-cycles, 정확 enforcement=P4(agent-budget 훅)
 
-절차:
-1. `/eval-rubric --target docs/qa/game-qa-report.md`
-2. verdict + 4축 점수 수신
-3. `eval_cases.jsonl` append — case_id: EC-game-qa-{N}
+`Unity FAIL > 0` 또는 `빌드 FAIL > 0` 발생 시 silent FAIL 금지 — 즉시 bounded 재시도:
+
+```
+QA_CYCLE=0
+QA_MAX=2
+ISSUE_HASH=""   # sha256(실패테스트명:에러메시지 첫줄)
+
+while [Unity FAIL > 0 또는 빌드 FAIL > 0] AND QA_CYCLE < QA_MAX:
+  QA_CYCLE += 1
+  NEW_HASH = sha256(실패테스트명:에러메시지 첫줄)
+
+  # same-issue stop: 동일 오류 2회 연속 = 자동 해소 불가
+  # GC5: QA_MAX=2이므로 1st cycle에서 즉시 NEW_HASH==ISSUE_HASH 체크 = 즉각 stop.
+  # forge-implement는 PEV_MAX=3 → PEV_CYCLE>=2 조건으로 1회 추가 시도 허용 — max 차이로 인한 의도적 비대칭.
+  # 근거: Unity 빌드/테스트 = 무거움(사이클 비용↑) → 보수적 max2. web 구현 반복 = 경량 → forge-implement max3.
+  if NEW_HASH == ISSUE_HASH:
+    → [STOP] 동일 오류 반복 감지. Human 개입 필요. (QA_CYCLE 값 표시)
+    exit 4
+
+  ISSUE_HASH = NEW_HASH
+
+  # 라우팅 (game-qa = Unity, web-healer X)
+  → /forge-fix (general fixer) 호출 — 새 fixer 작성 금지
+    · 실패 테스트명 + 에러메시지 전달
+    · C# / .NET 빌드 오류 컨텍스트 포함
+
+  # 실패 단계만 재실행 (전체 재실행 X)
+  if 직전 실패 = Unity 테스트:
+    → Unity MCP run_tests 또는 Unity CLI 재실행 (§2 절차 그대로)
+  if 직전 실패 = 빌드(T-BUILD):
+    → dotnet build 또는 msbuild 재실행 (§3 절차 그대로)
+  → 결과 수집 → game-qa-report.md 업데이트
+
+if 여전히 FAIL AND QA_CYCLE == QA_MAX:
+  → [STOP] QA 재시도 {QA_MAX}회 초과. Human 개입 필요.
+  exit 4
+```
+
+**루프 상한**: max 2 cycles (결정론적 bound).
+**same-issue stop**: sha256(실패테스트명:에러메시지 첫줄) 이전 cycle과 동일 시 즉시 [STOP].
+**라우팅 원칙**: game-qa는 Unity/C# 환경 — web 전용 /healer X. /forge-fix (general) 재사용.
+**재실행 스코프**: 실패한 단계(Unity 테스트 또는 빌드)만 재실행. 전체 4단계 재실행 금지.
+
+## 자동 평가 — GATING eval-rubric (완료 전 필수 통과)
+
+호출 시점: `docs/qa/game-qa-report.md` 생성 후, **완료 선언 전** (게이팅 위치)
+
+절차 (별도 evaluator agent — executor context 격리):
+```
+Agent(
+  role: evaluator,         # executor reasoning context 미포함 — 루브릭 + 산출물만 입력
+  input: docs/qa/game-qa-report.md + eval rubric,
+  command: /eval-rubric --target docs/qa/game-qa-report.md
+)
+→ verdict(PASS/WARN/FAIL) + 4축 점수 수신
+→ eval_cases.jsonl append — case_id: EC-game-qa-{N}
+```
+
+**게이팅 규칙**:
+- eval-rubric verdict = PASS 또는 WARN → 완료 허용
+- eval-rubric verdict = FAIL → game-qa FAIL 처리 (위 재시도 루프 재진입 또는 [STOP])
+- `EVAL_RUBRIC_AUTO=off` 시 → 완료 전 사용자 수동 평가 요청 출력
 
 자동 비활성: `EVAL_RUBRIC_AUTO=off`
+
+> **Worker-Evaluator 분리 확인 (P2 감사)**: 위 eval-rubric Agent()는 executor reasoning context를
+> 수신하지 않는다 (`# executor reasoning context 미포함 — 루브릭 + 산출물만 입력` 주석 명시).
+> 분리가 이미 올바르게 구현되어 있으므로 추가 변경 불필요.

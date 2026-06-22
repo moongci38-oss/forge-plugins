@@ -89,4 +89,30 @@ eval_cases.jsonl에 결과 자동 누적.
 
 ## Plateau 조기 감지 (AD-118 SkillOps)
 
-연속 2라운드 score 진전 <5점 = plateau 신호. 즉시 4 옵션 제시 (A 추가 라운드 / B AD-50 override / C 폐기 / D 극단 단순화). D 우선 권고 (over-engineering 거부 — enforcement-theater-prevention 정합).
+연속 2라운드 score 진전 <5점 = plateau 신호. 즉시 4 옵션 제시 (A 추가 라운드 / B AD-50 override(게이트 격하 1회 면제, Human 승인 필수 — pipeline.md AD-50) / C 폐기 / D 극단 단순화). D 우선 권고 (over-engineering 거부 — enforcement-theater-prevention 정합).
+
+## 연속 실행 원칙 (No-Pause)
+
+cr-multi 실행 중 중간 확인 요청 금지:
+- 오케스트레이터는 Codex → Gemini → Opus 레그를 **중간 Human 확인 없이 연속 실행**한다.
+- 각 레그 결과가 반환되면 즉시 다음 레그를 스폰한다 (중간 출력 보고 금지).
+- BLOCKED 판정이 반환되면 그 시점에만 [STOP] Human 에스컬레이션. 나머지는 자동 진행.
+
+## 금지 행동
+
+cr-multi 워크플로 및 각 검수 레그가 반드시 준수해야 할 금지 사항:
+
+① **점수 조작 목적의 이슈 추가 금지** — 점수를 올리거나 내리기 위해 근거 없는 이슈를 생성하지 않는다.
+② **이전 라운드와 동일 이슈 재제기 금지** — plateau 라운드에서 같은 이슈를 새 언어로 반복하는 것은 찾은 척(fabrication). 새 근거 없으면 해소된 것으로 간주.
+③ **Spec 범위 외 enterprise 기능 요구 금지** — SME(중소규모)·MVP 스코프에서 분산 트랜잭션·HA·다중 테넌시 등 미요구 기능을 critical로 요구하는 것은 over-spec.
+④ **구현 의도 무시한 전면 재설계 요구 금지** — 작성자의 설계 방향을 이해하지 않고 아키텍처 전면 변경을 BLOCK 조건으로 내거는 것은 금지.
+⑤ **플래그 없는 외부 소스 코드 복사 권장 금지** — 라이선스·출처 미확인 코드 그대로 붙여넣기를 권고하지 않는다.
+
+## 리뷰 요청자 행동 규칙
+
+cr-multi를 호출하는 requester(오케스트레이터·Human)가 준수해야 할 규칙:
+
+⑥ **"간단한 변경이라" 리뷰 생략 금지** — 변경 크기와 무관하게 리뷰 단계 준수.
+⑦ **Critical 이슈 무시 후 진행 금지** — Critical 미수정 = FAIL verdict 자동 발행 (기계 차단). 수동 override 시 Human 승인 필수 (AD-50).
+⑧ **High severity 이슈 잔존 시 검토 의무** — verdict=WARN 수신 시 high 이슈 목록 확인 후 진입 여부 결정 (자동 차단 없음, 검토 의무 — prose rule).
+⑨ **유효한 기술 피드백 무비판 동의 금지** — 피드백 내용을 실제로 검토 후 수용/거부 판단.

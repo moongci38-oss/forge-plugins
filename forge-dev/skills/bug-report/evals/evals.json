@@ -6,7 +6,7 @@
       "prompt": "http://localhost:3000 에 admin/1234로 로그인해서 LNB 전체 QA해줘. 프로젝트 루트는 /home/user/myapp",
       "expected_output": "LNB 전체 순회 → 버그 발견 시 next-bug-id.sh로 채번 → docs/bug_report/BUG-NNN-*.md 생성 → INDEX.md 갱신 → 탐색 완료 요약 출력.",
       "expectations": [
-        "mcp__Claude_in_Chrome__navigate로 URL 접속 후 로그인",
+        "mcp__claude-in-chrome__navigate로 URL 접속 후 로그인",
         "LNB 메뉴 전체 목록 파악 후 순차 탐색",
         "버그 발견 시 next-bug-id.sh 호출로 BUG-NNN 채번",
         "6하원칙 테이블 포함한 bug-report 표준 포맷으로 저장",

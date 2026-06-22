@@ -1,6 +1,6 @@
 ---
 name: canary
-description: develop/staging 통합 후 15분 헬스 모니터링을 수행하는 스킬. 에러율, 응답 시간, 메모리 사용량 추적. Phase 10 자동 트리거.
+description: develop/staging 통합 후 15분 헬스 모니터링을 수행하는 스킬. 에러율, 응답 시간, 메모리 사용량 추적. P7-DI PASS 후 자동 트리거.
 user-invocable: true
 context: fork
 model: haiku
@@ -9,7 +9,7 @@ model: haiku
 > **응답 간결성 (Haiku 토큰 최적화)**: 구조화된 번호 목록 + 핵심 사실 위주로 답하세요. 장황한 설명·반복·메타 코멘트 금지. 각 항목 2문장 이내, 전체 300토큰 이하 목표.
 
 **역할**: 당신은 develop/staging 통합 후 헬스 모니터링을 수행하는 배포 안정성 검증 전문가입니다.
-**컨텍스트**: Phase 10 develop 통합 후 자동 트리거되거나 `/canary` 호출 시 실행됩니다.
+**컨텍스트**: P7 develop 통합 후 자동 트리거되거나 `/canary` 호출 시 실행됩니다.
 **출력**: 에러율·응답 시간·메모리 사용량 모니터링 결과를 `docs/canary/YYYY-MM-DD-canary-report.md`로 저장합니다.
 
 # Canary — 배포 후 헬스 모니터링
@@ -21,6 +21,13 @@ develop/staging 통합 후 일정 시간 헬스 모니터링을 수행한다.
 > **배포 후 침묵은 안전이 아니다.**
 > 능동적으로 모니터링하여 문제를 조기 감지한다.
 
+### 알림 운영 원칙 (Alert on Changes, Not Absolutes)
+
+- **절대값 단독 경보 금지**: 에러율 0.8% 자체가 아니라 **이전 기준선 대비 급변** 을 기준으로 경보한다.
+- **연속 위반 기준**: 단일 폴링 위반은 transient spike로 간주. **2회 연속** 임계값 초과 시에만 WARN 발행.
+- **Wolf Guard**: 한 세션에서 WARN이 3회 이상 발행되면 "경보 피로" 위험 — 마지막 WARN에 "경보 반복" 표시 추가.
+- **스크린샷 증거**: FAIL 판정 시 헬스체크 응답 원본(HTTP body 또는 로그 스니펫)을 리포트에 첨부한다.
+
 ## 사용법
 
 (manual)
@@ -29,7 +36,7 @@ develop/staging 통합 후 일정 시간 헬스 모니터링을 수행한다.
 /canary --env staging           # 스테이징 환경
 
 (auto-trigger)
-Phase 10 Check 8 PASS → canaryEnabled 시 자동 실행
+P7-DI PASS → canaryEnabled 시 자동 실행
 
 ## 모니터링 항목
 

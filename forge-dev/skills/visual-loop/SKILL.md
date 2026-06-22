@@ -188,7 +188,40 @@ Evaluator 결과 (`/tmp/visual-loop-evaluator-result.json`) 를 읽어 Delta 요
 시각 발견이 명확한 경우(예: 모바일에서 버튼 잘림):
 1. 변경 제안을 PR diff 형식으로 출력
 2. [STOP] 게이트 — 사용자 승인 대기
-3. 승인 시: Edit 도구로 파일 수정 + 재검증 루프
+3. 승인 시: Edit 도구로 파일 수정 + Step 7 re-verify (아래)
+
+### Step 7 — re-verify 루프 (fix 승인 후 자동, cap=1)
+
+Step 6 사용자 승인 후 수정이 실제로 시각 이슈를 해결했는지 **1회 자동 재검증**한다.
+
+```
+re-verify 절차 (cap=1회, 초과 시 Human에 위임):
+  1. Step 2 스크린샷 재캡처 (동일 viewport 세트)
+  2. Step 3 Gemini Vision 재분석
+  3. Step 3.5 독립 Evaluator 재스폰 (동일 프롬프트)
+  4. Evaluator 판정:
+     - PASS → "✅ re-verify PASS. Step 6 수정 확인됨." + 리포트 업데이트
+     - FAIL → "❌ re-verify FAIL. 수정 미해결. Human 개입 요청." + 상세 delta 첨부
+  5. cap=1 초과 시 (2회 이상 재시도 불가) → [STOP] Human 위임
+
+토큰 캡 적용: re-verify 시작 전 VISUAL_LOOP_TOKEN_CAP 확인
+```
+
+**토큰 캡 가드 (전체 스킬)**:
+
+```
+VISUAL_LOOP_TOKEN_CAP = 환경변수 VISUAL_LOOP_TOKEN_CAP (기본: 400000)
+
+Step 2 시작 전 / Step 7 시작 전 확인:
+  if estimated_tokens ≥ VISUAL_LOOP_TOKEN_CAP:
+    "[STOP] VISUAL_LOOP_TOKEN_CAP={cap} 도달. 현재 단계 시작 취소."
+    완료된 스텝 결과 + 리포트 경로(있으면) 반환
+```
+
+- `VISUAL_LOOP_TOKEN_CAP` 미설정 시 기본값 **400000** 적용 (정상 fix→re-verify 경로 ~310000 추정을 캡이 상회 — 자기 트립 방지).
+- 추정: 3 viewport 스크린샷(~50000) + 3 Vision 분석(~75000) + Evaluator(~30000) = 사이클당 ~155000.
+- Step 7 re-verify = 추가 ~155000 → 합산 ~310000 (< 400000 캡). 캡 근접 시 WARN 출력 후 진행.
+- ⚠️ **추정치 정직성**: 추정치 = best-effort (LLM 자가추정, 정확 토큰 카운트 불가). **결정론적 bound = max-cycles**; 토큰 추정은 보조 가드. 정확한 토큰 enforcement는 P4 (agent-budget 훅 연동) 예정.
 
 ## 비용·리소스
 

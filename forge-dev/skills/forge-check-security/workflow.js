@@ -69,6 +69,11 @@ const report = await agent(
   { label: 'report', phase: 'Report', schema: REPORT_SCHEMA }
 )
 log(`security ${report?.verdict}: critical=${report?.criticalCount} high=${report?.highCount}`)
-if (report?.verdict === 'FAIL') log('[STOP] CRITICAL 발견 — Phase 1 즉시 차단')
+// root-cause: P0-1 — CRITICAL≥1 시 halt:true 반환 (기존 advisory 로그만 = security theater)
+if (report?.verdict === 'FAIL' || (report?.criticalCount ?? 0) >= 1) {
+  // root-cause: F8 — 실제 라이브 게이트 = qa/workflow.js의 T6 securityCritical 처리 블록 (T6 verdict FAIL → return security-critical). halt:true는 standalone 실행 시 caller 차단용 — 파이프라인 내에서는 qa/workflow.js가 CRITICAL 처리. (앵커: 라인번호 대신 심볼 참조 — label-rot 방지)
+  log('[STOP] CRITICAL 발견 — halt:true 반환. 라이브 게이트: qa/workflow.js T6 판정.')
+  return { verdict: 'FAIL', halt: true, criticalCount: report?.criticalCount, highCount: report?.highCount }
+}
 
-return { verdict: report?.verdict, criticalCount: report?.criticalCount, highCount: report?.highCount }
+return { verdict: report?.verdict, halt: false, criticalCount: report?.criticalCount, highCount: report?.highCount }

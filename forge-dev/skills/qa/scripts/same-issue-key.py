@@ -10,13 +10,16 @@ Usage:
 Output:
   PRIMARY_KEY=<sha256(file_path:symbol:error_class)>
   BACKUP_KEY=<sha256(error_message[:80])>
-  MATCH=true  # if PRIMARY_KEY already in same-issue tracker
+  TRIPLE=<file_path:symbol:error_class>
+
+NOTE: 무상태(stateless) fingerprint 계산 전용. same-issue 연속 카운트/STOP 판정은 goal-pev.py가
+in-process state(same_issue_count)로 수행한다. 옛 /tmp/qa-same-issue-tracker.json 기반 --increment/
+--reset 트래커는 producer-consumer 쌍이 모두 사라진 orphan이라 제거했다(2026-06-17 follow-up #2).
 """
 
+# root-cause: json·os import 제거 — load_tracker/save_tracker(트래커 stateful, orphan)와 함께 삭제되며 미사용.
 import argparse
 import hashlib
-import json
-import os
 import re
 import sys
 
@@ -70,9 +73,12 @@ def extract_file_path(section: str) -> str:
 def extract_symbol_or_line(section: str) -> str:
     """Extract function/method name or line:N from section."""
     # Function/method name
+    # root-cause: 2번째 패턴 `r"...\s*\()"` 의 트레일링 `)` 가 unbalanced paren → re.error.
+    # "function/def" 키워드 있는 bug는 1번째 패턴에서 early-return해 가려졌던 latent 버그
+    # (goal-pev in-process 배선이 노출). 백틱 함수호출 `name(` 매칭이 의도 → 잘못된 `)` 제거.
     fn_patterns = [
         r"(?:function|def|func|method|fn)\s+([a-zA-Z_]\w+)",
-        r"`([a-zA-Z_]\w+)\s*\()",
+        r"`([a-zA-Z_]\w+)\s*\(",
         r"([a-zA-Z_]\w+)\s*\(\s*\)\s*(?:throws|returns|→)",
     ]
     for p in fn_patterns:
@@ -120,82 +126,25 @@ def extract_error_class(section: str) -> str:
     return "unknown_error"
 
 
-def load_tracker(tracker_path: str) -> dict:
-    if os.path.exists(tracker_path):
-        try:
-            with open(tracker_path) as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
-
-
-def save_tracker(tracker_path: str, tracker: dict) -> None:
-    os.makedirs(os.path.dirname(tracker_path), exist_ok=True)
-    with open(tracker_path, "w") as f:
-        json.dump(tracker, f, indent=2)
-
-
+# root-cause: load_tracker/save_tracker + --increment/--reset/--tracker(stateful /tmp 트래커) 제거 —
+#   producer(이 CLI --increment)도 consumer(qa-event-router/goal-pev)도 모두 in-process 전환으로 사라진
+#   orphan. main()은 무상태 fingerprint 계산·출력 전용으로 단순화(수동 디버그 + goal-pev import용 함수 유지).
 def main():
-    parser = argparse.ArgumentParser(description="same-issue-key.py — triple sha256 key")
+    parser = argparse.ArgumentParser(
+        description="same-issue-key.py — triple sha256 fingerprint (file:symbol:error_class). 무상태.")
     parser.add_argument("--report", required=True, help="Path to bug-report.md")
     parser.add_argument("--bug", type=int, required=True, help="Bug number")
-    parser.add_argument(
-        "--tracker",
-        default="/tmp/qa-same-issue-tracker.json",
-        help="Path to same-issue tracker JSON (default: /tmp/qa-same-issue-tracker.json)",
-    )
-    parser.add_argument("--increment", action="store_true", help="Increment count in tracker")
-    parser.add_argument("--reset", action="store_true", help="Reset tracker")
     args = parser.parse_args()
 
-    if args.reset:
-        save_tracker(args.tracker, {})
-        print("RESET")
-        return
-
     section = extract_bug_section(args.report, args.bug)
-
     file_path = extract_file_path(section)
     symbol = extract_symbol_or_line(section)
     error_class = extract_error_class(section)
 
     triple = f"{file_path}:{symbol}:{error_class}"
-    primary_key = sha256(triple)
-
-    # Backup key (amendments §I.7 — false-negative 보완)
-    error_msg_raw = error_class[:80]
-    backup_key = sha256(error_msg_raw)
-
-    tracker = load_tracker(args.tracker)
-    current_count = tracker.get(primary_key, {}).get("count", 0)
-
-    match = current_count > 0
-
-    if args.increment:
-        tracker[primary_key] = {
-            "count": current_count + 1,
-            "triple": triple,
-            "file_path": file_path,
-            "symbol": symbol,
-            "error_class": error_class,
-        }
-        save_tracker(args.tracker, tracker)
-        current_count = tracker[primary_key]["count"]
-
-    print(f"PRIMARY_KEY={primary_key}")
-    print(f"BACKUP_KEY={backup_key}")
+    print(f"PRIMARY_KEY={sha256(triple)}")
+    print(f"BACKUP_KEY={sha256(error_class[:80])}")  # amendments §I.7 — false-negative 보완
     print(f"TRIPLE={triple}")
-    print(f"COUNT={current_count}")
-    print(f"MATCH={'true' if match else 'false'}")
-
-    # Check same-issue threshold (3회)
-    if current_count >= 3:
-        sys.stderr.write(
-            f"[STOP same-issue-key] same-issue {current_count}회 초과 "
-            f"(key={primary_key[:12]}...). Human 검토 필요.\n"
-        )
-        sys.exit(3)
 
 
 if __name__ == "__main__":

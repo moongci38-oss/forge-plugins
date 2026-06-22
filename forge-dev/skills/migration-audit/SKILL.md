@@ -13,7 +13,7 @@ description: |
 # /migration-audit
 
 ```
-/migration-audit <legacy-path> <migrated-path> [--stack=node-nest|php-nest] [--scope=full|domain|events] [--fix=off|propose|auto]
+/migration-audit <legacy-path> <migrated-path> [--stack=node-nest|php-nest] [--scope=full|domain|events] [--fix=off|propose|auto] [--cr=on|degrade|off]
 ```
 
 예: `/migration-audit matgo/server/legacy matgo/server/src --stack=node-nest`
@@ -83,6 +83,10 @@ src 인라인 주석(`legacy:.../g-N:...`) + bug_report + learnings 교차수집
 산출물: `03-sp-db-mapping.md`
 
 ### Phase 4 — 멀티 적대적 검수 [게이트 3 — BLOCKING]
+
+`--cr=on` (기본): codex-critic(`agentType:'codex-critic'`) 스폰 — 외부 토큰 선발행 전제.
+`--cr=degrade` | `--cr=off`: codex-critic 스폰 생략. Phase 2 findings를 WARN verdict로 그대로 통과. 비용 절감 또는 Codex 불가 환경용.
+crMode 해석은 `~/forge/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
 
 Claude 1차 finding → `/cr-multi --mode triple`:
 
@@ -187,7 +191,8 @@ Golden tests: `<migrated-path>/test/migration-golden.*` (영구 편입)
 ## Workflow 통합 (계획서 P2-3)
 Phase 7 PEV 루프 = while() 자동화 (사이클 캡 6 + plateau 2연속 감지 중단).
 패턴: Phase 0 parallel(legacy/src 인벤토리) → Phase 2 pipeline(도메인별 병렬 대조) → Phase 5 [STOP] M1 게이트 → Phase 7 while(CRITICAL>0 && cycles<6).
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix, crMode } })`
+`crMode` 값은 `~/forge/shared/scripts/cr-mode.sh` 출력을 caller가 읽어 전달 (`on`|`degrade`|`off`, 기본 `on`).
 fix='off'(기본) → Phase 5에서 PENDING_APPROVAL 반환. fix='auto' → Phase 6+7 자동 실행.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 7 Phase 수동 실행 방식 fallback.
 

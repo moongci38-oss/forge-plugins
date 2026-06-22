@@ -568,9 +568,21 @@ Canvas (Screen Space - Overlay)
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Codex Vision→Gemini fallback.
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js") })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
+
+### `--cr` 옵션 (crMode)
+
+Codex Vision 사용 여부를 제어한다. caller는 `~/forge/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
+
+| 값 | 동작 |
+|----|------|
+| `on` (기본) | Codex Vision primary → Gemini fallback (현재 동작) |
+| `degrade` | Codex Vision 스킵 → Gemini Vision 직행 |
+| `off` | Codex Vision 스킵 → Gemini Vision 직행 |
+
+로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Gemini`
 
 > ⚠️ Phase 0 전제: Codex/Gemini Vision용 approve-worker 토큰 외부 선발행 필수 (Workflow는 셸 직접 호출 불가).
 

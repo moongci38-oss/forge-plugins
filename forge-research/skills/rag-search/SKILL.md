@@ -59,6 +59,16 @@ python3 ~/forge/shared/scripts/rag/index.py {target_dir}
 
 ### Step 2: 검색 실행
 
+**KnowledgeStore 경유 (AD-173 T2, 권장)** — 소비자가 엔진 무관하게 검색:
+```python
+# python 코드에서 직접 호출
+import sys; sys.path.insert(0, os.path.expanduser('~/forge/shared/scripts/rag'))
+from knowledge_store import KnowledgeStore
+ks = KnowledgeStore.from_config()
+results = ks.search("{검색어}", top_k=5, mode="hybrid")
+```
+
+**CLI 직접 호출 (롤백/디버그용)**:
 ```bash
 # 전체 forge-outputs 검색 (기본)
 python3 ~/forge/shared/scripts/rag/search.py "{검색어}" --top-k {N} --mode {hybrid|vector|bm25} --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index
@@ -77,6 +87,17 @@ python3 ~/forge/shared/scripts/rag/search.py "{검색어}" --index-dir ${FORGE_O
 - `--json`: JSON 출력 (프로그래밍용)
 - `--index-dir`: 인덱스 위치 지정
 
+**Relevance-gate 파라미터** (환경변수):
+- `RAG_RELEVANCE_THRESHOLD`: 관련성 임계값 (기본 0.10). 이 점수 미달 청크는 `[low-relevance]` 섹션으로 분리됨 — 결과가 없어지지 않고 라벨로 표시. Graph 이웃(고정 score=0.5)은 항상 통과.
+  ```bash
+  # 임계값 높이기 — 엄격 필터
+  RAG_RELEVANCE_THRESHOLD=0.20 python3 search.py "검색어"
+  # 임계값 낮추기 — 느슨한 필터 (결과 부족 시)
+  RAG_RELEVANCE_THRESHOLD=0.05 python3 search.py "검색어"
+  ```
+
+JSON 출력 시 각 결과에 `"relevance": "pass"` 또는 `"relevance": "low-relevance"` 필드 포함.
+
 ### Step 3: 결과 해석 + 활용
 
 검색 결과에서:
@@ -84,6 +105,11 @@ python3 ~/forge/shared/scripts/rag/search.py "{검색어}" --index-dir ${FORGE_O
 2. 텍스트 프리뷰로 맥락 파악
 3. 필요하면 해당 파일을 Read하여 전체 문맥 확인
 4. grants-write 등 다른 스킬에서 근거로 인용
+
+**Relevance-gate 라벨 해석**:
+- 일반 결과: threshold 이상 → 그대로 사용
+- `[low-relevance]` 섹션: 점수 threshold 미달 → 참고 가능하지만 낮은 신뢰도 명시 필수. 근거 인용 시 `[low-relevance]` 라벨 함께 표기.
+- 결과가 적으면 threshold 낮추기: `RAG_RELEVANCE_THRESHOLD=0.05 python3 search.py ...`
 
 ## Graph RAG (Obsidian 위키링크 관계 검색)
 
@@ -179,3 +205,5 @@ python3 ~/forge/shared/scripts/rag/index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs
 3. 인덱스가 없으면 빌드를 제안하되, 사용자 확인 없이 자동 빌드하지 않는다 (시간 소요)
 4. 문서가 변경되어 인덱스가 오래됐으면 `--rebuild` 제안
 5. reasoning_context 있으면 쿼리 앞에 `[컨텍스트]` 형식으로 포함 — 검색 정확도 향상
+6. **Relevance-gate (deep-research mechanism c)**: 검색 결과에 `[low-relevance]` 섹션이 있으면 해당 청크를 근거로 직접 인용 금지. 반드시 `[low-relevance]` 라벨을 함께 명시한다. ref: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 (관련성 검증 의무)
+7. 모든 검색 결과는 파일 경로 + 점수 + relevance 판정(`pass`/`low-relevance`)을 함께 출력한다

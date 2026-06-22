@@ -52,6 +52,50 @@ skipVerify=true → Stage 3 skip, 가설 목록만 반환. `CLAUDE_CODE_DISABLE_
    - **커밋 N개**: "관련 소스 N개 커밋 변경 — 기존 해결책 참고만, 재조사 권장" → Stage 1 진행
 3. 없음 → "기존 케이스 없음" 출력 후 Stage 1 진행
 
+## 11-Category Bug Pattern
+
+아래 11종 카탈로그가 전체 인라인 SSoT (외부 파일 없음). Stage 0.5 빠른 매핑 + Stage 2 가설 수립에 공통 참조한다.
+
+| # | 카테고리 | 증상 힌트 |
+|---|---------|----------|
+| 1 | **off-by-one** | 경계값 근처에서만 실패, N-1개 처리, 마지막 요소 누락 |
+| 2 | **race-condition** | 간헐적 실패, 동시 요청 시에만, 타이밍 의존, 재현 불안정 |
+| 3 | **null-deref** | NPE/NullReference, undefined 접근, optional 미처리 |
+| 4 | **type-coercion** | 타입 변환 후 잘못된 비교, JS `==` vs `===`, implicit cast |
+| 5 | **state-mutation** | 전역 변수 오염, 클로저 캡처 오류, 공유 상태 예상 외 변경 |
+| 6 | **async-order** | Promise chain 순서 오류, callback hell, await 누락, 이벤트 순서 의존 |
+| 7 | **boundary-check** | 배열 범위 초과, 페이지 0/마지막, 빈 입력 미처리 |
+| 8 | **resource-leak** | 파일/커넥션 미닫힘, 메모리 누수, 소켓 고갈, GC pressure |
+| 9 | **config-mismatch** | 환경별 설정 불일치, 시크릿 미주입, 피처 플래그 반전, 경로 불일치 |
+| 10 | **dependency** | 라이브러리 버전 충돌, 패키지 누락, peer dependency 불일치 |
+| 11 | **regression** | 이전에 정상이었으나 특정 커밋 이후 재발, git bisect 대상 |
+
+→ Stage 0.5에서 1~2개 특정 후 Stage 1 진입. Stage 2 가설 수립 시 해당 카테고리 패턴을 근거로 활용.
+
+## 4 디버그 추론 모델
+
+Stage 2(분석) 및 Stage 3(가설 검증) 진행 시, 아래 4가지 추론 모델 중 상황에 맞는 것을 선택하여 적용한다. 기존 5-step 역추적(Stage 2 §코드 경로 역추적)과 병행 사용.
+
+| 모델 | 적용 상황 | 방법 |
+|------|---------|------|
+| **binary-search** | 재현 가능하나 원인 범위가 넓을 때 (대규모 코드베이스, 수백 커밋) | 범위를 절반씩 좁힘. git bisect 또는 코드 경로를 반으로 나눠 어느 쪽이 실패하는지 확인 → 반복 |
+| **differential** | "A 환경에서는 정상, B 환경에서는 실패" 패턴일 때 | 두 환경의 차이점 목록화 (설정·버전·데이터·실행 순서) → 차이 항목을 하나씩 교체하며 실패 재현 |
+| **causal-chain** | 에러 스택트레이스 또는 로그가 있을 때 (원인-결과 체인 역추적) | 증상(결과)에서 출발해 "무엇이 이것을 유발했는가"를 거슬러 올라감. 5-Whys와 결합. 최초 입력/상태 오류 지점 도달 시 종료 |
+| **invariant-check** | 복잡한 상태 기계·데이터 파이프라인·분산 시스템에서 간헐적 실패 | 시스템이 항상 참이어야 하는 불변 조건(invariant)을 명시 → 각 체크포인트에서 불변 조건 위반 여부 확인 → 위반 지점 = 원인 |
+
+**추론 모델 선택 가이드**:
+- 로그/스택 있음 → **causal-chain** 우선
+- 환경·버전 차이 있음 → **differential**
+- 재현 가능·범위 불명 → **binary-search**
+- 상태 복잡·간헐적 → **invariant-check**
+- 여러 조건 복합 → 두 모델 병행 허용
+
+### Stage 0.5: 버그패턴 빠른 매핑
+
+증상을 11-Category Bug Pattern 카탈로그(위)에 빠르게 매핑한다. Stage 1 탐색 범위를 사전에 좁히기 위함.
+
+→ 해당 카테고리 1~2개 특정 후 Stage 1 시작.
+
 ### Stage 1: 조사 (Investigate)
 
 증상을 정확히 기록하고, 재현 조건을 특정한다.
@@ -95,7 +139,7 @@ skipVerify=true → Stage 3 skip, 가설 목록만 반환. `CLAUDE_CODE_DISABLE_
 **UI/레이아웃 버그 분기** (증상이 시각적 깨짐·렌더링 이슈인 경우):
 
 ```bash
-# 1. 재현 전 스크린샷 (RED) — mcp__Claude_in_Chrome 사용
+# 1. 재현 전 스크린샷 (RED) — mcp__claude-in-chrome 사용
 #    저장: docs/bug_report/screenshots/{BUG-ID}-red-before.png
 # 2. 스크린샷을 bug report에 첨부 → healer Vision evaluator가 참조
 
@@ -158,6 +202,28 @@ _logger.LogInformation("[API exit] resultCode={Code}, dataKeys={Keys}", result.R
 
 가능한 원인을 모두 나열하고, 증거 기반으로 좁힌다.
 
+#### 패턴 분석 — 가설 수립 전 working example 비교
+
+가설 나열 전, 동일 코드에서 **정상 동작 경로(working example)** 와 **실패 경로** 를 나란히 비교한다:
+
+1. **유사 기능 탐색**: 같은 레이어에서 정상 동작하는 코드(passing path) 1개를 찾는다.
+2. **구조 대조**: passing path와 failing path의 코드 구조·상태 흐름·의존성을 줄 단위로 비교.
+3. **차이점 목록화**: 두 경로 간 유일한 차이를 3개 이하로 좁힌다 — 이것이 가설 우선순위 근거.
+
+→ working example 비교 없이 가설 목록만 나열하면 Stage 2 미완료.
+
+#### 가설 수립 전 자기점검 — red-flag 7종
+
+아래 생각이 들면 멈추고 근거를 먼저 수집한다:
+
+1. "이게 원인인 것 같다" — 증거 없이 단정. 근거 없으면 가설 목록에 넣되 High 주지 않는다.
+2. "이전에도 이 패턴이었다" — 현재 증상과 이전 사례가 100% 동일한지 확인 후 유추.
+3. "재현이 어려우니 그냥 고친다" — 재현 불가 = 원인 미특정. Stage 3 검증 먼저.
+4. "코드가 간단해 보여서 버그가 없을 것" — 단순 코드에서도 off-by-one·null-deref 빈발.
+5. "긴급하니 빠르게" — 긴급할수록 근본 원인 특정 후 수정. 우회 패치는 재발 확률 ↑.
+6. "이 파일만 보면 된다" — Stage 1 boundary 진단으로 레이어 확정 전 단일 파일 한정 금지.
+7. "테스트가 통과하니 원인이 아니다" — 테스트가 해당 경로를 커버하는지 먼저 확인.
+
 ```markdown
 ## 가설 목록
 | # | 가설 | 가능성 | 근거 |
@@ -175,7 +241,13 @@ _logger.LogInformation("[API exit] resultCode={Code}, dataKeys={Keys}", result.R
 분석 방법:
 - 5 Whys (왜? 5번 반복)
 - 변경점 분석 (git diff/log)
-- 코드 경로 추적 (콜 스택)
+- 코드 경로 역추적 5-step (콜 스택 backward trace):
+  1. Observe symptom — 에러가 터진 지점(스택 최상단) 확인
+  2. Find immediate cause — 해당 함수/라인에서 무엇이 틀렸는가
+  3. Ask what called this — 그 함수를 호출한 caller는 어디인가
+  4. Keep tracing up — caller의 caller를 반복 추적 (최대 5 depth)
+  5. Find originating cause — 최초로 잘못된 값/상태를 주입한 지점 = 근본 원인
+  → 5 depth 내 originating cause 미발견 시: 시스템 경계(외부 입력/설정/환경) 의심
 - 유사 이슈 검색 (learnings.jsonl, Auto Memory)
 
 ### Stage 3: 가설 검증 (Verify)
@@ -246,6 +318,9 @@ Advisor 응답 받아 Stage 3 진행 순서 결정.
 2. 테스트 실행 → **반드시 FAIL** 확인 (PASS면 테스트가 버그를 못 잡는 것)
 3. 이제 Stage 5로 이동하여 수정
 
+**blast-radius 게이트**: 수정 예상 범위가 >5개 파일이면 Stage 5 진입 전 중단.
+→ Human에게 범위 확인 요청 또는 scope 축소 후 재진행. >5 파일 수정 = 설계 문제 또는 wrong-root-cause 신호.
+
 ### Stage 5: 수정 (Fix)
 
 재현 테스트가 FAIL하는 것을 확인한 후에만 수정한다.
@@ -269,9 +344,79 @@ Advisor 응답 받아 Stage 3 진행 순서 결정.
 - [ ] 관련 규칙/문서 업데이트
 ```
 
+#### 3-fix 에스컬레이션
+
+fix-attempt 카운터를 추적한다. Stage 5를 재진입할 때마다 +1.
+
+- attempt 1~2: 정상 수정 시도
+- attempt 3+: **즉시 STOP**. 반복 실패 = 근본 원인 미특정 또는 설계 문제.
+  → Stage 2로 돌아가 가설 목록 전면 재검토 후 architecture proposal 작성.
+  → Human에게 "3회 수정 실패 — 설계 검토 필요" 보고 후 진행 승인 받기.
+
+#### 토큰 캡 + same-root-cause oscillation 가드 (P1 신규)
+
+**토큰 캡**: Stage 진입마다 확인.
+
+```
+INVESTIGATE_TOKEN_CAP = 환경변수 INVESTIGATE_TOKEN_CAP (기본: 300000)
+
+각 Stage 진입 전:
+  if estimated_tokens ≥ INVESTIGATE_TOKEN_CAP:
+    "[STOP] INVESTIGATE_TOKEN_CAP={cap} 도달. Stage {N} 진입 취소."
+    현재까지 수집한 증거 + 가설 목록 + 마지막 Stage 결과 반환
+```
+
+- `INVESTIGATE_TOKEN_CAP` 미설정 시 기본값 **300000** 적용.
+- Stage별 추정 토큰: Stage 0~0.5 ~30000 / Stage 1 ~60000 / Stage 2 ~80000 / Stage 3 ~60000 / Stage 4~5 ~70000.
+- ⚠️ **추정치 정직성**: 추정치 = best-effort (LLM 자가추정, 정확 토큰 카운트 불가). **결정론적 bound = max-cycles**; 토큰 추정은 보조 가드. 정확한 토큰 enforcement는 P4 (agent-budget 훅 연동) 예정.
+
+**same-root-cause oscillation 가드**: Stage 5에서 2회 연속 동일 근본 원인이 도출됐으나 테스트가 여전히 FAIL인 경우 → Stage 2 재진입 금지, 즉시 에스컬레이션.
+
+```
+same-root-cause 판정:
+  Stage 5 attempt N 완료 후:
+    current_root = "## 근본 원인" 섹션 1줄(정규화 소문자, 앞 120자)
+    prev_root    = attempt N-1 의 동일 추출값
+    if current_root == prev_root AND 테스트 FAIL:
+      "[OSCILLATION] 동일 근본 원인 2회 — 수정 패치가 실제 원인에 미도달."
+      "Stage 2 재진입 금지. 설계 검토 필요. Human 에스컬레이션."
+      STATUS: BLOCKED (조사 완료 상태 선언)
+      handover에 oscillation 경위 + 마지막 root-cause 기록 의무
+```
+
+- oscillation은 3-fix 에스컬레이션과 독립적으로 작동 (attempt 2에서도 같은 근본원인 연속이면 즉시 발화).
+
+## 합리화 반박 — 금지 패턴
+
+| 합리화 패턴 | 반박 | 올바른 행동 |
+|------------|------|------------|
+| "증상이 명확하니 원인도 명확하다" | 증상 ≠ 원인. 증상은 여러 원인의 결과일 수 있다 | Stage 2 가설 최소 2개 이상 |
+| "이 파일만 보면 충분하다" | 다층 시스템에서 레이어 간 경계가 진짜 실패 지점 | Stage 1 boundary 진단 먼저 |
+| "긴급하니 Stage 건너뜀" | 빠른 우회 패치 = 재발 보장 | Stage 순서 고정, 긴급 = 근거 수집 속도 ↑ |
+| "3번 시도했으니 이게 맞다" | 반복 실패 = 가설이 틀렸다는 신호 | 3-fix 에스컬레이션 규칙 적용 |
+| "테스트 추가는 나중에" | 재현 테스트 없으면 수정 검증 불가 | Stage 4 Prove-It 먼저 |
+
+## 조사 완료 선언 (GS-B10)
+
+Stage 3 이후 [STOP] human gate 전, 반드시 아래 3종 중 하나로 완료 상태 선언:
+
+| 상태 | 의미 | 조건 |
+|------|------|------|
+| **DONE** | 근본 원인 특정 완료, 수정 가능 | 가설 검증 PASS + 재현 명령 FAIL 확인 |
+| **DONE_WITH_CONCERNS** | 원인 특정했으나 부작용/불확실성 존재 | 가설 검증 PASS + 경고 사항 명시 |
+| **BLOCKED** | 근본 원인 특정 불가, 추가 정보 필요 | 3-fix 에스컬레이션 도달 또는 재현 불가 |
+
+출력 형식 (human gate 직전):
+```
+조사 완료 상태: DONE | DONE_WITH_CONCERNS | BLOCKED
+근본 원인: <1줄>
+확인 명령: <재현 명령>
+다음 단계: <healer 위임 | 추가 정보 요청 | 에스컬레이션>
+```
+
 ## AI 행동 규칙
 
-1. 버그 리포트를 받으면 즉시 코드 수정하지 않는다 — Stage 1부터 시작
+1. 버그 리포트를 받으면 즉시 코드 수정하지 않는다 — Stage 0(RAG 선검색)부터 시작
 2. Stage 2에서 가설이 1개뿐이면 의심한다 — 최소 2개 이상 나열
 3. Stage 3 검증 없이 Stage 4로 넘어가지 않는다
 4. **Stage 4에서 재현 테스트를 먼저 작성하고 FAIL을 확인한 후에만 Stage 5 수정으로 넘어간다** (Prove-It 원칙)
@@ -354,3 +499,25 @@ Stage 6 bug log 저장 후 자동 호출:
 - 결과: `forge-outputs/docs/reviews/bugfix/{date}-{slug}.{md,json}`
 - 비활성: `CODEX_REVIEW_AUTO_STAGES=off`
 > 실패 시 [[pev-self-correction]] 적용
+
+## 완료 상태 (GS-B10)
+
+`/investigate` 세션 종료 시 아래 3-state enum 중 하나를 명시적으로 선언한다.
+
+| 상태 | 의미 | 조건 |
+|------|------|------|
+| `DONE` | 근본 원인 특정 + 수정 완료 + 재현 테스트 PASS | Stage 5 성공 + Stage 6 저장 완료 |
+| `DONE_WITH_CONCERNS` | 수정 완료했으나 주의 항목 존재 | Stage 5 성공이지만 ① Codex WARN ② blast-radius 5↑ ③ 임시 패치 |
+| `BLOCKED` | Human gate 또는 3-fix 에스컬레이션 | ① Stage 4 [STOP] ② 3회 수정 실패 ③ 설계 개입 필요 |
+
+### 선언 형식
+
+세션 마지막 보고에 포함:
+
+```
+[investigate] STATUS: DONE | 근본 원인: <1줄> | 수정 커밋: <hash>
+[investigate] STATUS: DONE_WITH_CONCERNS | 사유: <Codex WARN 항목 / 임시 패치 이유>
+[investigate] STATUS: BLOCKED | 사유: <Human gate 필요 이유> | 권고: <다음 액션>
+```
+
+`DONE_WITH_CONCERNS` / `BLOCKED`는 handover `§발견한 이슈`에 상세 기록 필수.

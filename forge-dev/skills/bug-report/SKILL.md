@@ -23,12 +23,12 @@ description: "웹앱 LNB 전체 메뉴를 자동 순회하며 기능 오류·레
 
 ## Step 1: 접속 및 로그인
 
-`mcp__Claude_in_Chrome__navigate`로 URL 접속 후 로그인 폼에 자격증명 입력.
+`mcp__claude-in-chrome__navigate`로 URL 접속 후 로그인 폼에 자격증명 입력.
 로그인 성공 여부를 페이지 텍스트로 확인 후 진행.
 
 ## Step 2: LNB 메뉴 목록 파악
 
-`mcp__Claude_in_Chrome__get_page_text`로 메뉴 구조 추출.
+`mcp__claude-in-chrome__get_page_text`로 메뉴 구조 추출.
 서브메뉴(드롭다운·트리) 모두 펼쳐서 목록화 → 내부 체크리스트로 관리.
 
 ## Step 3: 페이지별 순차 탐색
@@ -157,6 +157,86 @@ bash ~/.claude/skills/bug-report/scripts/next-bug-id.sh {프로젝트 루트}/do
 ```
 
 상태 아이콘: ✅ 정상 / ⚠️ 레이아웃 / ❌ 기능오류
+
+---
+
+## Step 7.5: 순회 후 Evaluator 패스 (post-traversal, 순회 완료 후에만 실행)
+
+> 이 단계는 Step 7 요약 출력 **이후**에만 실행한다. 순회 중 절대 중단 금지 원칙은 유지된다.
+
+별도 evaluator subagent를 스폰한다 (traversal executor와 독립된 agent — reasoning 격리).
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  prompt="""
+BUG-EVALUATOR 역할: 아래 bug-report 파일 목록을 rubric 기준으로 평가한다.
+순회 실행 컨텍스트를 상속하지 않는다 — 오직 rubric + 실제 파일 내용만 참조.
+
+입력: {bug_report_dir}/BUG-*.md 전체 목록
+rubric 기준:
+  1. 중복 통합: 동일 페이지·동일 현상 BUG-NNN 항목 → 하나의 MASTER 버그로 병합 제안 (파일 수정 X, 병합 목록만 출력)
+  2. severity 정합: 각 버그의 심각도를 ~/.claude/skills/bug-report/references/severity.md 기준으로 재검증
+     - 선언된 심각도 vs rubric 기준 불일치 → [MISMATCH] 플래그
+  3. 불일치 요약: MISMATCH 건별 (BUG-ID / 선언 심각도 / 권장 심각도 / 사유) 표 출력
+
+출력 형식:
+## Evaluator Report
+### 중복 통합 대상
+| 그룹 | MASTER | 중복 항목 | 통합 사유 |
+|------|--------|----------|---------|
+
+### Severity MISMATCH
+| BUG-ID | 선언 | 권장 | 사유 |
+|--------|------|------|------|
+
+### 종합 평가
+총 버그: N / 중복 후보: N건 / Severity 불일치: N건
+  """,
+)
+```
+
+evaluator 결과를 받아 최종 요약에 "Evaluator 검토 결과" 섹션으로 첨부한다.
+
+---
+
+## Step 7.7: Critical/High 재현 재검 (re-verify, max 1회/버그)
+
+> 재현성을 반드시 확인해야 하는 Critical/High 버그에 한해 실행. bound: 버그당 최대 1회.
+
+Step 7.5 Evaluator 결과에서 **Critical 또는 High** 판정된 버그 목록을 대상으로:
+
+각 Critical/High 버그마다 별도 re-verify subagent를 스폰한다 (evaluator와도 독립):
+
+```python
+# Critical/High 버그 목록 순회 (for each bug in critical_high_list)
+Agent(
+  subagent_type="general-purpose",
+  prompt="""
+RE-VERIFY 역할: 단일 버그의 재현 가능성을 확인한다. (max 1 re-verify per bug)
+대상 버그: {BUG-ID} — {버그 제목}
+재현 URL: {WHERE URL}
+재현 단계: {HOW 재현 단계}
+
+실행:
+1. mcp__claude-in-chrome__navigate 로 해당 페이지 재접속
+2. 재현 단계 그대로 수행
+3. 동일 현상 확인 → CONFIRMED / 미재현 → UNCONFIRMED
+
+출력:
+재현 결과: CONFIRMED | UNCONFIRMED
+증거: (스크린샷 경로 또는 "미재현 — 상태 변경 가능성")
+  """,
+)
+```
+
+re-verify 결과를 해당 BUG 파일의 `## 처리 이력` 에 한 줄 추가한다:
+```
+| {날짜} | re-verify | CONFIRMED / UNCONFIRMED |
+```
+
+**bound**: 버그당 1회만 실행. UNCONFIRMED이더라도 추가 재시도 금지 → 결과를 그대로 기록하고 사람이 판단.
+Critical이 UNCONFIRMED이면 처리 이력에 "(자동 재현 실패 — 수동 확인 필요)" 명시.
 
 ---
 

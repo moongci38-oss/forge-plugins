@@ -11,12 +11,15 @@ export const meta = {
   ],
 }
 
-// args = { legacyPath, migratedPath, stack='node-nest', scope='full', fix='off'|'propose'|'auto' }
+// args = { legacyPath, migratedPath, stack='node-nest', scope='full', fix='off'|'propose'|'auto', crMode='on'|'degrade'|'off' }
+// root-cause: crMode gate — degrade/off skips codex-critic Phase 4 spawn to allow cost/availability fallback
 const legacyPath = args?.legacyPath || ''
 const migratedPath = args?.migratedPath || ''
 const stack = args?.stack || 'node-nest'
 const scope = args?.scope || 'full'
 const fixMode = args?.fix || 'off'
+// root-cause: crMode default flip 'on'→'degrade' (fail-safe Codex-off, 2026-06-15)
+const crMode = args?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제)
 
 if (!legacyPath || !migratedPath) {
   log('[STOP] legacyPath + migratedPath 필수 (args.legacyPath / args.migratedPath)')
@@ -137,13 +140,27 @@ const FIX_SCHEMA = {
   required: ['fixed', 'oraclePass', 'summary'],
 }
 
+// root-cause: B3 structured finding IDs — items changed from string to object with stable `id` field.
+// `id` must be a deterministic slug (e.g. `${file}:${rule}`) so oscillation detection is wording-drift-immune.
+const REAUDIT_FINDING_SCHEMA = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    severity: { type: 'string', enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] },
+    file: { type: 'string' },
+    rule: { type: 'string' },
+    desc: { type: 'string' },
+  },
+  required: ['id'],
+}
+
 const REAUDIT_SCHEMA = {
   type: 'object',
   properties: {
     criticalCount: { type: 'number' },
     highCount: { type: 'number' },
-    newFindings: { type: 'array', items: { type: 'string' } },
-    resolvedFindings: { type: 'array', items: { type: 'string' } },
+    newFindings: { type: 'array', items: REAUDIT_FINDING_SCHEMA },
+    resolvedFindings: { type: 'array', items: REAUDIT_FINDING_SCHEMA },
     syncPercent: { type: 'number' },
     summary: { type: 'string' },
   },
@@ -226,14 +243,27 @@ log(`[Phase3] spMismatch=${dbResult?.spMismatches} oataPreserved=${dbResult?.col
 
 // ── Phase 4: Review ───────────────────────────────────────────────────────────
 phase('Review')
-// 외부 토큰 선발행 전제 (codex-critic mcp__codex__ HMAC)
-const reviewResult = await agent(
-  `Phase 4 멀티 적대적 검수 [게이트 3 — BLOCKING]. ` +
-  `Phase 2 findings(${allFindings.length}건): ${JSON.stringify(allFindings.slice(0, 20))}. ` +
-  `cr-triple 기준: 각 finding 동의편향 없이 재검. 요약 금지(원문 excerpt 필수). ` +
-  `확정 finding만 통과. verdict(PASS/WARN/FAIL) + criticalCount + confirmedFindings 반환.`,
-  { label: 'phase-4:review', phase: 'Review', schema: REVIEW_SCHEMA, agentType: 'codex-critic' }
-)
+// root-cause: crMode gate — degrade/off bypasses codex-critic; aggregation uses reviewResult fallback
+let reviewResult
+if (crMode === 'on' || !crMode) {
+  // 외부 토큰 선발행 전제 (codex-critic mcp__codex__ HMAC)
+  reviewResult = await agent(
+    `Phase 4 멀티 적대적 검수 [게이트 3 — BLOCKING]. ` +
+    `Phase 2 findings(${allFindings.length}건): ${JSON.stringify(allFindings.slice(0, 20))}. ` +
+    `cr-triple 기준: 각 finding 동의편향 없이 재검. 요약 금지(원문 excerpt 필수). ` +
+    `확정 finding만 통과. verdict(PASS/WARN/FAIL) + criticalCount + confirmedFindings 반환.`,
+    { label: 'phase-4:review', phase: 'Review', schema: REVIEW_SCHEMA, agentType: 'codex-critic' }
+  )
+} else {
+  // crMode='degrade'|'off' — codex-critic spawn skipped; pass Phase 2 findings through unreviewed
+  log(`[Phase4] codex-critic SKIPPED (crMode=${crMode}) — Phase 2 findings passed through as-is`)
+  reviewResult = {
+    verdict: 'WARN',
+    criticalCount: allFindings.filter(f => f?.severity === 'CRITICAL').length,
+    confirmedFindings: allFindings,
+    note: `codex-critic skipped: crMode=${crMode}`,
+  }
+}
 if (reviewResult?.verdict === 'FAIL') {
   log(`[GATE3] cr-triple FAIL — CRITICAL ${reviewResult?.criticalCount}건`)
 }
@@ -298,25 +328,157 @@ let cycles = 0
 const recentCounts = [criticalCount]
 log(`[Phase7 PEV] 시작 CRITICAL=${criticalCount} cap=6`)
 
+// root-cause: SKILL.md §oscillation 조건(동일 finding 2회) 선언 미구현 — seenFindings Set으로 추적. (앵커: 섹션명 — label-rot 방지)
+// B3: REAUDIT_SCHEMA now declares newFindings/resolvedFindings as arrays of OBJECTS with stable `id` field.
+// Fingerprint keys on finding.id (deterministic slug e.g. `${file}:${rule}`) — NOT free-prose string — so wording drift cannot cause false-negatives.
+// root-cause: cr-double LOW — id-less object가 String(obj)='[object Object]'로 붕괴 → distinct findings 병합 → false-positive oscillation. file:rule:desc concat로 하드닝.
+const _fingerprintFinding = (f) => {
+  if (f && typeof f === 'object') {
+    if (typeof f.id === 'string' && f.id.trim()) return f.id.trim()
+    const parts = [f.file, f.rule, f.desc].filter(Boolean).join(':')
+    if (parts) return parts.toLowerCase().trim().slice(0, 120)
+  }
+  // Fallback: stray string finding
+  return String(f || '').toLowerCase().trim().slice(0, 120)
+}
+// seenFindings: Map<fingerprint, { count: number, lastSeenCycle: number, resolvedCycles: number[], consecutiveCount: number }>
+// 판정 ①oscillation: fingerprint가 "seen → gone(resolvedCycles에 기록) → seen again" 패턴
+// 판정 ②same_issue: 동일 fingerprint가 resolvedCycles 기록 없이 consecutiveCount ≥ 3 연속 (GC-b)
+const seenFindings = new Map()
+
+// root-cause: GC-a regression — track baseline syncPercent + per-cycle criticalCount to detect regressions.
+// Regression signal: syncPercent ACTUALLY drops (only when present) OR criticalCount increases vs prior cycle.
+// root-cause: F1 — prevSyncPercent init comment corrected: cycle 1 has no prior syncPercent, so only criticalCount branch is live.
+let prevSyncPercent = 0        // GC-a: prior-cycle syncPercent; only compared when current cycle emits a number
+let prevCycleCritical = criticalCount  // GC-a: prior-cycle criticalCount; decrease = progress, increase = regression
+
+// root-cause: GC-c budget advisory — loop-kernel-standard §3: turn-budget-aware early-stop (honest: cycle-cap=primary, budget=advisory).
+// BUDGET_RESERVE named per standard (not *_TOKEN_CAP). Guard is total-gated so no-budget callers pass through unaffected.
+// root-cause: F2 — align with system-audit default (300000); env-overridable so operators can tune without code change.
+const BUDGET_RESERVE = parseInt(process.env.BUDGET_RESERVE || '300000')  // advisory turn-budget reserve (tokens); primary bound remains max_cycles(6)
+
+// root-cause: F4 — track why the PEV loop stopped so callers can distinguish budget-curtailed from real FAIL.
+let stopReason = 'max_cycles'  // default: loop ran to max_cycles bound
+
+// root-cause: F3 — crash-safe budget guard (match forge-loop defensive form): budget may be undefined on fallback harness paths.
+if (budget && budget.total && typeof budget.remaining === 'function' && budget.remaining() < BUDGET_RESERVE) {
+  log(`[BUDGET] turn-budget remaining=${budget.remaining()} < BUDGET_RESERVE=${BUDGET_RESERVE} → Phase 7 PEV 스킵 (advisory)`)
+  stopReason = 'budget_skip'
+} else {
+
 while (criticalCount > 0 && cycles < 6) {
+  // root-cause: GC-c budget advisory — re-check each cycle so mid-loop depletion also exits cleanly.
+  // root-cause: F3 — crash-safe guard (matches forge-loop): budget may be undefined on fallback harness paths.
+  if (budget && budget.total && typeof budget.remaining === 'function' && budget.remaining() < BUDGET_RESERVE) {
+    log(`[BUDGET] turn-budget 소진 임박 (remaining=${budget.remaining()}) — PEV 루프 조기 종료 (advisory)`)
+    stopReason = 'budget_skip'
+    break
+  }
+
   cycles++
   const reAudit = await agent(
+    // root-cause: B3 structured finding IDs — instruct re-audit agent to emit stable id per finding so oscillation detection is wording-drift-immune.
+    // root-cause: P4c-1 followup — re-list persistent unresolved findings each cycle so GC-b same_issue consecutiveCount is reliable (else false-negative).
     `Phase 7 PEV 재검 사이클 ${cycles}/6. ` +
     `재검 범위: 변경 도메인 + 의존/호출 연결 도메인. ` +
     `legacy="${legacyPath}" src="${migratedPath}" stack="${stack}". ` +
     `SYNC-STATUS.md 갱신: 사이클=${cycles}/6 | 신규=? | 해결=? | CRITICAL=? | HIGH=? | plateau=?. ` +
+    `newFindings/resolvedFindings 각 항목은 반드시 구조화 객체로 반환: { id, severity, file, rule, desc }. ` +
+    `id는 안정적 결정론적 슬러그 필수 (예: "src/payment/service.ts:missing-null-check"). ` +
+    `사이클 간 동일 이슈는 반드시 동일 id 사용 — 표현(desc)이 바뀌어도 id 고정. ` +
+    // root-cause: P4c-1 followup — same_issue 신뢰성: 지속 finding 재나열 지시
+    `**미해결 지속 finding도 매 사이클 newFindings에 재나열** (해결 전까지 계속 — same_issue 연속카운트가 의존). ` +
     `criticalCount + highCount + newFindings + resolvedFindings + syncPercent 반환.`,
     { label: `phase-7:pev-cycle-${cycles}`, phase: 'Fix', schema: REAUDIT_SCHEMA }
   )
   recentCounts.push(reAudit?.criticalCount || 0)
-  criticalCount = reAudit?.criticalCount || 0
-  log(`[Phase7 C${cycles}] CRITICAL=${criticalCount} HIGH=${reAudit?.highCount} sync=${reAudit?.syncPercent}%`)
+  const newCritical = reAudit?.criticalCount || 0
+  // root-cause: F1 — do NOT collapse missing syncPercent to 0 via `?? 0`.
+  // When agent omits syncPercent (legitimate: not all cycles report it), `?? 0` turns an absent field into 0,
+  // causing a false REGRESSION vs any prior non-zero prevSyncPercent. Only treat it as a regression signal
+  // when it is actually a number in the response.
+  const hasSyncPercent = typeof reAudit?.syncPercent === 'number'
+  const newSyncPercent = hasSyncPercent ? reAudit.syncPercent : prevSyncPercent  // keep prev for log display when absent
+  log(`[Phase7 C${cycles}] CRITICAL=${newCritical} HIGH=${reAudit?.highCount} sync=${hasSyncPercent ? newSyncPercent + '%' : '(not reported)'}`)
+
+  // ── GC-a: regression 감지 ────────────────────────────────────────────────────
+  // root-cause: GC-a — fixer can silently break passing tests. Detect by syncPercent drop (only when present) OR criticalCount increase.
+  // root-cause: F1 — syncRegressed only fires when hasSyncPercent; missing field is NOT a regression signal.
+  const syncRegressed = hasSyncPercent && reAudit.syncPercent < prevSyncPercent
+  const critRegressed = newCritical > prevCycleCritical
+  if (syncRegressed || critRegressed) {
+    log(
+      `[REGRESSION] 회귀 감지: ` +
+      `sync ${prevSyncPercent}%→${hasSyncPercent ? reAudit.syncPercent + '%' : '(absent)'} | critical ${prevCycleCritical}→${newCritical} ` +
+      `→ PEV 루프 중단`
+    )
+    criticalCount = newCritical
+    stopReason = 'regression'
+    break
+  }
+  // root-cause: F1 — only advance prevSyncPercent when the agent actually reported it; absent = no evidence of change.
+  if (hasSyncPercent) prevSyncPercent = reAudit.syncPercent
+  prevCycleCritical = newCritical
+  criticalCount = newCritical
+
+  // ── oscillation 감지 (SKILL.md 선언 조건 배선) ──────────────────────────────
+  // 현 사이클 active findings 지문 수집
+  const currentFingerprints = new Set(
+    (reAudit?.newFindings || []).map(_fingerprintFinding).filter(Boolean)
+  )
+  // 이전 사이클에서 해결됐다고 보고된 findings 지문
+  const resolvedFingerprints = new Set(
+    (reAudit?.resolvedFindings || []).map(_fingerprintFinding).filter(Boolean)
+  )
+
+  // 해결됐던 finding 지문 기록
+  for (const fp of resolvedFingerprints) {
+    if (seenFindings.has(fp)) {
+      seenFindings.get(fp).resolvedCycles.push(cycles)
+      // resolved this cycle — reset consecutive counter (no longer consecutive)
+      seenFindings.get(fp).consecutiveCount = 0
+    }
+  }
+  // 현 사이클 active findings 업데이트 + oscillation 감지 + same_issue 감지 (GC-b)
+  let oscillationDetected = false
+  let sameIssueDetected = false
+  for (const fp of currentFingerprints) {
+    if (!seenFindings.has(fp)) {
+      seenFindings.set(fp, { count: 1, lastSeenCycle: cycles, resolvedCycles: [], consecutiveCount: 1 })
+    } else {
+      const entry = seenFindings.get(fp)
+      entry.count++
+      entry.lastSeenCycle = cycles
+      // root-cause: GC-b same_issue — same finding id persists ≥3 cycles consecutively (never resolved).
+      // DISTINCT from oscillation (which requires resolved→reappeared). consecutive = unbroken run with no resolvedCycles entry.
+      // Reuses _fingerprintFinding (structured id) per standard §2 — string fuzzy forbidden.
+      // root-cause: F5 — no resolvedFingerprints guard needed here: currentFingerprints ∩ resolvedFingerprints = ∅
+      // (a finding cannot be both active AND resolved in the same cycle), so unconditional increment is correct.
+      // The consecutive-counter reset for resolved findings happens in the resolvedFingerprints loop above.
+      entry.consecutiveCount = (entry.consecutiveCount || 0) + 1
+      if (entry.consecutiveCount >= 3) {
+        log(`[SAME_ISSUE] finding ${entry.consecutiveCount}회 연속 미해결 (stuck): "${fp.slice(0, 60)}..." → PEV 루프 중단`)
+        sameIssueDetected = true
+        stopReason = 'same_issue'  // root-cause: F4 — attributable stop reason
+        break
+      }
+      // oscillation = 이전에 resolved로 보고된 적 있고, 지금 다시 나타남
+      if (entry.resolvedCycles.length >= 1) {
+        log(`[OSCILLATION] finding 재출현 감지 (2회+): "${fp.slice(0, 60)}..." → PEV 루프 중단`)
+        oscillationDetected = true
+        stopReason = 'oscillation'  // root-cause: F4 — attributable stop reason
+        break
+      }
+    }
+  }
+  if (oscillationDetected || sameIssueDetected) break
 
   // plateau 감지: 2연속 동일
   if (recentCounts.length >= 3) {
     const last2 = recentCounts.slice(-2)
     if (last2[0] === last2[1] && last2[0] > 0) {
       log(`[PLATEAU] 2연속 CRITICAL=${criticalCount} → PEV 루프 중단`)
+      stopReason = 'plateau'  // root-cause: F4 — attributable stop reason
       break
     }
   }
@@ -330,8 +492,13 @@ while (criticalCount > 0 && cycles < 6) {
   }
 }
 
+} // end budget.total gate
+
+// root-cause: F4 — if criticalCount reached 0 the loop exited via while-condition (all resolved), override stopReason.
+if (criticalCount === 0 && stopReason === 'max_cycles') stopReason = 'resolved'
+
 const finalVerdict = criticalCount === 0 ? 'PASS' : 'FAIL'
-log(`[Phase7 완료] ${finalVerdict} cycles=${cycles} CRITICAL=${criticalCount}`)
+log(`[Phase7 완료] ${finalVerdict} cycles=${cycles} CRITICAL=${criticalCount} stopReason=${stopReason}`)
 
 return {
   status: finalVerdict,
@@ -339,4 +506,5 @@ return {
   criticalCount,
   cycles,
   syncComplete: criticalCount === 0,
+  stopReason,  // root-cause: F4 — caller can distinguish budget_skip / regression / same_issue / oscillation / plateau / max_cycles / resolved
 }

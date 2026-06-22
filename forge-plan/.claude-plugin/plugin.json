@@ -1,9 +1,13 @@
 {
   "name": "forge-plan",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Forge 기획 파이프라인 — spec-write/writing-plans/requirements-clarity/autoplan. S1~S3 도구.",
-  "author": {"name": "forge"},
-  "dependencies": ["forge-core"],
+  "author": {
+    "name": "forge"
+  },
+  "dependencies": [
+    "forge-core"
+  ],
   "skills": "./skills/",
   "commands": "./commands/",
   "agents": "./agents/"

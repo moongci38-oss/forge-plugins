@@ -131,15 +131,43 @@ paths:
     → 생성 실패 시 → 폴백 도구로 자동 전환 + Human 알림
     → 다중 생성: 같은 프롬프트로 3장 생성 (T1/T2 에셋)
 
- 9. 크리틱 6항목 자동 평가
-    → 인라인 체크리스트 (각 1-5점):
-      ① 계층감: 주/보조 요소 명확한 시각 계층
-      ② 일관성: style-guide 팔레트·아트 스타일 일치
-      ③ 안티패턴 없음: AI 클리셰(과도 광택, 오버블룸, 포토리얼 배경) 없음
-      ④ 브리프 충실도: target_emotion 반영 (brief 없으면 SKIP → 5점 처리)
-      ⑤ 서사: "the instant {moment}" 느낌 전달 여부
-      ⑥ 물성: 소재감·질감이 material 키워드와 일치
-    → PASS: 평균 3.5+ & 항목⑤⑥ 각 3.0+
+ 9. 크리틱 6항목 평가 — 독립 Evaluator Agent (생성자 ≠ 평가자)
+    → 생성자 컨텍스트 격리: 평가자는 생성 프롬프트·추론 컨텍스트를 받지 않는다.
+    → 평가자에게 전달: 생성된 이미지 파일 경로 + 아래 루브릭만.
+
+    ```python
+    Agent(
+      subagent_type="general-purpose",
+      model="sonnet",
+      prompt="""
+    당신은 게임 에셋 품질 독립 평가자입니다. 생성 과정의 맥락 없이 아래 이미지만 보고 평가합니다.
+
+    평가 대상 이미지: {generated_image_path}
+    style-guide 참조: {style_guide_path}
+    art-direction-brief 참조: {brief_path} (없으면 ④ SKIP → 5점 처리)
+
+    6축 루브릭 (각 1-5점):
+    ① 계층감: 주/보조 요소 명확한 시각 계층
+    ② 일관성: style-guide 팔레트·아트 스타일 일치
+    ③ 안티패턴 없음: AI 클리셰(과도 광택, 오버블룸, 포토리얼 배경) 없음
+    ④ 브리프 충실도: target_emotion 반영 (brief 없으면 SKIP → 5점)
+    ⑤ 서사: "the instant {moment}" 느낌 전달 여부
+    ⑥ 물성: 소재감·질감이 material 키워드와 일치
+
+    판정 기준:
+    - PASS: 평균 3.5+ AND ⑤ 3.0+ AND ⑥ 3.0+
+    - FAIL: 그 외
+
+    출력 형식:
+    verdict: PASS | FAIL
+    scores: {①:N, ②:N, ③:N, ④:N, ⑤:N, ⑥:N}
+    avg: N.N
+    feedback: [FAIL 항목별 개선 방향 1줄씩]
+    """
+    )
+    ```
+
+    → PASS: Step 10으로 진행
     → FAIL: §10 반복 개선 프로토콜 적용 (최대 3회 자동)
     → 3회 연속 FAIL: Human에게 프롬프트 전략 재설계 요청 후 [STOP]
 
@@ -244,7 +272,7 @@ Step 2 [치환]: 속성 JSON에서 변경 대상만 교체
 Step 3 [재생성]: 원본 이미지 + 치환된 속성으로 편집
   → mcp__nano-banana__edit_image 호출 (원본 이미지 + 편집 프롬프트)
   → 프롬프트: "Keep the exact same {유지 속성}. Change only: {변경 속성}"
-  → Step 9 6축 인라인 검증 (기존 파이프라인 유지)
+  → Step 9 6축 독립 Evaluator 검증 (기존 파이프라인 유지)
 ```
 
 ### 편집 모드 예시
@@ -312,14 +340,14 @@ P0 (/style-forge) → P1 (Brief) → P2 (프로토타입) → P3 (/game-asset-ge
 | 편집 유형 | 할루시네이션 위험 | 대응 |
 |----------|:----------------:|------|
 | 색상 변경 | 낮음 | 기본 제약 충분 |
-| 재질 변경 | 중간 | 형태 키워드 강화 + Step 9 6축 인라인 검증 |
+| 재질 변경 | 중간 | 형태 키워드 강화 + Step 9 6축 독립 Evaluator 검증 |
 | 텍스트/로고 포함 이미지 | 높음 | 텍스트 왜곡 빈발 → 편집 후 수동 확인 필수 |
 | 배경 교체 | 중간 | 전경 객체 보존 명시 |
-| 그림자/조명 변경 | 높음 | 새 요소 생성(손/물체) 가능 → Step 9 6축 인라인 검증 필수 |
+| 그림자/조명 변경 | 높음 | 새 요소 생성(손/물체) 가능 → Step 9 6축 독립 Evaluator 검증 필수 |
 
 ### 사후 검증
 
-- 편집 결과물은 Step 9 6축 인라인 검증 (특히 §1 계층/§2 일관성 축)
+- 편집 결과물은 Step 9 6축 독립 Evaluator 검증 (특히 §1 계층/§2 일관성 축)
 - 형태 보존 실패 판정 기준: 실루엣 불일치 또는 새 요소 생성 감지
 - 실패 시: 프롬프트 제약 강화 후 1회 재시도 → 재실패 시 전체 재생성 경로로 전환
 
@@ -338,6 +366,30 @@ nano-banana (설명 텍스트) → mcp__blender__generate_hyper3d_model_via_text
 1. Blender 설치 (Windows) + blender-mcp 애드온 활성화 (포트 9876)
 2. Claude 세션에서 `mcp__blender__*` 도구 사용 가능 여부 확인
 
+
+## 토큰 캡 가드 (배치 실행 비용 통제, P1 신규)
+
+배치 실행(다수 에셋 순차 생성) 시 전체 토큰 예산을 초과하지 않도록 **각 에셋 생성 전** 확인한다.
+
+```
+GAME_ASSET_TOKEN_CAP = 환경변수 GAME_ASSET_TOKEN_CAP (기본: 300000)
+
+에셋 N번째 생성 시작 전 (Step 5 진입 전):
+  if estimated_tokens_used ≥ GAME_ASSET_TOKEN_CAP:
+    "[STOP] GAME_ASSET_TOKEN_CAP={cap} 도달. 에셋 {N}번째 생성 취소."
+    "생성 완료: {완료 목록} / 미생성: {잔여 목록}"
+    resource-manifest.md를 현재까지 완료분으로 저장 후 STOP 반환
+
+에셋당 토큰 추정 (보수):
+  - T1(풀 Soul): ~80000 (프롬프트 조립+MCP 호출+6축 크리틱)
+  - T2(8요소): ~50000
+  - T3(최소): ~20000
+```
+
+- `GAME_ASSET_TOKEN_CAP` 미설정 시 기본값 **300000** 적용.
+- 배치 시작 전 총 예상 토큰 = Σ(에셋별 추정) 계산 → 초과 예상 시 사전 WARN 출력.
+- 3회 크리틱 재시도(Step 9)도 토큰 추정에 포함 (T1: 80000 + 재시도 3× 40000 = 최대 200000/에셋).
+- ⚠️ **추정치 정직성**: 추정치 = best-effort (LLM 자가추정, 정확 토큰 카운트 불가). **결정론적 bound = max-cycles**; 토큰 추정은 보조 가드. 정확한 토큰 enforcement는 P4 (agent-budget 훅 연동) 예정.
 
 ## 주의사항
 

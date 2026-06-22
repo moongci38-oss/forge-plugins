@@ -18,8 +18,20 @@ claude.ai/design 결과물이 Figma 원본과 안 맞는 문제 해결.
 ## Workflow 통합 (계획서 P2-7)
 Figma MCP → rate limit 자동 폴백: Codex Vision(즉시) → Gemini Vision(2차). 폴백 source 명시.
 패턴: Fetch(URL파싱+MCP병렬3종) → Fallback(rate limit 시 Codex→Gemini 자동) → Map(토큰매핑+저장) → Update(PROMPTS갱신+브랜드룰).
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/figma-design-sync/workflow.js"), args: { figmaUrl, docPath, brandRules } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/figma-design-sync/workflow.js"), args: { figmaUrl, docPath, brandRules, crMode } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Step 1~9 직접 실행 방식 fallback.
+
+### `--cr` 옵션 (crMode)
+
+Figma MCP rate limit 발생 시 Vision 폴백에서 Codex 사용 여부를 제어한다. caller는 `~/forge/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
+
+| 값 | 동작 |
+|----|------|
+| `on` (기본) | Codex Vision 1차 폴백 → Gemini Vision 2차 (현재 동작) |
+| `degrade` | Codex Vision 스킵 → Gemini Vision 직행 |
+| `off` | Codex Vision 스킵 → Gemini Vision 직행 |
+
+로그: `[cr] figma Codex Vision fallback skipped (crMode=<value>) → Gemini`
 
 ## 트리거 조건
 

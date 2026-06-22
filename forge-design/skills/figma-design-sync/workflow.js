@@ -1,5 +1,10 @@
 // root-cause: figma-design-sync Figma MCP → rate limit 시 Codex/Gemini Vision 자동 폴백. 계획서 P2-7.
 // Figma MCP = approve-worker 불필요. Gemini/Codex = 외부 토큰 선발행 전제.
+// crMode gate: args.crMode ∈ {'on','degrade','off'}, 기본 degrade (Codex-off fail-safe; --cr on 으로 강제).
+// root-cause: crMode default flip 'on'→'degrade' (fail-safe Codex-off, 2026-06-15)
+//   'on'      → Codex Vision 1차 폴백, Gemini 2차
+//   'degrade' → skip Codex Vision fallback, use Gemini Vision directly (default)
+//   'off'     → skip Codex Vision fallback, use Gemini Vision directly
 export const meta = {
   name: 'figma-design-sync',
   description: 'Figma MCP 토큰 추출 Workflow — rate limit 시 Codex/Gemini Vision 자동 폴백 + CLAUDE-DESIGN-PROMPTS.md 갱신',
@@ -14,6 +19,9 @@ export const meta = {
 const figmaUrl = args?.figmaUrl || ''
 const docPath = args?.docPath || '.'
 const brandRules = args?.brandRules || ''  // 브랜드 정정 룰
+// root-cause: crMode gate — 'degrade'/'off' 시 Codex Vision 폴백 스킵, Gemini 직행
+// root-cause: crMode default flip 'on'→'degrade' (fail-safe Codex-off, 2026-06-15)
+const crMode = args?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제) | 'on' | 'off'
 
 if (!figmaUrl) {
   log('[STOP] figmaUrl 필수 (args.figmaUrl)')
@@ -103,23 +111,29 @@ if (!figmaMcpResult?.rateLimitHit) {
   tokenSource = { ...figmaMcpResult, source: 'figma-mcp' }
   log('[Fallback] Figma MCP 성공 — Vision 폴백 불필요')
 } else {
+  // root-cause: crMode gate — 'degrade'/'off' 시 Codex Vision 스킵, Gemini 직행
   phase('Fallback')
-  log('[Fallback] Figma MCP rate limit → Codex Vision 시도')
-  const codexFallback = await agent(
-    `figma-design-sync Step 3A Codex Vision 폴백. ` +
-    `기존 PNG: ${JSON.stringify(figmaMcpResult?.availableImages?.slice(0, 5))}. ` +
-    `Codex Vision으로 PNG 재분석: colorPalette[] + typography{} + spacing + borderRadius + components[]. ` +
-    `references/fallback-vision.md 참조. source="codex-vision" + 토큰 값들 반환.`,
-    { label: 'fallback:codex', phase: 'Fallback', schema: VISION_FALLBACK_SCHEMA, agentType: 'codex-critic' }
-  )
+  let codexFallback = null
+  if (crMode === 'on') {
+    log('[Fallback] Figma MCP rate limit → Codex Vision 시도')
+    codexFallback = await agent(
+      `figma-design-sync Step 3A Codex Vision 폴백. ` +
+      `기존 PNG: ${JSON.stringify(figmaMcpResult?.availableImages?.slice(0, 5))}. ` +
+      `Codex Vision으로 PNG 재분석: colorPalette[] + typography{} + spacing + borderRadius + components[]. ` +
+      `references/fallback-vision.md 참조. source="codex-vision" + 토큰 값들 반환.`,
+      { label: 'fallback:codex', phase: 'Fallback', schema: VISION_FALLBACK_SCHEMA, agentType: 'codex-critic' }
+    )
+  } else {
+    log(`[cr] figma Codex Vision fallback skipped (crMode=${crMode}) → Gemini`)
+  }
   if (codexFallback && codexFallback.colorPalette?.length > 0) {
     tokenSource = codexFallback
     log(`[Fallback] Codex Vision 성공 — source=codex-vision`)
   } else {
-    log('[Fallback] Codex Vision 실패 → Gemini Vision 2차 폴백')
-    // Gemini Vision 2차 폴백 (외부 토큰 선발행 전제)
+    if (crMode === 'on') log('[Fallback] Codex Vision 실패 → Gemini Vision 2차 폴백')
+    // Gemini Vision 폴백 (외부 토큰 선발행 전제)
     const geminiFallback = await agent(
-      `figma-design-sync Step 3B Gemini Vision 2차 폴백. ` +
+      `figma-design-sync Step 3B Gemini Vision 폴백. ` +
       `PNG: ${JSON.stringify(figmaMcpResult?.availableImages?.slice(0, 5))}. ` +
       `Gemini Vision으로 PNG 재분석: colorPalette[] + typography{} + spacing + borderRadius + components[]. ` +
       `source="gemini-vision" + 토큰 값들 반환.`,

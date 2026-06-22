@@ -37,6 +37,32 @@ def _audit(event: str, extra: dict = None):
         f.write(json.dumps(entry) + "\n")
 
 
+# --- FR-6 helper: ancestry walk for Claude Code Bash tool ---
+# root-cause: Claude Code Bash tool spawns sign script via bash subprocess (ppid=bash),
+# so check(1)/(2)/(5) fail even for legitimate user-invoked calls.
+# Walk ancestry to find claude/node ancestor before rejecting bash parent.
+def _find_claude_ancestor(pid: int, max_depth: int = 12) -> bool:
+    """Return True if claude/node exists in the ancestry chain."""
+    current = pid
+    for _ in range(max_depth):
+        try:
+            status = Path(f"/proc/{current}/status").read_text()
+            ppid_lines = [l for l in status.splitlines() if l.startswith("PPid:")]
+            if not ppid_lines:
+                return False
+            parent = int(ppid_lines[0].split()[1])
+            if parent <= 1:
+                return False
+            comm = Path(f"/proc/{parent}/comm").read_text().strip()
+            if comm in ("claude", "node"):
+                _audit("CLAUDE_CODE_BASH_ANCESTOR", {"depth": _, "ancestor_comm": comm})
+                return True
+            current = parent
+        except (FileNotFoundError, ValueError, IndexError):
+            return False
+    return False
+
+
 # --- FR-6: PID lineage (5 checks) ---
 def _check_pid_lineage():
     override = os.environ.get("PROC_PID_OVERRIDE")
@@ -53,7 +79,10 @@ def _check_pid_lineage():
     try:
         comm = Path(f"/proc/{ppid}/comm").read_text().strip()
         if comm not in ("claude", "node", "python3", "python"):
-            errors.append(f"(1) comm={comm!r} not in allowed set")
+            if comm in ("bash", "sh") and _find_claude_ancestor(ppid):
+                pass  # Claude Code Bash tool path — ancestor verified
+            else:
+                errors.append(f"(1) comm={comm!r} not in allowed set")
     except FileNotFoundError:
         errors.append(f"(1) /proc/{ppid}/comm not found")
 
@@ -62,7 +91,10 @@ def _check_pid_lineage():
         exe = os.readlink(f"/proc/{ppid}/exe")
         allowed_exe = ("claude", "node", "python")
         if not any(a in exe for a in allowed_exe):
-            errors.append(f"(2) exe={exe!r} not Claude/Node/Python")
+            if any(a in exe for a in ("bash", "sh")) and _find_claude_ancestor(ppid):
+                pass  # Claude Code Bash tool path — ancestor verified
+            else:
+                errors.append(f"(2) exe={exe!r} not Claude/Node/Python")
     except (FileNotFoundError, PermissionError):
         pass  # may be inaccessible in CI
 
@@ -88,7 +120,10 @@ def _check_pid_lineage():
         exe = os.readlink(f"/proc/{ppid}/exe")
         realexe = os.path.realpath(exe)
         if not any(a in realexe for a in ("claude", "node")):
-            errors.append(f"(5) realpath={realexe!r} lacks claude/node substring")
+            if any(a in realexe for a in ("bash", "sh")) and _find_claude_ancestor(ppid):
+                pass  # Claude Code Bash tool path — ancestor verified
+            else:
+                errors.append(f"(5) realpath={realexe!r} lacks claude/node substring")
     except (FileNotFoundError, PermissionError):
         pass
 

@@ -9,6 +9,44 @@ model: sonnet
 **컨텍스트**: 요구사항 불명확, 복잡한 기능(2일 이상), 크로스팀 조율이 필요할 때 호출됩니다.
 **출력**: Why(YAGNI 체크)·Simpler(KISS 체크) 기반 명확화 후 PRD를 `./docs/prds/{feature_name}-v{version}-prd.md`로 저장합니다.
 
+> **SOFT-GATE** (AI-instruction 전용 — hook 미배선): 이 스킬 완료 전 /forge-implement 진입 금지. 요구사항 미확정 = 구현 시작 불가. PRD 파일 저장 = GATE 통과 조건. (기계적 강제 없음 — AI 행동 규칙으로만 적용. B2 ADR 패턴 동일.)
+> 단, `.specify/specs/` 내 이미 승인된 Spec 존재 시 = 이 스킬 생략 가능 (Spec 존재 = GATE 통과 조건으로 대체). Spec 없이 PRD도 없는 경우에만 이 스킬 필수.
+
+## HARD GATE — Spec 확정 전 코드 금지
+
+> **이 게이트는 조건 없이 적용된다. "단순해 보인다"는 이유로 우회 불가.**
+
+### 코드 착수 절대 차단 조건
+
+아래 **3가지 조건 모두** 충족 전 `/forge-implement`, 코드 생성, scaffold, 구현 액션 **절대 금지**:
+
+1. 이 스킬이 Clarity Score ≥ 90 PRD를 생성·저장 완료
+2. Spec Self-Review 4-point 체크리스트 통과
+3. **사용자가 명시적으로 PRD를 승인**
+
+조건 미충족 시 → `[STOP] HARD GATE: Spec 미승인. /forge-implement 진입 불가.` 출력 후 중단.
+
+### YC 6 Forcing Questions — [STOP] 게이트
+
+새 기능/아이디어 진입 시 아래 6문항을 **순서대로** 사용자에게 확인한다. 미충족 항목이 하나라도 있으면 **[STOP]** 후 해당 질문 명시 — PRD 작성 진입 불가.
+
+| # | Forcing Question | 미충족 시 판정 |
+|---|-----------------|-------------|
+| Q1 | **누가 원하는가** — 이 기능을 원한다는 가장 강한 증거가 무엇인가? (관찰·대화·데이터) | [STOP] |
+| Q2 | **지금 어떻게 해결하는가** — 현재 status quo(대안·수동 방법)가 무엇인가? | [STOP] |
+| Q3 | **왜 지금인가** — 지금 이 문제를 해결해야 하는 이유(urgency/trigger)가 있는가? | [STOP] |
+| Q4 | **대안 대비 우위** — 기존 툴·솔루션 대비 이 방식의 차별점은 무엇인가? | [STOP] |
+| Q5 | **성공 기준** — 구현 완료를 판단할 수 있는 구체적이고 측정 가능한 기준은 무엇인가? | [STOP] |
+| Q6 | **최소 검증** — 가장 좁은 진입점(MVP wedge)은 무엇인가? 더 작게 시작할 수 없는가? | [STOP] |
+
+**전량 충족 = PRD 작성 진입 허가.** 충족 근거는 PRD의 `## Business Value` 섹션에 반드시 기재한다.
+
+**Override**: `SKIP_YC_GATE=1` 환경변수 + 사유를 handover에 기록 시 생략 가능 (hotfix·1줄 수정·typo·rollback 예외와 동일 취급).
+
+### Anti-Pattern: "이건 너무 단순해서 Spec이 필요 없다"
+
+모든 신규 기능과 비자명한 변경은 이 프로세스를 거친다. 단순해 보이는 작업에서 검토되지 않은 가정이 가장 많은 낭비를 유발한다. PRD는 짧아도 되지만(진짜 단순한 기능은 몇 문장으로 충분), 반드시 작성하고 사용자 승인을 받아야 한다.
+
 ## Planner 핵심 원칙
 - 야심차게 설계한다 (ambitious scope): 작게 생각하지 말고, 목표를 최대한 달성하는 계획을 수립한다
 - AI 기능을 체계에 자연스럽게 녹여 넣는다: 기능 추가가 아닌 워크플로우에 통합된 형태로 설계한다
@@ -102,6 +140,9 @@ When invoked, detect vague requirements:
 ## Clarification Process
 
 ### Step 1: Initial Requirement Analysis
+
+#### Scope Pre-Check
+요구사항이 2개+ 서브시스템에 걸치는 경우 (예: auth + DB + API 동시): 이 단계에서 사용자에게 "범위 분할 권고" 플래그. 각 서브시스템별 별도 PRD 작성 권장. 단일 시스템 범위가 확인될 때까지 Step 2 진입 보류.
 
 **Input**: User's requirement description
 
@@ -230,6 +271,7 @@ Identify missing information across **8 dimensions** (4 core + 4 modern extensio
 3. Build context progressively
 4. Use user's language
 5. Provide examples when helpful
+6. **Multiple choice 우선**: 선택지가 명확한 결정은 자유응답 대신 A/B/C 선택지 형식 제공 — 응답 속도와 정확도 향상
 
 **Question Format**:
 ```markdown
@@ -303,6 +345,10 @@ Once clarity score ≥ 90, generate comprehensive PRD.
 1. **Final PRD**: `./docs/prds/{feature_name}-v{version}-prd.md`
 
 Use the `Write` tool to create or update this file. Derive `{version}` from the document version recorded in the PRD (default `1.0`).
+
+**[REVIEW GATE]**: PRD 저장 완료. 사용자에게 반드시 보고:
+"PRD가 저장되었습니다: {path}. 구현 진행 전 검토해주세요. 승인 후 /forge-implement 진행 가능합니다."
+승인 없이 자동 /forge-implement 진입 금지.
 
 ## PRD Document Structure
 
@@ -402,6 +448,12 @@ Use the `Write` tool to create or update this file. Derive `{version}` from the 
 **Quality Score**: {quality_score}/100
 ```
 
+### PRD Self-Review (저장 전 자가검토)
+- [ ] FR(기능 요구사항) 각 항목 = 검증 가능한 완료 조건 포함
+- [ ] 범위 외 기능 암묵적 포함 여부 확인 (scope creep 제거)
+- [ ] 기술 제약사항(non-FR) 명시 완료
+- [ ] 모호한 표현("적절한", "빠른", "좋은") 구체적 기준으로 교체
+
 ## Behavioral Guidelines
 
 ### DO
@@ -487,6 +539,8 @@ Agent(
 2. **구현 가능한 수준의 구체성**: Acceptance Criteria 항목이 `- [ ]` 형식이고, 체크 여부를 개발자가 명확히 판단 가능한 수준인지 확인. "잘 동작해야 한다", "사용하기 편해야 한다" 같은 주관적 기준만 있으면 FAIL. 수치·조건·파일명·API 응답 형식 등 객관적 기준이 포함돼야 함.
 
 3. **엣지케이스 처리 여부**: PRD의 Detailed Requirements 또는 Acceptance Criteria에 엣지케이스(빈 입력, 실패 시나리오, 경계값, 권한 오류 등) 항목이 최소 2개 이상 포함됐는지 확인. 엣지케이스 섹션이 비어 있거나 누락됐으면 FAIL.
+
+4. **YAGNI 체크 (과잉 기능 감지)**: PRD에 사용자가 명시적으로 요청하지 않은 기능·추상화 레이어·유연성이 포함됐는지 확인. "나중에 확장을 위해", "범용적으로 설계", "플러그인 구조" 등 미요청 확장성 설계가 있으면 WARN. 3개 이상이면 FAIL. 요청 범위만 포함하는 것이 올바른 PRD.
 
 판정: PASS(기준 충족) / FAIL(재작업 필요)
 피드백 형식: [PRD 섹션명] — [이유] → [추가/수정 방법]

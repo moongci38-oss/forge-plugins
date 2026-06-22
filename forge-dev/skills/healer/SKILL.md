@@ -75,6 +75,27 @@ healer 완료 후 리포트 파일 수정:
 
 healer가 `[STOP]` 반환 시 → 상태 `In Progress` 유지 + 사유 기록.
 
+## 4-Rule Auto-Fix Taxonomy
+
+healer a2(surgical 수정) 진입 전, 버그를 아래 4분류 중 하나로 판정하여 자동수정 허용 범위와 에스컬레이션 기준을 결정한다.
+
+| 분류 | 정의 | 적용 조건 | 에스컬레이션 |
+|------|------|---------|------------|
+| **deterministic-syntax** | 컴파일 오류·타입 불일치·오탈자처럼 도구가 정답을 확정할 수 있는 수정 | 에러 메시지가 수정 라인을 직접 지목, 변경 파일 ≤2 | 자동수정 허용. 수정 후 컴파일 재확인 필수 |
+| **test-expectation** | 테스트 기대값·fixture·mock 불일치로 인한 실패. 로직은 정상 | 실패 테스트 메시지가 기대값 차이만 노출, 비즈니스 로직 변경 없음 | 자동수정 허용. 단 기대값 변경이 스펙 후퇴인지 확인 필수 |
+| **config-drift** | 환경변수·설정 파일·경로 불일치 (코드 변경 없이 설정만 수정) | 동일 코드가 다른 환경에서는 정상, 설정 키/값만 틀림 | 자동수정 허용. `.env*` 커밋 금지 — 설정 파일만 수정 |
+| **logic-guard** | 비즈니스 로직 오류·알고리즘 결함·상태 전이 버그 | 위 3분류 해당 없음, 혹은 변경 파일 >2 | **자동수정 금지** — a2 진입 전 Human [STOP] 에스컬레이션 + 근본 원인 확정 필수 |
+
+### Crash-Safe Transactional Cleanup
+
+a2 수정 중 중단(crash·STOP·타임아웃) 시 부분 수정이 코드베이스에 잔류하지 않도록:
+
+1. **수정 전 스냅샷**: 변경 대상 파일 경로 목록을 `docs/bug_report/artifacts/{BUG_ID}-patch-manifest.txt`에 저장
+2. **수정 단위 원자화**: 단일 파일 단위로 Edit → 즉시 컴파일/lint 검증. 실패 시 해당 파일만 `git checkout -- {path}` 롤백
+3. **커밋 전 검증 게이트**: 모든 대상 파일 수정 완료 후 전체 테스트 PASS 확인. FAIL이면 manifest 기반 전체 롤백
+4. **롤백 명령 (전체)**: `cat docs/bug_report/artifacts/{BUG_ID}-patch-manifest.txt | xargs git checkout --`
+5. **handover 기록**: 롤백 발생 시 사유를 healer log에 `[ROLLBACK]` 태그로 기록
+
 ## 전역 가드 (healer agent 상속)
 
 | 가드 | 임계값 |
@@ -82,6 +103,8 @@ healer가 `[STOP]` 반환 시 → 상태 `In Progress` 유지 + 사유 기록.
 | 총 사이클 | 6회 초과 시 STOP |
 | 동일 이슈 반복 | 3회 시 STOP |
 | 회귀 감지 | 즉시 STOP + 롤백 권장 |
+| **토큰 캡** | `HEALER_TOKEN_CAP`(기본 300000) 초과 시 STOP+반환 (추정치 = best-effort; 결정론적 bound = max-cycles) |
+| **plateau** | 동일 root-cause 텍스트 2사이클 연속 → STOP |
 
 ## 아티팩트 경로
 

@@ -41,6 +41,9 @@ const REPORT_SCHEMA = {
 }
 
 const baseUrl = args?.baseUrl || 'http://localhost:3000'
+// root-cause: P-7 loop-until-dry opt-in greybox. loopUntilDry=false 기본 — 기존 Phase 2 동작 100% 보존.
+const loopUntilDry = args?.loopUntilDry === true || args?.loopUntilDry === 'on'
+const dryK = Math.max(1, Math.min(5, parseInt(args?.dryK) || 2))
 
 // ── Phase 1: Navigate ─────────────────────────────────────────────────────────
 phase('Navigate')
@@ -52,23 +55,50 @@ const menus = menuResult?.items || []
 log(`Navigate: ${menus.length}개 메뉴 발견`)
 
 // ── Phase 2: Detect (4개씩 배치 — chunk() 미지원 → 직접 슬라이싱) ─────────────
+// root-cause: P-7 do...while — loopUntilDry=false 시 1회만 실행(기존 동작 동일).
 phase('Detect')
 const BATCH = 4
-const allResults = []
-for (let i = 0; i < menus.length; i += BATCH) {
-  const batch = menus.slice(i, i + BATCH)
-  const batchResults = await parallel(batch.map(menu => () =>
-    agent(
-      `메뉴 버그 탐지: ${menu.name} (${menu.url || baseUrl + menu.url}). ` +
-      `Playwright로 클릭 후 콘솔 에러·레이아웃 이슈·기능 오작동 탐지. 6하원칙 작성.`,
-      { label: `detect-${menu.name}`, phase: 'Detect', schema: BUG_SCHEMA }
-    )
-  ))
-  allResults.push(...batchResults.filter(Boolean))
-  log(`Detect: ${i + batch.length}/${menus.length} 완료`)
-}
+const seenBugs = new Set()
+const bugs = []
+// root-cause: severity 제외 — LLM이 라운드별 severity를 다르게 보고 시 동일 버그 중복 삽입 방지.
+const _bugKey = b => `${(b.menuName||'').toLowerCase()}|${(b.what||'').toLowerCase().slice(0, 60)}`
+let consecEmpty = 0
+// root-cause: P-7 라운드 카운터 — 라운드별 고유 라벨 보장 (캐시 히트 방지).
+let roundNum = 0
 
-const bugs = allResults.filter(r => r.hasBug)
+do {
+  roundNum++
+  const roundResults = []
+  for (let i = 0; i < menus.length; i += BATCH) {
+    const batch = menus.slice(i, i + BATCH)
+    const batchResults = await parallel(batch.map(menu => () =>
+      agent(
+        // root-cause: menu.url is required by MENU_SCHEMA — no fallback needed.
+        `메뉴 버그 탐지: ${menu.name} (${menu.url}). ` +
+        `Playwright로 클릭 후 콘솔 에러·레이아웃 이슈·기능 오작동 탐지. 6하원칙 작성.`,
+        { label: `detect-r${roundNum}-${menu.name}`, phase: 'Detect', schema: BUG_SCHEMA }
+      )
+    ))
+    roundResults.push(...batchResults.filter(Boolean))
+    log(`[r${roundNum}] Detect: ${i + batch.length}/${menus.length} 완료`)
+  }
+
+  const roundBugs = roundResults.filter(r => r.hasBug)
+  const freshBugs = roundBugs.filter(b => !seenBugs.has(_bugKey(b)))
+  roundBugs.forEach(b => seenBugs.add(_bugKey(b)))
+  bugs.push(...freshBugs)
+
+  if (loopUntilDry) {
+    if (freshBugs.length === 0) {
+      consecEmpty++
+      log(`[Detect-dry] 신규 없음 (${consecEmpty}/${dryK})`)
+    } else {
+      consecEmpty = 0
+      log(`[Detect-dry] 신규 버그: ${freshBugs.length}건 (누적 ${bugs.length}건)`)
+    }
+  }
+} while (loopUntilDry && consecEmpty < dryK)
+
 log(`Detect 완료: ${bugs.length}건 버그 발견`)
 
 // ── Phase 3: Report ───────────────────────────────────────────────────────────

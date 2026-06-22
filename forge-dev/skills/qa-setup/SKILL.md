@@ -449,6 +449,127 @@ mcp__gitnexus__route_map({project: "<project-name>"})
 **`source:` 필드 없는 행 = qa-event-router check_scenario_source → exit 2**.
 파일 미작성 → Phase B **[STOP]**: "scenarios.md 작성 완료 후 /qa 재실행"
 
+### 9.5. Coverage Map 검증 (A6 — 시나리오 깊이 모델)
+
+scenarios.md 초안 생성 직후 실행. 깊이 부족=exit 2.
+
+#### Coverage Map — entity×action×screen×viewport full-cartesian
+
+```python
+# coverage_map.py (개념 코드)
+entities   = [e for e in spec_entities]        # Spec FR에서 추출
+actions    = ["create", "read", "update", "delete"]
+screens    = [s for s in uiux_screens]         # oracle-manifest.json uiux.screens
+viewports  = ["pc", "mobile"]
+
+matrix = {}
+for entity in entities:
+    for action in actions:
+        for screen in screens:
+            for viewport in viewports:
+                key = f"{entity}×{action}×{screen}×{viewport}"
+                matrix[key] = {
+                    "covered": False,  # scenarios.md에 해당 셀 시나리오 있으면 True
+                    "scenario_ids": []
+                }
+
+# scenarios.md 파싱 후 matrix 업데이트
+# 누락 셀 집계
+missing_cells = [k for k,v in matrix.items() if not v["covered"]]
+if missing_cells:
+    print(f"[EXIT 2] Coverage Map 누락 셀 {len(missing_cells)}건:")
+    for cell in missing_cells:
+        print(f"  - {cell}")
+    exit(2)
+```
+
+**출력**: `docs/qa/coverage-map.json` (matrix 전체) + `docs/qa/coverage-gaps.md` (누락 셀 목록)
+
+#### flow-chain schema 검증
+
+scenarios.md 내 다단계 플로우(A→B→C) 시나리오는 `flow_chain:` 필드 필수:
+
+```markdown
+| # | Method | Path | Auth | Body | Expected Status | Expected Body | source | flow_chain | state_after |
+|---|--------|------|------|------|-----------------|---------------|--------|------------|-------------|
+| 5 | POST | /api/order | yes | {...} | 201 | {id:...} | spec#L45 | order-flow:step1 | order.status=PENDING |
+| 6 | PUT  | /api/order/{id}/pay | yes | {...} | 200 | {...} | spec#L60 | order-flow:step2 | order.status=PAID |
+| 7 | GET  | /api/order/{id} | yes | — | 200 | {status:PAID} | spec#L70 | order-flow:step3-verify | — |
+```
+
+`flow_chain:` 필드 없는 다단계 시나리오(≥2단계) 발견 시 → WARN (exit 1)
+
+#### round-trip oracle 검증
+
+쓰기 시나리오(POST/PUT/DELETE) 각각에 대해 후속 검증 행 필수:
+
+```markdown
+| 3 | POST | /api/user | yes | {name:...} | 201 | {id:42} | spec#L30 | — | — |
+| 4 | GET  | /api/user/42 | yes | — | 200 | {name:...} | spec#L30 | round-trip:row3 | — |  ← 필수
+```
+
+`round-trip:row{N}` 태그 없는 쓰기 시나리오 → WARN (exit 1)
+
+#### entity CRUD 완결성 체크
+
+```bash
+# Spec FR에서 entity 추출 후 CRUD 누락 검사
+check_entity_crud() {
+  local entity="$1"
+  local missing=""
+  grep -i "create.*${entity}\|${entity}.*create\|POST.*${entity}" docs/qa/scenarios.md >/dev/null || missing="${missing} C"
+  grep -i "read.*${entity}\|${entity}.*read\|GET.*${entity}" docs/qa/scenarios.md >/dev/null || missing="${missing} R"
+  grep -i "update.*${entity}\|${entity}.*update\|PUT.*${entity}\|PATCH.*${entity}" docs/qa/scenarios.md >/dev/null || missing="${missing} U"
+  grep -i "delete.*${entity}\|${entity}.*delete\|DELETE.*${entity}" docs/qa/scenarios.md >/dev/null || missing="${missing} D"
+  if [ -n "$missing" ]; then
+    echo "[EXIT 2] entity '${entity}' CRUD 누락: ${missing}"
+    return 2
+  fi
+}
+```
+
+게임/Non-CRUD 프로젝트 도메인 N/A carve-out(비-CRUD 프로젝트 — CRUD 축 부재 시에만): `qa-config.json`에 `"crud_check": false` 명시 시.
+// 이는 full-cartesian waiver가 아님 — CRUD 엔티티가 존재하는 프로젝트는 예외 없이 entity×action 전수 강제.
+
+#### responsive 전수 생성
+
+UI 시나리오(화면 조작 포함)는 PC + Mobile 두 viewport 모두 있어야:
+
+```bash
+# UI 시나리오 행에서 viewport 열 확인
+UI_SCENARIOS=$(grep -c "pc\|mobile\|viewport" docs/qa/scenarios.md || echo 0)
+TOTAL_UI=$(grep -c "browser\|screen\|page\|화면" docs/qa/scenarios.md || echo 0)
+# PC+Mobile 2배가 안 되면 누락
+if [ "$UI_SCENARIOS" -lt "$((TOTAL_UI * 2 / 3))" ]; then
+  echo "[EXIT 2] UI 시나리오 responsive 미완성 — PC/Mobile 양쪽 viewport 추가 필요 (full-cartesian 전수 필수)"
+  exit 2
+fi
+```
+
+#### 값축(value-axis) 검증
+
+입력 필드별 eq-class×boundary:
+
+| 필드 유형 | 필수 케이스 |
+|---------|-----------|
+| 문자열(유한 유효값) | 각 eq-class 대표 1건 + 경계 |
+| 숫자(범위) | min, max, min-1, max+1, 중간값 |
+| 필수 필드 누락 | 빈 값 / null |
+| unbounded 문자열 | eq-class(정상, 너무 짧, 너무 김) 대표 |
+
+pairwise 축소 금지 — 각 eq-class+boundary 전수. scenarios.md에 `value_class:` 열 명시 권장.
+
+#### Coverage Map 검증 완료 조건
+
+- [ ] `docs/qa/coverage-map.json` 생성 + 누락 셀 0건
+- [ ] 다단계 플로우 → `flow_chain:` 필드 있음
+- [ ] 쓰기 시나리오 → round-trip 검증 행 있음
+- [ ] 엔티티별 CRUD 전수 (면제 명시 시 제외)
+- [ ] UI 시나리오 × {PC, Mobile} 전수
+- [ ] 주요 입력 필드 eq-class×boundary 케이스 있음
+
+미충족 항목 → exit 2 (waiver 없음). responsive 매트릭스 누락 셀 = exit 2, 값축(eq-class×boundary) 누락 = exit 2. unbounded 자유텍스트 입력만 eq-class 전수 대표 케이스로 갈음 허용(무한 케이스 회피 carve-out). Phase 1 진입 불가.
+
 ### 10. Spec-소스 2-way diff (Spec 존재 시)
 
 `spec-compliance-checker` 호출 → `docs/qa/spec-drift.md` 저장:
@@ -502,6 +623,7 @@ mkdir -p docs/qa
 - [ ] DB seed 주입 완료 (또는 seed.sql.draft Human 확인 중)
 - [ ] `scenarios.md` 존재 + 1개 이상 시나리오
 - [ ] `docs/qa/obsidian-context.md` 존재 (빈 파일도 OK — 콜드스타트 허용)
+- [ ] **Coverage Map 통과 (A6)**: `docs/qa/coverage-map.json` 누락 셀 0건 + entity CRUD 전수 + round-trip oracle + responsive 전수
 
 **Migration 모드 추가 조건** (`--migration` 시):
 - [ ] `/tmp/qa-migration-auth.json` 존재 (R2 — legacy+admin 양쪽 세션)
