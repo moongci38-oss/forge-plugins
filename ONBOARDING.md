@@ -1,0 +1,316 @@
+# Forge 팀원 온보딩 가이드
+
+> 새 팀원이 Forge 개발 환경을 완전히 세팅하는 순서대로 정리한 문서.
+
+---
+
+## ⚡ 자동 설치 (권장 — 비개발자도 OK)
+
+터미널(또는 Claude Code에서 `!` 로 실행)에 아래 한 줄만 복붙하면 됩니다:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/moongci38-oss/forge-plugins/main/setup.sh)
+```
+
+스크립트가 자동으로 처리하는 것:
+- 저장소 클론, CLI 도구 설치, API 키 저장
+- MCP 서버 7종 연결, 플러그인 설치
+- 로그인 브라우저 자동 열기
+
+> 아래는 **수동 설치 참고용**입니다. 문제가 생겼거나 세부 내용을 이해하고 싶을 때 참조하세요.
+
+---
+
+## 0. 전제조건 확인
+
+```bash
+node --version    # v18+ 필요 (권장: v22)
+python3 --version # 3.10+ 필요
+git --version
+```
+
+Node.js 미설치 시:
+```bash
+# nvm 방식 (권장)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install 22
+nvm use 22
+```
+
+---
+
+## 1. 레포 클론
+
+```bash
+# forge 시스템 (규칙·스킬·파이프라인)
+git clone git@github.com:moongci38-oss/forge.git ~/forge
+
+# forge-outputs (산출물 저장소)
+git clone git@github.com:moongci38-oss/forge-outputs.git ~/forge-outputs
+cd ~/forge-outputs && git checkout develop
+```
+
+> **중요**: forge-outputs 작업 브랜치는 `develop`. main은 릴리스 전용.
+
+---
+
+## 2. 환경변수 설정
+
+`~/forge/.env` 파일 생성:
+
+```bash
+cp ~/forge/forge-workspace.example.json ~/forge/forge-workspace.json
+```
+
+`.env`에 설정할 키 목록:
+
+| 변수 | 용도 | 필수 |
+|------|------|------|
+| `ANTHROPIC_API_KEY` | Claude API | ✅ |
+| `GEMINI_API_KEY` | Gemini MCP (cr-triple) | ✅ |
+| `TAVILY_API_KEY` | 웹 검색 MCP | ✅ |
+| `BRAVE_API_KEY` | Brave Search MCP | ✅ |
+| `NOTION_API_TOKEN` | Notion MCP 인증 | ✅ |
+| `FIGMA_API_KEY` | Figma MCP | 디자인 작업 시 |
+| `OPENAI_API_KEY` | Codex (GPT-5.5, cr-triple) | cr-triple 사용 시 |
+| `GITHUB_TOKEN` | GitHub API | PR/이슈 작업 시 |
+| `REPLICATE_API_TOKEN` | 이미지 생성 | 게임/디자인 트랙 |
+| `LUDO_API_KEY` | 게임 리서치 | 게임 트랙 |
+
+Gemini API 키는 별도 파일에도 저장 (gemini-text MCP가 읽음):
+```bash
+echo "YOUR_GEMINI_API_KEY" > ~/.gemini-api-key
+chmod 600 ~/.gemini-api-key
+```
+
+---
+
+## 3. CLI 도구 설치
+
+### 3-1. Codex (GPT-5.5 — cr-triple 필수)
+
+```bash
+npm install -g @openai/codex
+codex login   # ChatGPT OAuth 로그인
+```
+
+확인:
+```bash
+codex --version   # codex-cli 0.128.0+
+```
+
+### 3-2. GitNexus (코드 그래프 분석)
+
+```bash
+npm install -g gitnexus
+gitnexus setup   # Claude Code MCP 자동 등록
+```
+
+### 3-3. hwpx-mcp-server (한글 문서 — 정부과제 트랙)
+
+```bash
+pip install hwpx-mcp-server
+```
+
+### 3-4. Lighthouse + Sentry CLI (QA 트랙)
+
+```bash
+bash ~/forge/shared/scripts/setup-cli.sh
+```
+
+---
+
+## 4. forge-sync mirror 동기화
+
+forge-sync는 `~/forge/`의 스킬·에이전트·커맨드를 `~/.claude/`에 미러링합니다.
+
+```bash
+node ~/forge/dev/scripts/forge-sync.mjs sync
+```
+
+완료 후 `~/.claude/skills/`, `~/.claude/agents/`, `~/.claude/commands/` 생성 확인.
+
+> 이 단계를 완료했다면 **6. 플러그인 설치는 스킵**해도 됩니다 (이중 로딩 방지).
+
+---
+
+## 5. MCP 서버 등록
+
+### 5-1. 자동 등록 (기본 MCP)
+
+```bash
+cd ~/forge && bash shared/scripts/setup-mcp.sh
+```
+
+### 5-2. 핵심 MCP 수동 확인 (`~/.claude.json`)
+
+| MCP 서버 | 용도 | 인증 방식 |
+|---------|------|---------|
+| `notion` | Notion DB/페이지 | 브라우저 OAuth (첫 사용 시) |
+| `tavily` | 웹 검색 | `TAVILY_API_KEY` |
+| `gitnexus` | 코드 그래프 | 없음 (로컬) |
+| `figma` | Figma 컴포넌트 | `FIGMA_API_KEY` |
+| `codex` | GPT-5.5 리뷰 | `codex login` |
+| `gemini-text` | Gemini 리뷰 | `~/.gemini-api-key` |
+| `brave-search` | 웹 검색 (보조) | `BRAVE_API_KEY` |
+
+`~/.claude.json` → `mcpServers`에 없는 항목 수동 추가:
+
+```json
+{
+  "mcpServers": {
+    "notion": {
+      "type": "http",
+      "url": "https://mcp.notion.com/mcp"
+    },
+    "tavily": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tavily-mcp"],
+      "env": { "TAVILY_API_KEY": "${TAVILY_API_KEY}" }
+    },
+    "gitnexus": {
+      "type": "stdio",
+      "command": "gitnexus",
+      "args": ["mcp"]
+    },
+    "figma": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@figma/figma-developer-mcp", "--stdio"],
+      "env": { "FIGMA_API_KEY": "${FIGMA_API_KEY}" }
+    },
+    "codex": {
+      "type": "stdio",
+      "command": "codex",
+      "args": ["mcp-server"]
+    },
+    "gemini-text": {
+      "type": "stdio",
+      "command": "bash",
+      "args": ["/home/유저명/forge/dev/scripts/gemini-text-mcp/start.sh"],
+      "env": { "GEMINI_API_KEY": "${GEMINI_API_KEY}" }
+    },
+    "brave-search": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": { "BRAVE_API_KEY": "${BRAVE_API_KEY}" }
+    }
+  }
+}
+```
+
+> `gemini-text` args의 경로는 본인 홈 디렉토리로 수정하세요.
+
+### 5-3. 프로젝트 MCP (`~/forge/.mcp.json`)
+
+forge-sync가 자동 관리. 별도 설정 불필요.
+
+| MCP 서버 | 용도 |
+|---------|------|
+| `forge-tools` | 로컬 forge 리소스 (RAG·스크립트) |
+| `hwpx` | 한글 문서 생성 |
+
+---
+
+## 6. 플러그인 설치
+
+> **forge-sync mirror 사용자**: 4단계 완료 시 스킵. 이중 등재 방지.
+
+### 6-1. 마켓플레이스 등록
+
+```bash
+claude plugin marketplace add forge-plugins github:moongci38-oss/forge-plugins
+```
+
+### 6-2. 역할별 설치
+
+| 역할 | 설치할 플러그인 |
+|------|--------------|
+| 개발자 | forge-core + forge-dev |
+| 기획자 / PM | forge-core + forge-plan |
+| 리서처 | forge-core + forge-research |
+| 디자이너 | forge-core + forge-design |
+| 게임 개발자 | forge-core + forge-design + forge-game |
+| 전체 | 6개 모두 |
+
+```bash
+# 공통 필수
+claude plugin install forge-core@forge-plugins
+
+# 역할에 맞게 선택
+claude plugin install forge-dev@forge-plugins
+claude plugin install forge-plan@forge-plugins
+claude plugin install forge-research@forge-plugins
+claude plugin install forge-design@forge-plugins
+claude plugin install forge-game@forge-plugins
+```
+
+### 6-3. 활성화 및 재시작
+
+```bash
+for p in forge-core forge-dev forge-plan forge-research forge-design forge-game; do
+  claude plugin enable ${p}
+done
+# Claude Code 재시작 필요
+```
+
+### 6-4. 이후 업데이트
+
+```bash
+for p in forge-core forge-dev forge-plan forge-research forge-design forge-game; do
+  claude plugin update ${p}@forge-plugins
+done
+```
+
+---
+
+## 7. forge-workspace.json 설정
+
+```json
+// ~/forge/forge-workspace.json
+{
+  "version": "2.0.0",
+  "name": "내-워크스페이스",
+  "outputsRoot": "/home/유저명/forge-outputs"
+}
+```
+
+---
+
+## 8. Notion 인증
+
+Notion MCP는 HTTP OAuth 방식입니다.
+- Claude Code에서 Notion 도구 첫 호출 시 브라우저 창이 열림
+- Notion 계정 로그인 → 팀 워크스페이스 연결 허용
+- 팀 워크스페이스 접근 권한은 관리자에게 요청
+
+---
+
+## 9. 최종 검증
+
+Claude Code 재시작 후:
+
+```bash
+claude plugin list   # enabled 항목 확인
+```
+
+Claude Code 대화에서:
+```
+/forge-onboard    ← 온보딩 상태 자동 점검
+```
+
+---
+
+## 트러블슈팅
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| `codex mcp-server` 오류 | 로그인 만료 | `codex login` 재실행 |
+| gemini-text 연결 실패 | 키 미설정 | `cat ~/.gemini-api-key` 확인 |
+| `claude plugin update` 락 오류 | 병렬 git 충돌 | `find ~/.claude/plugins/marketplaces -name "*.lock" -delete` 후 재시도 |
+| forge-sync 스킬 미반영 | sync 미실행 | `node ~/forge/dev/scripts/forge-sync.mjs sync` |
+| Notion MCP 인증 루프 | 워크스페이스 권한 없음 | 관리자에게 권한 요청 |
+| gitnexus MCP 없음 | setup 미실행 | `gitnexus setup` |
