@@ -21,7 +21,8 @@ HOME_DIR="${HOME}"
 FORGE_ROOT="${HOME_DIR}/forge"
 FORGE_OUTPUTS="${HOME_DIR}/forge-outputs"
 CLAUDE_JSON="${HOME_DIR}/.claude.json"
-ENV_FILE="${FORGE_ROOT}/.env"
+# root-cause: 플러그인 사용자는 ~/forge 없음 — ~/.forge.env 폴백 (forge 있으면 우선)
+if [ -d "${FORGE_ROOT}" ]; then ENV_FILE="${FORGE_ROOT}/.env"; else ENV_FILE="${HOME_DIR}/.forge.env"; fi
 FORGE_SYNC="${FORGE_ROOT}/dev/scripts/forge-sync.mjs"
 GEMINI_KEY_FILE="${HOME_DIR}/.gemini-api-key"
 
@@ -129,10 +130,14 @@ fi
 # ══════════════════════════════════════════════════════
 banner "2단계: 작업 폴더 생성"
 
-# root-cause: 플러그인 사용자는 git repo 클론 불필요 — 로컬 폴더 구조만 생성
-info "~/forge-outputs 폴더 구조 생성 중..."
-mkdir -p "${FORGE_OUTPUTS}"/{01-research,02-product,03-marketing,04-content,05-design,09-grants,10-operations,11-platform,13-multiagent,20-wiki}
-ok "~/forge-outputs 준비됨 (개인 산출물 저장 폴더)"
+if [ -d "${FORGE_OUTPUTS}/01-research" ]; then
+  ok "~/forge-outputs 폴더 이미 있음 — 스킵"
+else
+  # root-cause: 플러그인 사용자는 git repo 클론 불필요 — 로컬 폴더 구조만 생성
+  info "~/forge-outputs 폴더 구조 생성 중..."
+  mkdir -p "${FORGE_OUTPUTS}"/{01-research,02-product,03-marketing,04-content,05-design,09-grants,10-operations,11-platform,13-multiagent,20-wiki}
+  ok "~/forge-outputs 준비됨"
+fi
 
 # ══════════════════════════════════════════════════════
 banner "3단계: API 키 입력"
@@ -307,16 +312,19 @@ else
 fi
 
 # ══════════════════════════════════════════════════════
-banner "8단계: 로그인 (브라우저 2회)"
+banner "8단계: 로그인"
 
 echo ""
-echo "  브라우저 로그인이 2번 필요합니다."
-echo ""
-echo "  ① Codex (GPT-5.5 리뷰 기능용)"
-echo "     — 지금 브라우저에서 ChatGPT 계정으로 로그인해 주세요"
-echo ""
-read -rp "  Codex 로그인 시작 (Enter): "
-codex login 2>/dev/null || warn "codex login 실패 — 나중에 터미널에서 'codex login' 실행하세요"
+# Codex 로그인 상태 확인 (auth.json 존재 여부)
+if [ -f "${HOME_DIR}/.codex/auth.json" ] && grep -q "token\|apiKey\|access" "${HOME_DIR}/.codex/auth.json" 2>/dev/null; then
+  ok "Codex 이미 로그인됨 — 스킵"
+else
+  echo "  ① Codex (GPT-5.5 리뷰 기능용)"
+  echo "     — 브라우저에서 ChatGPT 계정으로 로그인해 주세요"
+  echo ""
+  read -rp "  Codex 로그인 시작 (Enter): "
+  codex login 2>/dev/null || warn "codex login 실패 — 나중에 터미널에서 'codex login' 실행하세요"
+fi
 
 echo ""
 echo "  ② Notion 연결"
