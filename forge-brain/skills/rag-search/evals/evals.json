@@ -1,0 +1,36 @@
+{
+  "skill_name": "rag-search",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/rag-search 투자 유치 전략 --top-k 5",
+      "expected_output": "파일 경로·유사도 점수·텍스트 프리뷰 포함한 상위 5개 결과",
+      "expectations": [
+        "결과에 파일 경로 포함",
+        "유사도 점수 표시",
+        "relevance 판정(pass/low-relevance) 포함",
+        "인덱스 없으면 빌드 제안"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/rag-search [보안 감사 중] JWT 토큰 검증 방법 --mode vector",
+      "expected_output": "reasoning_context 포함 벡터 검색 결과",
+      "expectations": [
+        "쿼리에 [보안 감사 중] 컨텍스트 포함",
+        "vector 모드로 실행",
+        "low-relevance 섹션 분리 표시"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/rag-search 에이전트 패턴 --graph --graph-hops 2",
+      "expected_output": "Graph RAG 결과 — 시맨틱 시드 + 위키링크 이웃 확장",
+      "expectations": [
+        "graph_neighbor: true 메타 포함",
+        "2홉 체인 결과 포함",
+        "obsidian_graph.json 없으면 빌드 제안"
+      ]
+    }
+  ]
+}

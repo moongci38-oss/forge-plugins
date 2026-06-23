@@ -1,0 +1,35 @@
+{
+  "skill_name": "memory-manage",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/memory-manage add \"새 프로젝트 규칙\" --type feedback",
+      "expected_output": "MEMORY.md에 feedback 타입 항목 추가, 범위 충돌 없음",
+      "expectations": [
+        "올바른 타입(feedback/user/project/reference) 분류",
+        "global 범위 충돌 검사 실행",
+        "보안 정보 미기록"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/memory-manage gc",
+      "expected_output": "90일 미참조 항목 dry-run 목록",
+      "expectations": [
+        "실제 삭제 없음 (dry-run)",
+        "GC 후보 날짜·범위 포함",
+        "global 범위 항목 별도 표시"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/memory-manage audit",
+      "expected_output": "전체 범위 충돌·중복 점검 보고",
+      "expectations": [
+        "global > project > session > ephemeral 우선순위 적용",
+        "중복 항목 쌍 목록화",
+        "200줄 초과 시 인덱스화 권고"
+      ]
+    }
+  ]
+}

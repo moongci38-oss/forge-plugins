@@ -1,0 +1,30 @@
+{
+  "name": "forge-brain",
+  "version": "0.1.0",
+  "description": "Forge 지식·메모리 레이어 — RAG 검색, 학습 루프, 위키 동기화, MEMORY.md 관리. ADR-174 unified_search MCP 연동.",
+  "author": {
+    "name": "forge"
+  },
+  "dependencies": ["forge-core"],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "mcpServers": {
+    "forge-tools": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "/home/damools/forge/shared/mcp/forge-tools-server.py",
+        "stdio"
+      ],
+      "description": "ADR-174 unified_search 라우터 포함 — RAG 하이브리드 검색 (벡터+BM25), 위키 검색, 14종 워크스페이스 도구"
+    }
+  },
+  "userConfig": {
+    "FORGE_DB_URL": {
+      "title": "Forge Knowledge DB URL",
+      "type": "string",
+      "sensitive": true,
+      "description": "ADR-174 unified_search PostgreSQL URL (pgvector). 미설정 시 FAISS 로컬 엔진 폴백."
+    }
+  }
+}
