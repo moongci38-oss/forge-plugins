@@ -36,7 +36,7 @@ bash setup.sh
 - Python 패키지: hwpx-mcp-server, Pillow, pytesseract, pdf2image, playwright
 - API 키 입력 안내 (브라우저 자동 열기)
 - MCP 서버 7종 `~/.claude.json` 등록
-- 플러그인 6종 설치·활성화
+- 플러그인 7종 설치·활성화 (forge-core + forge-brain + forge-dev/plan/research/design/game)
 - Codex 로그인 브라우저 열기
 
 역할별 추가 설치 (setup.sh 이후 필요 시):
@@ -104,6 +104,7 @@ cp ~/forge/forge-workspace.example.json ~/forge/forge-workspace.json
 | `OPENAI_API_KEY` | Codex (GPT-5.5, cr-triple) | cr-triple 사용 시 |
 | `GITHUB_TOKEN` | GitHub API | PR/이슈 작업 시 |
 | `REPLICATE_API_TOKEN` | 이미지 생성 | 게임/디자인 트랙 |
+| `FORGE_DB_URL` | forge-brain pgvector | RAG 검색 사용 시 |
 
 > **Notion 인증**: Notion MCP는 API 토큰이 아닌 **브라우저 OAuth** 방식입니다. Claude Code 첫 실행 시 자동으로 로그인 창이 열립니다.
 
@@ -280,16 +281,17 @@ claude plugin marketplace add forge-plugins github:moongci38-oss/forge-plugins
 
 | 역할 | 설치할 플러그인 |
 |------|--------------|
-| 개발자 | forge-core + forge-dev |
-| 기획자 / PM | forge-core + forge-plan |
-| 리서처 | forge-core + forge-research |
-| 디자이너 | forge-core + forge-design |
-| 게임 개발자 | forge-core + forge-design + forge-game |
-| 전체 | 6개 모두 |
+| 개발자 | forge-core + forge-brain + forge-dev |
+| 기획자 / PM | forge-core + forge-brain + forge-plan |
+| 리서처 | forge-core + forge-brain + forge-research |
+| 디자이너 | forge-core + forge-brain + forge-design |
+| 게임 개발자 | forge-core + forge-brain + forge-design + forge-game |
+| 전체 | 7개 모두 |
 
 ```bash
 # 공통 필수
 claude plugin install forge-core@forge-plugins
+claude plugin install forge-brain@forge-plugins    # 지식·메모리 (모든 역할 권장)
 
 # 역할에 맞게 선택
 claude plugin install forge-dev@forge-plugins
@@ -302,7 +304,7 @@ claude plugin install forge-game@forge-plugins
 ### 6-3. 활성화 및 재시작
 
 ```bash
-for p in forge-core forge-dev forge-plan forge-research forge-design forge-game; do
+for p in forge-core forge-brain forge-dev forge-plan forge-research forge-design forge-game; do
   claude plugin enable ${p}
 done
 # Claude Code 재시작 필요
@@ -311,7 +313,7 @@ done
 ### 6-4. 이후 업데이트
 
 ```bash
-for p in forge-core forge-dev forge-plan forge-research forge-design forge-game; do
+for p in forge-core forge-brain forge-dev forge-plan forge-research forge-design forge-game; do
   claude plugin update ${p}@forge-plugins
 done
 ```
@@ -342,6 +344,46 @@ Notion MCP는 HTTP OAuth 방식입니다.
 
 ---
 
+## 8-B. 세션관리 흐름 (forge-core v0.2.0)
+
+Forge는 멀티세션 환경입니다. 세션 전환 시 handover로 컨텍스트를 이어받습니다.
+
+| 커맨드 | 시점 | 역할 |
+|--------|------|------|
+| `/start-sonnet` | 구현 세션 시작 | 직전 handover 읽기 + 오늘 작업 목록 출력 |
+| `/checkpoint` | 작업 중간 (토큰 70~90%) | 현재 상태 스냅샷 저장 → /compact 후 맥락 복원 |
+| `/end-sonnet` | 구현 세션 종료 | handover 작성 + learnings 추출 + memory 업데이트 |
+| `/start-opus` | 전략 세션 시작 | Sonnet handover 읽기 + 전략 컨텍스트 로드 |
+| `/end-opus` | 전략 세션 종료 | ADR 인수인계 + 장기기억 업데이트 |
+
+**핸드오버 경로**: `{프로젝트}/.claude/handover/sonnet/{날짜}-{slug}.md`
+
+> 온보딩 훅(forge-onboard.sh)이 `~/.claude/handover/sonnet/`, `~/.claude/handover/opus/`, `~/.claude/checkpoints/` 디렉토리를 자동 생성합니다.
+
+---
+
+## 8-C. forge-brain 설정 (선택)
+
+forge-brain은 `FORGE_DB_URL` 없이도 로컬 FAISS 모드로 동작합니다.
+
+ADR-174 unified_search pgvector 연동 시 환경변수 추가:
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc 에 추가
+export FORGE_DB_URL="postgresql://user:pass@localhost/forge"
+```
+
+주요 커맨드:
+
+```
+/rag-search ADR-174 통합 두뇌 설계 근거    ← 프로젝트 자료 검색
+/learn                                    ← 세션 학습 내용 기록
+/wiki-sync                                ← Obsidian vault 동기화
+/memory-manage                            ← MEMORY.md 항목 관리
+```
+
+---
+
 ## 9. 최종 검증
 
 Claude Code 재시작 후:
@@ -367,3 +409,5 @@ Claude Code 대화에서:
 | forge-sync 스킬 미반영 | sync 미실행 | `node ~/forge/dev/scripts/forge-sync.mjs sync` |
 | Notion MCP 인증 루프 | 워크스페이스 권한 없음 | 관리자에게 권한 요청 |
 | gitnexus MCP 없음 | setup 미실행 | `gitnexus setup` |
+| forge-brain rag-search 오류 | FORGE_DB_URL 미설정 | FAISS 모드 자동 폴백 (정상) |
+| `/start-sonnet` handover 없음 | 첫 세션 | 경고 없이 빈 컨텍스트로 시작 (정상) |

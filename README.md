@@ -1,6 +1,6 @@
 # forge-plugins
 
-Forge Claude Code Plugin Marketplace — 6개 플러그인 패키지.
+Forge Claude Code Plugin Marketplace — 7개 플러그인 패키지.
 
 > **레포**: `github.com/moongci38-oss/forge-plugins` (public)
 
@@ -10,12 +10,12 @@ Forge Claude Code Plugin Marketplace — 6개 플러그인 패키지.
 
 | 역할 | 설치 플러그인 |
 |------|------------|
-| 백엔드/풀스택 개발자 | forge-core + forge-dev |
-| 기획자 / PM | forge-core + forge-plan |
-| 리서처 | forge-core + forge-research |
-| 디자이너 | forge-core + forge-design |
-| 게임 개발자 | forge-core + forge-design + forge-game |
-| 전체 설치 | 위 6개 모두 |
+| 백엔드/풀스택 개발자 | forge-core + forge-dev + forge-brain |
+| 기획자 / PM | forge-core + forge-plan + forge-brain |
+| 리서처 | forge-core + forge-research + forge-brain |
+| 디자이너 | forge-core + forge-design + forge-brain |
+| 게임 개발자 | forge-core + forge-design + forge-game + forge-brain |
+| 전체 설치 | 위 7개 모두 |
 
 ---
 
@@ -23,12 +23,13 @@ Forge Claude Code Plugin Marketplace — 6개 플러그인 패키지.
 
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
-| **forge-core** | v0.1.2 | 핵심 인프라 — cr-multi/approve-worker + 온보딩 훅 + 규칙 3종 | 없음 (기반) |
-| **forge-dev** | v0.1.2 | 개발 파이프라인 — qa/healer/investigate/api-e2e/playwright (21 skills, 10 agents) | forge-core |
-| **forge-plan** | v0.1.1 | 기획 파이프라인 — spec-write/writing-plans/requirements-clarity/autoplan | forge-core |
-| **forge-research** | v0.1.2 | 리서치 — article/yt/rag-search/site-deep-analyze | forge-core |
-| **forge-design** | v0.1.1 | 디자인 — figma-sync/image-orchestrate | forge-core |
-| **forge-game** | v0.1.1 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
+| **forge-core** | v0.2.0 | 핵심 인프라 — cr-multi/approve-worker + 온보딩 훅 + **세션관리 5종** | 없음 (기반) |
+| **forge-dev** | v0.1.4 | 개발 파이프라인 — qa/healer/investigate/api-e2e/playwright (21 skills, 10 agents) | forge-core |
+| **forge-plan** | v0.1.2 | 기획 파이프라인 — spec-write/**forge-spec**/writing-plans/requirements-clarity/autoplan | forge-core |
+| **forge-research** | v0.1.4 | 리서치 — article/yt/rag-search/site-deep-analyze | forge-core |
+| **forge-design** | v0.1.3 | 디자인 — figma-sync/image-orchestrate | forge-core |
+| **forge-game** | v0.1.2 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
+| **forge-brain** | v0.1.0 (신규) | 지식·메모리 레이어 — rag-search/learn/wiki-sync/memory-manage + ADR-174 MCP | forge-core |
 
 ---
 
@@ -44,6 +45,7 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 
 ```bash
 claude plugin install forge-core          # 필수 (모든 역할)
+claude plugin install forge-brain         # 지식·메모리 (권장 — 모든 역할)
 
 claude plugin install forge-dev           # 개발자
 claude plugin install forge-plan          # 기획자/PM
@@ -79,10 +81,13 @@ Claude Code 세션 시작 시 `forge-core`의 SessionStart 훅이 자동 실행:
 [forge-onboard] rules installed: forge-core.md
 [forge-onboard] rules installed: behavior-core.md
 [forge-onboard] rules installed: tool-rules.md
+[forge-onboard] handover dirs: ~/.claude/handover/sonnet/, ~/.claude/handover/opus/
+[forge-onboard] checkpoints dir: ~/.claude/checkpoints/
 ```
 
 - **orch-token.key** — forge approve-worker 인증 토큰 (없으면 자동 생성, 이후 스킵)
 - **rules** — `~/.claude/rules/`에 forge 규칙 3종 설치 (이미 있으면 스킵)
+- **handover/checkpoints** — 세션관리용 디렉토리 자동 생성
 
 온보딩은 한 번만 실행됩니다. 이미 파일이 있으면 자동으로 스킵.
 
@@ -97,7 +102,8 @@ Claude Code 세션 시작 시 `forge-core`의 SessionStart 훅이 자동 실행:
 ```bash
 # 1. 업데이트 실행
 claude plugin update forge-core
-claude plugin update forge-dev       # 설치한 것만
+claude plugin update forge-brain        # 설치한 것만
+claude plugin update forge-dev
 
 # 2. Claude Code 재시작
 ```
@@ -193,6 +199,7 @@ git clone https://github.com/moongci38-oss/forge-plugins.git ~/forge-plugins-rep
 {
   "plugins": [
     { "path": "~/forge-plugins-repo/forge-core" },
+    { "path": "~/forge-plugins-repo/forge-brain" },
     { "path": "~/forge-plugins-repo/forge-dev" }
   ]
 }
@@ -224,6 +231,18 @@ cd ~/forge-plugins-repo && git pull
 | `/cr-analysis` | `/cr-analysis <파일>` | 분석 문서 검수 |
 | `/cr-final` | `/cr-final <PR번호>` | PR 머지 직전 최종 검수 (blocking) |
 | `/approve-worker` | `/approve-worker` | forge 승인 워커 실행 |
+
+### forge-core — 세션관리 (v0.2.0 신규)
+
+| 커맨드 | 사용법 | 설명 |
+|--------|--------|------|
+| `/start-sonnet` | `/start-sonnet` | Sonnet 구현 세션 시작 — handover 읽기·컨텍스트 로드 |
+| `/end-sonnet` | `/end-sonnet` | Sonnet 세션 종료 — handover 작성 + learnings 추가 |
+| `/start-opus` | `/start-opus` | Opus 전략 세션 시작 |
+| `/end-opus` | `/end-opus` | Opus 세션 종료 — ADR 인수인계 + 장기기억 업데이트 |
+| `/checkpoint` | `/checkpoint` | Mid-session 체크포인트 — /compact 전 상태 스냅샷 저장 |
+
+> **세션 흐름**: Opus(전략) → `/end-opus` → Sonnet 세션에서 `/start-sonnet` → 구현 → `/end-sonnet` → 다음 세션
 
 ### forge-dev (개발자)
 
@@ -259,6 +278,7 @@ cd ~/forge-plugins-repo && git pull
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
 | `/spec-write` | `/spec-write <기능명>` | Spec 문서 작성 |
+| `/forge-spec` | `/forge-spec <기능 설명>` | Spec 작성 단독 실행 (옛 /sdd Phase 0~2) |
 | `/prd` | `/prd <제품명>` | PRD 작성 |
 | `/forge-plan` | `/forge-plan` | 기획 파이프라인 실행 |
 | `/writing-plans` | `/writing-plans` | 기획서 작성 |
@@ -280,6 +300,17 @@ cd ~/forge-plugins-repo && git pull
 |------|--------|------|
 | `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 |
 | `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
+
+### forge-brain (지식·메모리 레이어)
+
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
+| `/rag-search` | `/rag-search <질문>` | 프로젝트 자료·기획서·리서치 데이터 RAG 검색 |
+| `/learn` | `/learn` | 세션 학습 내용을 learnings.jsonl에 기록 |
+| `/wiki-sync` | `/wiki-sync` | Obsidian vault ↔ forge-outputs 양방향 동기화 |
+| `/memory-manage` | `/memory-manage` | MEMORY.md 항목 추가·수정·삭제·GC |
+
+> `FORGE_DB_URL` 설정 시 ADR-174 pgvector unified_search 자동 연동.
 
 ### forge-game (게임 개발자)
 
@@ -306,8 +337,15 @@ cd ~/forge-plugins-repo && git pull
 /yt https://youtube.com/watch?v=...
 
 # Spec 작성 후 구현
-/spec-write 사용자 알림 기능
+/forge-spec 사용자 알림 기능
 /forge-implement
+
+# 세션 시작/종료
+/start-sonnet
+/end-sonnet
+
+# 지식 검색
+/rag-search ADR-174 통합 두뇌 설계 근거
 ```
 
 ---
@@ -350,23 +388,34 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스
 ├── forge-core/
-│   ├── .claude-plugin/plugin.json     — 플러그인 매니페스트
+│   ├── .claude-plugin/plugin.json     — 플러그인 매니페스트 (v0.2.0)
 │   ├── skills/
 │   │   ├── approve-worker/            — forge 승인 워커
-│   │   └── cr-multi/                  — 멀티 검수 오케스트레이터
+│   │   ├── cr-multi/                  — 멀티 검수 오케스트레이터
+│   │   ├── start-sonnet/              — Sonnet 구현 세션 시작
+│   │   ├── end-sonnet/                — Sonnet 세션 종료
+│   │   ├── checkpoint/                — Mid-session 체크포인트
+│   │   ├── start-opus/                — Opus 전략 세션 시작
+│   │   └── end-opus/                  — Opus 세션 종료
+│   ├── commands/
+│   │   ├── start-sonnet.md
+│   │   ├── end-sonnet.md
+│   │   ├── start-opus.md
+│   │   └── end-opus.md
 │   ├── hooks/
-│   │   └── forge-onboard.sh           — SessionStart 자동 실행
+│   │   ├── forge-onboard.sh           — SessionStart 자동 실행
+│   │   └── handover-manager.sh        — 핸드오버 원자적 쓰기 (flock)
 │   └── rules/
 │       ├── forge-core.md              — forge 전역 규칙
 │       ├── behavior-core.md           — 자율실행·외과적변경·존댓말 등
 │       └── tool-rules.md              — 도구 사용 정책
 ├── forge-dev/
-│   ├── .claude-plugin/plugin.json
+│   ├── .claude-plugin/plugin.json     — (v0.1.4)
 │   ├── skills/                        — 21개 (qa/healer/investigate/api-e2e 등)
 │   └── agents/                        — 10개 (code-reviewer/performance-checker 등)
 ├── forge-plan/
 │   ├── skills/                        — spec-write/writing-plans/requirements-clarity/autoplan
-│   ├── commands/                      — forge-plan/forge-pr/sdd
+│   ├── commands/                      — forge-plan/forge-pr/forge-spec/sdd
 │   └── agents/                        — spec-writer/technical-writer
 ├── forge-research/
 │   ├── skills/                        — article/yt/rag-search/site-deep-analyze
@@ -375,14 +424,31 @@ forge-plugins-repo/
 ├── forge-design/
 │   ├── skills/                        — figma-design-sync/image-orchestrate
 │   └── agents/                        — 2개 (screenshot-business-analyzer 등)
-└── forge-game/
-    ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
-    └── agents/                        — gdd-writer
+├── forge-game/
+│   ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
+│   └── agents/                        — gdd-writer
+└── forge-brain/                       — (신규 v0.1.0)
+    ├── .claude-plugin/plugin.json
+    ├── skills/
+    │   ├── rag-search/                — pgvector/FAISS RAG 검색
+    │   ├── learn/                     — learnings.jsonl 기록
+    │   ├── wiki-sync/                 — Obsidian 동기화
+    │   └── memory-manage/             — MEMORY.md 관리
+    └── commands/
+        ├── rag-search.md
+        ├── learn.md
+        └── wiki-sync.md
 ```
 
 ---
 
 ## Changelog
+
+### v0.2.0 / v0.1.4 / forge-brain v0.1.0 (2026-06-23)
+- **forge-core v0.2.0**: 세션관리 5종 추가 (start/end-sonnet, checkpoint, start/end-opus), handover-manager.sh 번들
+- **forge-dev v0.1.4**: workflow.js 동기화 확인 완료
+- **forge-plan v0.1.2**: forge-spec 커맨드 추가 (옛 /sdd Phase 0~2 단독 실행)
+- **forge-brain v0.1.0** 신규: rag-search/learn/wiki-sync/memory-manage + ADR-174 forge-tools MCP
 
 ### v0.1.2 (2026-06-05)
 - forge-core: B2 게이트 + gemini-text 레그 변경분 반영
