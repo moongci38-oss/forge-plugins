@@ -43,4 +43,4 @@ $0.00 (OAuth) / ~$0.10~0.30 (API key + gpt-5 high effort). 단순 변경은 자�
 
 - 본명령: `/codex-review --stage final --effort high --blocking`
 - Forge Dev Phase 9 Check 9-X에서 자동 호출
-- 정책: `~/forge/dev/rules/codex-review-policy.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`

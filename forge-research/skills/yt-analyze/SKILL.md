@@ -104,7 +104,7 @@ JSON의 `is_generated_subtitle` 필드 기반:
 **GTC-2: 기구현 확인** — 영상의 제안/패턴이 이미 우리 시스템에 존재하는지 확인
 - Glob: `.github/workflows/*.yml` (GitHub Actions)
 - Glob: `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`
-- Glob: `~/.claude/forge/rules/*.md`, `~/.claude/rules/*.md`
+- Glob: `$HOME/.claude/forge/rules/*.md`, `$HOME/.claude/rules/*.md`
 - **이미 구현된 기능을 개선 제안하는 경우** → 비교 매트릭스에서 "이미 적용" 표기, 제안 목록에서 제거
 
 **GTC-3: 핵심 커버리지** — Forge/Forge Dev 파이프라인 현황을 실제 파일에서 확인

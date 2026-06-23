@@ -23,8 +23,8 @@ forge 프로젝트별 MEMORY.md 파일을 유지보수하는 스킬.
 ## 저장 위치
 
 ```
-~/.claude/projects/{project-slug}/memory/MEMORY.md   # 프로젝트 메모리
-~/.claude/projects/-home-damools-forge-outputs/memory/MEMORY.md  # forge-outputs 전역
+$HOME/.claude/projects/{project-slug}/memory/MEMORY.md   # 프로젝트 메모리
+$HOME/.claude/projects/-home-damools-forge-outputs/memory/MEMORY.md  # forge-outputs 전역
 ```
 
 ## 범위 우선순위 (충돌 시)

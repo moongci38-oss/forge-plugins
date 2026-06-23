@@ -13,7 +13,7 @@
       "type": "stdio",
       "command": "python3",
       "args": [
-        "/home/damools/forge/shared/mcp/forge-tools-server.py",
+        "${FORGE_ROOT:-$HOME/forge}/shared/mcp/forge-tools-server.py",
         "stdio"
       ],
       "description": "ADR-174 unified_search 라우터 포함 — RAG 하이브리드 검색 (벡터+BM25), 위키 검색, 14종 워크스페이스 도구"

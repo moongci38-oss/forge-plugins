@@ -81,12 +81,12 @@ Claude Code 세션 시작 시 `forge-core`의 SessionStart 훅이 자동 실행:
 [forge-onboard] rules installed: forge-core.md
 [forge-onboard] rules installed: behavior-core.md
 [forge-onboard] rules installed: tool-rules.md
-[forge-onboard] handover dirs: ~/.claude/handover/sonnet/, ~/.claude/handover/opus/
-[forge-onboard] checkpoints dir: ~/.claude/checkpoints/
+[forge-onboard] handover dirs: $HOME/.claude/handover/sonnet/, $HOME/.claude/handover/opus/
+[forge-onboard] checkpoints dir: $HOME/.claude/checkpoints/
 ```
 
 - **orch-token.key** — forge approve-worker 인증 토큰 (없으면 자동 생성, 이후 스킵)
-- **rules** — `~/.claude/rules/`에 forge 규칙 3종 설치 (이미 있으면 스킵)
+- **rules** — `$HOME/.claude/rules/`에 forge 규칙 3종 설치 (이미 있으면 스킵)
 - **handover/checkpoints** — 세션관리용 디렉토리 자동 생성
 
 온보딩은 한 번만 실행됩니다. 이미 파일이 있으면 자동으로 스킵.
@@ -191,10 +191,10 @@ Marketplace 방식 대신 직접 클론해서 사용할 수 있습니다.
 # 레포 클론
 git clone https://github.com/moongci38-oss/forge-plugins.git ~/forge-plugins-repo
 
-# ~/.claude/settings.json 에 영구 등록
+# $HOME/.claude/settings.json 에 영구 등록
 ```
 
-`~/.claude/settings.json`:
+`$HOME/.claude/settings.json`:
 ```json
 {
   "plugins": [
@@ -369,7 +369,7 @@ claude plugin install forge-core
 
 ```bash
 # 수동으로 온보딩 실행
-bash ~/.claude/plugins/forge-core/hooks/forge-onboard.sh
+bash $HOME/.claude/plugins/forge-core/hooks/forge-onboard.sh
 ```
 
 ### Marketplace 등록 오류

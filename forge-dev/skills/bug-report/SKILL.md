@@ -72,7 +72,7 @@ read_network_requests 로 API 응답 확인 → 3-way 분류:
 
 **③ BUG ID 채번**
 ```bash
-bash ~/.claude/skills/bug-report/scripts/next-bug-id.sh {프로젝트 루트}/docs/bug_report
+bash $HOME/.claude/skills/bug-report/scripts/next-bug-id.sh {프로젝트 루트}/docs/bug_report
 ```
 
 **④** 6하원칙 + 재현 계정 메모 기록 → 다음 메뉴 즉시 계속
@@ -176,7 +176,7 @@ BUG-EVALUATOR 역할: 아래 bug-report 파일 목록을 rubric 기준으로 평
 입력: {bug_report_dir}/BUG-*.md 전체 목록
 rubric 기준:
   1. 중복 통합: 동일 페이지·동일 현상 BUG-NNN 항목 → 하나의 MASTER 버그로 병합 제안 (파일 수정 X, 병합 목록만 출력)
-  2. severity 정합: 각 버그의 심각도를 ~/.claude/skills/bug-report/references/severity.md 기준으로 재검증
+  2. severity 정합: 각 버그의 심각도를 $HOME/.claude/skills/bug-report/references/severity.md 기준으로 재검증
      - 선언된 심각도 vs rubric 기준 불일치 → [MISMATCH] 플래그
   3. 불일치 요약: MISMATCH 건별 (BUG-ID / 선언 심각도 / 권장 심각도 / 사유) 표 출력
 
@@ -242,7 +242,7 @@ Critical이 UNCONFIRMED이면 처리 이력에 "(자동 재현 실패 — 수동
 
 ## 심각도 기준
 
-→ `~/.claude/skills/bug-report/references/severity.md` 참조
+→ `$HOME/.claude/skills/bug-report/references/severity.md` 참조
 
 | 심각도 | 기준 |
 |--------|------|
@@ -263,7 +263,7 @@ Critical이 UNCONFIRMED이면 처리 이력에 "(자동 재현 실패 — 수동
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Navigate→Detect(4개씩 배치 parallel)→Report.
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/bug-report/workflow.js") })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/bug-report/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

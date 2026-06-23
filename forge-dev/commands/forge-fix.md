@@ -55,7 +55,7 @@ export QA_SCOPE="hotfix"
 # Notion URL이면 → forge-pm-updater로 상세 로드 후 QA_BUG_TEXT에 채움
 
 # 과거 유사 패턴 로드 (compounding)
-LEARN_BY=forge-fix bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
+LEARN_BY=forge-fix bash $HOME/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
 
 # qa skill 호출 (hotfix 모드)
 # → Phase A: hotfix/{slug} 브랜치 생성
@@ -80,5 +80,5 @@ qa Phase H가 learnings.jsonl append를 담당. forge-fix 자체 Step 5.5는 qa 
 
 ## forge-sync 배포 대상
 
-이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-fix.md`에 자동 배포된다.
+이 커맨드는 `forge-sync` 실행 시 `$HOME/.claude/commands/forge-fix.md`에 자동 배포된다.
 > 실패 시 [[pev-self-correction]] 적용

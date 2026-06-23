@@ -33,7 +33,7 @@ Forge 하네스는 지속적으로 누적된다:
 
 ```
 Workflow({
-  script: Bash("cat /home/damools/forge/.claude/skills/harness-legacy-scan/workflow.js"),
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-legacy-scan/workflow.js"),
   args: {}
 })
 ```

@@ -17,7 +17,7 @@ group: review
 
 ```js
 Workflow({
-  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'double', stage: STAGE }
 })
 ```

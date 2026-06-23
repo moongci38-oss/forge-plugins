@@ -77,9 +77,9 @@ fan-out 완료 후 completeness critic agent가 미탐색 항목 식별:
 3. 여전히 gap 있으면 round 2 (최대)
 4. **cap 2라운드** — 잔여 gap은 `log()`로 드롭 명시 후 Phase 2.5 진행
 
-참조: `~/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
+참조: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipGemini } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipGemini } })`
 skipGemini=true(Gemini 토큰 없는 경우 정적 분석만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 6 Phase 방식 fallback.
 
 ## 6 Phase 절차
@@ -118,7 +118,7 @@ CSS → `/style-forge` Mode A 호환 형식 (color palette / typography / spacin
 Phase 2 정적 분석이 추론한 `apiEndpoints[]`·`components[]`를 Phase 5 산출물에 반영하기 전,
 이미 수집된 HAR·DOM 아티팩트만으로 각 추론의 근거를 역검증한다 (**신규 네트워크 호출 0**).
 
-**참조 표준**: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색
+**참조 표준**: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색
 
 검증 절차:
 1. **API 엔드포인트**: HAR 파일에서 해당 URL 패턴의 실제 요청 존재 여부 확인

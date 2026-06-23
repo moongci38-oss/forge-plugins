@@ -5,7 +5,7 @@ group: audit
 
 # /migration-audit
 
-**→ skill 로드**: `/home/damools/.claude/skills/migration-audit/SKILL.md`
+**→ skill 로드**: `$HOME/.claude/skills/migration-audit/SKILL.md`
 
 ```
 /migration-audit <legacy-path> <migrated-path> [--stack=node-nest|php-nest] [--scope=full|domain|events] [--fix=off|propose|auto]

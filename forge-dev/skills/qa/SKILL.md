@@ -36,7 +36,7 @@ model: sonnet
 /qa --cr degrade                          # Phase F Codex cr-final 스킵 (비용 절감·Codex 불가 시)
 /qa --cr off                              # Phase F Codex cr-final 스킵 (명시적 비활성)
                                           # crMode='degrade'/'off' → codex-critic 스폰 X, 나머지 cr-* + Ship 정상 진행
-                                          # caller: MODE=$(~/forge/shared/scripts/cr-mode.sh "$CR_ARG") → args.crMode 전달
+                                          # caller: MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "$CR_ARG") → args.crMode 전달
 ```
 
 자동 트리거: P5 Check P5.7-X PASS → 자동 실행
@@ -63,7 +63,7 @@ model: sonnet
    │
    ├─ Phase C: 버그 발견 + 아티팩트 수집
    │           T1(API) + T2(UI) + T3(DB) + T6(보안) + T7(성능) 실행
-   │           ⚠️ 각 테스트 실행 시 proof 생성: bash ~/forge/shared/scripts/run-tests-proof.sh "<cmd>"
+   │           ⚠️ 각 테스트 실행 시 proof 생성: bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/run-tests-proof.sh "<cmd>"
    │              → TEST_PROOF: SHA256=<hash> CMD=<cmd> LINES=<n> EXIT=<code> (WARN if absent — codex-gate §5.5)
    │           FAIL → artifacts/bug-{N}-{shot|http|server|console}.* 강제 생성
    │           6하원칙 bug-report.md 작성
@@ -105,7 +105,7 @@ model: sonnet
                docs/qa/metrics.jsonl append {date, scope, bugs_found, bugs_fixed, cycles, mttr_min, regression_count}
                docs/qa/{date}-final-qa-report.md (Human 검수용)
                git worktree prune (orphan cleanup, §A10)
-               ~/.claude/worktrees/qa-* 7일+ 자동 삭제
+               $HOME/.claude/worktrees/qa-* 7일+ 자동 삭제
    │
    ▼
 [User] final-qa-report 검수 (develop 머지 완료 상태)
@@ -171,7 +171,7 @@ Hotfix 단일 파일 가드: Phase E 완료 후 2+ 파일 변경 감지 시 [STO
 
 ## Phase Gate 호출 표 (AD-96-MVP M14 — dispatcher)
 
-> **호출 방법**: `bash ~/forge/.claude/hooks/dispatch/phase-gate.sh <gate-name> [bug_id] [artifacts_dir] [scenarios_path]`
+> **호출 방법**: `bash ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/dispatch/phase-gate.sh <gate-name> [bug_id] [artifacts_dir] [scenarios_path]`
 
 | Gate | 호출 시점 | 실행 Hook | Exit 2 조건 |
 |------|----------|---------|------------|
@@ -186,10 +186,10 @@ Hotfix 단일 파일 가드: Phase E 완료 후 2+ 파일 변경 감지 시 [STO
 
 ```bash
 # qa SKILL 구현 예시
-bash ~/forge/.claude/hooks/dispatch/phase-gate.sh phase-a-to-b
-bash ~/forge/.claude/hooks/dispatch/phase-gate.sh phase-e-entry
-bash ~/forge/.claude/hooks/dispatch/phase-gate.sh phase-e-a4-ui "bug-${N}"
-bash ~/forge/.claude/hooks/dispatch/phase-gate.sh phase-f-entry
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/dispatch/phase-gate.sh phase-a-to-b
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/dispatch/phase-gate.sh phase-e-entry
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/dispatch/phase-gate.sh phase-e-a4-ui "bug-${N}"
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/dispatch/phase-gate.sh phase-f-entry
 ```
 
 ---
@@ -319,7 +319,7 @@ Playwright: `page.setViewportSize({width: 360, height: 800})`
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원.
 패턴: Phase A~D(순차) → Phase C(parallel T1~T7) → Phase E(parallel healer) → Phase F~H(순차).
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/qa/workflow.js"), args: { scope, mode } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/qa/workflow.js"), args: { scope, mode } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Phase A~H 메인 컨텍스트 방식 fallback.
 
 ## Codex 2차 게이트 (Plan v2-C1, 자동)
@@ -331,8 +331,8 @@ QA 시나리오 작성 완료 후 Codex `--stage test` 자동 호출:
 ## eval-rubric 통합 (자동)
 
 스킬 산출물 저장 후 자동 `/eval-rubric --target {산출물 경로}` 호출.
-결과 → `~/.claude/skills/qa/eval_cases.jsonl` 누적 (EC-qa-{N}).
+결과 → `$HOME/.claude/skills/qa/eval_cases.jsonl` 누적 (EC-qa-{N}).
 비활성: `EVAL_RUBRIC_AUTO=off`
 
-> **상세 구현 참조**: `~/forge/.claude/skills/qa/reference.md`
+> **상세 구현 참조**: `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md`
 > (Phase A~H 세부 코드 / T1~T7 검증 상세 / healer 루프 / Phase 입출력 표 / Artifact 보존 정책)

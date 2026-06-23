@@ -34,7 +34,7 @@ OUTPUT_DIR  : {IMAGE_PATH 부모}/{파일명}-components/ (기본)
 ```
 
 **Windows 경로 자동 변환**:
-- `z:/home/damools/...` → `/home/damools/...`
+- `z:$HOME/...` → `$HOME/...`
 - `C:/Users/...` → `/mnt/c/Users/...`
 
 ## Step 2: 버튼/컴포넌트 추출
@@ -49,7 +49,7 @@ OUTPUT_DIR  : {IMAGE_PATH 부모}/{파일명}-components/ (기본)
 ### 2-2. 템플릿 매칭으로 bbox 자동 탐지
 
 ```bash
-python3 ~/.claude/skills/asset-extract/scripts/match_bbox.py \
+python3 $HOME/.claude/skills/asset-extract/scripts/match_bbox.py \
   --original "{IMAGE_PATH}" \
   --clip /tmp/clip.png
 ```
@@ -67,7 +67,7 @@ score > 20 이면 매칭 품질 경고 → 사용자에게 안내 후 계속 진
 ### 2-3. SAM2 세그멘테이션 → 투명 PNG
 
 ```bash
-python3 ~/.claude/skills/asset-extract/scripts/segment_button.py \
+python3 $HOME/.claude/skills/asset-extract/scripts/segment_button.py \
   --image "{IMAGE_PATH}" \
   --bbox {left} {top} {right} {bottom} \
   --output "{OUTPUT_DIR}/buttons/{name}.png"

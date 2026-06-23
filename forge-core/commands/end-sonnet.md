@@ -39,7 +39,7 @@ SLUG="kebab-case-summary"  # 예: handover-race-fix-impl
 
 ```bash
 echo "$HANDOVER_CONTENT" | \
-  ~/.claude/scripts/handover-manager.sh write sonnet "$PROJECT_ROOT" "$SLUG"
+  $HOME/.claude/scripts/handover-manager.sh write sonnet "$PROJECT_ROOT" "$SLUG"
 ```
 
 - 파일 경로: `{PROJECT_ROOT}/.claude/handover/sonnet/{date}-{HHMM}-{slug}.md`
@@ -51,18 +51,18 @@ echo "$HANDOVER_CONTENT" | \
 
 ```bash
 echo '{"id":"L-30","date":"2026-05-07","category":"...","summary":"...","trigger":"...","apply":"...","evidence":"..."}' | \
-  ~/.claude/scripts/handover-manager.sh learn-append "$PROJECT_ROOT"
+  $HOME/.claude/scripts/handover-manager.sh learn-append "$PROJECT_ROOT"
 ```
 
 별도 flock으로 동시 append race 차단.
 
 **+ pge-failure 후보 큐 처리 (compounding)**: 이번 세션에 PGE Evaluator 최종 FAIL이 있었고 핸드오버에 `pge-failure 후보:` 가 기록됐으면 → `learnings.sh` 헬퍼로 반영 (sanitize·collision-id·validate 자동):
 ```bash
-bash ~/.claude/scripts/learnings.sh append --category pge-failure \
+bash $HOME/.claude/scripts/learnings.sh append --category pge-failure \
   --summary "<무엇을 하려다 / 왜 막혔나 1줄>" --apply "<향후 PGE에서 이 접근 회피 — 대안 1줄>" \
   --evidence "<PGE 보고서 경로 또는 사이클 요약>"
 ```
-→ 보고에 `📌 learnings 신규: <id>`. (없으면 skip.) 코드/디버깅/리뷰 경험 헬퍼 규약: `~/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션.
+→ 보고에 `📌 learnings 신규: <id>`. (없으면 skip.) 코드/디버깅/리뷰 경험 헬퍼 규약: `$HOME/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션.
 
 ### 4.5. 구조화 학습 추출 (PLAN vs SUMMARY diff)
 
@@ -88,9 +88,9 @@ category: process/decision 항목 → Step 4 `learn-append`에 즉시 포함.
 
 | 발견 유형 | 저장 위치 |
 |-----------|-----------|
-| 재발 방지 실수 패턴 | `~/.claude/rules/` 또는 프로젝트 `rules-on-demand/` |
+| 재발 방지 실수 패턴 | `$HOME/.claude/rules/` 또는 프로젝트 `rules-on-demand/` |
 | 프로젝트 특화 코딩 규칙 | `{프로젝트}/.claude/rules/` |
-| 툴·라이브러리 gotcha | `~/.claude/projects/*/memory/` |
+| 툴·라이브러리 gotcha | `$HOME/.claude/projects/*/memory/` |
 
 ### 6. Obsidian 업데이트 (해당 시)
 
@@ -103,8 +103,8 @@ category: process/decision 항목 → Step 4 `learn-append`에 즉시 포함.
 
 ```bash
 # 플러그인 설치 검사
-if ls ~/.claude/plugins/installed_plugins.json 2>/dev/null && \
-   grep -q "claude-md-management" ~/.claude/plugins/installed_plugins.json; then
+if ls $HOME/.claude/plugins/installed_plugins.json 2>/dev/null && \
+   grep -q "claude-md-management" $HOME/.claude/plugins/installed_plugins.json; then
   /claude-md-management:revise-claude-md
   # → 세션 분석 → 갱신 후보 제시 → 사용자 승인 후 CLAUDE.md edit
 else
@@ -145,6 +145,6 @@ fi
 ## AD-N retrospective 작성 (AD 종료 시)
 
 Sonnet 세션이 AD-N의 마지막 구현 세션이면 handover에 retrospective 포함:
-- 템플릿: `~/forge/.claude/templates/ad-retrospective-template.md`
+- 템플릿: `${FORGE_ROOT:-$HOME/forge}/.claude/templates/ad-retrospective-template.md`
 - §1~§8 모두 채워야 cr-plan `analysis` stage PASS 가능
 - 특히 §5 검증 깊이 (grep ≠ runtime), §6 롤백, §7 보안 acceptance 필수

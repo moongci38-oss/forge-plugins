@@ -1,7 +1,7 @@
 {
   "name": "forge-core",
   "version": "0.2.0",
-  "description": "Forge 시스템 핵심 스킬 + MCP 서버 + 온보딩 훅 + 세션관리. 6-plugin 패키지의 공통 기반.",
+  "description": "Forge 시스템 핵심 스킬 + MCP 서버 + 온보딩 훅 + 세션관리 + rag-search. 9-plugin 패키지의 공통 기반.",
   "author": {
     "name": "forge"
   },

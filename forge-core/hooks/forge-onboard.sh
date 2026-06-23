@@ -18,7 +18,7 @@ if [ ! -f "$ORCH_TOKEN_FILE" ]; then
   echo "[forge-onboard] orch-token.key created: $ORCH_TOKEN_FILE" >&2
 fi
 
-# 2. rules — copy plugin rules to ~/.claude/rules/ if missing
+# 2. rules — copy plugin rules to $HOME/.claude/rules/ if missing
 if [ -d "$RULES_SRC" ]; then
   for src_file in "$RULES_SRC"/*.md; do
     [ -f "$src_file" ] || continue

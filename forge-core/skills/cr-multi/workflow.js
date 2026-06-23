@@ -159,7 +159,7 @@ if (!codexEnabled) {
 TASKDIR="\${FORGE_OUTPUTS:-$HOME/forge-outputs}/13-multiagent/tasks/${safeSlug}" && mkdir -p "\$TASKDIR" && printf 'status: in_progress\\ntask_id: ${safeSlug}\\nworker: codex-critic\\n' > "\$TASKDIR/task.md" && echo "OK: \$TASKDIR/task.md"
 
 [Step 2] 토큰 발행:
-python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task "${safeSlug}" --worker codex-critic --tools "mcp__codex__codex,mcp__codex__codex-reply" --paths "${pathsArg}"
+python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task "${safeSlug}" --worker codex-critic --tools "mcp__codex__codex,mcp__codex__codex-reply" --paths "${pathsArg}"
 
 출력에 "[APPROVED]" 포함 시 "TOKEN_OK" 반환.`,
       { label: 'approve-token', phase: 'ApproveWorker' }
@@ -342,7 +342,7 @@ const results = (await parallel(workers))
 
 // ── GS-B19: Finding Dedup + Confidence Scoring + Fix-First ordering ──────────
 // root-cause: GS-B19 — cross-worker agreement → confidence score; dedup by (file|line|category); Fix-First sort
-// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ~/forge/shared/scripts/synthesize.py
+// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ${FORGE_ROOT:-$HOME/forge}/shared/scripts/synthesize.py
 //   (review 키 file|line|category — 아래 inline과 동일 계약 / code 키 export|signature + conflict surfacing 추가).
 //   Workflow 샌드박스는 require 불가라 review hot-path는 inline 유지. 비-Workflow fan-out 소비자는 synthesize.py 사용.
 const _sevOrd = { critical: 0, high: 1, medium: 2, low: 3 }

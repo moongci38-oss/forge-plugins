@@ -142,8 +142,8 @@ EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
 
 # 프롬프트 stage별 선택
-PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-${STAGE}.md"
-[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-default.md"
+PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${STAGE}.md"
+[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
 
 # 호출 (stdin = prompt + target)
 ( cat "$PROMPT_FILE"; echo; echo "---"; echo "## TARGET"; echo "$INPUT" ) | \
@@ -238,7 +238,7 @@ CLAUDE_JSON="${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/claude/${STAGE}/
 CODEX_JSON="${OUT_DIR}/${DATE}-${SLUG}.json"
 
 # 비교 알고리즘 → "agreement" | "disagreement" | "extension" | "null"
-DELTA=$(python3 ~/forge/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
+DELTA=$(python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
 
 # JSON 갱신 (delta_vs_claude 필드 자동 기록)
 jq --arg d "$DELTA" '.delta_vs_claude = $d' "$CODEX_JSON" > "$CODEX_JSON.tmp" \

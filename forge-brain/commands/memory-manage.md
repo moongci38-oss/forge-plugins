@@ -10,7 +10,7 @@ group: brain
 
 **ARGUMENTS**: $ARGUMENTS
 
-Forge 메모리 시스템(`~/.claude/projects/*/memory/MEMORY.md`)의 항목을 관리합니다.
+Forge 메모리 시스템(`$HOME/.claude/projects/*/memory/MEMORY.md`)의 항목을 관리합니다.
 
 ## 사용법
 
@@ -44,11 +44,11 @@ Forge 메모리 시스템(`~/.claude/projects/*/memory/MEMORY.md`)의 항목을 
 
 - 별도 `.md` 파일 생성 금지 (hook 즉시 삭제)
 - `MEMORY.md` 인라인 1~3줄 작성만 허용
-- `~/.claude/rules/` 내용 중복 저장 금지
+- `$HOME/.claude/rules/` 내용 중복 저장 금지
 - 민감정보(credential/token/secret) 저장 금지
 
 ## 관련
 
-- 메모리 lifecycle: `~/.claude/rules-on-demand/memory-lifecycle.md`
-- 메모리 스키마: `~/.claude/rules-on-demand/memory-schema.md`
+- 메모리 lifecycle: `$HOME/.claude/rules-on-demand/memory-lifecycle.md`
+- 메모리 스키마: `$HOME/.claude/rules-on-demand/memory-schema.md`
 - compounding 지식 루프: `/learn`

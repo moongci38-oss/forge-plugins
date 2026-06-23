@@ -23,7 +23,7 @@ group: harness
 ```
 /harness-diet
 /harness-diet --dry-run
-/harness-diet --queue ~/forge-outputs/11-platform/harness/diet-queue.json
+/harness-diet --queue ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/harness/diet-queue.json
 ```
 
 ## 적용 기준

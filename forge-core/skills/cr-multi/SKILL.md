@@ -45,7 +45,7 @@ AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded}`
 
 cr-multi 실행 후 usage 데이터 기록:
 ```bash
-bash ~/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
+bash $HOME/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
 ```
 usage 필드는 Anthropic SDK response.usage 에서 추출. 미지원 시 0 기본값 사용.
 
@@ -56,7 +56,7 @@ mcp__codex__ 토큰 = **Phase -1 자동 발행 내장** (외부 선발행 불필
 ```js
 // Workflow 실행 (Phase -1 ApproveWorker + GitNexus StructuralContext + 3-LLM parallel)
 Workflow({
-  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
@@ -65,10 +65,10 @@ Agent Teams fallback: `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Agent 패턴.
 
 ## 참조
 
-- 명령: `~/forge/.claude/commands/cr-multi.md`
-- 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
-- Triage: `~/forge/shared/scripts/cr-multi-triage.py`
-- Plateau: `~/forge/shared/scripts/cr-multi-plateau-guard.py`
+- 명령: `${FORGE_ROOT:-$HOME/forge}/.claude/commands/cr-multi.md`
+- 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
+- Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
+- Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`
 
 ## Evaluator (Wave 2.5)
 

@@ -12,7 +12,7 @@ group: plan
 
 Phase 3 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 **Phase 4 상세 기획 패키지**를 작성하는 단일 진입 커맨드.
 
-> 절차 정본 = `~/forge/pipeline.md` "## Phase 4: Planning Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 4 게이트). 본 커맨드는 그 절차의 실행 래퍼.
+> 절차 정본 = `${FORGE_ROOT:-$HOME/forge}/pipeline.md` "## Phase 4: Planning Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 4 게이트). 본 커맨드는 그 절차의 실행 래퍼.
 
 ## 사용법
 
@@ -55,7 +55,7 @@ Phase 3 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 
 - ③ `/forge-check-ui`: `s4-ui-source/` UI 품질. 초기 1회 + `critical_count` ≥1 시 `/visual-loop` 재시도 최대 2회(총 3회). 3회 후 잔존 → [STOP] → `{project-root}/docs/reviews/ui-check-{date}.json`
 
 ### Step 5 — 게이트 판정 (Check 4 — 모두 충족. 리포트 = 패턴 매칭 중 최후순 1개 `ls {dir}/{pattern} | sort | tail -1`. 매칭 0개 = FAIL)
-1. `bash ~/.claude/scripts/forge-gate-check.sh {project} S4` → PASS (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
+1. `bash $HOME/.claude/scripts/forge-gate-check.sh {project} S4` → PASS (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
 2. `wave2-verification-*.md` 최후순: `head -1` == `Verdict: PASS` && `grep '^Missing: 0$'` && `grep '^Critical: 0$'`
 3. `wave3-cto-*.md` 최후순: `head -1` == `Verdict: PASS` && `grep '^Critical: 0$'`
 4. `ui-check-*.json` 최후순: `jq '.verdict == "PASS" and .critical_count == 0'` == true
@@ -86,4 +86,4 @@ Claude Design(primary), Stitch MCP(fallback), `/cto-advisor`(스킬 — ADR), `c
 
 ## forge-sync 배포 대상
 
-이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-plan.md`에 자동 배포된다.
+이 커맨드는 `forge-sync` 실행 시 `$HOME/.claude/commands/forge-plan.md`에 자동 배포된다.

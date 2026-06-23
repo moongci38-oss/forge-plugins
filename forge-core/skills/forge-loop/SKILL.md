@@ -63,7 +63,7 @@ See `scripts/workflow.js`. Invoke via Forge Workflow runner.
 ### 절차
 1. 루프 종료 후: `/eval-rubric --target <final_output_path>`
 2. verdict + 4축 점수 + rationale 수신
-3. eval_cases.jsonl append (helper: `~/.claude/scripts/eval-cases-append.py`)
+3. eval_cases.jsonl append (helper: `$HOME/.claude/scripts/eval-cases-append.py`)
    - case_id: EC-forge-loop-{N} auto-increment
    - split: hash 결정적 (sample 80% / holdout 20%)
    - dedupe: sha256(skill+input)

@@ -44,9 +44,9 @@ forge-outputs 지식 베이스에서 ADR-174 unified_search 라우터를 통해 
 
 ## 관련
 
-- 스킬 SKILL.md: `~/forge/.claude/skills/rag-search/SKILL.md`
+- 스킬 SKILL.md: `${FORGE_ROOT:-$HOME/forge}/.claude/skills/rag-search/SKILL.md`
 - ADR-174 계획서: `forge-outputs/11-platform/pipelines/plans/2026-06-22-adr-174-unified-knowledge-brain.md`
-- KnowledgeStore: `~/forge/shared/scripts/rag/knowledge_store.py`
-- forge-tools MCP: `~/forge/shared/mcp/forge-tools-server.py`
+- KnowledgeStore: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/knowledge_store.py`
+- forge-tools MCP: `${FORGE_ROOT:-$HOME/forge}/shared/mcp/forge-tools-server.py`
 
 > `FORGE_DB_URL` 환경변수 미설정 시 FAISS 로컬 엔진으로 자동 폴백됩니다.

@@ -29,8 +29,8 @@ group: deploy
 
 ## 관련
 
-- 스킬 SKILL.md: `~/forge/.claude/skills/wiki-sync/SKILL.md`
-- 백그라운드 동기화: `~/forge/shared/scripts/wiki-sync.sh` (Obsidian vault ↔ forge-outputs/20-wiki)
+- 스킬 SKILL.md: `${FORGE_ROOT:-$HOME/forge}/.claude/skills/wiki-sync/SKILL.md`
+- 백그라운드 동기화: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/wiki-sync.sh` (Obsidian vault ↔ forge-outputs/20-wiki)
 - ADR-174 unified_search: `forge-tools` MCP 서버의 `unified_search` 라우터 연동
 
 > 이 커맨드는 wiki-sync.sh(파일 동기화)와 별개입니다. 같은 이름이지만 역할이 다릅니다 — 이쪽은 **지식 추출 워크플로우**, 저쪽은 **파일 동기화**.

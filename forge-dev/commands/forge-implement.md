@@ -41,7 +41,7 @@ group: implement
 ### 2. session-state 갱신
 
 ```bash
-~/.claude/scripts/session-state.mjs checkpoint phase8
+$HOME/.claude/scripts/session-state.mjs checkpoint phase8
 ```
 
 ### 3. Iron Law 인쇄
@@ -91,7 +91,7 @@ Phase 8 구현 진입 완료.
 
 ## 관련 파일
 
-- `~/forge/pipeline.md` Phase 8 — 전체 절차 (정본)
-- `~/forge/.claude/commands/forge-fix.md` — 단일 hotfix wrapper
-- `~/forge/.claude/commands/sdd.md` — Phase 7 Spec 작성
+- `${FORGE_ROOT:-$HOME/forge}/pipeline.md` Phase 8 — 전체 절차 (정본)
+- `${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-fix.md` — 단일 hotfix wrapper
+- `${FORGE_ROOT:-$HOME/forge}/.claude/commands/sdd.md` — Phase 7 Spec 작성
 > 실패 시 [[pev-self-correction]] 적용

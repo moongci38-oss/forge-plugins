@@ -10,7 +10,7 @@ group: research
 
 **ARGUMENTS**: $ARGUMENTS
 
-`yt` 스킬을 실행하여 입력된 YouTube URL을 분석합니다. 스킬 본체는 `~/.claude/skills/yt/SKILL.md`에 정의되어 있으며, 이 커맨드는 얇은 진입점 래퍼입니다.
+`yt` 스킬을 실행하여 입력된 YouTube URL을 분석합니다. 스킬 본체는 `$HOME/.claude/skills/yt/SKILL.md`에 정의되어 있으며, 이 커맨드는 얇은 진입점 래퍼입니다.
 
 ## 실행
 

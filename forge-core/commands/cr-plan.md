@@ -39,4 +39,4 @@ $0.00 (OAuth) / ~$0.01~0.03 (API key + gpt-5-mini)
 ## 관련
 
 - 본명령: `/codex-review --stage plan`
-- 정책: `~/forge/dev/rules/codex-review-policy.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`

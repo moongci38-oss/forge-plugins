@@ -24,7 +24,7 @@ group: review
 ```js
 // 외부 토큰 선발행 후 Workflow 실행 (cr-multi workflow.js 위임)
 Workflow({
-  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'triple', stage: STAGE }
 })
 ```

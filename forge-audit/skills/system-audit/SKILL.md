@@ -57,7 +57,7 @@ model: opus
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$FORGE_ROOT/.claude/` 또는 `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `system` | `$FORGE_ROOT/.claude/` 또는 `$HOME/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -85,26 +85,26 @@ Workflow 스크립트는 셸 불가 → **기동 前 외부 선발행** 필수 (
 ```bash
 TODAY=$(date +%Y-%m-%d); SLUG="system-audit-${TODAY}"
 # --cr 플래그로 Codex 레그 제어: on(기본) | degrade | off
-# CR_MODE=$(~/forge/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
+# CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
 CR_MODE="${CR_MODE:-on}"
 
 # crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 스킵)
 if [ "$CR_MODE" = "on" ]; then
-  FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+  FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
     --task "$SLUG" --worker codex-critic --tools mcp__codex__codex --paths "$TARGET"
 fi
-FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
   --task "$SLUG" --worker gemini --tools mcp__gemini__analyze_media --paths "$TARGET"
 # 그 후 Workflow 기동
 Workflow({
-  script: Read("~/forge/.claude/skills/system-audit/workflow.js"),
+  script: Read("${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"),
   args: { date: TODAY, projectRoot: TARGET, slug: SLUG, crMode: CR_MODE }
 })
 ```
 
 > nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (cr-multi 참조).
 > `--cr` 값: `on`(기본, 3-LLM) | `degrade`(Codex rate-limit/비용 절감 시) | `off`(Codex 완전 비활성).
-> `cr-mode.sh` 경로: `~/forge/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
+> `cr-mode.sh` 경로: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
 
 Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 아래 Wave 1~4 fallback 실행.
@@ -467,8 +467,8 @@ Agent(
 ```bash
 TODAY=$(date +%Y-%m-%d)
 # CR_MODE: on(기본 3-LLM) | degrade(Codex 스킵, Claude+Gemini) | off(동일)
-# ~/forge/shared/scripts/cr-mode.sh 로 자동 결정 가능
-Workflow({ script: Bash("cat ~/forge/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
+# ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh 로 자동 결정 가능
+Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
 ```
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 Wave 1~4 fallback.
