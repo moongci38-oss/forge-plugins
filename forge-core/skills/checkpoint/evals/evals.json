@@ -1,0 +1,27 @@
+{
+  "skill_name": "checkpoint",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/checkpoint (토큰 70% 시)",
+      "expected_output": "~/.claude/checkpoints/YYYY-MM-DD-HH-MM.md 생성 + /compact 안내",
+      "expectations": [
+        "checkpoints 디렉토리 생성 (없으면)",
+        "타임스탬프 파일명 자동 생성",
+        "git status/diff/log 상태 캡처",
+        "/compact 실행 안내 출력"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "resume (compact 후 재개)",
+      "expected_output": "최신 체크포인트 read + 다음 스텝 출력",
+      "expectations": [
+        "최신 파일 내림차순 read",
+        "브랜치 불일치 시 경고",
+        "uncommitted 변경 경고",
+        "다음 스텝 첫 항목부터 재개"
+      ]
+    }
+  ]
+}

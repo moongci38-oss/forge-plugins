@@ -1,0 +1,26 @@
+{
+  "skill_name": "start-sonnet",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/start-sonnet (handover 존재 시)",
+      "expected_output": "handover 읽기 완료 + 오늘 작업 목록 출력 + 역할 선언",
+      "expectations": [
+        "최신 handover 파일 read 완료",
+        "구현 태스크 우선순위 목록 출력",
+        "블로커 있으면 먼저 명시",
+        "역할 선언: 이 세션 역할: 구현 실행"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/start-sonnet (handover 없음)",
+      "expected_output": "핸드오버 없음 안내 + 사용자 대기",
+      "expectations": [
+        "handover 없음 명시",
+        "사용자에게 작업 지시 요청",
+        "독단 작업 시작 금지"
+      ]
+    }
+  ]
+}

@@ -35,4 +35,27 @@ fi
 # 3. plugin data dir — ensure writable persistent dir exists
 mkdir -p "$PLUGIN_DATA"
 
+# 4. session management dirs — handover + checkpoints
+SESSION_DIRS=(
+  "$HOME/.claude/handover/sonnet"
+  "$HOME/.claude/handover/opus"
+  "$HOME/.claude/checkpoints"
+)
+for dir in "${SESSION_DIRS[@]}"; do
+  if [ ! -d "$dir" ]; then
+    mkdir -p "$dir"
+    echo "[forge-onboard] session dir created: $dir" >&2
+  fi
+done
+
+# 5. handover-manager.sh — install if missing
+HM_SRC="${CLAUDE_PLUGIN_ROOT}/hooks/handover-manager.sh"
+HM_DST="$HOME/.claude/scripts/handover-manager.sh"
+if [ -f "$HM_SRC" ] && [ ! -f "$HM_DST" ]; then
+  mkdir -p "$(dirname "$HM_DST")"
+  cp "$HM_SRC" "$HM_DST"
+  chmod +x "$HM_DST"
+  echo "[forge-onboard] handover-manager.sh installed: $HM_DST" >&2
+fi
+
 exit 0

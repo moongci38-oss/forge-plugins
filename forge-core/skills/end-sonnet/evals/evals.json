@@ -1,0 +1,29 @@
+{
+  "skill_name": "end-sonnet",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/end-sonnet (구현 완료 후)",
+      "expected_output": "handover-manager.sh write sonnet 호출 + INDEX 갱신 확인",
+      "expectations": [
+        "Pre-close Artifact Audit 완료",
+        "handover-manager.sh write sonnet 호출",
+        "INDEX.md 자동 갱신 확인",
+        "learnings 추가 (해당 시)",
+        "Opus 섹션 포함"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/end-sonnet (마일스톤 종료 시)",
+      "expected_output": "Pre-close Artifact Audit 5항목 PASS + AD retrospective 포함",
+      "expectations": [
+        "plan.md 미완 태스크 0개 확인",
+        "git status clean",
+        "실패한 시도 섹션 작성",
+        "learnings 4-category 추출",
+        "planning-fallacy 플래그 (해당 시)"
+      ]
+    }
+  ]
+}

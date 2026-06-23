@@ -1,0 +1,17 @@
+{
+  "skill_name": "end-opus",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/end-opus (ADR 완료 후)",
+      "expected_output": "handover-manager.sh write opus 호출 + Sonnet 액션 아이템 포함",
+      "expectations": [
+        "아키텍처 결정 로그 포함 (AD-N 번호)",
+        "handover-manager.sh write opus 호출",
+        "Sonnet 액션 아이템 P0/P1/P2/P3 우선순위",
+        "INDEX.md 자동 갱신",
+        "learnings 추가 (해당 시)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "skill_name": "start-opus",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/start-opus (Sonnet handover 존재 시)",
+      "expected_output": "opus INDEX 최신 5줄 + Sonnet read-cross + 요약 ≤150단어",
+      "expectations": [
+        "opus INDEX 최신 섹션 상위 5줄만 read",
+        "handover-manager.sh read-cross sonnet 호출",
+        "요약 150 단어 이하",
+        "역할 선언: 아키텍처 결정/설계"
+      ]
+    }
+  ]
+}
