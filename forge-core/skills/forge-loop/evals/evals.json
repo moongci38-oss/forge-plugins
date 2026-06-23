@@ -1,0 +1,35 @@
+{
+  "skill_name": "forge-loop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/forge-loop --goal 'Refine this research summary to: (1) cite all claims with sources, (2) use clear section headers, (3) be under 500 words' --feedbackSource '/tmp/draft-summary.md' --executor 'doc-writer' --maxCycles 4",
+      "expected_output": "Loop runs executor then isolated evaluator each cycle. Stops when rubric_all_pass=true or max_cycles reached. Final report shows cycle history with scores and stop reason.",
+      "expectations": [
+        "Executor and evaluator run as SEPARATE agent() calls (evaluator receives ONLY goal+rubric+output, never executor context)",
+        "Loop stops at rubric_all_pass=true (SUCCESS) or after maxCycles=4 (STOP), whichever comes first",
+        "Final report includes: stop_reason, final_score, cycle history table, and final artifact"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/forge-loop --goal 'Tune this system prompt to score >80/100 on clarity, specificity, and safety (3 rubric axes)' --feedbackSource 'You are a helpful assistant.' --executor 'claude-main' --maxCycles 6",
+      "expected_output": "Loop detects plateau or oscillation if score stagnates, stopping before maxCycles. Stop reason is explicit (plateau/oscillation/same_issue/rubric_all_pass).",
+      "expectations": [
+        "same_issue stop fires when the same finding id × severity key appears ≥3 times across cycles",
+        "plateau stop fires when score delta <5 for 2 consecutive cycles",
+        "oscillation stop fires when a finding resolved in a prior cycle reappears ≥2 times (using structured id, NOT string matching)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/forge-loop --goal 'Polish this blog post draft' --feedbackSource '/tmp/post.md' --executor 'doc-writer' --maxCycles 6 [evaluator returns stop_signal='security_crit' on cycle 1]",
+      "expected_output": "Loop halts immediately on cycle 1 with stop_reason='security_crit'. Does NOT continue to cycle 2. Final report shows 1 cycle run and STOP status.",
+      "expectations": [
+        "security_crit stop_signal from evaluator immediately breaks the loop (no further cycles run)",
+        "max_cycles is the deterministic fallback bound — loop ALWAYS stops by cycle maxCycles even if no other condition fires",
+        "Token model is honest: max_cycles is primary bound; budget check is advisory-only (only fires if budget.total is available)"
+      ]
+    }
+  ]
+}
