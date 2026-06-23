@@ -10,5 +10,5 @@
     "forge-design"
   ],
   "skills": "./skills/",
-  "agents": "./agents/"
+  "agents": ["./agents/gdd-writer.md"]
 }

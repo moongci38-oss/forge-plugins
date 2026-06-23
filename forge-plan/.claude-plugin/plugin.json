@@ -10,5 +10,5 @@
   ],
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": "./agents/"
+  "agents": ["./agents/cto-advisor.md", "./agents/spec-writer-base.md"]
 }

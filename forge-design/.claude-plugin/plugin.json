@@ -9,5 +9,5 @@
     "forge-core"
   ],
   "skills": "./skills/",
-  "agents": "./agents/"
+  "agents": ["./agents/doc-writer.md", "./agents/gemini.md"]
 }

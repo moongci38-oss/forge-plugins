@@ -9,6 +9,6 @@
     "forge-core"
   ],
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": ["./agents/axis-agentic.md", "./agents/axis-context.md", "./agents/axis-cost.md", "./agents/axis-harness.md", "./agents/axis-human-ai.md", "./agents/canary-judge.md", "./agents/code-reviewer.md", "./agents/healer.md", "./agents/performance-checker.md", "./agents/ui-quality-checker.md"],
   "commands": "./commands/"
 }
