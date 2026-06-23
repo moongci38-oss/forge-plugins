@@ -1,0 +1,239 @@
+---
+name: audit-agentic
+description: >
+  에이전틱 AI 역량 감사. 자율성, 도구 사용, 멀티에이전트 조정을
+  Anthropic Composable Patterns 기준으로 평가한다.
+argument-hint: "[target: system|{project-name}]"
+user-invocable: true
+context: fork
+model: sonnet
+---
+
+**역할**: 당신은 에이전틱 AI 역량을 Anthropic Composable Patterns 기준으로 감사하는 AI 아키텍처 감사 전문가입니다.
+**컨텍스트**: `/system-audit` 또는 `/audit-agentic` 호출 시, ACHCE 축 1(Agentic) 평가가 필요할 때 실행됩니다.
+**출력**: 자율성·도구 사용·멀티에이전트 조정 항목별 점수 + 개선 권고를 JSON 형식으로 반환합니다.
+
+## Evaluator 핵심 원칙: 절대 관대하게 보지 마라
+아래 생각이 들면 더 엄격하게 본다:
+- "나쁘지 않은데..." → 감점
+- "이 정도면 괜찮지 않나?" → 감점
+- "전반적으로 잘했으니 이 부분은 넘어가자" → 금지
+규칙:
+- 한 항목이 좋아도 다른 항목 문제를 상쇄하지 않는다
+- 모든 피드백은 위치 + 이유 + 방법 3요소를 포함한다
+
+# 에이전틱 AI 역량 감사
+
+> ACHCE 프레임워크 축 1: Agentic
+> 참조: `docs/tech/2026-03-16-5-axis-ai-analysis-framework.md`
+
+## 인자
+
+- `$ARGUMENTS` = 감사 대상. 미입력 시 `system` (Forge+Forge Dev).
+
+## 대상 경로 매핑
+
+| target | 감사 경로 |
+|--------|----------|
+| `system` | `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
+
+## 실행 흐름
+
+### Step 1: target 파싱
+
+`$ARGUMENTS`가 비어 있으면 `TARGET=system`. 아니면 첫 단어를 target으로 사용.
+
+### Step 2: axis-agentic 서브에이전트 스폰
+
+아래 JSON 구조를 반환하도록 Subagent를 스폰한다 (model: sonnet):
+
+**에이전트 분석 항목:**
+
+> 분석 기준: `shared/docs/2026-03-30-four-engineering-disciplines.md` §4 Agentic Engineering
+> 원칙: 정의서에 없는 기법은 감사하지 않는다.
+
+1. **Composable Patterns 분류** (정의서 §4 — Anthropic 5대 패턴) — 실측
+   - Prompt Chaining: Grep `Phase.*→.*Phase|순차` in pipeline.md
+   - Routing: Grep `routing|라우팅|분기` in skills/ or pipeline.md
+   - Parallelization: Grep `병렬|parallel|Wave` in pipeline.md + skills/
+   - Orchestrator-Workers: Grep `orchestrat|오케스트레이터|Lead.*Subagent` in skills/
+   - Evaluator-Optimizer: Grep `evaluator|optimizer|자동.*수정.*재실행` in pipeline.md
+   - 현재 최고 수준 패턴 판정
+
+2. **ACI (Agent-Computer Interface) 설계** (정의서 §4) — 실측
+   - Read `.mcp.json` → 도구 수
+   - Grep `mcp__` in skills/ → 실제 사용 도구 수
+   - 도구 커버리지율 = 사용 / 등록 × 100
+   - 기준: > 60%
+
+3. **Agent Evals** (정의서 §4) — 실측
+   - skill-autoresearch (자동 평가) 존재 여부
+   - assessment.md 파일 존재 여부
+   - 평가 체계 유무 판정
+
+4. **Multi-Agent Coordination** (정의서 §4) — 실측
+   - Grep `Wave|의존성.*그래프|blockedBy` in rules/ + pipeline.md
+   - Grep `파일 소유권|PARALLEL-IRON` in rules/ → 충돌 방지 규칙
+
+5. **Memory Architecture** (정의서 §4) — 실측
+   - 단기: session-state.json 존재 여부
+   - 장기: learnings.jsonl + MEMORY.md 존재 여부
+   - 양쪽 모두 존재 = 완전, 한쪽 = 부분
+
+6. **AgentOps** (정의서 §4) — 실측
+   - /canary 스킬 존재 → 배포 모니터링
+   - /benchmark 스킬 존재 → 성능 추적
+   - daily-system-review → 일일 모니터링
+   - 존재 수 / 3 × 100
+
+**반환 JSON 형식:**
+
+```json
+{
+  "axis": "agentic",
+  "target": "{target}",
+  "score": 0-100,
+  "composable_patterns": {
+    "prompt_chaining": true/false,
+    "routing": true/false,
+    "parallelization": true/false,
+    "orchestrator_workers": true/false,
+    "evaluator_optimizer": true/false,
+    "highest_pattern": "현재 최고 수준 패턴"
+  },
+  "aci": { "registered_tools": 0, "used_tools": 0, "coverage_rate": 0 },
+  "agent_evals": { "skill_autoresearch": true/false, "assessment_md": true/false },
+  "multi_agent_coordination": { "wave_dependency": true/false, "conflict_prevention": true/false },
+  "memory_architecture": { "short_term": true/false, "long_term": true/false, "completeness": "완전|부분|없음" },
+  "agentops": { "canary": true/false, "benchmark": true/false, "daily_review": true/false, "coverage_rate": 0 },
+  "issues": [
+    { "severity": "CRITICAL|HIGH|MEDIUM|LOW", "finding": "...", "evidence": "파일경로:라인", "recommendation": "...", "enforcement_level": "ENFORCED|GUIDED|PAPER" }
+  ],
+  "strengths": ["강점1", "강점2"],
+  "summary": "2-3문장 요약"
+}
+```
+
+### Step 2.5: Orphan Agent 감지 (신규)
+
+Bash 도구로 직접 실측:
+
+1. `ls ~/forge/.claude/agents/` → 정의된 에이전트 목록 수집
+2. 각 에이전트명으로 `grep -rl "{agent-name}" ~/.claude/skills/*/SKILL.md 2>/dev/null` → 실제 호출 여부 확인
+3. 호출 파일 없음 = orphan → 아카이브 권고 + issues 등록
+4. 호출 있으나 `agentType` 값 불일치 = drift → 정합 권고 + issues 등록
+
+결과를 JSON `orphan_agents: [{name, status: "orphan|drift", recommendation}]` 섹션에 추가.
+
+### Step 3: 보고서 작성
+
+Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
+
+**저장 위치:** `docs/reviews/audit/{date}-audit-agentic[-{target}].md`
+(`target`이 `system`이면 suffix 생략)
+
+**보고서 형식:**
+
+```markdown
+# Agentic 역량 감사 보고서
+
+**대상**: {target} | **날짜**: {date} | **점수**: {score}/100
+
+## Executive Summary
+
+## 에이전트 패턴 분류
+- **Composable Pattern 수준**: {패턴명}
+
+## 강점
+
+## 이슈 목록
+### CRITICAL
+### HIGH
+### MEDIUM / LOW
+
+## 권장 액션 (우선순위순)
+
+## 참조
+- docs/tech/2026-03-16-5-axis-ai-analysis-framework.md
+```
+
+### Step 4: Notion 페이지 생성
+
+```json
+{
+  "parent": { "data_source_id": "713563f9-d523-4e90-8d6f-6b0d650628ad" },
+  "pages": [{
+    "properties": {
+      "제목": "{date} Agentic 감사 [{target}]",
+      "축": "Agentic",
+      "대상": "{target}",
+      "점수": "{score}",
+      "date:날짜:start": "{date}",
+      "상태": "완료",
+      "CRITICAL": "{CRITICAL 이슈 수}",
+      "HIGH": "{HIGH 이슈 수}",
+      "보고서 경로": "docs/reviews/audit/{date}-audit-agentic.md"
+    },
+    "content": "{보고서 전체 내용}"
+  }]
+}
+```
+
+> Notion MCP 미연결 시 경고 출력 후 스킵 (파이프라인 중단 안 함).
+
+
+---
+
+## 독립 Evaluator (하네스)
+
+에이전틱 감사 결과물 완성 후 독립 Evaluator Subagent가 품질을 2차 검증한다.
+
+> **원칙**: Generator(감사 수행자) ≠ Evaluator. 감사자가 자신의 감사를 평가하면 자기평가 편향이 발생한다.
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  prompt="""
+당신은 audit-agentic 결과물의 독립 품질 검증자입니다.
+
+아래 기준으로 결과물을 검토하고 PASS 또는 FAIL을 판정하십시오.
+
+**평가 기준 (4항목 모두 충족해야 PASS):**
+
+1. **자율성 레벨(L1-L5) 실측 증거**
+   - [위치] JSON `composable_patterns` 또는 보고서 "에이전트 패턴 분류" 섹션
+   - [이유] 자율성 레벨이 주관적 판단이 아닌 실제 Grep/Glob 결과로 뒷받침되어야 함
+   - [방법] 각 패턴(Prompt Chaining/Routing/Parallelization/Orchestrator-Workers/Evaluator-Optimizer)의 True/False 근거 파일경로:라인이 존재하는지 확인
+
+2. **pass@k 지표 측정 여부**
+   - [위치] JSON `agent_evals` 섹션 또는 보고서 "Agent Evals" 항목
+   - [이유] 에이전트 평가 체계 없이 역량 감사는 근거 불충분
+   - [방법] `skill-autoresearch` 존재 여부 + `assessment.md` 확인 결과가 실제 파일 탐색(Glob)으로 측정됐는지 검증
+
+3. **MAS 토폴로지 유형 명시**
+   - [위치] JSON `multi_agent_coordination` 섹션 또는 보고서 "Multi-Agent Coordination" 항목
+   - [이유] 토폴로지 유형(Wave/Star/Pipeline 등)이 명시되어야 조율 아키텍처 판단 가능
+   - [방법] `wave_dependency`와 `conflict_prevention` 값이 구체적 파일경로 증거와 함께 제시됐는지 확인
+
+4. **개선 권고의 구체성**
+   - [위치] JSON `issues[].recommendation` 및 보고서 "권장 액션" 섹션
+   - [이유] 막연한 권고("개선 필요")는 실행 불가능
+   - [방법] 각 CRITICAL/HIGH 이슈의 `recommendation`이 "파일명 + 구체적 수정 방법"을 포함하는지 확인
+
+**판정**: PASS(기준 4항목 모두 충족) / FAIL(1항목 이상 미충족)
+**피드백 형식**: [파일명+섹션] — [이유] → [방법]
+"""
+)
+```
+
+피드백 루프:
+- PASS → 파이프라인 계속 (Notion 등록)
+- FAIL → **아래 순서로 진행 (명시적 절차)**:
+  1. 토큰 예산 확인: `AUDIT_TOKEN_CAP` (기본 300,000 토큰). 재감사 전 누적 사용량이 캡을 초과하면 즉시 **[STOP]** Human 에스컬레이션 — 재시도 금지. 출력: `[STOP] token-cap 초과 — 재감사 중단. Evaluator FAIL 원인: {feedback}`
+  2. 캡 미초과 시 → 감사 재수행 (Step 2 전체 재실행) 후 Evaluator 1회 재실행
+  3. 2회 연속 FAIL 시 → **[STOP]** Human 에스컬레이션 (추가 재시도 금지)
+
+> ⚠️ **추정치 정직성**: `AUDIT_TOKEN_CAP` 추정치 = best-effort (LLM 자가추정, 정확 토큰 카운트 불가). **결정론적 bound = max-cycles**; 토큰 추정은 보조 가드. 정확한 토큰 enforcement는 P4 (agent-budget 훅 연동) 예정.
+> Evaluator FAIL 시 `.claude/logs/{session}/errors.jsonl` 참조하여 재시도

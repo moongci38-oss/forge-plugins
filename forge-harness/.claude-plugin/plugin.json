@@ -1,0 +1,13 @@
+{
+  "name": "forge-harness",
+  "version": "0.1.0",
+  "description": "Forge 하네스 도구 — harness-legacy-scan/harness-diet/external-harness-sweep/agent-drift-auditor. 시스템 정합성·레거시 정리.",
+  "author": {
+    "name": "forge"
+  },
+  "dependencies": [
+    "forge-core"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/"
+}

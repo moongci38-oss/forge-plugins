@@ -1,0 +1,37 @@
+{
+  "skill_name": "external-harness-sweep",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/external-harness-sweep https://github.com/garrytan/gstack --name gstack",
+      "expected_output": "채택 매트릭스 JSON with synthesis.counts.total >= 8, ADOPT 0~2, ADAPT 7~11 (±2 of baseline ADOPT0/ADAPT9). Phase 0 seed 자동탐지 시도, Phase 1 fresh clone 확인, Phase 2~3 pipeline 결과 전 항목 verdict 보유.",
+      "expectations": [
+        "synthesis.counts.total이 8 이상이고 all_verdicts 배열 항목 수와 일치",
+        "synthesis.adapt_roadmap에 ADOPT/ADAPT 항목만 포함되고 rationale/priority 보유",
+        "seed_delta 필드가 'no-seed' 또는 구체적 비교 내용을 포함 (빈 문자열 금지)",
+        "all_verdicts 각 항목이 decision 필드에 ADOPT/ADAPT/DEFER/SKIP 중 하나를 보유",
+        "Phase 2 비교에서 fresh clone(SRC=/tmp/ehs-gstack-src) 사용 근거가 evidence에 포함"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/external-harness-sweep https://github.com/sindresorhus/awesome-nodejs --name awesome-nodejs (seed 미존재, 비-하네스 레포)",
+      "expected_output": "Phase 0 seed_found=false (skip 분기). Phase 1 Inventory는 SKILL.md 구조 없는 레포이므로 items 수가 0이거나 bin_tools 위주. Inventory 0건 시 명확한 오류 메시지 반환 (Phase 중단).",
+      "expectations": [
+        "scout.seed_found === false 이고 scout.seed_source === 'none'",
+        "Inventory 0건 시 'Inventory 0건 — clone 실패 또는 SKILL.md 구조 아님' 오류로 Phase 중단",
+        "Phase 0 skip이 에러가 아닌 정상 분기로 처리됨 (workflow 중단 없이 Inventory 진입)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/external-harness-sweep https://github.com/garrytan/gstack --name gstack --seed /home/damools/forge-outputs/01-research/videos/analyses/gstack-analysis.md (seed 명시, 파일 미존재)",
+      "expected_output": "SEED_PATH 명시되었으나 파일 미존재 → seed_found=false, claims=[], seed_source='none' 반환 후 정상 Inventory 진입. WARN 없이 계속 진행.",
+      "expectations": [
+        "scout.seed_found === false (파일 미존재 = 정상 skip, 에러 아님)",
+        "claims 빈 배열로 Phase 1~4 정상 진행",
+        "seed_path 명시가 실패해도 workflow가 중단되지 않고 전수 enumerate로 전환"
+      ]
+    }
+  ]
+}
