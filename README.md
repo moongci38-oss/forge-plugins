@@ -444,9 +444,9 @@ forge-plugins-repo/
 │   ├── commands/                      — forge-plan/forge-pr/forge-spec/sdd
 │   └── agents/                        — spec-writer/technical-writer
 ├── forge-research/
-│   ├── skills/                        — article/yt/rag-search/site-deep-analyze
-│   ├── commands/                      — weekly-research
-│   └── agents/                        — 7개 (yt-video-analyst/fact-checker 등)
+│   ├── skills/                        — yt/site-deep-analyze/yt-analyze
+│   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item
+│   └── agents/                        — 6개 (yt-video-analyst/fact-checker/article-analyst 등)
 ├── forge-design/
 │   ├── skills/                        — figma-design-sync/image-orchestrate
 │   └── agents/                        — 2개 (screenshot-business-analyzer 등)
