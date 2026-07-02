@@ -36,11 +36,11 @@ Forge 하네스에서 **Opus advisor 패턴**을 간편히 호출하는 래퍼. 
 
 **파일 입력 있을 때:**
 ```bash
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "{task}" \
   --input {file} \
-  --executor claude-sonnet-4-6 \
-  --advisor claude-opus-4-7 \
+  --executor claude-sonnet-5 \
+  --advisor claude-opus-4-8 \
   --max-uses 3 \
   2>/tmp/advisor-usage.log
 ```
@@ -48,7 +48,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 **파일 없이 대화형:**
 입력 내용을 사용자로부터 받아 stdin으로 전달:
 ```bash
-cat <<EOF | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py --task "{task}"
+cat <<EOF | python3 ~/forge/shared/scripts/advisor-assist.py --task "{task}"
 {사용자 제공 내용}
 EOF
 ```
@@ -74,6 +74,33 @@ EOF
 - 문서 초안 작성 (전략 단계 X)
 - 반복 패턴 적용 작업
 
+## Fable 5 에스컬레이션 (Human 수동 호출 전용 — 비가역·최고위험 결정)
+
+기본 advisor = `claude-opus-4-8`. Fable 5는 **Human이 명시적으로 요청할 때만** advisor 레그로 승격한다.
+
+> ⚠️ **발동 방식 = Human 수동 전용.** AI(오케스트레이터)가 자율 판단으로 Fable을 스폰하는 것 **금지**. 자동·이벤트·파이프라인 트리거 **없음**. AI는 "이 결정은 Fable 자문이 유용할 수 있다"고 **제안(권고)** 만 하고, 실제 실행은 **사용자가 "Fable로 자문/검수해"라고 지시한 후에만** 한다. 그 외 전 경로 Fable 사용 금지 — 종량 $10/$50(= Opus 4.8의 2배, 리스트 최고가).
+
+**Human이 호출 여부를 판단하는 기준 (아래에 해당할 때 사용자가 요청):**
+1. 비가역(rollback 비용 큼) — ADR·아키텍처 분기·비가역 마이그레이션·결제/보안 비가역 변경·계약(외주·투자·M&A) 조항
+2. 고파급(틀리면 cascade 오염 — 전 파이프라인/전 프로젝트 영향)
+3. Opus 4.8 답변이 경계·상충으로 미덥지 않을 때
+4. 저빈도(월 소수 회) — 반복/일상 결정 아님
+
+**전제조건:** org에 usage-credits 활성(미활성 시 Fable 5 실행 불가) + `ANTHROPIC_API_KEY`.
+
+**호출 (2경로 — 둘 다 Human 지시 후에만):**
+```bash
+python3 ~/forge/shared/scripts/advisor-assist.py \
+  --task "{비가역 결정 요지 — 반대근거·실패시나리오 우선}" \
+  --input {decision-doc.md} \
+  --executor claude-sonnet-5 \
+  --advisor claude-fable-5 \
+  --max-uses 2 \
+  2>/tmp/advisor-fable-usage.log
+```
+- agent 경로: `Agent(subagent_type:"advisor-strategist", model:"fable")` — 역시 Human 지시 후에만.
+- **파일럿 규약:** default 라우팅 승격 아님(항상 명시 `--advisor claude-fable-5`만). **AI 자율 발동 금지(수동 전용).** `/tmp/advisor-fable-usage.log` 누적으로 1주 ROI(호출수·비용·결정 반영률) 리뷰 후 존치/폐기 판정. 예상 비용: advisor 레그 호출당 ~$0.5~2.
+
 ## 비용 예시
 
 | 태스크 | 실행자 | 입력 | 예상 비용 |
@@ -88,20 +115,20 @@ EOF
 
 ```bash
 # Executor를 Haiku로 (더 저렴)
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "판정" --executor claude-haiku-4-5-20251001 \
   --max-uses 2
 
 # Advisor 호출 횟수 증가 (더 많은 조언)
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "복잡한 전략 결정" --max-uses 5
 
 # JSON 출력
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "검토" --input file.md --format json > result.json
 
 # Dry run (API 호출 없이 요청 payload 확인)
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "test" --dry-run <<< "content"
 ```
 
@@ -110,7 +137,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 | 증상 | 원인 | 해결 |
 |---|---|---|
 | `credit balance is too low` | API 크레딧 부족 | https://console.anthropic.com/settings/billing 충전 |
-| `ANTHROPIC_API_KEY 미설정` | 환경변수 없음 | `source ${FORGE_ROOT:-$HOME/forge}/.env` 또는 export 직접 |
+| `ANTHROPIC_API_KEY 미설정` | 환경변수 없음 | `source ~/forge/.env` 또는 export 직접 |
 | advisor tool 응답 없음 | beta 헤더 누락 | script가 자동 설정하므로 정상 작동 예상 |
 | 과다 비용 | max_uses 설정 과다 | `--max-uses 1~2`로 축소 |
 
@@ -121,9 +148,9 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 ### Step 7 — 최종 전략 조언 (선택, 고가치 과제만)
 
 ```bash
-cat {project}/03-strategy.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+cat {project}/03-strategy.md | python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "평가위원 관점에서 감점 요인 3가지" \
-  --executor claude-sonnet-4-6 \
+  --executor claude-sonnet-5 \
   --max-uses 2 \
   > {project}/.advisor-feedback.tmp
 ```
@@ -135,7 +162,7 @@ cat {project}/03-strategy.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts
 
 if 점수가 58~65점 사이면:
 ```bash
-cat work.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+cat work.md | python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "이 결과물의 PASS/FAIL 재판정" \
   --executor claude-haiku-4-5-20251001 \
   --max-uses 2
@@ -144,7 +171,7 @@ cat work.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.p
 
 ## 관련
 
-- 구현: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py`
+- 구현: `~/forge/shared/scripts/advisor-assist.py`
 - 분석 원본: `forge-outputs/01-research/ai-report/2026-04-10-advisor-strategy-detailed.md`
 - 적용 계획: `forge-outputs/01-research/ai-report/2026-04-10-forge-application-plan.md`
 - API docs: https://docs.claude.com/en/api/messages#advisor
