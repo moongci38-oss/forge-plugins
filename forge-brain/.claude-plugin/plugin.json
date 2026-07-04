@@ -1,6 +1,6 @@
 {
   "name": "forge-brain",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Forge 지식·메모리 레이어 — RAG 검색, 학습 루프, 위키 동기화, MEMORY.md 관리. ADR-174 unified_search MCP 연동.",
   "author": {
     "name": "forge"
