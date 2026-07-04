@@ -58,4 +58,29 @@ if [ -f "$HM_SRC" ] && [ ! -f "$HM_DST" ]; then
   echo "[forge-onboard] handover-manager.sh installed: $HM_DST" >&2
 fi
 
+# 6. bundled skill scripts — self-install if missing (plugin self-containment)
+# commands/skills invoke these via $HOME/.claude/skills/... (Bash tool has no
+# CLAUDE_PLUGIN_ROOT access outside hook processes), but marketplace-only installs
+# only bundle them under ${CLAUDE_PLUGIN_ROOT}/skills/... — copy them out so
+# /cr-multi, /cr-triple, /approve-worker work post-install.
+SKILL_SCRIPT_SRCS=(
+  "${CLAUDE_PLUGIN_ROOT}/skills/cr-multi/workflow.js"
+  "${CLAUDE_PLUGIN_ROOT}/skills/approve-worker/scripts/approve-worker-sign.py"
+  "${CLAUDE_PLUGIN_ROOT}/skills/approve-worker/scripts/approve-worker-verify.py"
+)
+SKILL_SCRIPT_DSTS=(
+  "$HOME/.claude/skills/cr-multi/workflow.js"
+  "$HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py"
+  "$HOME/.claude/skills/approve-worker/scripts/approve-worker-verify.py"
+)
+for i in "${!SKILL_SCRIPT_SRCS[@]}"; do
+  src="${SKILL_SCRIPT_SRCS[$i]}"
+  dst="${SKILL_SCRIPT_DSTS[$i]}"
+  if [ -f "$src" ] && [ ! -f "$dst" ]; then
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    echo "[forge-onboard] skill script installed: $dst" >&2
+  fi
+done
+
 exit 0
