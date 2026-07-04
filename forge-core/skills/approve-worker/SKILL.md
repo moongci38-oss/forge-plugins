@@ -42,7 +42,7 @@ python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
 ## acceptance
 
 T-AW1~T-AW6 + T-AW2b + T-AW2c 모두 PASS 의무.  
-상세: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/projects/forge-platform/specs/approve-worker-spec.md §acceptance criteria`
+상세: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/forge-platform/specs/approve-worker-spec.md §acceptance criteria`
 
 ## 관련 파일
 

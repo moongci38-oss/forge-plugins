@@ -1,0 +1,72 @@
+<!-- root-cause: forge-loop-maker scaffold 템플릿 — loop-SKILL.md 생성용 -->
+---
+name: {{LOOP_NAME}}
+description: >
+  Self-running loop: {{GOAL}}
+---
+
+# {{LOOP_NAME}}
+
+## Goal
+
+**Exit predicate:** {{GOAL}}
+
+루프는 이 조건이 충족될 때까지 실행됩니다. 매 이터레이션 후 verifier가 predicate를 검사합니다.
+
+---
+
+## Conventions
+
+> **이 파일은 runtime read-only입니다. 상태(카운터·타임스탬프·진행 결과)를 여기에 쓰지 마세요.**
+
+- 변경 상태는 모두 `{{STATE_PATH}}`에 저장
+- 이 파일은 cold-start 시 디스크에서 새로 로드됨 — 여기 쓴 상태는 다음 실행 시 초기화됨
+- Durable 정보만: goal predicate, action 절차, verifier 호출, stop criteria
+
+## Pattern: {{PATTERN}}
+
+| Step | 내용 |
+|------|------|
+| 1. Read state | `{{STATE_PATH}}` 로드 → 이전 진행 상태 복원 |
+| 2. Discover | 소스(디렉토리·API·qa-report 등) 스캔 → 처리할 항목 식별 |
+| 3. Act | 이터레이션 핵심 액션 실행 |
+| 4. Verify | verifier 실행 (binary exit code) — exit 0 = 통과, exit 1 = 중단 |
+| 5. Write state | `{{STATE_PATH}}` 갱신 (새 위치·카운터·타임스탬프) |
+| 6. Check predicate | `{{GOAL}}` 충족 시 STOP, 아니면 반복 |
+
+verifier exit 1 시 즉시 중단. 상태 파일에 실패 이유 기록 후 HUMAN-GATES.md G2 gate 대기.
+
+---
+
+## Stop Conditions (loop-kernel §1)
+
+| 조건 | 결과 |
+|------|------|
+| rubric_all_pass | SUCCESS |
+| max_cycles (≥ {{MAX_ITER}}) | STOP |
+| same_issue × 3 | STOP |
+| plateau (net gain ≤ 5, 2연속) | STOP |
+| oscillation (pass→fail × 2) | STOP |
+| regression | STOP |
+| security_crit | STOP |
+| budget_advisory | advisory STOP |
+
+---
+
+## Budget
+
+| 항목 | 상한 |
+|------|------|
+| max-iter | {{MAX_ITER}} |
+| call-budget | {{CALL_BUDGET}} (hook WARN-only) |
+| wall-clock | {{WALL_CLOCK}} |
+
+---
+
+## How to run
+
+```
+/goal "{{GOAL}}"
+```
+
+첫 실행 전 HUMAN-GATES.md G1 gate 완료 필수.

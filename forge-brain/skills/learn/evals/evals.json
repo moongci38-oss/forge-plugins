@@ -3,31 +3,33 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/learn save \"HWP 파일은 hwp2pdf로 변환 후 Read해야 함\"",
-      "expected_output": "learnings.jsonl에 항목 저장, ID 반환",
+      "prompt": "/learn add '결제 서비스 timeout은 5000ms로 설정 — AWS ALB 기본 60s보다 짧아야 502 방지' 저장하라. 태그: backend, timeout, aws",
+      "expected_output": "learnings.jsonl에 새 항목 append. id 자동 생성, tags 포함, 프로젝트 경로 연동",
       "expectations": [
-        "collision-safe ID (L-<ts>-<8hex>) 생성",
-        "category/summary/apply 필드 포함",
-        "secret 없는 내용만 저장 (exit 2 미발생)"
+        "learnings.jsonl에 신규 항목이 append되는가? (overwrite 아닌 append)",
+        "id가 자동 증분되고 timestamp가 ISO 8601로 기록되는가?",
+        "tags(backend/timeout/aws)가 항목에 저장되는가?",
+        "현재 프로젝트 경로 또는 프로젝트명이 context로 기록되는가?"
       ]
     },
     {
       "id": 2,
-      "prompt": "/learn search \"FAISS 삭제\"",
-      "expected_output": "관련 learnings 항목 목록",
+      "prompt": "/learn search 'AWS timeout'. 관련 학습 항목을 검색하여 반환하라",
+      "expected_output": "태그·키워드 매칭으로 관련 learnings.jsonl 항목 반환. 유사도 또는 관련도 순 정렬",
       "expectations": [
-        "키워드 매칭 항목 반환",
-        "날짜·내용·태그 포함"
+        "'AWS', 'timeout' 키워드 또는 태그를 포함한 항목이 반환되는가?",
+        "검색 결과에 항목 전문(내용/태그/날짜)이 포함되는가?",
+        "결과 없을 경우 '관련 학습 없음' 메시지가 출력되는가?"
       ]
     },
     {
       "id": 3,
-      "prompt": "/learn gc --apply",
-      "expected_output": "90일 미참조 stale 항목 아카이브 이동 보고",
+      "prompt": "/learn add '결제 timeout 5s 설정 — ALB 60s 제한 때문' 저장. 이미 동일 내용의 항목이 존재할 때 중복 처리하라",
+      "expected_output": "기존 동일 내용 감지 → 중복 경고 출력, 기존 항목 참조 표시, 저장 여부 확인",
       "expectations": [
-        "dry-run 결과 먼저 출력",
-        "stale/dormant 항목 마킹",
-        "영구 삭제 없음 (archive move만)"
+        "내용 유사도 검사로 중복 의심 항목이 감지되는가?",
+        "중복 감지 시 기존 항목 id와 내용이 함께 표시되는가?",
+        "사용자에게 저장 진행/취소 선택이 제공되는가?"
       ]
     }
   ]

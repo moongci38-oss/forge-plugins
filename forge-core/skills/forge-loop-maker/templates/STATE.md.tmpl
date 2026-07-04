@@ -1,0 +1,36 @@
+<!-- root-cause: forge-loop-maker scaffold 템플릿 — STATE.md 생성용 (changing state) -->
+<!-- changing state — 매 실행 read+write. SKILL.md에 복사 금지 (cold-start 시 초기화됨). -->
+
+# {{LOOP_NAME}} — State Ledger
+
+> 이 파일은 루프의 메모리입니다. 매 실행 시작 시 읽고, 종료 전 씁니다.
+
+---
+
+## Ledger
+
+| 항목 | 상태 | 메모 |
+|------|------|------|
+| (초기) | pending | scaffold — 아직 실행 없음 |
+
+---
+
+## Last run
+
+```
+timestamp : (미실행)
+iteration : 0
+outcome   : —
+stop_reason: —
+wall_clock_start: {{TIMESTAMP}}
+```
+
+---
+
+## Wall-clock tracking
+
+루프 시작 시 wall_clock_start를 현재 시각으로 업데이트.
+매 사이클 경과 시간을 체크해 {{WALL_CLOCK}} 상한 초과 시 즉시 중단.
+
+Goal: **{{GOAL}}**
+State 경로: `{{STATE_PATH}}`

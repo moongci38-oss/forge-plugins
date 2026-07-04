@@ -3,26 +3,32 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/end-sonnet (구현 완료 후)",
-      "expected_output": "handover-manager.sh write sonnet 호출 + INDEX 갱신 확인",
+      "prompt": "Invoke end-sonnet to begin the session and load context from the latest handover.",
+      "expected_output": "Session context loaded, recent handover read, task list presented.",
       "expectations": [
-        "Pre-close Artifact Audit 완료",
-        "handover-manager.sh write sonnet 호출",
-        "INDEX.md 자동 갱신 확인",
-        "learnings 추가 (해당 시)",
-        "Opus 섹션 포함"
+        "Reads latest handover file",
+        "Outputs current task priorities",
+        "Declares session role"
       ]
     },
     {
       "id": 2,
-      "prompt": "/end-sonnet (마일스톤 종료 시)",
-      "expected_output": "Pre-close Artifact Audit 5항목 PASS + AD retrospective 포함",
+      "prompt": "Run end-sonnet when there is no handover file available.",
+      "expected_output": "Notifies user no handover found and waits for instructions.",
       "expectations": [
-        "plan.md 미완 태스크 0개 확인",
-        "git status clean",
-        "실패한 시도 섹션 작성",
-        "learnings 4-category 추출",
-        "planning-fallacy 플래그 (해당 시)"
+        "Handles missing handover gracefully",
+        "Does not error fatally",
+        "Asks user for direction"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run end-sonnet after completing a multi-task implementation session.",
+      "expected_output": "Writes handover with completed tasks, commits, and next steps.",
+      "expectations": [
+        "Documents completed work with commit hashes",
+        "Lists next session tasks",
+        "Includes blockers if any"
       ]
     }
   ]
