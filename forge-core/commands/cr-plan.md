@@ -1,6 +1,6 @@
 ---
 description: Codex 2차 리뷰 단축 래퍼 — Spec/Plan 리뷰 (권고, non-blocking — AD-50)
-argument-hint: "<spec-or-plan-file-path>"
+argument-hint: "<spec-or-plan-file-path> [--cr <on|degrade|off>]"
 group: verify
 ---
 
@@ -18,7 +18,10 @@ group: verify
 ## 동작
 
 ```bash
-/codex-review --stage plan --target $ARGUMENTS
+# --cr 파싱: $ARGUMENTS에서 --cr <mode> 추출 후 전달
+CR_ARG=$(echo "$ARGUMENTS" | grep -oP '(?<=--cr )\S+' || true)
+TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
+/codex-review --stage plan --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
 - 모델: gpt-5.5 (medium effort) — ChatGPT OAuth 기본
@@ -34,7 +37,7 @@ group: verify
 
 ## 비용
 
-$0.00 (OAuth) / ~$0.01~0.03 (API key + gpt-5-mini)
+$0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.01~0.03
 
 ## 관련
 

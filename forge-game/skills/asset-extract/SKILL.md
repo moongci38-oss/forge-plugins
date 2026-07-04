@@ -34,7 +34,7 @@ OUTPUT_DIR  : {IMAGE_PATH 부모}/{파일명}-components/ (기본)
 ```
 
 **Windows 경로 자동 변환**:
-- `z:$HOME/...` → `$HOME/...`
+- `z:/home/<user>/...` → `/home/<user>/...`
 - `C:/Users/...` → `/mnt/c/Users/...`
 
 ## Step 2: 버튼/컴포넌트 추출

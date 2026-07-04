@@ -97,6 +97,10 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 - **트레이서빌리티 ID 일관**: implementation-plan 작업 ID와 본 Spec FR ID 매핑 필수
   - 예: 작업 A-01 → FR-001-01 (Spec 번호와 그룹 번호 매칭)
 - **Acceptance Criteria 중심**: 본 Spec의 새로운 가치 = AC + Test Cases. 자동 테스트 가능 형태로.
+- **acceptance_predicate 필수 (A1, WARN)**: 각 FR마다 `acceptance_predicate` 필드 작성 필수. 형식: oracle-checkable 단언(assert 코드 또는 E2E 스텝). 작성 불가 = untestable FR → 모호성 해소 후 재작성. 예:
+  - `assert user.credit_balance == before_balance - charge_amount`
+  - `E2E: POST /members → 201, GET /members/{id} → name 일치`
+  tautology 방지: "FR이 동작한다" 형태 금지. 구체적 입출력/상태 단언 필수.
 - **PR 단위 묶음 명시**: implementation-plan의 PR 묶음 (PR1, PR2, ...) 본 Spec §12에 매핑
 - **그룹 간 의존 명시**: 본 그룹이 의존하는 다른 그룹 Spec ID 명시 (예: "SPEC-002는 SPEC-001 인증 완료 후 진입")
 
@@ -173,6 +177,19 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 - 주요 컴포넌트에 최소 Props 인터페이스 정의 (타입, 필수/선택, 기본값)
 - 각 화면/컴포넌트에 에러 상태, 로딩 상태, 빈 상태(empty state) UI 정의
 
+#### 조건별 페이지 전환 검증 (M4 — 프론트엔드 포함 시 필수)
+각 화면 전환마다 조건 + 전환 유형 명시 의무:
+| 조건 | 허용 전환 유형 | 금지 |
+|------|------------|-----|
+| 성공 | 페이지 이동 / 토스트 | 모달(차단 불요) |
+| 에러 (네트워크/서버) | 인라인 메시지 / 토스트 | 팝업(사용자 행동 불요) |
+| 에러 (사용자 입력) | 인라인 필드 오류 | 토스트(필드 특정 불가) |
+| 에러 (권한 없음) | 모달 + 로그인 유도 | 페이지 이동(컨텍스트 유실) |
+| 확인 필요 (비가역 작업) | 모달(확인/취소) | 토스트 |
+| 로딩 | 스켈레톤/스피너 인라인 | 전체 페이지 차단 |
+
+조건별 페이지 전환 표(Spec §5 UI 섹션)를 생성하지 않으면 프론트엔드 Spec FAIL. 모든 화면 전환을 위 표 형식으로 명시.
+
 #### i18n 검증 (프로젝트에 i18n 적용 시)
 - 신규/수정/삭제 페이지의 사용자 노출 문자열이 메시지 키로 정의되었는가
 - 삭제되는 기능의 메시지 키가 삭제 대상에 포함되었는가
@@ -199,6 +216,34 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 - 모바일 폼이 있으면 키보드 타입(`inputMode`)이 지정되었는가
 - 제스처에 버튼 대체 수단이 있는가 (WCAG 2.5.1)
 - Safe Area 대응이 명시되었는가 (iOS notch/Home Indicator, Android system bars)
+
+#### Ground-Truth provenance 검증 (Schema Ground-Truth Gate)
+
+forge-spec Phase 0.7에서 수행한 DB/FE 실측 결과를 Spec에 박제할 때 출처 태그 동반 필수. 태그 없는 항목 = 미검증(추정)으로 간주 → 작성 금지.
+
+- **§데이터모델**: 각 테이블/컬럼에 `source: <파일경로:라인> @ <date>` 또는 `source: SHOW COLUMNS FROM <table> @ <date>` 동반. 컬럼명·타입은 실측값 그대로 기재(추정 금지 — 예: `created_at` vs `create_at` 임의 정규화 금지).
+- **§화면/UI · §API 계약**: 기존 FE 코드(컴포넌트·라우팅·스타일·API 라우트) 수정 시 `source: <파일경로> @ <date>` 동반.
+- **실측 근거 미전달 항목**: DB/FE 의존 항목인데 Phase 0.7 실측 근거가 입력으로 전달되지 않았다면 → 추정으로 채우지 말고 `[실측 필요 — forge-spec Phase 0.7 미수행]` 명시 후 호출자에게 반환.
+- 형식 예시:
+```
+#### tb_user (source: Data/Schema.cs:L120-138 @ 2026-06-29)
+| 컬럼      | 타입      | 비고                    |
+|-----------|-----------|-------------------------|
+| id        | BIGINT PK |                         |
+| create_at | DATETIME  | ⚠️ created_at 아님(실측) |
+```
+
+**Phase 1.5 — 충돌 감지 게이트**
+기존 Spec/구현과 신규 요구사항 충돌 여부 확인:
+- `.specify/specs/` 내 기존 Spec의 인터페이스/API 시그니처 vs 신규 요구사항
+- 충돌 발견 시 [STOP] — "기존 Spec {file}과 충돌: {충돌 내용}. 해결 방안 선택 필요"
+- 해결 방안 선택 후 → Phase 1로 돌아가 신규 Spec 작성 또는 기존 Spec 수정 후 Phase 1.5 재실행. dead-end 아님.
+
+`--assumptions <list>` 플래그 수신 처리:
+- 플래그 제공 시 Spec 맨 앞(§1 개요 바로 다음)에 `## 전제사항 / 가정` 섹션 생성
+- 가정 목록을 항목별 `- [ ] {가정 내용}` 형식으로 추가
+- 각 가정 항목은 구현 중 확인 체크리스트로 작동
+- 플래그 미제공 시 이 섹션 생략
 
 ### 4. 작성 원칙
 

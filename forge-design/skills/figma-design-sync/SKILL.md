@@ -173,6 +173,12 @@ mkdir -p "$TARGET"
 3. 차이 있으면 specific 화면 PNG share → 추가 sync
 ```
 
+## 사용 MCP 도구
+
+- Figma MCP: 토큰·변수·스크린샷 fetch (rate-limit 시 Codex/Gemini Vision 폴백)
+- `mcp__claude-in-chrome__*`: 동기화 결과 시각 검증(반응형 스크린샷 diff)
+- `mcp__gitnexus__*`: 토큰 변경 영향(impact) — `colors_and_type.css` 소비처 추적
+
 ## 룰
 
 - **Rate limit 시 즉시 폴백**: 무한 재시도 X. 사용자에게 옵션 제시.

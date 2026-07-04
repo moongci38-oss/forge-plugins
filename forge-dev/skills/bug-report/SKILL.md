@@ -5,6 +5,8 @@ description: "웹앱 LNB 전체 메뉴를 자동 순회하며 기능 오류·레
 
 # Web QA
 
+> **파이프라인 위치**: `/forge-fix` 버그 파이프라인 ② 리포트 스테이지(+ `--scan` 발견 프론트). 독립 호출도 유지.
+
 **입력**: 접속 URL, 로그인 계정(선택), 프로젝트 루트 경로, 테스트 범위(전체/특정 메뉴).
 **출력**: `docs/bug_report/BUG-NNN-{slug}.md` (bug-report 표준 포맷) + `INDEX.md` 갱신 + 스크린샷.
 
@@ -77,6 +79,29 @@ bash $HOME/.claude/skills/bug-report/scripts/next-bug-id.sh {프로젝트 루트
 
 **④** 6하원칙 + 재현 계정 메모 기록 → 다음 메뉴 즉시 계속
 
+## Step 4.5: 증상 이동 감지 (Symptom Migration — FOP 연동)
+
+> false-green 방지: 이전에 "fixed"로 처리된 기능이 다시 버그로 등장하면, 이전 수정이 증상 계층만 고친 false-green이었을 가능성(증상이 다음 계층으로 이동). 이를 새 리포트에 경보로 남긴다. SSoT: `11-platform/pipelines/forge-dev/2026-07-01-v1-fix-outcome-gate/plan.md`.
+
+버그 리포트 작성 전, 이 기능({WHERE} 메뉴/URL/엔드포인트)이 과거에 수정 완료됐는지 결정론적으로 조회:
+
+```bash
+# 이전 fix 증거 조회 (프로젝트 루트=$ROOT). WHERE의 핵심 키워드(메뉴 slug/URL 경로/엔드포인트)를 KEY로.
+KEY="{메뉴 slug 또는 URL 경로 또는 엔드포인트}"
+# 1) 과거 bug-report 중 Resolved/Closed 동일 기능
+grep -rliE "$KEY" "$ROOT"/docs/bug_report/BUG-*.md 2>/dev/null | while read f; do
+  grep -qiE "상태.*(Resolved|Closed|해결|수정완료)" "$f" && echo "PRIOR-FIX(bug-report): $f"; done
+# 2) FOP 아티팩트(이전 GREEN) — 동일 기능
+grep -rliE "$KEY" "$ROOT"/docs/qa/artifacts/bug-*-fop.json 2>/dev/null | sed 's/^/PRIOR-FIX(fop): /'
+# 3) 영구 회귀 등록 — 동일 기능
+grep -niE "$KEY" "$ROOT"/docs/qa/scenarios.md 2>/dev/null | sed 's/^/PRIOR-REGRESSION: /'
+```
+
+- **매치 있음** → 새 리포트에 `## 증상 이동 경보` 섹션 추가(Step 5 템플릿). 이전 fix 참조 + "이전 FOP 재검증 필요" 명시. severity를 최소 **High**로 상향(회귀=핵심 신뢰 문제).
+- **매치 없음** → 신규 버그(정상). 경보 섹션 생략.
+
+advisory: 경보는 플래그일 뿐 차단 아님. 이전 fix가 실제 무효인지 판정은 healer FOP 재검증(a4.5)에 위임.
+
 ## Step 5: 버그 리포트 파일 작성
 
 경로: `{프로젝트 루트}/docs/bug_report/{BUG-ID}-{slug}.md`
@@ -113,6 +138,13 @@ bash $HOME/.claude/skills/bug-report/scripts/next-bug-id.sh {프로젝트 루트
 
 - **컴포넌트**: (URL + 오류 유형)
 - **연관 버그**: —
+
+## 증상 이동 경보 (Symptom Migration) — Step 4.5 매치 시에만
+
+- **이전 fix**: {PRIOR-FIX 경로/BUG-ID/날짜}
+- **판정**: 이 기능은 과거 수정 완료됨 → 재등장 = 이전 FOP false-green 의심(증상이 다음 계층으로 이동).
+- **조치 권고**: healer 재수정 시 이전 GREEN 증거(db_query_after/reload/full-journey) 재검증 + 이전 회귀테스트가 왜 못 잡았는지 규명(a6 oracle 재점검).
+- (Step 4.5 매치 없으면 이 섹션 생략)
 
 ## 처리 이력
 

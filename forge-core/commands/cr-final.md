@@ -1,6 +1,6 @@
 ---
 description: Codex 적대적 최종 리뷰 — PR 머지 직전 (blocking, high effort)
-argument-hint: "<PR-N or branch>"
+argument-hint: "<PR-N or branch> [--cr <on|degrade|off>]"
 group: verify
 ---
 
@@ -18,7 +18,10 @@ group: verify
 ## 동작
 
 ```bash
-/codex-review --stage final --target $ARGUMENTS --effort high --blocking
+# --cr 파싱: $ARGUMENTS에서 --cr <mode> 추출 후 전달
+CR_ARG=$(echo "$ARGUMENTS" | grep -oP '(?<=--cr )\S+' || true)
+TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
+/codex-review --stage final --target "$TARGET" --effort high --blocking ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
 - 모델: gpt-5.5 (HIGH effort, 적대적) — ChatGPT OAuth 기본
@@ -37,10 +40,14 @@ group: verify
 
 ## 비용
 
-$0.00 (OAuth) / ~$0.10~0.30 (API key + gpt-5 high effort). 단순 변경은 자동 스킵.
+$0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.10~0.30 (high effort). 단순 변경은 자동 스킵.
+
+## Completeness Critic (P-6)
+
+`stage=final` 진입 시 completeness critic이 **default-on** 자동 활성 (2026-06-19). 명시적 `crCompleteness:false` 또는 `'off'` 전달 시 비활성(롤백). 비-final 스테이지는 기존 opt-in(기본 off) 유지.
 
 ## 관련
 
 - 본명령: `/codex-review --stage final --effort high --blocking`
-- Forge Dev Phase 9 Check 9-X에서 자동 호출
+- Forge Dev P7 Check 7-X에서 자동 호출
 - 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`

@@ -13,6 +13,8 @@ model: haiku
 
 데이터의 사실 여부 검증 전문 에이전트. `/yt` 스킬에서 수치 검증 단계 호출. 독립 Task 스폰도 가능 (research-coordinator는 2026-05-09 archive됨).
 
+각 주장에 대해 **확인 전에 반대증거·기존 반박을 먼저 검색**(refute-first). 결과 verdict = CONFIRMED/CONTESTED/UNVERIFIED.
+
 ## 입력
 
 - 검증 대상 주장/데이터 (호출자가 전달)

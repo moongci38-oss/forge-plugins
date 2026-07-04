@@ -53,7 +53,7 @@ pytest {영향모듈}/ -x
 git add {변경파일1} {변경파일2}  # 선택적 add (git add -A 금지)
 git commit -m "fix|feat|refactor: {1줄 설명} [fast-path]
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 `[fast-path]` 태그로 추후 감사 추적.

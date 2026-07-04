@@ -31,7 +31,18 @@ Sonnet 세션 시작 시 실행.
 
 2. **프로젝트 메모리 읽기**
    - `.claude/MEMORY.md` (있으면)
-   - `.claude/learnings.md` 또는 `learnings.jsonl` (있으면)
+   - `learnings.jsonl` — **bounded 로드 (P4-a)**:
+     - `status: "active"` 항목 + date 내림차순 최근 20건 (중복 제거) 만 로드.
+     - 전량 로드: `--full-learnings` 명시 시만.
+     - 레거시(status 필드 없음) 항목 = 최근 N건 기준에만 포함(status 필터 미적용).
+     - `.claude/learnings.md` 존재 시도 동일 bounded 정책 적용.
+
+2.5. **프로젝트 VITALS 로드 (read-only)**
+   - 프로젝트 루트 `CLAUDE.md`의 `## 핵심정보` 섹션을 read-only 로드.
+   - ⚠️ **변이 절대 금지**: consumed 마킹·INDEX 수정 등 어떤 파일도 변경하지 않는다 (C2 TOCTOU 방지).
+   - 섹션 부재 시 = **grace**: 차단·GUIDE-STOP 없이 다음 단계로 진행. 1줄 advisory 출력:
+     > "`## 핵심정보` 미설정 — `/forge-onboard`로 생성 권고"
+   - → `check-continuity.sh` advisory 실행(비차단) — populated/secret 검증 결과 1줄 표시.
 
 3. **오늘 작업 요약 출력**
    - 우선순위 순 구현 태스크 목록

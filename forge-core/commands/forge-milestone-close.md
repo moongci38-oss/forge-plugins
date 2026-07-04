@@ -55,6 +55,19 @@ group: ops
 3. 7-sections retrospective 생성
 4. `/end-sonnet` 흐름 트리거 (handover → learnings → INDEX → git commit → forge-sync)
 
+## Advisor 자문 (advisory-only · non-blocking · Opus)
+
+마일스톤 종료 확정 직전에 `advisor-strategist`(Opus) 조언을 구한다. **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+
+```
+Agent(subagent_type="advisor-strategist", prompt="마일스톤 범위·완료 항목·잔여·품질게이트 상태 맥락 3-5줄. 질문: 이 마일스톤을 닫기 전 반드시 확인할 미완료 잔여·품질게이트 미충족·리스크 2-3개는?")
+```
+
+- 트리거: 마일스톤 close 확정 직전 (실행 순서 4번 `/end-sonnet` 트리거 전)
+- 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 기존 Human 승인 게이트)가 수행.
+- **Fable 5 미배선** — Human 수동 에스컬레이션 전용(자동분기는 forge-fix T4 한정). `advisor-model-resolve` 호출 금지.
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor/결정=Opus.
+
 ## 출력 경로
 
 ```
