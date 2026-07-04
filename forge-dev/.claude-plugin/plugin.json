@@ -1,6 +1,6 @@
 {
   "name": "forge-dev",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Forge 개발 파이프라인 스킬 + 에이전트. QA/헬러/보안검수/성능/playwright/MAS 검수 등 Phase 1~12 도구.",
   "author": {
     "name": "forge"
@@ -9,6 +9,17 @@
     "forge-core"
   ],
   "skills": "./skills/",
-  "agents": ["./agents/axis-agentic.md", "./agents/axis-context.md", "./agents/axis-cost.md", "./agents/axis-harness.md", "./agents/axis-human-ai.md", "./agents/canary-judge.md", "./agents/code-reviewer.md", "./agents/healer.md", "./agents/performance-checker.md", "./agents/ui-quality-checker.md"],
+  "agents": [
+    "./agents/axis-agentic.md",
+    "./agents/axis-context.md",
+    "./agents/axis-cost.md",
+    "./agents/axis-harness.md",
+    "./agents/axis-human-ai.md",
+    "./agents/canary-judge.md",
+    "./agents/code-reviewer.md",
+    "./agents/healer.md",
+    "./agents/performance-checker.md",
+    "./agents/ui-quality-checker.md"
+  ],
   "commands": "./commands/"
 }

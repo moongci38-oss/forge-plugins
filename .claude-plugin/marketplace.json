@@ -15,7 +15,7 @@
     },
     {
       "name": "forge-dev",
-      "description": "Forge \uac1c\ubc1c \ud30c\uc774\ud504\ub77c\uc778 \u2014 qa/healer/investigate/api-e2e/playwright (21 skills, 10 agents).",
+      "description": "Forge \uac1c\ubc1c \ud30c\uc774\ud504\ub77c\uc778 \u2014 qa/healer/investigate/api-e2e/playwright/forge-fix (16 skills, 10 agents).",
       "source": "./forge-dev",
       "category": "development"
     },
@@ -33,7 +33,7 @@
     },
     {
       "name": "forge-design",
-      "description": "Forge \ub514\uc790\uc778 \ub3c4\uad6c \u2014 figma-sync/image-orchestrate/multiformat-image.",
+      "description": "Forge \ub514\uc790\uc778 \ub3c4\uad6c \u2014 figma-sync/image-orchestrate/visual-loop.",
       "source": "./forge-design",
       "category": "design"
     },

@@ -17,7 +17,7 @@ Codex + Gemini (Double) 또는 Opus + Codex + Gemini (Triple) 병렬 리뷰 + Tr
 /cr-double ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/my-plan.md
 
 # Triple (plateau 자동 승격 또는 중요 spec)
-/cr-triple ${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/projects/forge-platform/specs/my-spec.md
+/cr-triple ${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/forge-platform/specs/my-spec.md
 ```
 
 ## 모드

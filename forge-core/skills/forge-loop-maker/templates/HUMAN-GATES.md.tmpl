@@ -1,0 +1,44 @@
+<!-- root-cause: forge-loop-maker scaffold 템플릿 — HUMAN-GATES.md 생성용 -->
+# {{LOOP_NAME}} — Human Gates & Budget
+
+> 루프 없이는 의도하지 않은 동작이 발생할 수 있습니다.
+> 예산 없이는 루프가 영원히 실행될 수 있습니다.
+> 아래 두 섹션은 필수입니다.
+
+---
+
+## Human Gates
+
+| # | Gate | 트리거 조건 | 승인자 |
+|---|------|-----------|-------|
+| G1 | Pre-run sign-off | 실제 데이터로 첫 실행 전 | 루프 소유자 |
+| G2 | Verifier 이상 | verifier exit 1 발생 시 | 루프 소유자 |
+| G3 | 비용 초과 | 외부 API 비용 임계 초과 전 | 예산 소유자 |
+| G4 | 파괴적 액션 | 파일 삭제·덮어쓰기·외부 publish 전 | 루프 소유자 |
+
+G1, G2는 삭제 불가.
+
+### Gate 처리 절차
+
+1. 루프가 `{{STATE_PATH}}`에 gate-request 기록
+2. Human이 명시적 승인
+3. 루프가 승인 확인 후 계속
+
+**자가 승인 금지.**
+
+---
+
+## Budget / Stop (하드 상한)
+
+| 항목 | 상한 | 초과 시 |
+|------|------|--------|
+| Max iterations | {{MAX_ITER}} | 즉시 중단 |
+| call-budget | {{CALL_BUDGET}} | hook WARN → Human 판단 |
+| **wall-clock 상한** | {{WALL_CLOCK}} | 즉시 중단 |
+
+<!--
+⚠️ wall-clock: 미설정 = 상한 없음 = 루프 영구 실행 가능.
+   실제 수치 반드시 채워넣기 (예: 2시간, 30분, 4h).
+-->
+
+wall-clock = STATE.md wall_clock_start 타임스탬프 대비 경과 시간으로 체크.

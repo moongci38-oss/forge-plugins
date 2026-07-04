@@ -215,7 +215,7 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
         subprocess.run(["git", "add", "-A"], cwd=cwd, check=True, timeout=30)
 
     # Commit
-    full_message = f"{message}\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+    full_message = f"{message}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
     result = subprocess.run(
         ["git", "commit", "-m", full_message],
         cwd=cwd, capture_output=True, text=True, timeout=60

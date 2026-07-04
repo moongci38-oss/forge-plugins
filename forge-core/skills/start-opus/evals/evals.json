@@ -3,13 +3,32 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/start-opus (Sonnet handover 존재 시)",
-      "expected_output": "opus INDEX 최신 5줄 + Sonnet read-cross + 요약 ≤150단어",
+      "prompt": "Invoke start-opus to begin the session and load context from the latest handover.",
+      "expected_output": "Session context loaded, recent handover read, task list presented.",
       "expectations": [
-        "opus INDEX 최신 섹션 상위 5줄만 read",
-        "handover-manager.sh read-cross sonnet 호출",
-        "요약 150 단어 이하",
-        "역할 선언: 아키텍처 결정/설계"
+        "Reads latest handover file",
+        "Outputs current task priorities",
+        "Declares session role"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run start-opus when there is no handover file available.",
+      "expected_output": "Notifies user no handover found and waits for instructions.",
+      "expectations": [
+        "Handles missing handover gracefully",
+        "Does not error fatally",
+        "Asks user for direction"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run start-opus after completing a multi-task implementation session.",
+      "expected_output": "Writes handover with completed tasks, commits, and next steps.",
+      "expectations": [
+        "Documents completed work with commit hashes",
+        "Lists next session tasks",
+        "Includes blockers if any"
       ]
     }
   ]

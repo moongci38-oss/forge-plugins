@@ -281,6 +281,7 @@ playwright-cli close
 * **Test generation** [references/test-generation.md](references/test-generation.md)
 * **Tracing** [references/tracing.md](references/tracing.md)
 * **Video recording** [references/video-recording.md](references/video-recording.md)
+* **Security (CLI/MCP hybrid, origin/secret guards)** [references/security.md](references/security.md)
 
 ## 보안 가드 (P2 gstack BORROW)
 

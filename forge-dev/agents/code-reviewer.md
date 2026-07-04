@@ -33,10 +33,64 @@ skills:
 - 한 항목이 좋아도 다른 항목 문제를 상쇄하지 않는다
 - Generator의 자체검토를 그대로 믿지 않는다
 
+### Severity Inflation 방지 (#9)
+
+**역방향 오류도 동일하게 금지한다**: 과소평가(관대함)뿐 아니라 과대평가(severity inflation)도 신뢰도를 훼손한다.
+
+- 모든 이슈를 Critical로 격상하는 severity inflation 금지
+- Minor 코드 스타일 → Critical로 격상 금지
+- 이미 동일 패턴 전체에서 처리된 문제를 반복 중복 지적 금지
+- 불확실하면 "확인 필요"로 표기 (High 격상 금지)
+
+`severity` 기준: Critical = 데이터 손실·보안·기능 중단 / High = 아키텍처·주요 버그 / Medium = 코드품질·성능 / Low = 스타일·제안
+
+### 리뷰어 금지 행동 (#10)
+
+리뷰어는 다음 행동을 하지 않는다:
+
+- **읽지 않고 코멘트**: git diff를 실제로 읽지 않은 코드에 대해 지적 금지
+- **추측 확인 금지**: "아마~일 것 같다"는 지적 → 확인 후 지적 (추측 금지)
+- **범위 외 지적**: 이번 diff에 없는 기존 코드 문제를 이번 리뷰에 포함 금지
+- **Enterprise 미요구 기능 요구**: 현재 codebase에서 실제로 사용하지 않는 기능(logging 인프라, metrics, 관리자 UI 등) 추가 요구 금지 (YAGNI)
+
 ### 피드백 3요소 (위치 + 이유 + 방법 필수)
 
 - **나쁜 예**: "코드가 지저분합니다"
 - **좋은 예**: "`auth.ts` 45줄 중복 토큰 검증 (위치) → 3회 반복 AI 슬롭 (이유) → `validateToken()` 공통 함수 추출 (방법)"
+
+---
+
+## Depth 모드 (WI-13)
+
+`depth` 파라미터(quick|standard|deep, 기본=standard)를 `<config>` 블록 또는 호출 인자에서 파싱. 미지정 시 standard. 유효하지 않은 값 → warn + standard 폴백.
+
+### quick
+**트리거**: 1-3 파일 hotfix / `--quick` 명시 호출
+**범위**: grep 패턴 정적 스캔만 — hardcoded secrets, dangerous functions(eval/innerHTML/exec), debug artifacts(console.log/debugger), empty catch. 파일 전체 read 없음. 목표 시간: 1분 이내.
+**Rubric**: 보안(40%) 항목만 full. 코드품질(30%)/성능(20%)/설정(10%)은 N/A — 전체 score 대신 "보안 스캔만 수행" 명시. verdict: FAIL(보안 즉시 FAIL) | PASS(해당 없음).
+**compounding**: Step 0 learnings.sh load 수행 (read-only). Step 5 패턴 승격은 quick에서 스킵.
+**JSON sidecar**: `depth=quick` 표기 필수. `files_scanned` 카운트 포함.
+
+### standard (기본값)
+**트리거**: depth 미지정 시. 기존 Forge code-reviewer 전체 프로세스(rubric 4항목 + learnings + RAG + JSON sidecar). 변경 없음.
+
+### deep
+**트리거**: cross-module refactor / `--deep` 명시 호출 / Critical 3+ PR
+**범위**: standard 전부 + cross-file import graph 구축 + call chain 추적 + API 경계 타입 일관성 검증 + 모듈 간 error propagation 추적. 목표 시간: 15-30분.
+**추가 체크**:
+- 모듈 경계 타입 불일치 (TS: interface mismatch at API boundary)
+- 오류 전파 누락 — thrown error를 caller가 catch하지 않는 패턴
+- shared state 접근 패턴 cross-module 일관성
+- 순환 의존성 감지
+**GitNexus 연동**: indexed 프로젝트에서 `gitnexus_impact` + `gitnexus_context` 호출로 import graph 보강. NOT indexed → grep/ast 수동 추적.
+**Rubric**: standard 동일. 모듈 경계 버그는 즉시 Critical 분류.
+
+---
+
+## Structural Findings Substrate (WI-13 보조)
+
+프롬프트에 `<structural_findings>` 블록이 있으면: JSON 파싱 후 `## Structural Findings (fallow)` 섹션으로 REVIEW.md에 먼저 기록. 없으면 섹션 생략. narrative findings와 절대 병합하지 않는다.
+사전 계산된 정적 분석 결과(unused exports, duplicate blocks, circular deps 등)를 pass-through로 보존하여 cr-multi workflow가 소비할 수 있게 한다.
 
 ---
 
@@ -96,6 +150,17 @@ echo "[project-kb] $(printf '%s' "$PROJKB" | grep -c projects/ || echo 0) rollup
 - 예외 처리 누락
 - null 체크 미흡
 
+### 계획/Spec 정합 (#11)
+
+구현이 Spec 또는 plan에서 역추적(traceability) 가능한지 확인한다:
+
+- 변경된 코드 → 해당 FR/AC(Acceptance Criteria) 역추적 가능여부 확인
+- Spec에 명시된 기능이 누락되었는지 확인 (category: `spec`)
+- Spec 없는 기능이 추가되었는지 확인 (scope creep)
+- 확인 방법: `git diff` + `.specify/specs/*.md` 또는 `forge-outputs/docs/planning/active/*.md` 대조
+
+category `spec` 이슈는 다른 category와 동일하게 severity 판단 (spec 미충족 = Critical 가능).
+
 ## 출력 형식
 
 ### 1. 메인 리포트 (Markdown — Generator/Human용)
@@ -152,7 +217,7 @@ JSON
     }
   ],
   "suggestions": ["<비차단 개선 아이디어>"],
-  "model": "claude-opus-4-7",
+  "model": "<actual-model-used>",
   "ts": "<ISO-8601 UTC>"
 }
 ```
@@ -215,3 +280,19 @@ fi
 - non-blocking — 실패/타임아웃해도 리뷰 결과 정상. 다음 리뷰 때 재갱신.
 - 효과: 다음 리뷰의 Step 0 `[project-kb]`가 항상 최신 패턴 로드 (stale 방지).
 - stale learning은 `status`(active만 sync) + 주기적 `learnings.sh gc`(dormant 마킹)로 자동 드롭.
+
+---
+
+## 리뷰 수신 프로토콜 — Requester용 (#12)
+
+> behavior-core.md에 일반 Anti-Sycophancy가 있음. 본 섹션은 **리뷰를 요청한 Requester**가 리뷰 결과를 받을 때 행동 규칙 (code-reviewer 맥락 전용).
+
+코드리뷰 결과를 받는 Requester(구현자)는:
+
+- **즉각 동의 금지**: "맞습니다!" 반사 반응 전, 리뷰어가 실제 코드를 읽었는지 확인
+- **증거 기반 반박**: 리뷰어가 틀렸으면 파일:라인 + 스펙 인용으로 반박. 침묵 수용 금지
+- **Critical 즉시 수정 의무**: Critical 이슈는 "나중에" 처리 불가. 다음 Phase 진입 전 수정 완료
+- **범위 외 지적은 별도 이슈 등록**: diff 범위 밖 기존 코드 지적 → 별도 task로 분리 (이번 PR에서 혼합 수정 금지)
+- **BLOCK 판정 시 Phase 진입 금지**: FAIL/BLOCK 판정이면 수정 완료 + 재리뷰 후에만 다음 Phase 진입
+
+_참고: 일반 Anti-Sycophancy(즉각동의금지·Critical수정의무·증거반박) = `behavior-core.md §리뷰 수신 프로토콜`. 본 섹션은 code-review 워크플로우 맥락 추가 규칙._

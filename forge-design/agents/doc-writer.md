@@ -81,9 +81,43 @@ Adjust sections based on what the source code actually contains. Do not add empt
 - Do not add sections for things the code doesn't have
 - Korean codebase: write docs in Korean unless English is clearly established
 
+## GSD_MARKER (자동 생성 표시 — WI-35)
+
+doc-writer가 작성한 모든 문서의 **첫 줄**에 아래 마커를 삽입한다:
+
+```
+<!-- GSD_MARKER generated_by="doc-writer" source="<소스 경로>" ts="<YYYY-MM-DDTHH:mm>" -->
+```
+
+### 마커 규칙
+
+- **위치**: 파일 최상단 (제목 `#` 앞)
+- **필수 필드**: `generated_by`, `source`, `ts`
+- **갱신**: 기존 문서 업데이트 시 `ts` 갱신 (source·generated_by 유지)
+- **예외**: Human이 직접 작성한 문서 편집 시 마커 삽입 금지 (기존 마커 없으면 건너뜀)
+
+### 목적
+
+```bash
+# 자동 생성 문서 전체 재생성 스캔
+grep -rl "GSD_MARKER" docs/ | xargs -I{} sh -c 'head -1 "{}"'
+
+# source 경로로 원본 변경 감지 → stale 문서 갱신 대상 식별
+```
+
+### 예시
+
+```markdown
+<!-- GSD_MARKER generated_by="doc-writer" source="src/auth/token.ts" ts="2026-06-13T14:30" -->
+# TokenService
+
+> JWT 발급·검증·갱신을 담당하는 서비스.
+...
+```
+
 ## Output
 
 After writing, report:
-- Files created or updated
+- Files created or updated (GSD_MARKER 포함 여부 명시)
 - Sections included (and any intentionally omitted)
 - Anything ambiguous that the user should verify

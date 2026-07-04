@@ -1,6 +1,6 @@
 ---
 name: checkpoint
-description: "Mid-session 경량 컨텍스트 체크포인트. /compact 전 현재 세션 상태(진행 중 태스크·완료 목록·다음 스텝·블로커·열린 파일)를 $HOME/.claude/checkpoints/YYYY-MM-DD-HH-MM.md에 저장. /compact 후 사용자가 '계속' 또는 'resume'하면 체크포인트 자동 read → 맥락 복원. end-sonnet/start-sonnet보다 경량 — 세션 종료 아닌 중간 토큰 관리 전용. 트리거: '/checkpoint', '체크포인트', 'compact 전 저장', 토큰 70~90% 경고 시"
+description: "Mid-session 경량 컨텍스트 체크포인트. /compact 전 현재 세션 상태(진행 중 태스크·완료 목록·다음 스텝·블로커·열린 파일)를 $HOME/.claude/checkpoints/YYYY-MM-DD-HH-MM.md에 저장. /compact 후 사용자가 '계속' 또는 'resume'하면 체크포인트 자동 read → 맥락 복원. end-sonnet/start-sonnet보다 경량 — 세션 종료 아닌 중간 토큰 관리 전용. 트리거: '/checkpoint', '체크포인트', 'compact 전 저장', 토큰 70~90% 경고 시. 재개 트리거(compact 직후 최근 checkpoint 존재 시): '계속'·'resume'·'이어서'·'continue' — Step 3 가드(최근 checkpoint 유무·브랜치 일치)로 오발동 방지"
 ---
 
 # checkpoint

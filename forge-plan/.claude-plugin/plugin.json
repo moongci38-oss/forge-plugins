@@ -1,6 +1,6 @@
 {
   "name": "forge-plan",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Forge 기획 파이프라인 — spec-write/writing-plans/requirements-clarity/autoplan. S1~S3 도구.",
   "author": {
     "name": "forge"
@@ -10,5 +10,8 @@
   ],
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": ["./agents/cto-advisor.md", "./agents/spec-writer-base.md"]
+  "agents": [
+    "./agents/cto-advisor.md",
+    "./agents/spec-writer-base.md"
+  ]
 }
