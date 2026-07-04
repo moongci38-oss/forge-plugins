@@ -2,7 +2,7 @@
 
 Forge 리서치·분석 플러그인 — YouTube 영상, 뉴스 기사, 웹 사이트 심층 분석과 주간 리서치 파이프라인, 비즈니스 아이템 검증을 지원합니다.
 
-> **버전**: v0.1.4 | **의존성**: forge-core
+> **버전**: v0.1.6 | **의존성**: forge-core
 
 ---
 
@@ -32,7 +32,6 @@ export TAVILY_API_KEY="tvly-..."
 |------|------|
 | `site-deep-analyze` | 사이트 URL 정밀 분석 → 재구현 가이드 생성 |
 | `yt` | YouTube 영상 종단간 분석 |
-| `yt-analyze` | ⚠️ DEPRECATED — `/yt` 사용 권장 |
 
 ### site-deep-analyze
 
@@ -78,10 +77,6 @@ YouTube 영상을 종단간 분석합니다. 트랜스크립트·댓글·링크 
 # 여러 영상 동시 분석
 /yt https://youtu.be/abc123 https://youtu.be/def456
 ```
-
-### yt-analyze ⚠️ DEPRECATED
-
-기존에 수집된 JSON 데이터를 재분석할 때만 사용하세요. 신규 분석은 `/yt` 스킬을 사용하세요. `/yt`가 수집+분석 전 파이프라인을 통합 제공합니다.
 
 ---
 
@@ -214,6 +209,9 @@ YouTube 영상 심층 분석 커맨드 (yt 스킬 래핑).
 ---
 
 ## Changelog
+
+### v0.1.6 (2026-07-04)
+- `yt-analyze` DEPRECATED 스킬 제거 (orphan, SSoT 없음, `/yt`·`daily-analyze`/`weekly-analyze`로 완전 대체)
 
 ### v0.1.4 (2026-06-23)
 - `yt-analyze` DEPRECATED 표기 (yt 스킬이 전 파이프라인 통합)

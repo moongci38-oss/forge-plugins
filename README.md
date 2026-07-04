@@ -27,7 +27,7 @@ Forge Claude Code Plugin Marketplace — 9개 플러그인 패키지.
 | **forge-core** | v0.2.0 | 핵심 인프라 — cr-multi/approve-worker + 온보딩 훅 + **세션관리 5종** + rag-search | 없음 (기반) |
 | **forge-dev** | v0.1.4 | 개발 파이프라인 — qa/healer/investigate/api-e2e/playwright (16 skills, 10 agents) | forge-core |
 | **forge-plan** | v0.1.2 | 기획 파이프라인 — spec-write/**forge-spec**/writing-plans/requirements-clarity/autoplan | forge-core |
-| **forge-research** | v0.1.4 | 리서치 — article/yt/site-deep-analyze/weekly-research/forge-find-item (3 skills, 7 agents) | forge-core |
+| **forge-research** | v0.1.6 | 리서치 — article/yt/site-deep-analyze/weekly-research/forge-find-item (2 skills, 7 agents) | forge-core |
 | **forge-design** | v0.1.3 | 디자인·에셋 — figma-sync/image-orchestrate/multiformat-image/visual-loop | forge-core |
 | **forge-game** | v0.1.2 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
 | **forge-brain** | v0.1.0 | 지식·메모리 레이어 — learn/wiki-sync/memory-manage + ADR-174 pgvector 연동 | forge-core |
@@ -444,7 +444,7 @@ forge-plugins-repo/
 │   ├── commands/                      — forge-plan/forge-pr/forge-spec/sdd
 │   └── agents/                        — spec-writer/technical-writer
 ├── forge-research/
-│   ├── skills/                        — yt/site-deep-analyze/yt-analyze
+│   ├── skills/                        — yt/site-deep-analyze
 │   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item
 │   └── agents/                        — 6개 (yt-video-analyst/fact-checker/article-analyst 등)
 ├── forge-design/
@@ -490,6 +490,9 @@ forge-plugins-repo/
 ---
 
 ## Changelog
+
+### v0.2.1 (2026-07-04)
+- **forge-research v0.1.6**: DEPRECATED orphan 스킬 `yt-analyze` 제거 (`/yt`·`daily-analyze`/`weekly-analyze`로 완전 대체, SSoT 없음)
 
 ### v0.2.0 (2026-06-29)
 - **forge-harness v0.1.0** 신규: harness-legacy-scan/harness-diet/external-harness-sweep/agent-drift-auditor
