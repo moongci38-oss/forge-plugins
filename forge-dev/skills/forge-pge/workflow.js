@@ -1,6 +1,6 @@
-// root-cause: pge 7 Phase 직렬 + Evaluator에 plan 미전달 → 진짜 독립 검증. 계획서 P1-2.
+// root-cause: forge-pge 7 Phase 직렬 + Evaluator에 plan 미전달 → 진짜 독립 검증. 계획서 P1-2.
 export const meta = {
-  name: 'pge',
+  name: 'forge-pge',
   description: 'Plan-Generate-Evaluate 파이프라인 — Evaluator는 plan 정보 없이 코드만 판정 (편향 격리)',
   phases: [
     { title: 'Plan', detail: '요구사항 + Sprint Contract → 구현 계획' },
