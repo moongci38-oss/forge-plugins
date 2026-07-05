@@ -1,9 +1,9 @@
 {
-  "skill_name": "pge",
+  "skill_name": "forge-pge",
   "evals": [
     {
       "id": 1,
-      "prompt": "/pge '결제 API /payment/charge 엔드포인트 구현' 실행. Sprint Contract 작성(scope: 결제 API, out_of_scope: 환불/이력, done_criteria: 단위테스트 PASS + Stripe sandbox 성공). Phase 0~4 전체 실행하라",
+      "prompt": "/forge-pge '결제 API /payment/charge 엔드포인트 구현' 실행. Sprint Contract 작성(scope: 결제 API, out_of_scope: 환불/이력, done_criteria: 단위테스트 PASS + Stripe sandbox 성공). Phase 0~4 전체 실행하라",
       "expected_output": "PGE_SPEC.md 생성, Generator 구현, QA subagent 실행, Evaluator subagent 독립 판정, 최종 PGE 보고서",
       "expectations": [
         "Sprint Contract(scope/out_of_scope/done_criteria/rollback_trigger)가 Phase 0에서 명시되는가?",
@@ -27,7 +27,7 @@
     },
     {
       "id": 3,
-      "prompt": "/pge --rubric custom pge-security-rubric.yaml 실행. 보안 강화 rubric(OWASP 체크 추가) 적용. Rubric 교체 시 supersedes 표기 확인",
+      "prompt": "/forge-pge --rubric custom forge-pge-security-rubric.yaml 실행. 보안 강화 rubric(OWASP 체크 추가) 적용. Rubric 교체 시 supersedes 표기 확인",
       "expected_output": "커스텀 rubric 적용, OWASP 축 추가 채점, supersedes 메타데이터 포함",
       "expectations": [
         "--rubric 옵션으로 커스텀 yaml이 로드되어 적용되는가?",
