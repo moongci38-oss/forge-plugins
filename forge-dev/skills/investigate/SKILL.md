@@ -17,7 +17,7 @@ model: sonnet
 버그, 에러, 이상 동작의 근본 원인을 4단계 구조화 프로세스로 분석한다.
 
 ## Workflow 통합 (계획서 P2-7)
-RAG 선검색 → 조사 → 분석 → 가설 검증 컨텍스트 격리. Stage 4+5(재현+수정)는 human gate 후 healer/pge 위임.
+RAG 선검색 → 조사 → 분석 → 가설 검증 컨텍스트 격리. Stage 4+5(재현+수정)는 human gate 후 healer/forge-pge 위임.
 패턴: RAG(Explore) → Investigate(소스+gitnexus) → Analyze(가설 2개+) → Verify → [STOP] human gate.
 실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })`
 skipVerify=true → Stage 3 skip, 가설 목록만 반환. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 직접 실행 fallback.

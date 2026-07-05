@@ -221,9 +221,9 @@ Spec 문서와 구현 코드 간 추적성(Traceability)을 검증합니다.
 
 | 스킬 | 설명 |
 |------|------|
-| `pge` | Planner-Generator-Evaluator 하네스 |
+| `forge-pge` | Planner-Generator-Evaluator 하네스 |
 
-#### pge
+#### forge-pge
 
 복잡한 구현을 Planner-Generator-Evaluator 3단계로 자동화합니다.
 
@@ -342,7 +342,7 @@ forge-dev/
 │   ├── healer/                 — 자동 버그 수정
 │   ├── inspection-checklist/   — P5+P6 통합 체크리스트
 │   ├── investigate/            — 근본 원인 분석
-│   ├── pge/                    — Planner-Generator-Evaluator
+│   ├── forge-pge/                    — Planner-Generator-Evaluator
 │   ├── playwright-cli/         — 브라우저 자동화
 │   ├── playwright-parallel-test/ — 3-way 병렬 UI 테스트
 │   ├── qa/                     — QA 전 사이클 오케스트레이터

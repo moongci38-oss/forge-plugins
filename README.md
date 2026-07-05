@@ -269,7 +269,7 @@ cd ~/forge-plugins-repo && git pull
 | `/screenshot-analyze` | `/screenshot-analyze <이미지>` | 스크린샷 UI 분석 |
 | `/visual-loop` | `/visual-loop` | 시각적 반복 검증 |
 | `/codex-review` | `/codex-review <파일>` | Codex 단독 코드 리뷰 |
-| `/pge` | `/pge <목표>` | Plan-Generate-Execute — 복잡한 구현 자동화 |
+| `/forge-pge` | `/forge-pge <목표>` | Plan-Generate-Execute — 복잡한 구현 자동화 |
 | `/forge-fix` | `/forge-fix <이슈설명>` | Hotfix 흐름으로 빠른 버그 처리 |
 | `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa 순서) |
 | `/forge-pr` | `/forge-pr` | PR 자동 생성 (Check 9 기준 검증 + gh pr create) |

@@ -93,7 +93,7 @@ for line in sys.stdin:
 
 ## 코드/디버깅/리뷰/분석 경험 = learnings.jsonl 단일 저장소 + `learnings.sh` 헬퍼
 
-code-reviewer / pge / investigate / forge-fix / codebase-analyzer 가 만드는 디버깅·수정·리뷰·분석 교훈은 **learnings.jsonl에만** 저장한다 (forge-vault/Obsidian = 리서치 노트 전용 — 코드 경험 금지). 이 용도 항목은 **리치 스키마** + **`~/.claude/scripts/learnings.sh` 헬퍼 경유만** (inline grep/sed/python·shell JSON 조합 금지).
+code-reviewer / forge-pge / investigate / forge-fix / codebase-analyzer 가 만드는 디버깅·수정·리뷰·분석 교훈은 **learnings.jsonl에만** 저장한다 (forge-vault/Obsidian = 리서치 노트 전용 — 코드 경험 금지). 이 용도 항목은 **리치 스키마** + **`~/.claude/scripts/learnings.sh` 헬퍼 경유만** (inline grep/sed/python·shell JSON 조합 금지).
 
 ### 경로 정본 (canonical)
 - `GLOBAL_LEARNINGS` = `~/forge/.claude/learnings.jsonl` (크로스-프로젝트 교훈)

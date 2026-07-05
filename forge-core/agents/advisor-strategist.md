@@ -1,7 +1,7 @@
 ---
 name: advisor-strategist
 description: >
-  Opus 기반 전용 조언자. 실행자(Sonnet/Haiku 스킬)의 판단 지점에서만 호출되며,
+  Opus 기반 전용 조언자. 실행자(난도별 tier — 단순 Sonnet/Haiku, 고난도 Opus 워커)의 판단 지점에서만 호출되며,
   400~700 토큰 분량의 핵심 전략 조언만 제공한다. 도구를 직접 호출하거나
   최종 결과물을 생성하지 않는다. grants 전략, 보안 리스크, 경계 판정,
   복잡한 아키텍처 결정 등 고가치 의사결정 지원.
@@ -223,6 +223,7 @@ Agent(subagent_type="advisor-strategist", prompt="""
 - 반복 작업
 - 포맷 정리
 - 이미 명확한 판단 (점수 경계 아닌 경우)
+- 메인이 이미 Opus advisor로 작동(Opus-main + Opus-worker 오케스트레이션) 중 — 워커→advisor-strategist 호출 = Opus→Opus 중복. 판단은 메인 Advisor 보유. 이 에이전트는 독립·적대적 2차 의견 또는 Fable 승격 때만.
 
 ---
 
