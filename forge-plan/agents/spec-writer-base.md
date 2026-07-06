@@ -101,6 +101,7 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
   - `assert user.credit_balance == before_balance - charge_amount`
   - `E2E: POST /members → 201, GET /members/{id} → name 일치`
   tautology 방지: "FR이 동작한다" 형태 금지. 구체적 입출력/상태 단언 필수.
+- **소스 커버리지 (A3, WARN)**: 소스 기획서·기능명세(P2 PRD/GDD + P3 상세개발계획서 + 도메인 dev-spec 디렉토리)에서 **기능 항목과 비즈니스룰(계산·정산·정책 규칙)을 전수 추출** → 각 항목이 최소 1개 FR로 승격됐는지 매핑한다. 미승격 항목 = spec §2.0 `소스 커버리지` 표에 `uncovered` + 유형(기능/BR)으로 명시. **범위 외(out-of-scope) 처리 시 사유 필수** — 소스에 존재하는 항목이 근거 없이 조용히 누락되는 것을 차단한다. 소스가 구조적 ID(feature_key/EP번호 등)를 보유하면 ID 대조로 기계 검증한다. Schema Ground-Truth Gate(DB/FE 실측 provenance)와 별개 축 — 이 축은 **기획 문서 커버리지**를 본다.
 - **PR 단위 묶음 명시**: implementation-plan의 PR 묶음 (PR1, PR2, ...) 본 Spec §12에 매핑
 - **그룹 간 의존 명시**: 본 그룹이 의존하는 다른 그룹 Spec ID 명시 (예: "SPEC-002는 SPEC-001 인증 완료 후 진입")
 
