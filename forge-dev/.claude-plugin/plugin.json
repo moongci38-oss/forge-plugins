@@ -1,6 +1,6 @@
 {
   "name": "forge-dev",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Forge 개발 파이프라인 스킬 + 에이전트. QA/헬러/보안검수/성능/playwright/MAS 검수 등 Phase 1~12 도구.",
   "author": {
     "name": "forge"
