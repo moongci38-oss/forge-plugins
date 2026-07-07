@@ -4,3 +4,7 @@
 
 .forge.env
 *.env
+
+# build artifacts
+*.Zip
+*.zip
