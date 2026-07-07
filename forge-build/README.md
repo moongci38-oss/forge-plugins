@@ -1,17 +1,17 @@
-# forge-dev
+# forge-build
 
-> Forge 개발 파이프라인 — Phase 1~12 전 과정 QA·버그수정·보안·테스트·배포 도구
+> Forge 제품 생성 파이프라인 — 기획(Spec/Plan)부터 Phase 1~12 구현·QA·버그수정·보안·테스트·배포까지, SDD 본류를 담당하는 통합 플러그인
 
-**버전**: v0.1.4 | **의존성**: `forge-core` | **레포**: `moongci38-oss/forge-plugins`
+**버전**: v0.2.0 | **의존성**: `forge-core` | **레포**: `moongci38-oss/forge-plugins`
 
 ---
 
 ## 개요
 
-`forge-dev`는 백엔드·풀스택 개발자를 위한 Forge 개발 파이프라인 도구 모음입니다. **16개 스킬 + 10개 에이전트 + 15개 커맨드**로 구성되며, Forge Dev Phase 1(환경 설정)부터 Phase 12(롤백)까지 전 과정을 지원합니다.
+`forge-build`는 백엔드·풀스택 개발자와 기획자(PM)를 위한 Forge 제품 생성 파이프라인 도구 모음입니다. 구 `forge-dev`(구현·검증)와 구 `forge-plan`(기획: spec-write/writing-plans/requirements-clarity/autoplan)을 통합해, 기획부터 배포까지 SDD 파이프라인 전 과정을 하나의 플러그인으로 제공합니다. axis-* 감사 에이전트는 `forge-core`로 이동했고, 대신 `cto-advisor`·`spec-writer-base` 에이전트가 새로 편입되었습니다.
 
 ```
-P1 환경설정 → P2 디자인 검토 → P3 Spec 작성 → P4 기술 설계 →
+P1 환경설정 → P2 디자인 검토 → P3 Spec 작성(기획) → P4 기술 설계 →
 P5 구현(Check 5.5~5.9) → P6 QA → P7 PR+머지 →
 P8~P9 배포 → P10~P12 모니터링·롤백
 ```
@@ -23,7 +23,7 @@ P8~P9 배포 → P10~P12 모니터링·롤백
 ```bash
 # forge-core 먼저 설치 필수
 claude plugin install forge-core
-claude plugin install forge-dev
+claude plugin install forge-build
 
 # Claude Code 재시작
 ```
@@ -235,6 +235,32 @@ QA/버그/마이그레이션 이외의 복잡한 구현에 사용합니다.
 
 ---
 
+### 기획 (PM/기획자, v0.2.0 흡수 — 구 forge-plan)
+
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
+| `/spec-write` | `/spec-write <기능명>` | Spec 문서 작성 |
+| `/forge-spec` | `/forge-spec <기능 설명>` | Spec 작성 단독 실행 (옛 /sdd Phase 0~2) |
+| `/prd` | `/prd <제품명>` | PRD 작성 |
+| `/forge-plan` | `/forge-plan` | 기획 파이프라인 실행 |
+| `writing-plans` | `/writing-plans` | Spec/요구사항 문서를 TDD 지향의 세분화 구현 계획으로 전환 |
+| `requirements-clarity` | `/requirements-clarity` | 모호한 요구사항을 Why?(YAGNI)/Simpler?(KISS) 대화로 명확화 |
+| `autoplan` | `/autoplan <목표>` | 기획서를 CEO/Design/Engineering 3관점 리뷰 + Synthesizer 종합 |
+
+#### writing-plans
+
+Spec이나 요구사항 문서를 실제 구현에 착수하기 전, 바이트 크기 단위의 TDD 지향 구현 계획으로 전환합니다. 정확한 파일 경로·2~5분 단위 스텝·명시적 테스트 검증 절차를 포함합니다.
+
+#### requirements-clarity
+
+모호한 요구사항을 Why?(YAGNI)/Simpler?(KISS) 중심 대화로 명확화해 점수화된 PRD로 정리합니다. 명확한 재현 절차가 있는 버그 수정, 구체적 파일·함수를 지목한 변경, 오타·한 줄 수정에는 사용하지 않습니다.
+
+#### autoplan
+
+기획서를 CEO(비즈니스)→Design(UX)→Engineering(기술) 3관점 순차 리뷰 + Synthesizer 종합 + 독립 Evaluator 검증(5-Wave)으로 처리합니다. Phase 3 에이전트 회의 후 자동 트리거됩니다.
+
+---
+
 ## 커맨드 목록
 
 ### 개발 파이프라인
@@ -251,6 +277,21 @@ QA/버그/마이그레이션 이외의 복잡한 구현에 사용합니다.
 /forge-implement    # Spec 기반 구현
 /forge-qa           # QA 실행
 /forge-pr           # PR 생성·머지
+```
+
+### 기획 파이프라인 (v0.2.0 흡수 — 구 forge-plan)
+
+| 커맨드 | 설명 | Phase |
+|--------|------|-------|
+| `/spec-write` | Spec 문서 작성 | P3 |
+| `/forge-spec` | Spec 작성 단독 실행 (옛 /sdd Phase 0~2) | P3 |
+| `/prd` | PRD 작성 | P2~P3 |
+| `/forge-plan` | 기획 파이프라인 실행 | P3 |
+
+```bash
+# 전형적인 기획 흐름
+/forge-spec 사용자 알림 기능    # Spec 작성
+/forge-implement                # 구현 진입
 ```
 
 ### 검수 커맨드
@@ -278,19 +319,14 @@ QA/버그/마이그레이션 이외의 복잡한 구현에 사용합니다.
 
 ## 에이전트 목록
 
-forge-dev 설치 시 다음 전문 에이전트들이 활성화됩니다:
+forge-build 설치 시 다음 전문 에이전트들이 활성화됩니다. (v0.2.0부터 axis-* 감사 에이전트는 `forge-core`로 이동 — 시스템 감사는 forge-core의 `/system-audit`를 사용하세요.)
 
-### 감사 에이전트 (axis-*)
+### 기획 에이전트 (v0.2.0 흡수 — 구 forge-plan)
 
-시스템 감사 요청 시 자동 병렬 스폰됩니다.
-
-| 에이전트 | 감사 영역 | 프레임워크 |
-|---------|---------|----------|
-| `axis-agentic` | 에이전틱 AI 역량 (자율성·도구 사용·MAS) | CLEAR/Sema4.ai |
-| `axis-context` | 컨텍스트 엔지니어링 (RAG·메모리·7-Layer) | 7-Layer/RAGAS/ACE-FCA |
-| `axis-cost` | AI 비용 효율 (모델 라우팅·캐싱·토큰) | RouteLLM/CEBench/Epoch AI |
-| `axis-harness` | AI 하네스 엔지니어링 (Check Chain·OWASP) | CLEAR/OTel/OWASP |
-| `axis-human-ai` | Human-AI 경계 (5-Level Autonomy·게이트) | 5-Level/TCMM |
+| 에이전트 | 역할 |
+|---------|------|
+| `spec-writer-base` | Spec 문서 작성 전문가 — Constitution 기반 정확한 형식의 Spec 생성 |
+| `cto-advisor` | Forge S4(Phase 4) 기술 검토 전문 — 아키텍처·API·데이터모델·보안·성능·테스트전략·기술부채 7축 |
 
 ### QA / 검수 에이전트
 
@@ -329,10 +365,10 @@ forge-dev 설치 시 다음 전문 에이전트들이 활성화됩니다:
 ## 파일 구조
 
 ```
-forge-dev/
+forge-build/
 ├── .claude-plugin/
-│   └── plugin.json             — 플러그인 매니페스트
-├── skills/
+│   └── plugin.json             — 플러그인 매니페스트 (v0.2.0)
+├── skills/                     — 19개
 │   ├── api-e2e/                — REST API E2E 자동 테스트
 │   ├── benchmark/              — 성능 벤치마크
 │   ├── bug-report/             — 웹앱 버그 탐지
@@ -342,30 +378,36 @@ forge-dev/
 │   ├── healer/                 — 자동 버그 수정
 │   ├── inspection-checklist/   — P5+P6 통합 체크리스트
 │   ├── investigate/            — 근본 원인 분석
-│   ├── forge-pge/                    — Planner-Generator-Evaluator
+│   ├── forge-pge/              — Planner-Generator-Evaluator
 │   ├── playwright-cli/         — 브라우저 자동화
 │   ├── playwright-parallel-test/ — 3-way 병렬 UI 테스트
 │   ├── qa/                     — QA 전 사이클 오케스트레이터
 │   ├── qa-setup/               — QA 하네스 부트스트랩
 │   ├── screenshot-analyze/     — Vision 기반 UI 분석
-│   └── spec-compliance-checker/ — Spec-코드 추적성 검증
-├── commands/                   — 15개 슬래시 커맨드
-└── agents/                     — 10개 전문 에이전트
-    ├── axis-agentic.md
-    ├── axis-context.md
-    ├── axis-cost.md
-    ├── axis-harness.md
-    ├── axis-human-ai.md
+│   ├── spec-compliance-checker/ — Spec-코드 추적성 검증
+│   ├── autoplan/               — 기획서 3관점 리뷰 + Synthesizer (구 forge-plan)
+│   ├── requirements-clarity/   — 요구사항 명확화 (구 forge-plan)
+│   └── writing-plans/          — Spec → TDD 구현 계획 전환 (구 forge-plan)
+├── commands/                   — 21개 슬래시 커맨드 (spec-write/forge-spec/prd/forge-plan 포함)
+└── agents/                     — 7개 전문 에이전트
     ├── canary-judge.md
     ├── code-reviewer.md
+    ├── cto-advisor.md          — (구 forge-plan)
     ├── healer.md
     ├── performance-checker.md
+    ├── spec-writer-base.md     — (구 forge-plan)
     └── ui-quality-checker.md
 ```
 
 ---
 
 ## Changelog
+
+### v0.2.0 (2026-07-07)
+- `forge-dev` → `forge-build` 개명
+- 구 `forge-plan`(spec-write/forge-spec/prd/forge-plan/writing-plans/requirements-clarity/autoplan) 통합
+- axis-* 감사 에이전트 5종 → `forge-core`로 이동
+- `cto-advisor`·`spec-writer-base` 에이전트 신규 편입
 
 ### v0.1.4 (2026-06-23)
 - workflow.js 동기화 확인 완료

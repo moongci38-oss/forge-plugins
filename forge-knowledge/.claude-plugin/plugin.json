@@ -1,12 +1,21 @@
 {
-  "name": "forge-brain",
-  "version": "0.1.3",
-  "description": "Forge 지식·메모리 레이어 — RAG 검색, 학습 루프, 위키 동기화, MEMORY.md 관리. ADR-174 unified_search MCP 연동.",
+  "name": "forge-knowledge",
+  "version": "0.2.0",
+  "description": "Forge 지식·리서치 레이어 — 학습(learn)·메모리(memory-manage)·위키(wiki-sync)·RAG 검색 + 외부 리서치(article/yt/site-deep-analyze). forge-tools MCP(ADR-174 unified_search).",
   "author": {
     "name": "forge"
   },
   "dependencies": ["forge-core"],
   "skills": "./skills/",
+  "agents": [
+    "./agents/academic-researcher.md",
+    "./agents/article-analyst.md",
+    "./agents/fact-checker.md",
+    "./agents/weekly-research-analyst.md",
+    "./agents/yt-cross-analyst.md",
+    "./agents/yt-research-followup.md",
+    "./agents/yt-video-analyst.md"
+  ],
   "commands": "./commands/",
   "mcpServers": {
     "forge-tools": {
