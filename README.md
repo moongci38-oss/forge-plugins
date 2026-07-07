@@ -1,6 +1,6 @@
 # forge-plugins
 
-Forge Claude Code Plugin Marketplace — 9개 플러그인 패키지.
+Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + forge-game).
 
 > **레포**: `github.com/moongci38-oss/forge-plugins` (public)
 
@@ -10,13 +10,13 @@ Forge Claude Code Plugin Marketplace — 9개 플러그인 패키지.
 
 | 역할 | 설치 플러그인 |
 |------|------------|
-| 백엔드/풀스택 개발자 | forge-core + forge-dev + forge-brain |
-| 기획자 / PM | forge-core + forge-plan + forge-brain |
-| 리서처 | forge-core + forge-research + forge-brain |
-| 디자이너 | forge-core + forge-design + forge-brain |
-| 게임 개발자 | forge-core + forge-design + forge-game + forge-brain |
-| 시스템 감사자 | forge-core + forge-audit + forge-harness |
-| 전체 설치 | 위 9개 모두 |
+| 백엔드/풀스택 개발자 | forge-core + forge-build |
+| 기획자 / PM | forge-core + forge-build + forge-knowledge |
+| 리서처 | forge-core + forge-knowledge |
+| 디자이너 | forge-core + forge-design |
+| 게임 개발자 | forge-core + forge-design + forge-game |
+| 시스템 감사자 | forge-core (감사·하네스 내장) |
+| 전체 설치 | forge-core + forge-knowledge + forge-build + forge-design (+ forge-game) |
 
 ---
 
@@ -24,15 +24,11 @@ Forge Claude Code Plugin Marketplace — 9개 플러그인 패키지.
 
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
-| **forge-core** | v0.2.0 | 핵심 인프라 — cr-multi/approve-worker + 온보딩 훅 + **세션관리 5종** + rag-search | 없음 (기반) |
-| **forge-dev** | v0.1.4 | 개발 파이프라인 — qa/healer/investigate/api-e2e/playwright (16 skills, 10 agents) | forge-core |
-| **forge-plan** | v0.1.2 | 기획 파이프라인 — spec-write/**forge-spec**/writing-plans/requirements-clarity/autoplan | forge-core |
-| **forge-research** | v0.1.6 | 리서치 — article/yt/site-deep-analyze/weekly-research/forge-find-item (2 skills, 7 agents) | forge-core |
-| **forge-design** | v0.1.3 | 디자인·에셋 — figma-sync/image-orchestrate/multiformat-image/visual-loop | forge-core |
+| **forge-core** | v0.6.0 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep/agent-drift) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
+| **forge-build** | v0.2.0 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/requirements-clarity/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
+| **forge-knowledge** | v0.2.0 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
+| **forge-design** | v0.1.5 | 디자인·에셋 — figma-sync/image-orchestrate/visual-loop | forge-core |
 | **forge-game** | v0.1.2 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
-| **forge-brain** | v0.1.0 | 지식·메모리 레이어 — learn/wiki-sync/memory-manage + ADR-174 pgvector 연동 | forge-core |
-| **forge-harness** | v0.1.0 | 하네스 도구 — harness-legacy-scan/harness-diet/external-harness-sweep/agent-drift-auditor | forge-core |
-| **forge-audit** | v0.1.0 | AI 감사 시스템 — system-audit(ACHCE 6축) + 단위 감사 5종 + migration-audit | forge-core |
 
 ---
 
@@ -48,15 +44,11 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 
 ```bash
 claude plugin install forge-core          # 필수 (모든 역할)
-claude plugin install forge-brain         # 지식·메모리 (권장 — 모든 역할)
+claude plugin install forge-knowledge     # 지식·리서치 (권장 — 모든 역할)
 
-claude plugin install forge-dev           # 개발자
-claude plugin install forge-plan          # 기획자/PM
-claude plugin install forge-research      # 리서처
+claude plugin install forge-build         # 개발자/기획자 (구현+기획 파이프라인)
 claude plugin install forge-design        # 디자이너
 claude plugin install forge-game          # 게임 개발자 (forge-design도 함께)
-claude plugin install forge-audit         # 시스템 감사
-claude plugin install forge-harness       # 하네스 관리
 ```
 
 ### Step 3 — Claude Code 재시작
@@ -107,8 +99,8 @@ Claude Code 세션 시작 시 `forge-core`의 SessionStart 훅이 자동 실행:
 ```bash
 # 1. 업데이트 실행
 claude plugin update forge-core
-claude plugin update forge-brain        # 설치한 것만
-claude plugin update forge-dev
+claude plugin update forge-knowledge    # 설치한 것만
+claude plugin update forge-build
 
 # 2. Claude Code 재시작
 ```
@@ -170,7 +162,7 @@ npm install -g @openai/codex
 
 MCP 등록 후 재시작해야 적용됩니다.
 
-> MCP 없이도 forge-core 나머지 스킬과 forge-dev/plan/research/design/game 정상 동작.
+> MCP 없이도 forge-core 나머지 스킬과 forge-build/forge-knowledge/forge-design/forge-game 정상 동작.
 
 ---
 
@@ -184,7 +176,7 @@ export OPENAI_API_KEY="sk-..."       # Codex MCP (cr-triple 2차 검수)
 export GEMINI_API_KEY="AIza..."      # Gemini MCP (vision 분석)
 ```
 
-> MCP 없이도 forge-core/forge-dev 기본 스킬 정상 동작.
+> MCP 없이도 forge-core/forge-build 기본 스킬 정상 동작.
 
 ---
 
@@ -204,8 +196,8 @@ git clone https://github.com/moongci38-oss/forge-plugins.git ~/forge-plugins-rep
 {
   "plugins": [
     { "path": "~/forge-plugins-repo/forge-core" },
-    { "path": "~/forge-plugins-repo/forge-brain" },
-    { "path": "~/forge-plugins-repo/forge-dev" }
+    { "path": "~/forge-plugins-repo/forge-knowledge" },
+    { "path": "~/forge-plugins-repo/forge-build" }
   ]
 }
 ```
@@ -237,7 +229,7 @@ cd ~/forge-plugins-repo && git pull
 | `/cr-final` | `/cr-final <PR번호>` | PR 머지 직전 최종 검수 (blocking) |
 | `/approve-worker` | `/approve-worker` | forge 승인 워커 실행 |
 
-### forge-core — 세션관리 (v0.2.0 신규)
+### forge-core — 세션관리
 
 | 커맨드 | 사용법 | 설명 |
 |--------|--------|------|
@@ -249,7 +241,30 @@ cd ~/forge-plugins-repo && git pull
 
 > **세션 흐름**: Opus(전략) → `/end-opus` → Sonnet 세션에서 `/start-sonnet` → 구현 → `/end-sonnet` → 다음 세션
 
-### forge-dev (개발자)
+### forge-core — 하네스 관리 (v0.6.0 흡수)
+
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
+| `/harness-legacy-scan` | `/harness-legacy-scan <경로>` | 레거시 하네스 패턴 탐지 |
+| `/harness-diet` | `/harness-diet <경로>` | 불필요한 하네스 코드 정리 |
+| `/external-harness-sweep` | `/external-harness-sweep <레포>` | 외부 하네스 레포 1:1 sweep (gstack/gsd/superpowers/gbrain) |
+| `/agent-drift-auditor` | `/agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 |
+
+### forge-core — AI 감사 시스템 (v0.6.0 흡수)
+
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
+| `/system-audit` | `/system-audit` | Forge 전체 시스템 ACHCE 6축 감사 |
+| `/audit-agentic` | `/audit-agentic <경로>` | 에이전틱 AI 역량 감사 (자율성·도구·MAS·성숙도) |
+| `/audit-context` | `/audit-context <경로>` | 컨텍스트 엔지니어링 감사 (RAG·메모리·윈도우·지식 아키텍처) |
+| `/audit-cost` | `/audit-cost <경로>` | AI 비용 효율 감사 (토큰 경제·라우팅·캐싱·추론 최적화) |
+| `/audit-harness` | `/audit-harness <경로>` | AI 하네스 엔지니어링 감사 (평가·가드레일·옵저버빌리티) |
+| `/audit-human-ai` | `/audit-human-ai <경로>` | Human-AI 경계 설계 감사 (자율성 레벨·에스컬레이션·게이트) |
+| `/migration-audit` | `/migration-audit <경로>` | DB 마이그레이션 감사 |
+
+`system-audit`이 스폰하는 6축 감사 에이전트(`advisor-strategist` + `axis-agentic`/`axis-context`/`axis-cost`/`axis-harness`/`axis-human-ai`)도 forge-core에 번들되어 있습니다.
+
+### forge-build (개발자)
 
 | 스킬 | 사용법 | 설명 |
 |------|--------|------|
@@ -267,7 +282,6 @@ cd ~/forge-plugins-repo && git pull
 | `/spec-compliance-checker` | `/spec-compliance-checker` | Spec 준수 여부 검증 |
 | `/inspection-checklist` | `/inspection-checklist` | 코드 인스펙션 체크리스트 |
 | `/screenshot-analyze` | `/screenshot-analyze <이미지>` | 스크린샷 UI 분석 |
-| `/visual-loop` | `/visual-loop` | 시각적 반복 검증 |
 | `/codex-review` | `/codex-review <파일>` | Codex 단독 코드 리뷰 |
 | `/forge-pge` | `/forge-pge <목표>` | Plan-Generate-Execute — 복잡한 구현 자동화 |
 | `/forge-fix` | `/forge-fix <이슈설명>` | Hotfix 흐름으로 빠른 버그 처리 |
@@ -276,9 +290,9 @@ cd ~/forge-plugins-repo && git pull
 | `/forge-check-traceability` | `/forge-check-traceability` | 추적성 체크 (Spec → 코드 → 테스트 연결 검증) |
 | `/forge-check-ui` | `/forge-check-ui` | UI 품질 체크 (Lighthouse/a11y 기준) |
 
-> **참고**: `/agent-drift-auditor`는 `forge-harness`에, `/migration-audit`는 `forge-audit`에 있습니다.
+> **참고**: `/agent-drift-auditor`·`/migration-audit`는 `forge-core`(하네스/감사 흡수)에 있습니다.
 
-### forge-plan (기획자/PM)
+### forge-build — 기획 (PM/기획자, v0.2.0 흡수)
 
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
@@ -290,7 +304,7 @@ cd ~/forge-plugins-repo && git pull
 | `/requirements-clarity` | `/requirements-clarity` | 요구사항 명확화 |
 | `/autoplan` | `/autoplan <목표>` | 자동 플랜 생성 |
 
-### forge-research (리서처)
+### forge-knowledge (리서처)
 
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
@@ -300,14 +314,7 @@ cd ~/forge-plugins-repo && git pull
 | `/weekly-research` | `/weekly-research <주제>` | 주간 심층 리서치 파이프라인 |
 | `/forge-find-item` | `/forge-find-item <아이템>` | 특정 항목 탐색 |
 
-### forge-design (디자이너)
-
-| 스킬 | 사용법 | 설명 |
-|------|--------|------|
-| `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 |
-| `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
-
-### forge-brain (지식·메모리 레이어)
+### forge-knowledge — 지식·메모리 (구 forge-brain)
 
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
@@ -315,28 +322,14 @@ cd ~/forge-plugins-repo && git pull
 | `/wiki-sync` | `/wiki-sync` | Obsidian vault ↔ forge-outputs 양방향 동기화 |
 | `/memory-manage` | `/memory-manage` | MEMORY.md 항목 추가·수정·삭제·GC |
 
-> **참고**: RAG 검색(`/rag-search`)은 `forge-core`에 있습니다. `FORGE_DB_URL` 설정 시 ADR-174 pgvector unified_search 자동 연동.
+> **참고**: RAG 검색(`/rag-search`)은 `forge-core`에 있습니다. `forge-knowledge`는 `forge-tools` MCP로 ADR-174 pgvector `unified_search`를 함께 제공합니다. `FORGE_DB_URL` 설정 시 자동 연동.
 
-### forge-harness (하네스 관리)
+### forge-design (디자이너)
 
-| 스킬/커맨드 | 사용법 | 설명 |
-|------------|--------|------|
-| `/harness-legacy-scan` | `/harness-legacy-scan <경로>` | 레거시 하네스 패턴 탐지 |
-| `/harness-diet` | `/harness-diet <경로>` | 불필요한 하네스 코드 정리 |
-| `/external-harness-sweep` | `/external-harness-sweep <레포>` | 외부 하네스 레포 1:1 sweep (gstack/gsd/superpowers/gbrain) |
-| `/agent-drift-auditor` | `/agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 |
-
-### forge-audit (AI 감사 시스템)
-
-| 스킬/커맨드 | 사용법 | 설명 |
-|------------|--------|------|
-| `/system-audit` | `/system-audit` | Forge 전체 시스템 ACHCE 6축 감사 |
-| `/audit-agentic` | `/audit-agentic <경로>` | 에이전틱 AI 역량 감사 (자율성·도구·MAS·성숙도) |
-| `/audit-context` | `/audit-context <경로>` | 컨텍스트 엔지니어링 감사 (RAG·메모리·윈도우·지식 아키텍처) |
-| `/audit-cost` | `/audit-cost <경로>` | AI 비용 효율 감사 (토큰 경제·라우팅·캐싱·추론 최적화) |
-| `/audit-harness` | `/audit-harness <경로>` | AI 하네스 엔지니어링 감사 (평가·가드레일·옵저버빌리티) |
-| `/audit-human-ai` | `/audit-human-ai <경로>` | Human-AI 경계 설계 감사 (자율성 레벨·에스컬레이션·게이트) |
-| `/migration-audit` | `/migration-audit <경로>` | DB 마이그레이션 감사 |
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 |
+| `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
 
 ### forge-game (게임 개발자)
 
@@ -412,22 +405,19 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 
 ```
 forge-plugins-repo/
-├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스
-├── forge-core/
-│   ├── .claude-plugin/plugin.json     — 플러그인 매니페스트 (v0.2.0)
-│   ├── skills/
+├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
+├── forge-core/                        — (v0.6.0) 기반 + 하네스 정리 + AI 감사 흡수
+│   ├── .claude-plugin/plugin.json
+│   ├── skills/                        — 20개
 │   │   ├── approve-worker/            — forge 승인 워커
 │   │   ├── cr-multi/                  — 멀티 검수 오케스트레이터
-│   │   ├── start-sonnet/              — Sonnet 구현 세션 시작
-│   │   ├── end-sonnet/                — Sonnet 세션 종료
-│   │   ├── checkpoint/                — Mid-session 체크포인트
-│   │   ├── start-opus/                — Opus 전략 세션 시작
-│   │   └── end-opus/                  — Opus 세션 종료
-│   ├── commands/
-│   │   ├── start-sonnet.md
-│   │   ├── end-sonnet.md
-│   │   ├── start-opus.md
-│   │   └── end-opus.md
+│   │   ├── start-sonnet/ end-sonnet/ start-opus/ end-opus/ checkpoint/  — 세션관리 5종
+│   │   ├── rag-search/                — 하이브리드 RAG 검색
+│   │   ├── forge-loop-maker/          — Generic refinement loop
+│   │   ├── harness-legacy-scan/ harness-diet/ external-harness-sweep/ agent-drift-auditor/  — 하네스 정리 4종
+│   │   └── system-audit/ audit-agentic/ audit-context/ audit-cost/ audit-harness/ audit-human-ai/ migration-audit/  — 감사 7종
+│   ├── agents/                        — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
+│   ├── commands/                      — 25개 슬래시 커맨드
 │   ├── hooks/
 │   │   ├── forge-onboard.sh           — SessionStart 자동 실행
 │   │   └── handover-manager.sh        — 핸드오버 원자적 쓰기 (flock)
@@ -435,61 +425,35 @@ forge-plugins-repo/
 │       ├── forge-core.md              — forge 전역 규칙
 │       ├── behavior-core.md           — 자율실행·외과적변경·존댓말 등
 │       └── tool-rules.md              — 도구 사용 정책
-├── forge-dev/
-│   ├── .claude-plugin/plugin.json     — (v0.1.4)
-│   ├── skills/                        — 21개 (qa/healer/investigate/api-e2e 등)
-│   └── agents/                        — 10개 (code-reviewer/performance-checker 등)
-├── forge-plan/
-│   ├── skills/                        — spec-write/writing-plans/requirements-clarity/autoplan
-│   ├── commands/                      — forge-plan/forge-pr/forge-spec/sdd
-│   └── agents/                        — spec-writer/technical-writer
-├── forge-research/
-│   ├── skills/                        — yt/site-deep-analyze
-│   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item
-│   └── agents/                        — 6개 (yt-video-analyst/fact-checker/article-analyst 등)
-├── forge-design/
-│   ├── skills/                        — figma-design-sync/image-orchestrate
-│   └── agents/                        — 2개 (screenshot-business-analyzer 등)
-├── forge-game/
-│   ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
-│   └── agents/                        — gdd-writer
-├── forge-brain/                       — (v0.1.0)
+├── forge-build/                       — (v0.2.0) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/
-│   │   ├── learn/                     — learnings.jsonl 기록
-│   │   ├── wiki-sync/                 — Obsidian 동기화
-│   │   └── memory-manage/             — MEMORY.md 관리
-│   └── commands/
-│       ├── learn.md
-│       └── wiki-sync.md
-├── forge-harness/                     — (v0.1.0)
+│   ├── skills/                        — 19개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/requirements-clarity/autoplan 등)
+│   ├── commands/                      — 21개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
+│   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
+├── forge-knowledge/                   — (v0.2.0) 구 forge-brain 개명 + forge-research 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/
-│   │   ├── harness-legacy-scan/       — 레거시 하네스 패턴 탐지
-│   │   ├── harness-diet/              — 불필요 하네스 정리
-│   │   ├── external-harness-sweep/    — 외부 하네스 레포 1:1 sweep
-│   │   └── agent-drift-auditor/       — 에이전트 드리프트 감사
-│   └── commands/
-│       ├── harness-legacy-scan.md
-│       ├── harness-diet.md
-│       └── external-harness-sweep.md
-└── forge-audit/                       — (v0.1.0)
-    ├── .claude-plugin/plugin.json
-    ├── skills/
-    │   ├── system-audit/              — ACHCE 6축 전체 감사
-    │   ├── audit-agentic/             — 에이전틱 AI 역량
-    │   ├── audit-context/             — 컨텍스트 엔지니어링
-    │   ├── audit-cost/                — AI 비용 효율
-    │   ├── audit-harness/             — 하네스 엔지니어링
-    │   ├── audit-human-ai/            — Human-AI 경계
-    │   └── migration-audit/           — DB 마이그레이션
-    └── commands/
-        └── migration-audit.md
+│   ├── skills/                        — learn/memory-manage/wiki-sync/site-deep-analyze/yt
+│   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item/learn/memory-manage/wiki-sync
+│   ├── agents/                        — 7개 (academic-researcher/article-analyst/fact-checker/weekly-research-analyst/yt-cross-analyst/yt-research-followup/yt-video-analyst)
+│   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
+├── forge-design/                      — (v0.1.5)
+│   ├── skills/                        — figma-design-sync/image-orchestrate/visual-loop
+│   └── agents/                        — doc-writer/gemini
+└── forge-game/                        — (v0.1.2)
+    ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
+    └── agents/                        — gdd-writer
 ```
 
 ---
 
 ## Changelog
+
+### v0.3.0 (2026-07-07) — 플러그인 통합 9→5
+- **forge-core v0.6.0**: 구 `forge-harness`(harness-legacy-scan/diet/external-sweep/agent-drift-auditor) + 구 `forge-audit`(system-audit/audit-agentic/context/cost/harness/human-ai/migration-audit) 흡수. axis-* 에이전트 6종(advisor-strategist 포함) 번들.
+- **forge-build v0.2.0** 신규 (구 `forge-dev` 개명 + 구 `forge-plan` 흡수): 기획(spec-write/writing-plans/requirements-clarity/autoplan) + 구현·검증 파이프라인 통합. axis-* 에이전트는 forge-core로 이동, cto-advisor/spec-writer-base 신규 편입.
+- **forge-knowledge v0.2.0** 신규 (구 `forge-brain` 개명 + 구 `forge-research` 흡수): brain(learn/memory-manage/wiki-sync) + research(article/yt/site-deep-analyze/weekly-research/forge-find-item) 통합. forge-tools MCP(ADR-174 unified_search) 유지.
+- **forge-design v0.1.5**, **forge-game v0.1.2**: 통합 대상 제외, 현행 유지.
+- 구 플러그인명(`forge-dev`/`forge-plan`/`forge-brain`/`forge-harness`/`forge-audit`/`forge-research`)은 더 이상 설치 대상이 아님 — 각 커맨드 슬래시(`/forge-plan` 등)는 새 플러그인 하위에서 그대로 유효.
 
 ### v0.2.1 (2026-07-04)
 - **forge-research v0.1.6**: DEPRECATED orphan 스킬 `yt-analyze` 제거 (`/yt`·`daily-analyze`/`weekly-analyze`로 완전 대체, SSoT 없음)

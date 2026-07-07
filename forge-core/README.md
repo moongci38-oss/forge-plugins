@@ -2,13 +2,15 @@
 
 > Forge 시스템의 핵심 인프라 — 모든 forge 플러그인의 공통 기반
 
-**버전**: v0.2.0 | **의존성**: 없음 (기반 플러그인) | **레포**: `moongci38-oss/forge-plugins`
+**버전**: v0.6.0 | **의존성**: 없음 (기반 플러그인) | **레포**: `moongci38-oss/forge-plugins`
 
 ---
 
 ## 개요
 
-`forge-core`는 forge 플러그인 패키지의 **필수 기반 플러그인**입니다. 다른 모든 forge 플러그인(`forge-dev`, `forge-plan`, `forge-research` 등)은 forge-core에 의존합니다.
+`forge-core`는 forge 플러그인 패키지의 **필수 기반 플러그인**입니다. 다른 모든 forge 플러그인(`forge-knowledge`, `forge-build`, `forge-design` 등)은 forge-core에 의존합니다.
+
+v0.6.0에서 구 `forge-harness`(하네스 정리 4종)와 구 `forge-audit`(system-audit ACHCE 6축 + 단위 감사 5종 + migration-audit)를 흡수해, 시스템 감사·하네스 관리까지 기반 플러그인 하나로 제공합니다.
 
 단독으로도 다음을 제공합니다:
 
@@ -16,6 +18,8 @@
 - **세션 관리** — Opus/Sonnet 세션 시작·종료·체크포인트 (5종)
 - **지식 검색** — forge-outputs 벡터+BM25 하이브리드 RAG
 - **멀티에이전트 승인 게이트** — HMAC 기반 MAS worker 승인
+- **하네스 정리** — 레거시 패턴 탐지·다이어트·외부 하네스 sweep·에이전트 드리프트 감사
+- **AI 시스템 감사** — system-audit(ACHCE 6축) + 단위 감사 5종(agentic/context/cost/harness/human-ai) + migration-audit
 - **자동 온보딩** — SessionStart 훅으로 rules·디렉토리 자동 설치
 
 ---
@@ -63,10 +67,21 @@ claude plugin install forge-core
 | `cr-multi` | Multi-LLM 병렬 코드 검수 오케스트레이터 | `/cr-multi`, `/cr-double`, `/cr-triple` |
 | `end-opus` | Opus 전략 세션 종료 + handover 작성 | `/end-opus` |
 | `end-sonnet` | Sonnet 구현 세션 종료 + handover 작성 | `/end-sonnet` |
-| `forge-loop` | Generic goal-feedback refinement loop | 반복 개선 태스크 |
+| `forge-loop-maker` | Generic goal-feedback refinement loop scaffold | 반복 개선 태스크 |
 | `rag-search` | forge-outputs 벡터+BM25 하이브리드 의미 검색 | `/rag-search` |
 | `start-opus` | Opus 전략 세션 시작 + 컨텍스트 로드 | `/start-opus` |
 | `start-sonnet` | Sonnet 구현 세션 시작 + 컨텍스트 로드 | `/start-sonnet` |
+| `harness-legacy-scan` | 레거시 하네스 패턴·중복·과대 전역컨텍스트 읽기전용 감사 | `/harness-legacy-scan` |
+| `harness-diet` | harness-legacy-scan low-risk 항목 정리 적용 | `/harness-diet` |
+| `external-harness-sweep` | 외부 하네스 레포(gstack/gsd/superpowers/gbrain) 1:1 sweep | `/external-harness-sweep` |
+| `agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 | `/agent-drift-auditor` |
+| `system-audit` | Forge 전체 시스템 ACHCE 6축 통합 감사 | `/system-audit` |
+| `audit-agentic` | 에이전틱 AI 역량 감사 (자율성·도구·MAS) | `/audit-agentic` |
+| `audit-context` | 컨텍스트 엔지니어링 역량 감사 (RAG·메모리) | `/audit-context` |
+| `audit-cost` | AI 비용 효율 감사 (모델 라우팅·캐싱) | `/audit-cost` |
+| `audit-harness` | AI 하네스 엔지니어링 감사 (Check Chain·가드레일) | `/audit-harness` |
+| `audit-human-ai` | Human-AI 경계 설계 감사 (자율성 레벨·게이트) | `/audit-human-ai` |
+| `migration-audit` | 레거시→신규 스택 마이그레이션 검수 하네스 | `/migration-audit` |
 
 ### approve-worker
 
@@ -132,7 +147,7 @@ forge-outputs 문서에서 키워드가 아닌 **의미(semantic)** 기반으로
 
 `FORGE_DB_URL` 설정 시 ADR-174 pgvector unified_search (e5-small 384d) 자동 연동. 미설정 시 로컬 FAISS 폴백.
 
-### forge-loop
+### forge-loop-maker
 
 QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 worker-evaluator 분리로 iterative 개선을 수행합니다.
 
@@ -140,6 +155,44 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 - 문서 정제 (목표 rubric까지 반복 개선)
 - 리서치 수렴 (다각도 탐색 → 합의)
 - 프롬프트 튜닝 (평가자 격리로 self-grade 방지)
+
+### 하네스 정리 4종 (v0.6.0 흡수, 구 forge-harness)
+
+| 스킬 | 설명 |
+|------|------|
+| `harness-legacy-scan` | 낡은 룰·중복·과대 전역컨텍스트·넓은 Skill·불필요 Hook/MCP를 읽기전용으로 분류 |
+| `harness-diet` | harness-legacy-scan low-risk 항목만 적용(CLAUDE.md 축소·절차→Skill 이동·삭제후보 archive) |
+| `external-harness-sweep` | 외부 하네스/스킬 레포(gstack/gsd/superpowers/gbrain)를 Forge와 1:1 대조해 adoption matrix 생성 |
+| `agent-drift-auditor` | 에이전트/스킬의 의도 vs 실제 실행 괴리를 감지 |
+
+### AI 감사 시스템 7종 (v0.6.0 흡수, 구 forge-audit)
+
+| 스킬 | 설명 |
+|------|------|
+| `system-audit` | ACHCE(Agentic/Context/Harness/Cost/Human-AI) 5개 축 + Redundancy 병렬 감사, 3-LLM adversarial 검증 |
+| `audit-agentic` | 에이전틱 AI 역량 감사 — 자율성·도구 사용·멀티에이전트 조정 |
+| `audit-context` | 컨텍스트 엔지니어링 역량 감사 — 7-layer 체크리스트·RAG 성숙도·메모리 시스템 |
+| `audit-cost` | AI 비용 효율 감사 — 모델 라우팅·프롬프트 캐싱·배치 처리·토큰 예산 |
+| `audit-harness` | AI 하네스 엔지니어링 감사 — Check Chain·OWASP Agentic Top 10·가드레일·Hook 커버리지 |
+| `audit-human-ai` | Human-AI 경계 설계 감사 — 5-Level Autonomy·에스컬레이션 트리거·게이트 설계 |
+| `migration-audit` | 레거시→신규 스택 마이그레이션 검수 — legacy=SSoT 원칙, audit→fix→re-audit 자율 반복 |
+
+---
+
+## 에이전트 목록
+
+`forge-core` 설치 시 다음 전문 에이전트들이 번들됩니다.
+
+| 에이전트 | 역할 |
+|---------|------|
+| `advisor-strategist` | Opus 기반 전용 조언자 — 실행자 판단 지점에서 400~700 토큰 핵심 전략 조언 |
+| `axis-agentic` | 에이전틱 AI 역량 감사 (자율성·도구 사용·MAS 조정) — CLEAR/Sema4.ai 프레임워크 |
+| `axis-context` | 컨텍스트 엔지니어링 감사 (RAG·메모리·컨텍스트 윈도우) — 7-Layer/RAGAS/ACE-FCA |
+| `axis-cost` | AI 비용 효율 감사 (토큰 경제·모델 라우팅·캐싱) — RouteLLM/CEBench/Epoch AI |
+| `axis-harness` | AI 하네스 엔지니어링 감사 (평가 체계·가드레일·옵저버빌리티) — CLEAR/OTel/OWASP |
+| `axis-human-ai` | Human-AI 경계 설계 감사 (자율성 레벨·에스컬레이션·게이트) — 5-Level Autonomy/TCMM |
+
+> `system-audit`은 위 axis-* 5종 + `advisor-strategist`를 병렬 스폰해 종합 리포트를 생성합니다.
 
 ---
 
@@ -190,6 +243,22 @@ Opus 전략 세션
   → (토큰 70%+) /checkpoint → /compact → /forge-resume
   → /end-sonnet (handover + learnings 저장)
 ```
+
+### 하네스 관리 커맨드 (v0.6.0 흡수)
+
+| 커맨드 | 설명 |
+|--------|------|
+| `/harness-legacy-scan` | Forge 하네스 읽기전용 레거시 감사 |
+| `/harness-diet` | low-risk 항목만 정리 적용 |
+| `/external-harness-sweep` | 외부 하네스 레포 1:1 source sweep |
+
+### AI 감사 커맨드 (v0.6.0 흡수)
+
+| 커맨드 | 설명 |
+|--------|------|
+| `/migration-audit` | 레거시→신규 스택 마이그레이션 감사 |
+
+> `/system-audit`, `/audit-agentic`, `/audit-context`, `/audit-cost`, `/audit-harness`, `/audit-human-ai`, `/agent-drift-auditor`는 스킬 트리거로 호출됩니다(전용 커맨드 없음, `/system-audit` 등 스킬명으로 자동 인식).
 
 ### 기타 커맨드
 
@@ -288,18 +357,30 @@ claude plugin install forge-core
 ```
 forge-core/
 ├── .claude-plugin/
-│   └── plugin.json          — 플러그인 매니페스트
-├── skills/
+│   └── plugin.json          — 플러그인 매니페스트 (v0.6.0)
+├── skills/                  — 20개
 │   ├── approve-worker/      — MAS P0 승인 게이트
 │   ├── checkpoint/          — Mid-session 체크포인트
 │   ├── cr-multi/            — Multi-LLM 검수 오케스트레이터
 │   ├── end-opus/            — Opus 세션 종료
 │   ├── end-sonnet/          — Sonnet 세션 종료
-│   ├── forge-loop/          — Generic refinement loop
+│   ├── forge-loop-maker/    — Generic refinement loop scaffold
 │   ├── rag-search/          — 하이브리드 RAG 검색
 │   ├── start-opus/          — Opus 세션 시작
-│   └── start-sonnet/        — Sonnet 세션 시작
-├── commands/                — 21개 슬래시 커맨드
+│   ├── start-sonnet/        — Sonnet 세션 시작
+│   ├── harness-legacy-scan/ — 레거시 하네스 감사 (구 forge-harness)
+│   ├── harness-diet/        — low-risk 하네스 정리 적용
+│   ├── external-harness-sweep/ — 외부 하네스 레포 1:1 sweep
+│   ├── agent-drift-auditor/ — 에이전트 드리프트 감사
+│   ├── system-audit/        — ACHCE 6축 통합 감사 (구 forge-audit)
+│   ├── audit-agentic/       — 에이전틱 AI 역량 감사
+│   ├── audit-context/       — 컨텍스트 엔지니어링 감사
+│   ├── audit-cost/          — AI 비용 효율 감사
+│   ├── audit-harness/       — AI 하네스 엔지니어링 감사
+│   ├── audit-human-ai/      — Human-AI 경계 설계 감사
+│   └── migration-audit/     — 마이그레이션 검수 하네스
+├── agents/                  — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
+├── commands/                — 25개 슬래시 커맨드
 ├── hooks/
 │   ├── forge-onboard.sh     — SessionStart 자동 온보딩
 │   └── handover-manager.sh  — 핸드오버 원자적 쓰기 (flock)
@@ -312,6 +393,11 @@ forge-core/
 ---
 
 ## Changelog
+
+### v0.6.0 (2026-07-07)
+- 구 `forge-harness`(harness-legacy-scan/diet/external-sweep/agent-drift-auditor) 흡수
+- 구 `forge-audit`(system-audit ACHCE 6축 + 단위 감사 5종 + migration-audit) 흡수
+- `advisor-strategist` + `axis-agentic`/`axis-context`/`axis-cost`/`axis-harness`/`axis-human-ai` 에이전트 6종 번들 추가
 
 ### v0.2.0 (2026-06-23)
 - 세션 관리 5종 추가: start/end-sonnet, start/end-opus, checkpoint
