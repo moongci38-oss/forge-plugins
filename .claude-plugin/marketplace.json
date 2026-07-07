@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "forge-plugins",
-  "description": "Forge AI development system \u2014 9-plugin package for Claude Code (core/dev/plan/research/design/game/brain/harness/audit)",
+  "description": "Forge AI development system — consolidated 4-plugin package (core/knowledge/build/design) + forge-game (Unity, 별도).",
   "owner": {
     "name": "moongci38",
     "url": "https://github.com/moongci38-oss"
@@ -9,57 +9,33 @@
   "plugins": [
     {
       "name": "forge-core",
-      "description": "Forge \uc2dc\uc2a4\ud15c \ud575\uc2ec \u2014 cr-multi/approve-worker + \uc628\ubcf4\ub529 \ud6c5 + \uaddc\uce59 3\uc885. 6-plugin \uacf5\ud1b5 \uae30\ubc18.",
+      "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(legacy-scan/diet/sweep/drift) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
       "source": "./forge-core",
       "category": "productivity"
     },
     {
-      "name": "forge-dev",
-      "description": "Forge \uac1c\ubc1c \ud30c\uc774\ud504\ub77c\uc778 \u2014 qa/healer/investigate/api-e2e/playwright/forge-fix (16 skills, 10 agents).",
-      "source": "./forge-dev",
+      "name": "forge-knowledge",
+      "description": "Forge 지식·리서치 — learn/memory-manage/wiki-sync/rag-search + article/yt/site-deep-analyze. forge-tools MCP(ADR-174 unified_search).",
+      "source": "./forge-knowledge",
+      "category": "productivity"
+    },
+    {
+      "name": "forge-build",
+      "description": "Forge 제품 생성 파이프라인 — 기획(spec-write/writing-plans/requirements-clarity/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI). SDD 본류.",
+      "source": "./forge-build",
       "category": "development"
     },
     {
-      "name": "forge-plan",
-      "description": "Forge \uae30\ud68d \ud30c\uc774\ud504\ub77c\uc778 \u2014 spec-write/writing-plans/requirements-clarity/autoplan.",
-      "source": "./forge-plan",
-      "category": "productivity"
-    },
-    {
-      "name": "forge-research",
-      "description": "Forge \ub9ac\uc11c\uce58 \ub3c4\uad6c \u2014 article/yt/rag-search/site-deep-analyze.",
-      "source": "./forge-research",
-      "category": "productivity"
-    },
-    {
       "name": "forge-design",
-      "description": "Forge \ub514\uc790\uc778 \ub3c4\uad6c \u2014 figma-sync/image-orchestrate/visual-loop.",
+      "description": "Forge 디자인 도구 — figma-sync/image-orchestrate/visual-loop.",
       "source": "./forge-design",
       "category": "design"
     },
     {
       "name": "forge-game",
-      "description": "Forge \uac8c\uc784\ud329 \u2014 gdd/game-qa/game-asset-pipeline/asset-extract (Unity \uc804\uc6a9).",
+      "description": "Forge 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용). 통합 미포함·별도 유지.",
       "source": "./forge-game",
       "category": "development"
-    },
-    {
-      "name": "forge-brain",
-      "description": "Forge \uc9c0\uc2dd\u00b7\uba54\ubaa8\ub9ac \ub808\uc774\uc5b4 \u2014 learn/wiki-sync/memory-manage + forge-tools MCP (ADR-174 unified_search).",
-      "source": "./forge-brain",
-      "category": "productivity"
-    },
-    {
-      "name": "forge-harness",
-      "description": "Forge \ud558\ub124\uc2a4 \ub3c4\uad6c \u2014 harness-legacy-scan/harness-diet/external-harness-sweep/agent-drift-auditor. \uc2dc\uc2a4\ud15c \uc815\ud569\uc131\u00b7\ub808\uac70\uc2dc \uc815\ub9ac.",
-      "source": "./forge-harness",
-      "category": "development"
-    },
-    {
-      "name": "forge-audit",
-      "description": "Forge \uac10\uc0ac \uc2dc\uc2a4\ud15c \u2014 system-audit(6\ucd95) + audit-agentic/context/harness/cost/human-ai + migration-audit. ACHCE 5\ucd95 \ud3c9\uac00.",
-      "source": "./forge-audit",
-      "category": "productivity"
     }
   ]
 }

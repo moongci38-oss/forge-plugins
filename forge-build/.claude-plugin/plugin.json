@@ -1,0 +1,22 @@
+{
+  "name": "forge-build",
+  "version": "0.2.0",
+  "description": "Forge 제품 생성 파이프라인 — 기획(spec-write/writing-plans/requirements-clarity/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수). SDD 본류.",
+  "author": {
+    "name": "forge"
+  },
+  "dependencies": [
+    "forge-core"
+  ],
+  "skills": "./skills/",
+  "agents": [
+    "./agents/canary-judge.md",
+    "./agents/code-reviewer.md",
+    "./agents/cto-advisor.md",
+    "./agents/healer.md",
+    "./agents/performance-checker.md",
+    "./agents/spec-writer-base.md",
+    "./agents/ui-quality-checker.md"
+  ],
+  "commands": "./commands/"
+}

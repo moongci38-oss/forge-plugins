@@ -1,12 +1,19 @@
 {
   "name": "forge-core",
-  "version": "0.5.2",
-  "description": "Forge 시스템 핵심 스킬 + MCP 서버 + 온보딩 훅 + 세션관리 + rag-search + 루프 자동화(forge-loop-maker) + advisor-strategist 조언 에이전트. 7-plugin 패키지의 공통 기반.",
+  "version": "0.6.0",
+  "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(harness-legacy-scan/diet/external-sweep/agent-drift) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
   "author": {
     "name": "forge"
   },
   "skills": "./skills/",
-  "agents": ["./agents/advisor-strategist.md"],
+  "agents": [
+    "./agents/advisor-strategist.md",
+    "./agents/axis-agentic.md",
+    "./agents/axis-context.md",
+    "./agents/axis-cost.md",
+    "./agents/axis-harness.md",
+    "./agents/axis-human-ai.md"
+  ],
   "commands": "./commands/",
   "hooks": {
     "SessionStart": [
