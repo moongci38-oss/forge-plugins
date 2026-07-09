@@ -60,7 +60,7 @@ node $HOME/.claude/scripts/forge-sync.mjs sync --target my-project --include-rec
 
 - `wsl` — `Z:{YOUR_WSL_WORKSPACE}` (Linux/WSL 프로젝트)
 - `windows` — `E:/new_workspace` (Windows 프로젝트)
-- `business` — `Z:~/forge` (비개발, shared-only)
+- `business` — `${FORGE_ROOT:-$HOME/forge}` (비개발, shared-only)
 
 ## 동작 규칙
 

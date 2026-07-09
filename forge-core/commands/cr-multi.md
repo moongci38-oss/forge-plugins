@@ -25,7 +25,7 @@ group: review
 ```bash
 /cr-multi ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-05-24-mas-plan-p0-adr.md --mode double
 /cr-multi ${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/forge-platform/specs/approve-worker-spec.md --mode triple --stage plan
-/cr-multi ~/forge/.claude/skills/cr-multi/workflow.js --mode triple --cr degrade   # Codex 제외
+/cr-multi ${FORGE_ROOT:-$HOME/forge}/.claude/skills/cr-multi/workflow.js --mode triple --cr degrade   # Codex 제외
 /cr-multi ./plan.md --mode triple --no-codex                                        # --cr degrade 별칭
 ```
 
@@ -62,7 +62,7 @@ grep -iE "$SECRET_PATTERN" "$TARGET_FILE" && {
 
 ```bash
 PDF_PATH="/tmp/cr-multi-$(basename $TARGET_FILE .md).pdf"
-bash ~/forge/dev/scripts/cr-multi-md-to-pdf.sh "$TARGET_FILE" "$PDF_PATH"
+bash ${FORGE_ROOT:-$HOME/forge}/dev/scripts/cr-multi-md-to-pdf.sh "$TARGET_FILE" "$PDF_PATH"
 ```
 
 ## Step 5: Worker 병렬 호출
@@ -75,7 +75,7 @@ bash ~/forge/dev/scripts/cr-multi-md-to-pdf.sh "$TARGET_FILE" "$PDF_PATH"
 Codex 호출 (`--cr on` 시에만):
 ```
 mcp__codex__codex(
-  prompt="<contents of ~/forge/.claude/prompts/cr-multi-codex.md with TARGET_FILE replaced>",
+  prompt="<contents of ${FORGE_ROOT:-$HOME/forge}/.claude/prompts/cr-multi-codex.md with TARGET_FILE replaced>",
   cwd=<dirname of target>,
   sandbox="read-only",
   approval_policy="never",
@@ -88,7 +88,7 @@ mcp__codex__codex(
 Gemini 호출 (analyze_media PDF):
 ```
 mcp__gemini__analyze_media(
-  prompt="<contents of ~/forge/.claude/prompts/cr-multi-gemini.md>",
+  prompt="<contents of ${FORGE_ROOT:-$HOME/forge}/.claude/prompts/cr-multi-gemini.md>",
   file_path="$PDF_PATH"
 )
 → parse JSON from response
@@ -102,7 +102,7 @@ mcp__gemini__analyze_media(
 Agent(
   subagent_type="advisor-strategist",
   # --fable 시에만: model="fable" 추가 (Claude 레그 Fable 5 승격, Human 수동 전용). 미지정 시 기존 동작.
-  prompt="<contents of ~/forge/.claude/prompts/cr-multi-opus.md with TARGET replaced>"
+  prompt="<contents of ${FORGE_ROOT:-$HOME/forge}/.claude/prompts/cr-multi-opus.md with TARGET replaced>"
 )
 → save result to $REVIEWS_DIR/$DATE-$SLUG-$VERSION-opus.json
 ```
@@ -110,7 +110,7 @@ Agent(
 ## Step 6: Triage + 합산 verdict
 
 ```bash
-python3 ~/forge/shared/scripts/cr-multi-triage.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py \
   --codex "$REVIEWS_DIR/$DATE-$SLUG-$VERSION-codex.json" \
   --gemini "$REVIEWS_DIR/$DATE-$SLUG-$VERSION-gemini.json" \
   [--opus "$REVIEWS_DIR/$DATE-$SLUG-$VERSION-opus.json"] \
@@ -122,7 +122,7 @@ python3 ~/forge/shared/scripts/cr-multi-triage.py \
 ## Step 7: Plateau 감지
 
 ```bash
-python3 ~/forge/shared/scripts/cr-multi-plateau-guard.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py \
   --slug "$SLUG" \
   --reviews-dir "$REVIEWS_DIR"
 EC=$?
@@ -157,5 +157,5 @@ ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/cr-multi/
 ## 참조
 
 - 모드 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
-- Triage: `~/forge/shared/scripts/cr-multi-triage.py`
-- Plateau: `~/forge/shared/scripts/cr-multi-plateau-guard.py`
+- Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
+- Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`
