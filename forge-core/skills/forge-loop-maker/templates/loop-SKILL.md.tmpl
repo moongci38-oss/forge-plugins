@@ -30,7 +30,7 @@ description: >
 | 1. Read state | `{{STATE_PATH}}` 로드 → 이전 진행 상태 복원 |
 | 2. Discover | 소스(디렉토리·API·qa-report 등) 스캔 → 처리할 항목 식별 |
 | 3. Act | 이터레이션 핵심 액션 실행 |
-| 4. Verify | verifier 실행 (binary exit code) — exit 0 = 통과, exit 1 = 중단 |
+| 4. Verify | **선행: 의존 MCP liveness pre-check** — verifier 의존 MCP 도구 1회 ping, 실패 시 G2 게이트 라우팅 + "재연결 필요" 명시(무감지 disconnect 실증 2026-07-10). 이후 verifier 실행 (binary exit code) — exit 0 = 통과, exit 1 = 중단 |
 | 5. Write state | `{{STATE_PATH}}` 갱신 (새 위치·카운터·타임스탬프) |
 | 6. Check predicate | `{{GOAL}}` 충족 시 STOP, 아니면 반복 |
 

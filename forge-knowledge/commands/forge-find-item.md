@@ -50,6 +50,23 @@ group: research
 → **1+ ❌ → [STOP] 사용자 확인 (단일 동작, v4)**:
 - 옵션 A: Kill (다른 후보)
 - 옵션 B: 후보 한 줄 재정의 → Step 1부터 재실행
+
+### Step 2.5 — YC Forcing Questions (2문항, 흡수 이관)
+
+Reject 4가 다루지 않는 두 축만 확인한다(나머지 4문항 = Reject 4·신호 #3 Moat와 중복이라 미이관).
+
+| # | Forcing Question | 미충족 시 |
+|---|-----------------|----------|
+| Q3 | **왜 지금인가** — 지금 이 문제를 풀어야 하는 트리거(규제·기술·시장 변화)가 있는가? | [STOP] |
+| Q6 | **최소 검증** — 가장 좁은 진입점(MVP wedge)은 무엇인가? 더 작게 시작할 수 없는가? | [STOP] |
+
+충족 근거는 `evidence/reject-rules.md`에 1줄씩 기록한다.
+
+> 출처: 구 `requirements-clarity` 스킬 YC 6 Forcing Questions (2026-07-10 폐기 시 이관).
+
+### 사용자 질의 규약 (Step 2·2.5·6의 모든 [STOP] 지점 공통)
+
+`${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/grilling-protocol.md` 준수 — 질문은 **한 번에 하나씩**, 각 질문에 **권고안 + 근거 1줄** 동반, 웹·문서로 확인 가능한 **사실은 묻지 말고 직접 조사**하고 사용자에게는 **결정**만 묻는다.
 - 자동 Kill X (사용자 확인 강제)
 
 산출: `evidence/reject-rules.md` — 4 행 평가 + 결정 사유

@@ -40,7 +40,7 @@ Phase 4: Blueprint → [STOP] 승인 → scaffold
 
 환경 detect-first: 기존 루프 파일/트리거/goal-loop-state.json 존재 시 "(detected)" 출력 후 해당 질문 스킵.
 
-질문은 **반드시 한 번에 하나씩**. 답변 수신 후 다음 질문.
+질문 규약 = `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/grilling-protocol.md`: 의존관계 있는 결정은 한 번에 하나씩, **상호 독립 질문은 AskUserQuestion 다중(≤4)으로 batch**, detect/derive 가능한 답은 "(detected)"로 스킵하고 잔여만 질문.
 
 | Q | 질문 | 산출물 매핑 |
 |---|------|-----------|

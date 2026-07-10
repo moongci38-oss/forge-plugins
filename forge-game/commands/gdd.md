@@ -20,6 +20,7 @@ $ARGUMENTS
    - **자산 존재 → 검증·보강 모드**: ① Import(기존 문서 SSoT 채택, 신규 화면 ID 금지) ② Verify(coverage·orphan·기능셋 1:1·조건전환 포맷) ③ Augment(normalize 자동 / derive → [STOP] 1회, `ai-inferred` 태그) ④ Output(출처 태깅). 비파괴.
    - **자산 전무 → 신규 생성 모드**: 3단계부터 진행
 3. **GDD 템플릿 로드**: `{folderMap.templates}/gdd-template.md` 참조
+   - **질의 규약 필수** (사용자 확인이 필요한 모든 지점): `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/grilling-protocol.md` — 질문은 **한 번에 하나씩**, 각 질문에 **권고안 + 근거 1줄** 동반, 확인 가능한 **사실은 묻지 말고 직접 조사**.
 4. **시장 검증**: 유사 게임/경쟁작 조사 (출처 URL, 날짜 포함)
 4.5. **(Phase 2 skip 시) 5요소 체크리스트 작성**: `gate-log.md`에 페르소나·가치제안·Moat·가격·위험 5요소 각각 = `충족` + 근거 1줄 기록. 1개라도 미충족 → **[STOP]** (Phase 2 진행 권고)
 5. **에이전트 회의 (5관점 3라운드) → GDD 초안 작성**: 게임 특화 5관점 병렬 스폰
