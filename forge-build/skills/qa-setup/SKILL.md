@@ -27,6 +27,10 @@ description: "QA 하네스 부트스트랩 스킬 (AD-92 Phase 0 + P0-FIX). /qa 
 
 ### 0. 전제 — qa-config.json이 이미 존재하면 재생성 스킵 + --scope 파싱
 
+> **config 계약 검증 + 의존 서비스 선확인 (2026-07-10, 범용 — 프로젝트 값 하드코딩 금지)**
+> - **스키마 검증(4-3b)**: qa-config에 `surfaceAdapters`·`authBootstrap`·`dependencies` 필드가 있으면 형식 검증 — `authBootstrap.type ∈ {cookie-inject, token-header, login-flow, none}`(시크릿 값은 `.env` 참조만, 평문 발견 시 WARN+마스킹), `dependencies[] = {name, check: "port:<n>" | "url:<healthcheck>"}`. invalid = **WARN + 해당 필드 무시(fail-open)** — 기존 동작 불변.
+> - **의존 서비스 liveness(4-4)**: `dependencies[]` 선언이 있으면 서버 기동 전 각 항목을 `ss -tln`(port) 또는 curl(url)로 선확인. DOWN 발견 시 WARN + "의존 서비스 DOWN이 404/Unauthorized로 위장할 수 있음" 명시 후 Human 확인 — 포트·서비스 목록은 **프로젝트 선언 값**이며 이 스킬에 어떤 기본 포트도 하드코딩하지 않는다. 선언 부재 = 스킵(기존 동작).
+
 ```bash
 [ -f docs/qa/qa-config.json ] && echo "qa-config 재사용" && QA_CONFIG_EXISTS=1
 

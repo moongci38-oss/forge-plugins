@@ -23,6 +23,10 @@ metadata:
 harness-legacy-scan 결과를 실제 SSoT(`${FORGE_ROOT:-$HOME/forge}/.claude/`)에 적용하는 actuator.  
 안전 우선: diet_auto=true && risk=low만 자동. medium/high는 목록 반환 후 Human 승인.
 
+> **판별 기준 reference**: `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/skill-writing-principles.md`
+> — 무엇을 자를지는 길이가 아니라 진단으로 정한다. **no-op 테스트**(이 문장이 기본 동작 대비 행동을 바꾸는가? 아니면 문장째 삭제),
+> **퇴적(sediment)** vs **비대(sprawl)** 구분(전자=가지치기, 후자=progressive disclosure), **중복**=단일 진실 원천 위반.
+
 ### 허용 7가지
 
 1. **CLAUDE.md 축소** — 중복/일반지침 섹션 제거 (Forge 특화 내용은 유지)
