@@ -54,6 +54,10 @@ skipVerify=true → Stage 3 skip, 가설 목록만 반환. `CLAUDE_CODE_DISABLE_
    - **커밋 N개**: "관련 소스 N개 커밋 변경 — 기존 해결책 참고만, 재조사 권장" → Stage 1 진행
 3. 없음 → "기존 케이스 없음" 출력 후 Stage 1 진행
 
+## 재현 루프 구축 (Stage 1 선행 reference)
+
+재현이 자명하지 않은 버그는 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/bug-feedback-loop.md` 참조 — **루프 구축법 11종**(실패 테스트→curl→트레이스 재생→bisect→차등 루프…), **tight 4기준**(red-capable·결정적·빠름·agent-runnable), 비결정 버그 재현율 전략. red-capable 명령이 존재하기 전에 코드를 읽으며 가설부터 세우는 것 금지. 가설은 **3~5개 랭킹 생성**(단일 가설 = 앵커링) 후 검증 착수 — Stage 2 "가설 2개+"의 상한 확장.
+
 ## 11-Category Bug Pattern
 
 아래 11종 카탈로그가 전체 인라인 SSoT (외부 파일 없음). Stage 0.5 빠른 매핑 + Stage 2 가설 수립에 공통 참조한다.

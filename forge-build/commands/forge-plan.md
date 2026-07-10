@@ -263,6 +263,7 @@ domains:
 ### Step 2 — 개발 계획 작성 *(메인 AI 직접 + 헬퍼 스킬)*
 - 기술 스택 + C4 아키텍처(Mermaid 인라인 — Context/Container/Component)
 - ADR: `/cto-advisor` 스킬의 ADR 템플릿 — 한정 범위(기술 스택·데이터 스토어·인증/인가·배포 방식·되돌리기 어려운 결정)별 1 ADR
+  - 모듈·이음매 결정을 담는 ADR은 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/codebase-design.md` 어휘로 서술(깊이·이음매·어댑터). 이음매 신설 ADR은 **변하는 것이 실제로 2개 이상**임을 근거로 제시해야 한다.
 - 보안 설계: 인증·인가·시크릿 관리·감사 로깅·입력 검증 — 각 항목 = 설계 명시 또는 `N/A` + 1줄 사유
 - DB 필요 시: AI 직접 스키마 + 마이그레이션 설계(역방향 가능 명시 + 백업/복원 경로 + 롤백 트리거)
 - 세션 로드맵: 각 줄 = `"Session N — Spec M: [제목] (X SP)"` 형식 (X 권장 1-8, 12+ = Spec 분리). 번들링 시 분리 불가 사유 1줄
