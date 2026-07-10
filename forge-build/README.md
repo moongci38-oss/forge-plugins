@@ -8,7 +8,7 @@
 
 ## 개요
 
-`forge-build`는 백엔드·풀스택 개발자와 기획자(PM)를 위한 Forge 제품 생성 파이프라인 도구 모음입니다. 구 `forge-dev`(구현·검증)와 구 `forge-plan`(기획: spec-write/writing-plans/requirements-clarity/autoplan)을 통합해, 기획부터 배포까지 SDD 파이프라인 전 과정을 하나의 플러그인으로 제공합니다. axis-* 감사 에이전트는 `forge-core`로 이동했고, 대신 `cto-advisor`·`spec-writer-base` 에이전트가 새로 편입되었습니다.
+`forge-build`는 백엔드·풀스택 개발자와 기획자(PM)를 위한 Forge 제품 생성 파이프라인 도구 모음입니다. 구 `forge-dev`(구현·검증)와 구 `forge-plan`(기획: spec-write/writing-plans/autoplan)을 통합해, 기획부터 배포까지 SDD 파이프라인 전 과정을 하나의 플러그인으로 제공합니다. axis-* 감사 에이전트는 `forge-core`로 이동했고, 대신 `cto-advisor`·`spec-writer-base` 에이전트가 새로 편입되었습니다.
 
 ```
 P1 환경설정 → P2 디자인 검토 → P3 Spec 작성(기획) → P4 기술 설계 →
@@ -244,16 +244,11 @@ QA/버그/마이그레이션 이외의 복잡한 구현에 사용합니다.
 | `/prd` | `/prd <제품명>` | PRD 작성 |
 | `/forge-plan` | `/forge-plan` | 기획 파이프라인 실행 |
 | `writing-plans` | `/writing-plans` | Spec/요구사항 문서를 TDD 지향의 세분화 구현 계획으로 전환 |
-| `requirements-clarity` | `/requirements-clarity` | 모호한 요구사항을 Why?(YAGNI)/Simpler?(KISS) 대화로 명확화 |
 | `autoplan` | `/autoplan <목표>` | 기획서를 CEO/Design/Engineering 3관점 리뷰 + Synthesizer 종합 |
 
 #### writing-plans
 
 Spec이나 요구사항 문서를 실제 구현에 착수하기 전, 바이트 크기 단위의 TDD 지향 구현 계획으로 전환합니다. 정확한 파일 경로·2~5분 단위 스텝·명시적 테스트 검증 절차를 포함합니다.
-
-#### requirements-clarity
-
-모호한 요구사항을 Why?(YAGNI)/Simpler?(KISS) 중심 대화로 명확화해 점수화된 PRD로 정리합니다. 명확한 재현 절차가 있는 버그 수정, 구체적 파일·함수를 지목한 변경, 오타·한 줄 수정에는 사용하지 않습니다.
 
 #### autoplan
 
@@ -386,7 +381,6 @@ forge-build/
 │   ├── screenshot-analyze/     — Vision 기반 UI 분석
 │   ├── spec-compliance-checker/ — Spec-코드 추적성 검증
 │   ├── autoplan/               — 기획서 3관점 리뷰 + Synthesizer (구 forge-plan)
-│   ├── requirements-clarity/   — 요구사항 명확화 (구 forge-plan)
 │   └── writing-plans/          — Spec → TDD 구현 계획 전환 (구 forge-plan)
 ├── commands/                   — 21개 슬래시 커맨드 (spec-write/forge-spec/prd/forge-plan 포함)
 └── agents/                     — 7개 전문 에이전트
@@ -405,7 +399,7 @@ forge-build/
 
 ### v0.2.0 (2026-07-07)
 - `forge-dev` → `forge-build` 개명
-- 구 `forge-plan`(spec-write/forge-spec/prd/forge-plan/writing-plans/requirements-clarity/autoplan) 통합
+- 구 `forge-plan`(spec-write/forge-spec/prd/forge-plan/writing-plans/autoplan) 통합
 - axis-* 감사 에이전트 5종 → `forge-core`로 이동
 - `cto-advisor`·`spec-writer-base` 에이전트 신규 편입
 

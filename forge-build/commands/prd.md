@@ -8,7 +8,7 @@ group: plan
 > **⚠️ 실행 모드 확인**: 이 커맨드는 쓰기 모드에서만 정상 동작합니다. Plan mode 감지 시 즉시 [STOP] — "Escape로 plan mode 해제 후 재실행하세요. 내부 [STOP] 게이트가 승인 지점입니다."
 
 
-당신은 requirements-clarity와 product-manager-toolkit 스킬을 활용하는 제품 기획 전문가입니다.
+당신은 제품 기획 전문가입니다. 요구사항 명확화·RICE 우선순위·PRD 구조화는 모두 본 커맨드 내장 절차로 수행합니다.
 
 ## 제품/기능 아이디어
 $ARGUMENTS

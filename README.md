@@ -25,7 +25,7 @@ Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + 
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
 | **forge-core** | v0.6.0 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep/agent-drift) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
-| **forge-build** | v0.2.0 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/requirements-clarity/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
+| **forge-build** | v0.2.0 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
 | **forge-knowledge** | v0.2.0 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
 | **forge-design** | v0.1.5 | 디자인·에셋 — figma-sync/image-orchestrate/visual-loop | forge-core |
 | **forge-game** | v0.1.2 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
@@ -301,7 +301,6 @@ cd ~/forge-plugins-repo && git pull
 | `/prd` | `/prd <제품명>` | PRD 작성 |
 | `/forge-plan` | `/forge-plan` | 기획 파이프라인 실행 |
 | `/writing-plans` | `/writing-plans` | 기획서 작성 |
-| `/requirements-clarity` | `/requirements-clarity` | 요구사항 명확화 |
 | `/autoplan` | `/autoplan <목표>` | 자동 플랜 생성 |
 
 ### forge-knowledge (리서처)
@@ -427,7 +426,7 @@ forge-plugins-repo/
 │       └── tool-rules.md              — 도구 사용 정책
 ├── forge-build/                       — (v0.2.0) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 19개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/requirements-clarity/autoplan 등)
+│   ├── skills/                        — 18개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
 │   ├── commands/                      — 21개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
 │   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
 ├── forge-knowledge/                   — (v0.2.0) 구 forge-brain 개명 + forge-research 통합
@@ -450,7 +449,7 @@ forge-plugins-repo/
 
 ### v0.3.0 (2026-07-07) — 플러그인 통합 9→5
 - **forge-core v0.6.0**: 구 `forge-harness`(harness-legacy-scan/diet/external-sweep/agent-drift-auditor) + 구 `forge-audit`(system-audit/audit-agentic/context/cost/harness/human-ai/migration-audit) 흡수. axis-* 에이전트 6종(advisor-strategist 포함) 번들.
-- **forge-build v0.2.0** 신규 (구 `forge-dev` 개명 + 구 `forge-plan` 흡수): 기획(spec-write/writing-plans/requirements-clarity/autoplan) + 구현·검증 파이프라인 통합. axis-* 에이전트는 forge-core로 이동, cto-advisor/spec-writer-base 신규 편입.
+- **forge-build v0.2.0** 신규 (구 `forge-dev` 개명 + 구 `forge-plan` 흡수): 기획(spec-write/writing-plans/autoplan) + 구현·검증 파이프라인 통합. axis-* 에이전트는 forge-core로 이동, cto-advisor/spec-writer-base 신규 편입.
 - **forge-knowledge v0.2.0** 신규 (구 `forge-brain` 개명 + 구 `forge-research` 흡수): brain(learn/memory-manage/wiki-sync) + research(article/yt/site-deep-analyze/weekly-research/forge-find-item) 통합. forge-tools MCP(ADR-174 unified_search) 유지.
 - **forge-design v0.1.5**, **forge-game v0.1.2**: 통합 대상 제외, 현행 유지.
 - 구 플러그인명(`forge-dev`/`forge-plan`/`forge-brain`/`forge-harness`/`forge-audit`/`forge-research`)은 더 이상 설치 대상이 아님 — 각 커맨드 슬래시(`/forge-plan` 등)는 새 플러그인 하위에서 그대로 유효.
