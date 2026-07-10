@@ -60,6 +60,7 @@ group: implement
     - DB 격리 실증 게이트 (P0): data 버그 db_query 실행 직전 필수 — bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/assert-db-isolation.sh". DB_ISOLATION: WARN(dev/prod/불명) 시 격리 DB(*_test/*_qa) 지정 후 재확인. WARN-first(FORGE_DB_ISOLATION_ENFORCE=1 opt-in BLOCK, fail-open). ④ 검수 db_query_after도 동일 격리 계승.
     - data(강제판정 포함): db_query_before → 틀린/누락 행 실측
     - ▶ 게이트 R(Gate R): 축별 RED 오라클 부재 시 소스 Edit `exit 2` BLOCK → ③ 수정 진입 불가
+    - **과거 유사버그 회상 (착수 시 1회, fail-open)**: `/rag-search "{버그 제목} {에러 메시지 키워드}"` 결과를 `docs/qa/obsidian-context.md`에 저장 — healer P1-D가 소비하는 동일 아티팩트(빈 파일 = 정상). SIMPLE 직행 경로 포함 전 경로 적용: 유사 버그·과거 해결 패턴·반증된 원인론이 있으면 가설 랭킹의 입력으로 사용. rag 미가용 = 빈 파일 생성 후 진행(비차단).
     - **pre-work branch sweep (착수 최선행)**: `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/pre-work-branch-sweep.md` — "미구현처럼 보이는 404/빈 기능"의 실원인 빈도는 미머지 > 연동누락(mock) > 계약드리프트 > 설정드리프트 >> 진짜 미구현. 미머지 완성물 발견 시 재작성 금지.
     - **계약 드리프트 RED (non-UI API 버그 우선 패턴)**: FE가 보내는 body 그대로 실 EP 호출 → 4xx/오류 재현(`bug-feedback-loop.md` 루프 구축법 #10). 필드명·casing 드리프트를 코드 추측 없이 확정한다.
     - **인증 필요 재현(authBootstrap)**: 로그인 뒤 증상이면 프로젝트 `qa-config.json`의 `authBootstrap` 선언(type: cookie-inject/token-header/login-flow/none, 값은 `.env` 참조)을 읽어 재현 전 인증을 수립 — 특정 인증방식·토큰을 이 스킬에 하드코딩하지 않는다. 아티팩트(HAR·network.json)의 토큰·쿠키값은 `***` 마스킹 새니타이즈 필수, 인증 자료 커밋 금지.
