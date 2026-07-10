@@ -20,6 +20,17 @@ Codex + Gemini (Double) 또는 Opus + Codex + Gemini (Triple) 병렬 리뷰 + Tr
 /cr-triple ${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/forge-platform/specs/my-spec.md
 ```
 
+## Phase 0.5 — 과거 리뷰 회상 (advisory, fail-open — 2026-07-10)
+
+워커 스폰 전 1회, 대상 파일명·도메인 키워드로 내부 지식을 회상한다:
+
+```
+/rag-search "{대상 slug} {도메인 키워드}" --top-k 5
+```
+
+- 히트 중 `docs/reviews/` 원문·wiki 노트가 있으면 **과거 지적 요약 3줄 이내**를 각 워커 프롬프트에 "이전 리뷰에서 지적된 패턴(재발 검사 대상)"으로 주입 — 같은 결함의 재발을 리뷰어가 우선 확인.
+- 결과 없음/rag 미가용 = 그대로 진행(fail-open, 비차단). 회상이 리뷰 범위를 좁히는 데 쓰여선 안 됨 — 추가 렌즈일 뿐.
+
 ## 모드
 
 | 모드 | Worker | 합산 |
