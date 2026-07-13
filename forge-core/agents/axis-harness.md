@@ -64,8 +64,8 @@ ASI01 Goal Hijack → ASI02 Tool Misuse → ASI03 Identity Abuse → ASI06 Memor
 - [ ] B6. PII 스크러빙 (0-3)
 
 ### C. 옵저버빌리티 (만점 12)
-- [ ] C1. OTel GenAI 시맨틱 컨벤션 준수 (0-3)
-- [ ] C2. 토큰 어카운팅 (요청별 input/output/cached) (0-3)
+- [ ] C1. OTel GenAI 시맨틱 컨벤션 준수 (0-3) — Forge는 agent_id/parent_agent_id 스팬(`otel-agent-id.sh`)만 해당. 토큰 필드는 C2 참조.
+- [ ] C2. 토큰 어카운팅 (요청별 input/output/cached) (0-3) — ⚠️(F-6, 2026-07-06) PostToolUse hook payload(`otel-agent-id.sh`/`log-tool-metrics.sh` 등)에는 `usage.output_tokens` 등 토큰 필드가 구조적으로 없음(항상 0, 실증됨) → **hook 경로는 자동 0/N/A로 채점**(과대점수 금지). 직접 SDK 호출 경로(`advisor-assist.py`, `cu-runner.py`)의 실측 `response.usage`만 부분점수 인정 대상. 세션/에이전트 규모의 대체 지표는 tool-call-count(`loop-call-accum.sh`) — 이건 C2가 아니라 D류 신뢰성/루프 통제로 별도 평가.
 - [ ] C3. 분산 트레이싱 (프롬프트→검색→도구→응답) (0-3)
 - [ ] C4. 드리프트 감지 (입력 분포, 출력 품질, 레이턴시) (0-3)
 

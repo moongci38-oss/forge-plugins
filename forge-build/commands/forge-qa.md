@@ -1,6 +1,6 @@
 ---
 description: "Forge Dev P6 QA phase — qa 스킬 래핑 커맨드 (Check 5.8에서 승격된 독립 phase)"
-argument-hint: "[--mode full|smoke] [--target <path>]"
+argument-hint: "[--mode full|smoke] [--app <id|all>] [--domains <id[,id...]|all>] [--accounts <id[,id...]>] [--exhaustive]"
 group: implement
 ---
 
@@ -35,6 +35,31 @@ P5(`forge-implement`) 미완료 상태 진입 → GUIDE-STOP: "P5 구현 완료 
 /forge-qa              # 기본 full 모드
 /forge-qa --mode smoke # 연기 테스트만 (빠른 검증)
 ```
+
+### 확장 4축 — app/domains/accounts/exhaustive (2026-07-06, 전부 optional·회귀 0)
+
+프로젝트 지정 불요 — 해당 워크스페이스/레포 CWD에서 실행. 멀티레포는 `--app`으로 앱 선택(생략 시 CWD 레포 자동감지), 단일레포는 `--app` 불요.
+
+```
+# starbeginz — 운영툴만, 전 도메인 × 2계정 병렬 + 요소전수 + 실DB + 자동수정
+/forge-qa --app=opstool --domains=all --accounts=admin,partner --exhaustive
+
+# starbeginz — 포탈+운영툴 둘 다 병렬
+/forge-qa --app=all --domains=all --accounts=admin,partner --exhaustive
+
+# starbeginz — 운영툴의 특정 도메인만 (정산+매출)
+/forge-qa --app=opstool --domains=settlement-management,sales-management --accounts=partner
+
+# portfolio — 단일 앱이라 --app 생략, 전 도메인 × 2역할 병렬
+/forge-qa --domains=all --accounts=admin,editor --exhaustive
+```
+
+- `--app`(앱) → `--domains`(도메인) → `--accounts`(계정) → `--exhaustive`(요소): 각 축을 `all`↔부분↔단일 자유 조합. 4개 전부 미지정 시 위 §실행의 기존 동작 그대로(회귀 0).
+- `--app`/`--domains`은 apps×domains 조합마다 **독립 브랜치·PR**로 병렬 fan-out. `--accounts`는 각 도메인 안에서 T1/T2를 계정별로 추가 실행하는 발견 배율 축(별도 PR을 만들지 않음).
+- `--app`/`--domains` 매칭 0건 시 조용히 GREEN 종료하지 않고 GUIDE-STOP("매칭 없음. 사용 가능: [목록]") 후 정지한다.
+- 실DB 검증·healer 자동수정은 이 4축과 무관하게 항상 내장 — 별도 플래그 불요.
+- **`--project` 플래그 없음** — 프로젝트 식별은 CWD → forge-workspace.json 매핑(기존 qa 동작) 그대로.
+- qa-config 스키마(app 레지스트리·domains·accounts) → `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마`.
 
 ## 전역 캡 (반드시 보존)
 

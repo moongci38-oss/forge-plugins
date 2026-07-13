@@ -353,6 +353,12 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 
 ---
 
+### Wave 3.9: 최종 완료 게이트 (필수, Notion 등록·완료 보고 이전)
+
+1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "docs/reviews/audit/{date}-system-audit.md"`
+2. 스크립트 출력 표를 완료 보고에 포함. 표 밖 임의 "완료" 서술 금지.
+3. exit 2(MISSING/0바이트)면 Wave 4 Notion 등록 및 "## 완료 보고" 출력 금지 — 보고서 재생성 후 재검증(exit 0) 통과 시에만 진행한다.
+
 ### Wave 4: Notion 페이지 생성
 
 보고서 작성 완료 후 Notion에 전체 내용을 기록한다.
@@ -391,7 +397,7 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 
 ## 완료 보고
 
-모든 Wave 완료 후 아래 형식으로 결과를 요약 출력한다:
+Wave 3.9 최종 완료 게이트(exit 0) 통과 후에만 아래 형식으로 결과를 요약 출력한다:
 
 ```
 ✅ ACHCE 5축 통합 감사 완료

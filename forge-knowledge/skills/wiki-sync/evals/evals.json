@@ -3,31 +3,34 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/wiki-sync",
-      "expected_output": "미반영 Raw 후보 스캔 → 제안 → [STOP] Human 승인 루프",
+      "prompt": "/wiki-sync 실행. 01-research/articles/에 지난 7일간 쌓인 Raw 문서 12개 스캔. 아직 20-wiki/에 반영되지 않은 신규 내용 식별하라",
+      "expected_output": "신규 Raw 문서 12개 스캔 → 기존 Wiki 노트와 비교 → 미반영 내용 목록 + 추천 반영 대상(위키 업데이트/신규 생성) 제안",
       "expectations": [
-        "sync-tracking.json 기준 미반영 파일 식별",
-        "신뢰도 HIGH/MEDIUM/LOW 3단계 평가 포함",
-        "Step 4 [STOP] 게이트 활성"
+        "01-research/ Raw 레이어 문서가 스캔되어 신규 항목이 식별되는가?",
+        "기존 20-wiki/ 노트와 대조하여 중복/신규 여부가 판별되는가?",
+        "업데이트 대상 기존 노트와 신규 생성 대상이 구분 제안되는가?",
+        "Human 승인 게이트([STOP])가 실제 변경 전에 명시적으로 출력되는가?"
       ]
     },
     {
       "id": 2,
-      "prompt": "/wiki-sync --auto",
-      "expected_output": "HIGH 신뢰도 항목만 자동 처리, MEDIUM/LOW는 pending-review.md 이관",
+      "prompt": "Wiki Sync Step 3 — 기존 위키 노트 'AI-agents.md'에 신규 Raw 문서 내용 3개 항목 통합 제안. 사용자 승인 루프 실행",
+      "expected_output": "AI-agents.md 현재 내용 표시 → 추가할 3개 항목 diff 형식 제안 → 사용자 승인(y/n/skip) 대기",
       "expectations": [
-        "[STOP] 게이트 건너뜀",
-        "HIGH 항목만 Wiki 반영",
-        "git commit & push 실행"
+        "기존 위키 노트 현재 내용이 먼저 표시되는가?",
+        "추가될 내용이 diff 또는 명확한 비교 형식으로 제안되는가?",
+        "Human 승인 없이 실제 위키 파일이 수정되지 않는가?",
+        "사용자가 개별 항목을 선택적으로 승인/거부할 수 있는가?"
       ]
     },
     {
       "id": 3,
-      "prompt": "/wiki-sync 특정파일.md",
-      "expected_output": "지정 파일 강제 처리 → 제안",
+      "prompt": "/wiki-sync --dry-run 실행. 실제 파일 변경 없이 반영 예정 목록만 출력하라",
+      "expected_output": "--dry-run 시 실제 20-wiki/ 파일 변경 없이 '업데이트 예정' 목록만 텍스트로 출력",
       "expectations": [
-        "sync-tracking.json 무시하고 강제 처리",
-        "Step 4 [STOP] 게이트 활성"
+        "--dry-run 시 어떤 위키 파일도 실제로 수정되지 않는가?",
+        "업데이트 예정 목록(파일명/변경 유형/항목 수)이 출력되는가?",
+        "dry-run 결과를 보고 사용자가 실제 실행 여부를 판단할 수 있는 형식인가?"
       ]
     }
   ]

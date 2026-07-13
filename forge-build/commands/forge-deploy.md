@@ -30,6 +30,18 @@ staging 배포 (release-staging.yml — NOT YET ACTIVE)
 production-deploy.yml 자동 트리거 (Phase 12)
 ```
 
+## 배포 워크플로 정적 검증 (WARN-first, 2026-07-12 실발화, Batch 4-3)
+
+**배경**: PR 단계 CI(전부 green)와 프로덕션 배포 워크플로 자체의 정합성은 별개다 — 실측: 4회 연속 배포 실패, 원인 전부 기존 인프라 결함(actions 버전/캐시 순서/engines 불일치/권한 누락 등). staging 배포 실행(Phase 11) **직전** 아래 검증을 1회 실행한다:
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/deploy-workflow-lint.sh" .github/workflows [--rules <project-root>/.claude/deploy-lint-rules.json]
+```
+
+- **규칙셋은 프로젝트가 선언**한다(`.claude/deploy-lint-rules.json`) — forge는 실행 엔진만 제공. 규칙셋 미선언 시 skip(fail-open, WARN만 — 배포 차단 안 함).
+- findings 발견 시 WARN으로 표시하고 계속 진행(kill-switch: `FORGE_DEPLOY_LINT=off`). ERROR severity findings는 Human에게 명시적으로 알리고 GATE-1 진행 여부 확인을 받는다 — hard-BLOCK 아님(AD-168).
+- 규칙 스키마·샘플 규칙셋: `shared/scripts/deploy-workflow-lint.sh` 헤더 주석 + `shared/scripts/__fixtures__/deploy-workflow-lint/sample-rules.json` 참조.
+
 ## GATE-1 — staging 진입 ([HUMAN GATE-1])
 
 `/forge-staging` 커맨드로 실행:
@@ -51,6 +63,19 @@ Release MR이 생성되면 [STOP] Human 검토 + 승인 + merge to main → Prod
 ```
 
 이 게이트는 bypass 불가. Human 명시 승인 없으면 prod 머지 불허.
+
+## Advisor 자문 (advisory-only · non-blocking · Opus)
+
+프로덕션 배포 실행 go/no-go 직전에 `advisor-strategist`(Opus) 조언을 구한다. **advisory-only — 게이트 차단 아님. 조언 미가용·실패 시 기본 흐름 진행(fail-open).**
+
+```
+Agent(subagent_type="advisor-strategist", prompt="배포 대상·변경범위·CI 상태 맥락 3-5줄. 질문: 이 배포에서 놓치기 쉬운 비가역 리스크와 즉시 롤백 트리거 2-3개는?")
+```
+
+- 트리거: 프로덕션 배포 확정 직전(비가역)
+- 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 기존 Human 승인 게이트)가 수행.
+- **Fable 5 미배선** — Human 수동 에스컬레이션 전용(자동분기는 forge-fix T4 한정, 카브아웃 준수). `advisor-model-resolve` 호출 금지.
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor/결정=Opus.
 
 ## staging 배포 (Phase 11)
 

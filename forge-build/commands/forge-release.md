@@ -37,6 +37,19 @@ Forge Dev platform층 릴리스 파이프라인을 시작합니다.
    - 비용: ChatGPT OAuth = $0.00. API key + gpt-5 high = ~$0.10~0.30
    - 비활성: `CODEX_REVIEW_AUTO_STAGES=off` (env)
 
+## Advisor 자문 (advisory-only · non-blocking · Opus)
+
+릴리스 확정(버전 태깅·배포) 직전에 `advisor-strategist`(Opus) 조언을 구한다. **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+
+```
+Agent(subagent_type="advisor-strategist", prompt="릴리스 버전·변경 요약·breaking 여부 맥락 3-5줄. 질문: 이 릴리스의 breaking change 노출·하위호환 리스크 2-3개와 릴리스노트 누락 가능성은?")
+```
+
+- 트리거: 버전 태깅·릴리스 배포 직전(비가역)
+- 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 기존 Human 승인 게이트)가 수행.
+- **Fable 5 미배선** — Human 수동 에스컬레이션 전용(자동분기는 forge-fix T4 한정). `advisor-model-resolve` 호출 금지.
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor/결정=Opus.
+
 ## 실행 방법
 
 Phase 11은 GitHub CLI로 트리거합니다:

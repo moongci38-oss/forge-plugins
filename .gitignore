@@ -8,3 +8,7 @@
 # build artifacts
 *.Zip
 *.zip
+
+# python bytecode
+__pycache__/
+*.pyc

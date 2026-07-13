@@ -18,7 +18,7 @@ const _a = (typeof args === 'string')
   : (args || {})
 
 // root-cause: Workflow 스크립트는 process 전역 접근 불가(process is not defined) → 하드코딩 폴백
-const outBase = _a?.outBase || '$HOME/forge-outputs'
+const outBase = _a?.outBase || '/home/damools/forge-outputs'
 const reportDir = `${outBase}/11-platform/pipelines/forge-dev/2026-06-08-v1-harness-diet`
 const reportPath = `${reportDir}/scan-report.md`
 const queuePath = `${reportDir}/diet-queue.json`
@@ -66,7 +66,7 @@ find ${FORGE_ROOT:-$HOME/forge}/.claude/agents -name "*.md" 2>/dev/null | while 
 find ${FORGE_ROOT:-$HOME/forge}/.claude/commands -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 [Step 5] CLAUDE.md cascade:
-find ~/forge-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 결과를 JSON 구조로 반환:
 {
@@ -118,7 +118,7 @@ wc -l $HOME/.claude/rules/*.md | tail -1
 # rules-on-demand/ 파일 수
 ls $HOME/.claude/rules-on-demand/*.md 2>/dev/null | wc -l
 # CLAUDE.md cascade 경로별 라인수
-find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\;
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\;
 
 [Step 4] cascade 5종 분류 (분석):
 - per-session (항상 로드): rules/*.md — 전역 항상 적용
@@ -245,7 +245,7 @@ done
 - 반면 Forge 특화: 경로 규칙/AD-N 번호/특정 스크립트 경로 = 필요한 지침
 
 [Step 3] AGENTS.md / .cursor/rules 확인:
-ls ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.cursor/ 2>/dev/null || echo "N/A"
+ls ${FORGE_ROOT:-$HOME/forge}-outputs/.cursor/ 2>/dev/null || echo "N/A"
 ls ${FORGE_ROOT:-$HOME/forge}/.claude/AGENTS.md 2>/dev/null || echo "N/A"
 — 존재하지 않으면 "N/A — 해당 없음" 명시.
 
@@ -303,8 +303,8 @@ done
 cat $HOME/.claude/settings.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps({'permissions': d.get('permissions',{}), 'hooks': list(d.get('hooks',{}).keys())}, indent=2))"
 
 [Step 3] MCP 권한 분석:
-cat ~/.claude.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); mcps=d.get('mcpServers',{}); print(json.dumps({k: list(v.keys()) for k,v in mcps.items()}, indent=2))" 2>/dev/null || echo "MCP: 없음"
-cat ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.mcp.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" 2>/dev/null || echo "project .mcp.json: 없음"
+cat $HOME/.claude.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); mcps=d.get('mcpServers',{}); print(json.dumps({k: list(v.keys()) for k,v in mcps.items()}, indent=2))" 2>/dev/null || echo "MCP: 없음"
+cat ${FORGE_ROOT:-$HOME/forge}-outputs/.mcp.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" 2>/dev/null || echo "project .mcp.json: 없음"
 
 [Step 4] constraint-drift 룰 참조:
 Read 도구로 $HOME/.claude/rules-on-demand/constraint-drift-audit.md 읽기 (스킬/스크립트 호출 X — 룰 문서 참조만).

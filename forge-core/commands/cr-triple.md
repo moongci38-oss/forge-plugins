@@ -34,7 +34,7 @@ group: review
 // --fable 파싱: FABLE = args에 '--fable' 있으면 true (Human 수동 전용 — Claude 레그 Fable 5 승격)
 // 외부 토큰 선발행 후 Workflow 실행 (cr-multi workflow.js 위임)
 Workflow({
-  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'triple', stage: STAGE, crMode: CR_MODE, fable: FABLE }
 })
 ```

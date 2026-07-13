@@ -5,13 +5,26 @@ description: |
   4단계: 7Q 인터뷰 → 패턴 매핑 → 안전장치 검증 → [STOP] blueprint 승인 → scaffold.
   산출물: 루프 SKILL.md + workflow.js + HUMAN-GATES.md + STATE.md + TRIGGER.md.
   커널(same_issue/plateau/oscillation/max_cycles 등 8 stop-condition)을 소유 — scripts/loop-kernel.js.
-  SKIP: /qa(QA 전용), /healer(버그 전용), /migration-audit(DB 전용), 1회성 단순 검사.
+  /qa·/healer는 이 커널을 직접 호출해 SSoT로 삼는다(2026-07-05 단일화 — 더 이상 SKIP 대상 아님, agents/healer.md §loop-kernel.js SSoT 연동 참조).
+  SKIP: /migration-audit(DB 전용), 1회성 단순 검사.
 ---
 
 # /forge-loop-maker — 루프 설계 + scaffold
 
 자동화 루프를 설계하고 Forge 규약 파일로 생성합니다.
 **Nothing runs until you approve the blueprint.**
+
+## 역할
+
+반복 자동화 의도를 감지해 루프를 설계·검증·scaffold하는 마법사. same_issue/plateau/oscillation/max_cycles 등 8종 stop-condition 커널(`scripts/loop-kernel.js`)의 SSoT 소유자이며, `/qa`·`healer`도 이 커널을 직접 재사용한다.
+
+## 컨텍스트
+
+"자동으로 실행되게 해줘"/"반복 작업 에이전트 만들어줘"/"루프 짜줘" 등 루프 자동화 의도 감지 시 발동. `/migration-audit`(DB 전용)이나 1회성 단순 검사에는 사용하지 않는다(SKIP).
+
+## 출력
+
+루프 SKILL.md + workflow.js + HUMAN-GATES.md + STATE.md + TRIGGER.md 5종. Human이 [STOP] blueprint를 승인하기 전에는 파일이 생성되지 않는다.
 
 ---
 
@@ -147,13 +160,15 @@ scaffold 완료 후 파일 트리 출력.
 `scripts/loop-kernel.js` — 8 stop-condition 표준 구현:
 `rubric_all_pass / max_cycles / same_issue / plateau / oscillation / regression / security_crit / budget_advisory`
 
-생성된 루프의 workflow.js는 이 커널 패턴을 `templates/workflow.js.tmpl`에서 상속합니다.
+생성된 루프의 workflow.js는 이 커널 패턴을 `templates/workflow.js.tmpl`에서 상속합니다(Workflow 샌드박스 — 외부 import 불가, inline 복사).
+
+**비-Workflow 소비자(healer 등 일반 Bash 에이전트)**는 Workflow 샌드박스 제약이 없으므로 inline 복사 대신 `node --input-type=module -e "const {...} = await import('<kernel경로>'); ..."` 실호출로 SSoT를 그대로 재사용한다 — kernel 미가용/에러 시 호출자 자체 하드코딩 캡으로 fallback 필수(캡 소실 방지). 선례 = `agents/healer.md §loop-kernel.js SSoT 연동`.
 
 ---
 
 ## forge-sync 필수
 
-`${FORGE_ROOT:-$HOME/forge}` SSoT → `~/.claude/` 미러. scaffold 후 반드시:
+`${FORGE_ROOT:-$HOME/forge}` SSoT → `$HOME/.claude/` 미러. scaffold 후 반드시:
 ```bash
 node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
 ```

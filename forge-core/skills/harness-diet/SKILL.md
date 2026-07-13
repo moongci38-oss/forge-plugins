@@ -145,7 +145,7 @@ echo "core" > .claude/.forge-profile          # 프로젝트 오버라이드
 
 ```
 Workflow({
-  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-diet/workflow.js"),
+  script: Bash("cat /home/damools/forge/.claude/skills/harness-diet/workflow.js"),
   args: { queuePath: "/path/to/diet-queue.json" }
 })
 ```

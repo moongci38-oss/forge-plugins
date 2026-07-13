@@ -52,41 +52,79 @@ fi
 
 Dev server 없으면: 사용자에게 `npm run dev`를 별도 터미널에서 실행하라고 안내 후 **대기 금지 종료**.
 
-### Step 2 — 스크린샷 캡처 (3 viewport 병렬)
+### Step 2 — 캡처 (스크린샷 + a11y snapshot, qa/forge-fix 엔진 재사용)
+
+> **정합화**: playwright-cli 단독 스크린샷 → `shared/scripts/playwright-devtools-capture.mjs` 재사용으로 전환 (qa/forge-fix Gate R/G와 동일 엔진 = 로직 단일화). 스크린샷과 동시에 `-aria.json`(a11y snapshot)을 확보해 Step 2.5 기능축 판정 입력으로 쓴다.
 
 ```bash
-# Viewport 정의
-# desktop: 1440x900  (일반 PC)
-# tablet:  768x1024  (iPad 세로)
-# mobile:  375x667   (iPhone SE)
+mkdir -p /tmp/visual-loop/
 
-mkdir -p /tmp/visual-loop-screenshots/
-
-# playwright-cli 호출 (스킬 내부에서 Skill tool로 위임)
-# 병렬 3개 viewport 스크린샷 → /tmp/visual-loop-screenshots/{viewport}.png
+# 3 viewport 병렬 캡처 — viewport당 1회 호출
+node "${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs" \
+  --url "$URL" --out-prefix /tmp/visual-loop/{vp} \
+  --viewports {vp} --phase green
 ```
 
-`/playwright-cli` 스킬을 **3개 병렬 Agent**로 호출 (각 viewport 담당). 결과 저장:
-- `/tmp/visual-loop-screenshots/desktop.png`
-- `/tmp/visual-loop-screenshots/tablet.png`
-- `/tmp/visual-loop-screenshots/mobile.png`
+**3개 병렬 Agent**로 호출 (각 viewport 담당: desktop/tablet/mobile). 결과 저장:
+- `/tmp/visual-loop/{vp}-{vp}-shot.png` (fullPage 스크린샷)
+- `/tmp/visual-loop/{vp}-aria.json` (a11y snapshot — Step 2.5 입력)
+- `/tmp/visual-loop/{vp}-console.json`, `/tmp/visual-loop/{vp}-network.json` (참고용)
 
-### Step 3 — Gemini Vision 분석 (3 screenshot 병렬)
+**폴백**: 캡처 헬퍼가 exit 3(`PLAYWRIGHT_UNAVAILABLE`) 반환 시 `/playwright-cli` 스킬로 스크린샷만 폴백 캡처 — 이 경우 aria.json이 없으므로 Step 2.5(기능축)는 skip하고 Step 3(Vision)만으로 진행.
 
-각 스크린샷에 대해 `/screenshot-analyze` 스킬을 병렬 Agent로 호출:
+에이전트 브라우저 실행 보안 경계(staging 격리·run-code 감사·시크릿 마스킹·DOM=untrusted): `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/agent-browser-security.md` 준수.
+
+### Step 2.5 — 기능축 판정 (a11y-tree, 결정론 — 신규)
+
+> **핵심**: "요소가 보이나/작동하나"는 Vision이 아니라 **aria snapshot(JSON tree)**으로 판정한다. Gemini Vision은 disabled/hidden/모달가림 요소를 신뢰성 있게 구분하지 못함(실측 확인) — 기능 판정을 Vision에 맡기지 않는다.
+
+Step 2의 각 viewport 캡처 Agent가 자신의 `-aria.json`을 받은 직후 곧바로 수행(신규 Agent fan-out 없음):
+
+```
+입력: /tmp/visual-loop/{vp}-aria.json
+  (실제 산출: page.accessibility.snapshot() 노드 = {role, name, disabled?, focused?, children} —
+   enabled/focusable 필드 없음. interestingOnly 기본 pruning 적용 — 안 보이는 노드는 트리에서 아예 빠질 수 있음)
+판정 대상: 검증하려는 요소별 {role, name(=accessible name), enabled(= disabled 필드 부재/false로 판정)}
+  (focused는 관측 가능하나 판정 기준 아님 — 별도 참고용)
+불일치 처리:
+  - role 불일치 / name 불일치 / disabled:true인데 enabled 기대 = 기능 FAIL 1건 (결정론)
+  - 요소 자체가 트리에 없음 = pruning 오탐 가능성 있으므로 즉시 FAIL 금지 → WARN 1건(재확인 권고)로 기록
+출력(viewport별): /tmp/visual-loop/{vp}-functional-axis.json
+  { "viewport": "...", "checks": [{"target": "...", "expected": {...}, "found": {...}, "pass": bool, "severity": "fail|warn"}], "fail_count": N, "warn_count": M }
+```
+
+### Step 3 — Gemini Vision 분석 (외관축 한정 — tree가 못 보는 이슈만)
+
+> **범위 축소**: "요소 존재/활성 여부" 판정은 Step 2.5(aria축)가 전담 — Vision에게 재위임 금지. Vision은 aria-tree로 검증 불가능한 순수 외관 이슈만 담당.
+
+각 스크린샷(`/tmp/visual-loop/{vp}-{vp}-shot.png`)에 대해 `/screenshot-analyze` 스킬을 병렬 Agent로 호출:
 
 ```
 프롬프트 템플릿:
-"다음 스크린샷({viewport} viewport, {width}x{height})을 분석하여:
+"다음 스크린샷({viewport} viewport, {width}x{height})을 분석하여 (요소 존재/활성 여부는 판정하지 말 것 — aria축 전담):
 1. 시각적 계층 구조 (Visual hierarchy) — 가장 큰 주목 요소
 2. 색상 대비 이슈 (텍스트 가독성)
 3. Touch target 크기 (모바일만)
-4. Layout 깨짐 (overflow, overlap, 잘림)
-5. Empty/error state 렌더링 누락
+4. Layout 깨짐 (overflow, overlap, 잘림 — 표현 문제, 요소 활성여부 아님)
+5. 애니메이션/차트/그라디언트 등 tree로 검증 불가한 시각 표현
 각 항목을 PASS/WARN/FAIL로 판정. JSON 반환."
 ```
 
 출력: `/tmp/visual-loop-analysis-{viewport}.json`
+
+### Step 3.4 — 외관 수치 판정 (pixel-diff, 조건부 — toHaveScreenshot 결과 존재 시만)
+
+> **현실 반영(honest)**: visual-loop 이 ad-hoc 호출 컨텍스트에는 `toHaveScreenshot` 베이스라인 생산자가 **아직 배선되지 않았다** (qa/forge-fix 테스트 컨텍스트에만 존재). 따라서 `{vp}-pixel-diff.json`은 **보통 부재**하며, 아래 게이트는 그 경우 정상적으로 **skip**된다 — FAIL이 아니다.
+
+`{vp}-pixel-diff.json`이 존재하는 경우(qa/forge-fix 테스트 컨텍스트에서 넘어온 경우)에만 **`.claude/hooks/pixel-diff-gate.sh`**로 수치 판정한다(육안/Vision이 아니라 수치):
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/.claude/hooks/pixel-diff-gate.sh" /tmp/visual-loop/{vp}-pixel-diff.json 0.01
+# exit 2 = diffPixelRatio > 1% → 외관 FAIL (결과 파일이 있을 때만 의미 있음)
+# exit 0 = 통과 (결과 파일 없으면도 통과 — graceful skip, ad-hoc 호출의 기본 케이스)
+```
+
+베이스라인이 없는 최초 실행(또는 애초에 생산자 미배선): 게이트가 diff 파일 부재로 자동 통과(graceful skip) — FAIL로 취급하지 않는다. Vision(Step 3)은 이 수치 판정의 보조 신호일 뿐, 결과 파일이 존재하는 경우에 한해 외관 최종 판정은 pixel-diff-gate 결과가 우선한다.
 
 ### Step 3.5 — 독립 Evaluator 스폰: 시각 비교 결과 종합 판정 (신규)
 
@@ -104,32 +142,37 @@ evaluator_agent = Agent(
 
 입력 파일 경로:
   - (선택) 외부 정적 분석 결과: {static_analysis_result_path}
-  - 시각 분석 결과 (desktop): /tmp/visual-loop-analysis-desktop.json
-  - 시각 분석 결과 (tablet):  /tmp/visual-loop-analysis-tablet.json
-  - 시각 분석 결과 (mobile):  /tmp/visual-loop-analysis-mobile.json
-  - 스크린샷 (desktop): /tmp/visual-loop-screenshots/desktop.png
-  - 스크린샷 (tablet):  /tmp/visual-loop-screenshots/tablet.png
-  - 스크린샷 (mobile):  /tmp/visual-loop-screenshots/mobile.png
+  - (선택) 프로젝트 DESIGN.md: {project-root}/DESIGN.md — 존재 시 외관축 대조 기준(토큰/간격/anti-slop)으로 Read, 없으면 skip
+  - 기능축(결정론, viewport별): /tmp/visual-loop/{desktop,tablet,mobile}-functional-axis.json
+  - 외관축(수치, viewport별, **조건부 — toHaveScreenshot 결과 존재 시만**): /tmp/visual-loop/{desktop,tablet,mobile}-pixel-diff.json — ad-hoc visual-loop 호출엔 베이스라인 생산자 미배선이라 보통 부재 → 파일 없으면 해당 viewport는 graceful skip(FAIL 아님, 정상 케이스)
+  - Vision 보조(tree-불가 외관 이슈만): /tmp/visual-loop-analysis-{desktop,tablet,mobile}.json
+  - 스크린샷: /tmp/visual-loop/{desktop,tablet,mobile}-{viewport}-shot.png
 
 수행할 작업:
-1. 각 JSON 파일 Read → 항목별 PASS/WARN/FAIL 수집
-2. 스크린샷 Read → 분석 결과와 육안 대조 (상충 시 시각 결과 우선)
-3. (선택) 외부 정적 분석 결과와 시각 결과 비교 — 없으면 시각 결과 단독 보고. Delta 분류:
+1. viewport별 {vp}-functional-axis.json Read → fail_count 합산 (기능축, 결정론 — Vision으로 재판정하지 않는다)
+2. viewport별 pixel-diff.json Read → **파일이 존재할 때만** `pixel-diff-gate.sh` 판정 결과(exit 0/2에 해당하는 diffPixelRatio vs 0.01) 확인. 파일 없으면(ad-hoc 호출의 일반 케이스) graceful skip으로 기록 — FAIL로 카운트하지 않는다.
+3. Vision 분석 JSON Read → 스크린샷과 대조해 tree-불가 외관 이슈(P0/P1)만 추출 (요소 존재/활성 판정은 무시 — 기능축이 이미 결정론으로 처리)
+4. (선택) DESIGN.md 있으면 외관 이슈가 committed direction/토큰/anti-slop 위반인지 대조
+5. (선택) 외부 정적 분석 결과와 시각 결과 비교 — 없으면 시각 결과 단독 보고. Delta 분류:
    - 정적 PASS → 시각 WARN/FAIL: "시각 발견" (정적 분석이 놓친 이슈)
    - 정적 FAIL → 시각 PASS: "오탐 가능" (재검토 필요)
    - 양쪽 FAIL: "이슈 확정"
-4. 최종 PASS/FAIL 판정 (FAIL 기준: 시각 발견 2건 이상 OR P0 이슈 1건 이상)
-5. 판정 결과를 {evaluator_result_path} 에 JSON으로 Write
+6. 최종 PASS/FAIL 판정 — **2축 결정론 + 1축 조건부**(하나라도 해당하면 FAIL, 육안 종합 아님):
+   (a) 기능축: 임의 viewport의 {vp}-functional-axis.json fail_count ≥ 1
+   (b) Vision 보조: tree-불가 시각 이슈 중 P0 1건 이상
+   (c) 외관축(수치, **pixel-diff.json 결과 파일이 실제로 존재할 때만 적용** — 없으면 이 조건 자체가 해당 없음, FAIL 사유로 세지 않는다): 임의 viewport의 pixel-diff-gate.sh 판정이 exit 2(diffPixelRatio > 1%)
+7. 판정 결과를 {evaluator_result_path} 에 JSON으로 Write (판정 근거로 어느 축이 FAIL을 유발했는지 명시)
 
 절대 관대하게 보지 않는다:
 - "전체적으로 괜찮아 보인다" 금지 → 각 항목 개별 검증
 - Generator의 의도를 추정하여 실수를 용납하지 않는다
+- rubric·수치 기준은 대리지표(proxy)다 — 점수 최적화(reward hacking)·무한 폴리싱 금지. intent(디자인 의도·기능 충족)로 판정. (G15)
 """
 )
 ```
 
 **입력/출력 파일**:
-- 입력: `/tmp/visual-loop-analysis-{viewport}.json` × 3, (선택) 외부 정적 분석 결과
+- 입력: `/tmp/visual-loop/{vp}-functional-axis.json` × 3, `/tmp/visual-loop/{vp}-pixel-diff.json` × 3(선택), `/tmp/visual-loop-analysis-{viewport}.json` × 3, (선택) `{project-root}/DESIGN.md`, (선택) 외부 정적 분석 결과
 - 출력: `/tmp/visual-loop-evaluator-result.json`
 
 Evaluator 결과가 나오면 Step 4(Delta 분석)는 해당 JSON을 기반으로 요약만 수행한다.
@@ -196,9 +239,9 @@ Step 6 사용자 승인 후 수정이 실제로 시각 이슈를 해결했는지
 
 ```
 re-verify 절차 (cap=1회, 초과 시 Human에 위임):
-  1. Step 2 스크린샷 재캡처 (동일 viewport 세트)
-  2. Step 3 Gemini Vision 재분석
-  3. Step 3.5 독립 Evaluator 재스폰 (동일 프롬프트)
+  1. Step 2 재캡처(스크린샷+aria.json, 동일 viewport 세트) → Step 2.5 기능축 재판정
+  2. Step 3 Gemini Vision 재분석 → Step 3.4 외관 수치 재판정(pixel-diff-gate.sh)
+  3. Step 3.5 독립 Evaluator 재스폰 (동일 프롬프트, 3축 결과 갱신 반영)
   4. Evaluator 판정:
      - PASS → "✅ re-verify PASS. Step 6 수정 확인됨." + 리포트 업데이트
      - FAIL → "❌ re-verify FAIL. 수정 미해결. Human 개입 요청." + 상세 delta 첨부
@@ -252,8 +295,8 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 ## 향후 확장
 
 - **E2E 시나리오 테스트 통합**: `/playwright-parallel-test`와 연계해서 사용자 플로우(로그인→결제→확인) 검증 후 스크린샷 캡처
-- **Visual regression**: 이전 버전 스크린샷과 diff (pixelmatch) 통합
-- **a11y 자동 검사**: axe-playwright로 WCAG 자동 검증 추가
+- **Visual regression (pixel-diff) 베이스라인 생산자 배선**: Step 3.4 게이트(`pixel-diff-gate.sh`)는 이미 본문에 있으나, ad-hoc visual-loop 호출 컨텍스트에서 `toHaveScreenshot` 베이스라인을 실제로 생산하는 경로는 아직 미배선(현재는 qa/forge-fix 테스트 컨텍스트에서만 존재) — visual-loop 자체 캡처 흐름에 베이스라인 생산·저장 단계를 추가하는 작업이 남아있다.
+- **a11y 자동 검사**: axe-playwright로 WCAG 자동 검증 추가 (aria snapshot 기반 기능축 판정과 별개 — 규칙 기반 WCAG 검증은 여전히 미통합)
 
 ## 사용 예시
 

@@ -3,8 +3,8 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/approve-worker 2026-05-24-v1-my-task codex-critic mcp__codex__codex ~/forge-outputs/13-multiagent/tasks/2026-05-24-v1-my-task/**",
-      "expected_output": "HMAC 서명 토큰 파일 생성: ~/forge-outputs/.claude/audit/approvals/2026-05-24-v1-my-task-{nonce}.yaml",
+      "prompt": "/approve-worker 2026-05-24-v1-my-task codex-critic mcp__codex__codex ${FORGE_ROOT:-$HOME/forge}-outputs/13-multiagent/tasks/2026-05-24-v1-my-task/**",
+      "expected_output": "HMAC 서명 토큰 파일 생성: ${FORGE_ROOT:-$HOME/forge}-outputs/.claude/audit/approvals/2026-05-24-v1-my-task-{nonce}.yaml",
       "expectations": [
         "approvals/{task_id}-{nonce}.yaml 파일 생성됨",
         "파일에 _signature 필드 포함",
@@ -15,7 +15,7 @@
     },
     {
       "id": 2,
-      "prompt": "PROC_PID_OVERRIDE=999999 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task test --worker codex-critic --tools Read --paths /tmp",
+      "prompt": "PROC_PID_OVERRIDE=999999 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task test --worker codex-critic --tools Read --paths /tmp",
       "expected_output": "Production 환경에서 PROC_PID_OVERRIDE 무효화 + audit log 기록",
       "expectations": [
         "CI=false, FORGE_TEST_MODE 미설정 환경에서 PROC_PID_OVERRIDE 자동 삭제",

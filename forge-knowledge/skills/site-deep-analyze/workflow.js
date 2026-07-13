@@ -385,7 +385,7 @@ log(`[Semantic] languages=${semanticResult?.languages?.join(',')}`)
 phase('Output')
 const outputResult = await agent(
   `site-deep-analyze Phase 5 산출물 생성. slug="${gateResult?.slug}". ` +
-  `저장 경로: ${FORGE_OUTPUTS:-$HOME/forge-outputs}/05-design/site-analysis/${gateResult?.slug}/. ` +
+  `저장 경로: ${FORGE_ROOT:-$HOME/forge}-outputs/05-design/site-analysis/${gateResult?.slug}/. ` +
   // root-cause: finalStaticResult(coverage-loop 보완) + 신규 fan-out 결과 포함 (deep-research a+e)
   `정적 분석 (coverage-loop 보완): ${JSON.stringify(finalStaticResult)}. ` +
   `페이지 유형 분석: ${JSON.stringify(pageTypeResult)}. ` +
