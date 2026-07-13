@@ -18,6 +18,18 @@ description: |
 
 예: `/migration-audit matgo/server/legacy matgo/server/src --stack=node-nest`
 
+## 역할
+
+레거시→신규 스택 마이그레이션 검수 하네스. legacy=SSoT 원칙 하에 7-Phase(인벤토리→이벤트커버리지→로직대조→DB대조→멀티검수→리포트→fix루프)로 100% sync 도달까지 audit→fix→re-audit을 자율 반복한다.
+
+## 컨텍스트
+
+"/migration-audit", "마이그레이션 검수", "레거시 대조" 요청 시 발동. node-nest(Socket.IO↔NestJS)·php-nest 스택을 지원하며, 검수 전 `feature/migration-audit-<name>` 브랜치 생성과 legacy working-tree stash가 전제조건이다.
+
+## 출력
+
+`MIGRATION-AUDIT-REPORT.md` + `SYNC-STATUS.md` + 확정 CRITICAL/HIGH는 `docs/bug_report/BUG-NNN-*.md`(legacy=SSoT 대조근거 필드 포함) + golden test 영구 편입.
+
 **핵심 원칙**: legacy = 정답 기준. src≠legacy → src 의심 (legacy 버그 가능성도 기록). 대조 불가 = UNVERIFIED(BLOCKING), silent skip 금지.
 
 스택별 엔트리포인트 매핑 → `references/stack-mappings.md`

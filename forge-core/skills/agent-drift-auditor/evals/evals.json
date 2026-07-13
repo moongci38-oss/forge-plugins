@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Check 8.9 실행: .specify/specs/payment.md에 subagent_type='payment-validator' 참조 존재. ~/forge/.claude/agents/에 payment-validator.md 없음. 삭제된 에이전트 호출 감지하라",
+      "prompt": "Check 8.9 실행: .specify/specs/payment.md에 subagent_type='payment-validator' 참조 존재. ${FORGE_ROOT:-$HOME/forge}/.claude/agents/에 payment-validator.md 없음. 삭제된 에이전트 호출 감지하라",
       "expected_output": "Check 1 HIGH 이슈, drift_issues에 missing_agents=['payment-validator'], status=FAIL, [STOP] 에스컬레이션",
       "expectations": [
         "subagent_type 참조와 실재 agents/*.md 목록의 불일치가 HIGH severity로 감지되는가?",

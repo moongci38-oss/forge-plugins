@@ -1,6 +1,6 @@
 ---
 description: OpenAI Codex 경유 2차 리뷰 게이트 (Claude 1차 리뷰 후 추가 검증). 모든 개발 단계 (plan/code/test/final/bugfix) 지원.
-argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high] [--blocking]"
+argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high] [--blocking] [--cr <on|degrade|off>]"
 group: verify
 ---
 
@@ -50,6 +50,7 @@ codex   # /login → moongci38 ChatGPT 계정 OAuth
 | `--target` | 파일 경로 또는 `PR-N` | (필수) | 리뷰 대상 |
 | `--effort` | `low\|medium\|high` | `medium` | 리뷰 강도 (high = adversarial) |
 | `--blocking` | 플래그 | stage별 자동 (아래 표) | FAIL 시 종료 코드 1 반환 |
+| `--cr` | `on\|degrade\|off` | (없으면 `FORGE_AUTO_CR` env → 기본 `on`) | Codex 호출 제어. `degrade`/`off` 모두 단일 Codex 경로 skip. `on`은 env off도 강제. `cr-mode.sh`로 resolve. |
 
 ### Stage별 정책
 
@@ -63,7 +64,7 @@ codex   # /login → moongci38 ChatGPT 계정 OAuth
 | `bugfix` | patch + 재현 케이스 | 근본 원인 vs 우회, 회귀 가능성 | NO |
 | `yt-apply-plan` | yt 스킬 `*-apply-plan.md` (개별/통합) | Forge 적용 가능성, 중복 제안, YAGNI, 근거 인용, 롤백 | **YES** |
 | `article-apply-plan` | article 스킬 `*-apply-plan.md` (개별/통합) | 동상 (article용 prompt = yt symlink) | **YES** |
-| `phase1-validate` | `/find-item` `validated-item.md` (Phase 1 사업 결정 게이트) | Reject 4·5 신호 근거·Moat·카테고리 옵션·Mike Hill 5·1인 규모 | **YES** |
+| `phase1-validate` | `/forge-find-item` `validated-item.md` (Phase 1 사업 결정 게이트) | Reject 4·5 신호 근거·Moat·카테고리 옵션·Mike Hill 5·1인 규모 | **YES** |
 
 ---
 
@@ -92,18 +93,27 @@ case "$STAGE" in
 esac
 ```
 
-### Step 1.5 — Auto-stage 게이트 (env 기반 활성/비활성)
+### Step 1.5 — Auto-stage 게이트 (env 기반 활성/비활성) + --cr 모드 게이트
 
 ```bash
-# CODEX_REVIEW_AUTO_STAGES 미설정 또는 "all" = 모든 stage 활성 (기본)
-# 특정 값 설정 시 매칭 stage만 호출. "off"면 즉시 종료.
-AUTO_STAGES="${CODEX_REVIEW_AUTO_STAGES:-all}"
+# CODEX_REVIEW_AUTO_STAGES 미설정 = off (기본 off, 팀 비용절감). 복원 = CODEX_REVIEW_AUTO_STAGES=all 또는 --cr on.
+# "all" = 모든 stage 활성. 특정 값 설정 시 매칭 stage만 호출. "off"면 즉시 종료.
+AUTO_STAGES="${CODEX_REVIEW_AUTO_STAGES:-off}"
 if [[ "$AUTO_STAGES" == "off" ]]; then
   echo "[codex-review] CODEX_REVIEW_AUTO_STAGES=off → 호출 생략"
   exit 0
 fi
 if [[ "$AUTO_STAGES" != "all" && ! ",$AUTO_STAGES," == *",$STAGE,"* ]]; then
   echo "[codex-review] $STAGE 미포함 ($AUTO_STAGES) → 호출 생략"
+  exit 0
+fi
+
+# --cr 게이트: cr-mode.sh로 effective mode 결정 (우선순위: --cr 인자 > FORGE_AUTO_CR env > on)
+# codex-review = 단일 Codex 경로 → degrade/off 모두 "Codex 호출 없음"과 동일 → skip
+# --cr on이면 CODEX_REVIEW_AUTO_STAGES=off보다 위에서 이미 빠져나갔으므로 여기서 on = 통과만
+CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "${CR_ARG:-}")
+if [[ "$CR_MODE" == "off" || "$CR_MODE" == "degrade" ]]; then
+  echo "[codex-review] --cr $CR_MODE → Codex 호출 생략"
   exit 0
 fi
 
@@ -136,14 +146,15 @@ fi
 ### Step 2 — Codex 호출
 
 ```bash
-# 모델·effort 선택 — ChatGPT OAuth는 `gpt-5.5`만 지원, effort는 -c 오버라이드
+# 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. config model=gpt-5.5. codex 호출 $0.
+# apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 gpt-5.5 API 가격 과금.
 MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
 EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
 
 # 프롬프트 stage별 선택
-PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${STAGE}.md"
-[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
+PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-${STAGE}.md"
+[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-default.md"
 
 # 호출 (stdin = prompt + target)
 ( cat "$PROMPT_FILE"; echo; echo "---"; echo "## TARGET"; echo "$INPUT" ) | \
@@ -295,6 +306,27 @@ if [[ "$BLOCKING" == "true" ]]; then
 fi
 ```
 
+#### FAIL 후 에스컬레이션 경로 (WAVE-2 P3 — bound=1, light-touch)
+
+`--blocking` FAIL 시 두 가지 경로 중 선택:
+
+**A. 호출자 재호출 (cap=1 — 별도 CLI 플래그 아님, 동작 규약)**: 호출자가 FAIL 이슈를 수정한 뒤 동일 명령을 1회 재실행. codex-review는 leaf gate이므로 내부 루프 추가 없이 **호출자 책임으로 재호출**. 재실행 횟수 cap=1 (동일 대상에 대한 두 번째 재호출은 cr-triple 에스컬레이션 의무).
+
+```bash
+# 수정 후 1회 재호출 예시 (cap=1):
+/codex-review --stage final --target PR-1234 --effort high --blocking
+# 재호출에서도 FAIL → /cr-triple 에스컬레이션 (아래 B)
+```
+
+**B. `cr-triple` 에스컬레이션**: `--blocking` FAIL + 수정 후 재호출에서도 FAIL → `/cr-triple` 호출. cr-triple은 3-LLM 병렬 리뷰로 최종 판정. codex-review 단독 루프 추가 금지 — 에스컬레이션이 유일한 bounded 경로.
+
+```bash
+# cr-triple 에스컬레이션 (cap=1, 재호출 FAIL 후에만):
+/cr-triple --target PR-1234
+```
+
+> **Note**: codex-review는 단일 Codex 경로 leaf gate. 내부 retry 루프 추가 X. 모델/인증/비용 로직 변경 X.
+
 ---
 
 ## Stage별 호출 예시
@@ -348,11 +380,11 @@ fi
 ### Forge Dev
 | Phase | Codex stage | Blocking |
 |-------|-------------|----------|
-| Phase 4 (개발계획 패키지 — `/forge-plan`) | `plan` | NO (권고, AD-50) |
-| Phase 7 (Spec — `/sdd`) | `plan` | NO (권고, AD-50) |
-| Phase 8 Check 8.7 | `code` | NO |
-| Phase 8 Check 8.8 | `test` | NO |
-| Phase 9 Check 9 | `final` | YES |
+| P3 (개발계획 패키지 — `/forge-plan`) | `plan` | NO (권고, AD-50) |
+| P4 (Spec — `/forge-spec`) | `plan` | NO (권고, AD-50) |
+| P5 Check P5.7 | `code` | NO |
+| P6 Check 6-TX | `test` | NO |
+| P7 Check 7-X | `final` | YES |
 
 ### 수동 전용 (파이프라인 미배선)
 - `analysis` — 분석노트·cross-repo·backlog·runbook doc. `/cr-analysis <path>` 수동 호출만. SDD/PGE/Forge Dev 자동 게이트에 배선하지 않음 (분석노트는 즉시 실행 가능 산출물이 아님 — plan/code/test 게이트와 성격 다름). `--stage plan`이 분석 doc에 잘못 걸리면 Step 1.6 auto-route가 가로챔.
@@ -361,20 +393,21 @@ fi
 
 ## 비용 통제
 
-**현재 설정**: ChatGPT OAuth 계정(moongci38) → API 빌링 없음. `gpt-5.5` 단일 모델만 사용 가능. effort로 강도 차등.
+**현재 설정 (2026-06-17 전환 완료)**: auth_mode=`chatgpt` (OAuth), model=`gpt-5.5` (`~/.codex/config.toml`) → **ChatGPT Plus 구독 포함, API 과금 $0**. effort로 강도만 차등.
+> apikey 폴백: `~/.codex/auth.json.apikey-backup-20260617` 복원 시 gpt-5.5 API 가격 과금.
 
-| Stage | 모델 | Reasoning Effort | 1회 비용 (OAuth) | API key fallback |
-|-------|------|------------------|------------------|------------------|
-| `plan` | gpt-5.5 | medium | $0.00 | gpt-5-mini ~$0.01~0.03 |
-| `analysis` | gpt-5.5 | medium | $0.00 | gpt-5-mini ~$0.01~0.03 |
-| `code` | gpt-5.5 | medium | $0.00 | gpt-5-mini ~$0.02~0.05 |
-| `test` | gpt-5.5 | medium | $0.00 | gpt-5-mini ~$0.01~0.03 |
-| `final` | gpt-5.5 | **high** | $0.00 | gpt-5 (high) ~$0.10~0.30 |
-| `bugfix` | gpt-5.5 | medium | $0.00 | gpt-5-mini ~$0.02~0.05 |
+| Stage | 모델 | Reasoning Effort | 비용 (OAuth) | 비상 폴백 (apikey 시) |
+|-------|------|------------------|-------------|----------------------|
+| `plan` | gpt-5.5 | medium | **$0.00** | ~$0.01~0.03 |
+| `analysis` | gpt-5.5 | medium | **$0.00** | ~$0.01~0.03 |
+| `code` | gpt-5.5 | medium | **$0.00** | ~$0.02~0.05 |
+| `test` | gpt-5.5 | medium | **$0.00** | ~$0.01~0.03 |
+| `final` | **gpt-5.5** | **high** | **$0.00** | ~$0.10~0.30 |
+| `bugfix` | gpt-5.5 | medium | **$0.00** | ~$0.02~0.05 |
 
-OAuth 사용 중에는 빌링 없음 (ChatGPT Plus/Pro 플랜 한도 내). API key로 전환 시:
+모델 override (env):
 ```
-export CODEX_REVIEW_MODEL="gpt-5-mini"   # 비용 최소화
+export CODEX_REVIEW_MODEL="gpt-5.5"          # 현재 기본값
 export CODEX_REVIEW_DAILY_LIMIT=20
 export CODEX_REVIEW_MONTHLY_BUDGET_USD=20
 ```

@@ -1,4 +1,4 @@
-// root-cause: Planner+Evaluator 2 Phase → pge와 동일 격리 패턴. Evaluator는 의도 미전달. 계획서 P1-2.
+// root-cause: Planner+Evaluator 2 Phase → forge-pge와 동일 격리 패턴. Evaluator는 의도 미전달. 계획서 P1-2.
 export const meta = {
   name: 'writing-plans',
   description: '계획 작성 + 독립 Evaluator 검증 — Evaluator는 작성 의도 없이 계획서만 판정',

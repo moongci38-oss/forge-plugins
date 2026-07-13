@@ -12,6 +12,16 @@ group: research
 
 후보 1줄 → Reject 룰 4 사전 필터 → 카테고리 식별 → 5 신호 자동 수집 → 1페이지 markdown → Human 승인 → Obsidian 적재.
 
+## 모델 라우팅 (2026-07-04)
+
+| 작업 | 모델 | 방법 |
+|------|------|------|
+| 후보 문서 작성·판정 | **Sonnet** | frontmatter `model: sonnet` |
+| 신호 수집·시장 탐색(web/grep) | **Haiku** | `Agent(model:"haiku")` subagent (50p+ 장문 분석은 기존 Gemini 라우팅 유지) |
+| GO/NO-GO 자문 | **Opus** | `advisor-strategist` |
+
+근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
+
 **방법론 출처** (forge-outputs RAG): Mike Hill 10단계 / Mom Test / Lean Validation 4주 / 10 후보 v2 Reject·Priority 룰
 
 **v3 변경**: Reject 5→4 (Moat 중복 제거), 신호 #1·#5 카테고리 일반화 (게임/콘텐츠/B2C 일반 지원), 시간 흐름 명시 (~8주)
@@ -273,6 +283,8 @@ Reject 4가 다루지 않는 두 축만 확인한다(나머지 4문항 = Reject 
 - Kill Criteria
 - **(선택) 30일 검증 프로토콜** 섹션
 - 관련 Obsidian 노트 링크 (`[[concepts/micro-saas-solo-founder-2026]]` 등)
+
+**GO/NO-GO advisor (조건부, advisory-only)**: 5 신호 종합 판정이 **borderline**(일부 PASS·일부 애매) 또는 **Reject 경계**(4 항목 중 애매한 ❌)일 때 → Human 승인 전 advisor-strategist(Opus) 자문: `Agent(subagent_type="advisor-strategist", prompt="<후보 1줄+5신호 결과+애매점 500토큰> 추진(GO) vs 보류(NO-GO) 권고 + 핵심 근거 1~2개")`. 명확한 전항목 PASS 또는 명확한 Reject는 스폰 X(비용 방지). advisory only — 최종 GO/NO-GO는 Human 승인 게이트. non-blocking(advisor 없어도 판정 진행). 중첩 시 [→Lead 위임].
 
 ### Step 6 — [STOP] Human 승인 (v5 Protocol 명시)
 

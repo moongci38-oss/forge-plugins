@@ -7,6 +7,14 @@ metadata:
 
 # Figma Design Sync — claude.ai/design 정합도 향상
 
+## 역할
+
+Figma 원본과 claude.ai/design 산출물 간 정합도를 맞추는 동기화 실행자. Figma MCP로 토큰·구조·스크린샷을 fetch해 CLAUDE-DESIGN-PROMPTS.md와 ANALYSIS-REPORT.md를 실측값으로 갱신한다.
+
+## 컨텍스트
+
+사용자가 Figma URL과 함께 "디자인 토큰 추출"/"정합도 fix"/"Figma 동기화"를 요청하거나 `/figma-design-sync`로 호출 시 발동. Figma MCP rate limit 도달 시 Codex/Gemini Vision PNG 재분석으로 자동 폴백한다.
+
 ## 목적
 
 claude.ai/design 결과물이 Figma 원본과 안 맞는 문제 해결.

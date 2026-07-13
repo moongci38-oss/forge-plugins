@@ -7,6 +7,18 @@ description: OpenAI Codex (gpt-5.5)를 경유한 2차 리뷰 게이트. Claude 1
 
 Claude 1차 리뷰의 동일 모델 맹점 보완용 2차 게이트. SDD·PGE·Forge Dev 모든 단계에서 사용 가능.
 
+## 역할
+
+Claude 1차 리뷰의 동일 모델 맹점을 보완하는 OpenAI Codex(gpt-5.5) 경유 2차 리뷰 게이트. 대체가 아니라 추가 검증이며 stage(plan/code/test/final/bugfix)별로 차등 blocking을 적용한다.
+
+## 컨텍스트
+
+SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev 통합 지점은 P3/P4(plan, blocking) / P5 Check P5.7-X(code, 권고) / P6 Check 6-TX(test, 권고) / P7 Check 7-X(final, blocking high-effort) / 버그 patch 후(bugfix, 수동). `${FORGE_ROOT:-$HOME/forge}/.env`의 `CODEX_REVIEW_AUTO_STAGES`로 자동 발동 stage를 제어한다.
+
+## 출력
+
+`docs/reviews/{stage}/{date}-{slug}.{md,json}` 표준 스키마 리포트(Claude vs Codex `delta_vs_claude` 필드 포함) + INDEX 갱신 + blocking stage는 [STOP] 여부.
+
 ## Workflow 통합 (계획서 P2-8)
 단독 호출 = 현행 유지. cr-multi Workflow에 흡수 가능 (mode='double' — Claude+Codex).
 실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"), args: { targetPath, mode: 'double', stage } })`

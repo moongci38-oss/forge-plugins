@@ -5,6 +5,18 @@ description: Karpathy 3-layer 개인 지식 체계의 Raw → Wiki 추출 워크
 
 # Wiki Sync — Raw to Wiki Extraction Workflow
 
+## 역할
+
+Karpathy 3-layer 개인 지식 체계(Raw → Wiki → Meta)의 Raw → Wiki 변환을 Human-in-the-loop로 수행하는 제안자. AI는 신규 Raw 문서를 스캔해 매칭·초안을 제안할 뿐, Wiki 노트를 직접 확정하지 않는다.
+
+## 컨텍스트
+
+`/wiki-sync`, "위키 동기화", "raw to wiki", "20-wiki 업데이트" 요청 시 발동하는 Phase C 지식 체계 워크플로우. 스캔 대상은 `forge-outputs`의 Raw 레이어(01-research/, daily-system-review/, weekly-research/, videos/, 12-team-ops/ 등)이며, `--auto` 모드는 신뢰도 HIGH 항목만 [STOP] 없이 처리한다.
+
+## 출력
+
+승인된 변경만 반영된 `forge-outputs/20-wiki/` 노트(UPDATE 섹션 추가 또는 NEW 파일) + `sync-tracking.json` 갱신(ingested/rejected) + 미승인 MEDIUM/LOW 항목은 `_meta/pending-review.md`.
+
 ## Overview
 
 Karpathy 3-layer 패턴(Raw → Wiki → Meta) 중 **Raw → Wiki 변환을 Human-in-the-loop**로 수행한다. AI는 신규 Raw 문서를 스캔하고, 기존 Wiki 노트와 비교해서 어디에 어떤 내용을 추가/통합할지 제안한다. Human이 승인한 변경만 실제로 적용된다.

@@ -48,6 +48,19 @@ git diff --stat HEAD
 
 사용자 선택 후 진행. "ㅇㅇ" = 가장 보수적인 옵션 (A 또는 B).
 
+## Advisor 자문 (advisory-only · non-blocking · Opus)
+
+undo(파일/커밋/스테이징 되돌림) 실행 직전에 `advisor-strategist`(Opus) 조언을 구한다. **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+
+```
+Agent(subagent_type="advisor-strategist", prompt="되돌릴 대상(파일/커밋/스테이징)·현재 워킹트리 상태(공유트리·타세션 dirty 여부) 맥락 3-5줄. 질문: 이 undo가 유실·손상시킬 수 있는 것(타세션 작업·미커밋 변경)과 안전 확인 2-3개는?")
+```
+
+- 트리거: 파일/커밋/스테이징 되돌림 실행 직전(공유트리·타세션 영향 가능). `--dry-run`은 호출 대상 아님.
+- 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 기존 Human 승인 게이트)가 수행.
+- **Fable 5 미배선** — Human 수동 에스컬레이션 전용(자동분기는 forge-fix T4 한정). `advisor-model-resolve` 호출 금지.
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor/결정=Opus.
+
 ### Step 3. 롤백 실행
 
 **커밋 취소** (`--commit`):

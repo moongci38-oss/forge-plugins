@@ -73,12 +73,17 @@ group: implement
     - 6하원칙(누가/언제/어디서/무엇을/어떻게/왜) bug-fix-plan.md 작성
     - RED 증거(스크린샷/API·로그/db_query_before) 첨부
     - current-bug 포인터 기록 (게이트 귀속 판정 근거)
+    - **evidence_tier / provenance 필드(Batch 3 증거등급 정직화, WARN-first, additive — fop-schema.json `additionalProperties:true`와 무모순)**: fop.json/수정 보고 헤더에 다음 2필드를 추가한다.
+      - `evidence_tier`: `runtime`(실브라우저·실API·실DB 등 실행 관측) | `code+db`(코드+DB 실측이나 실행 환경 미가용) | `code-only`(코드 근거만, 실행·DB 모두 미가용)
+      - `provenance`: 검증을 실행한 환경(로컬/샌드박스/CI) + 네트워크 가용 여부 1줄
+      - `evidence_tier`가 `runtime`이 아니면 산출물에 "런타임 증거 없음 — 근거등급 하향" 문구를 명기해야 한다(WARN 고지 의무, 자동 통과는 유지 — **[STOP] 아님**). 미기재 시 자동 게이트 BLOCK 없음(WARN-first 초기).
+      - kill-switch: `FORGE_EVIDENCE_TIER=off` — off 시 이 절 전체 미적용(기존 fop 흐름 그대로).
 
 ③ 수정   [healer a1~a3]
     - **아키텍처 영향 감지 시 advisor 자문(T2)**: multi-file 교차의존 / 인터페이스·계약 변경 / healer MANUAL-ONLY 분류 감지 시 → 수정 착수 전 `Agent(subagent_type="advisor-strategist", prompt="<변경범위+교차의존+계약변경 요약 500토큰> 설계 정합·회귀위험·대안 조언 요청")` 스폰. 단일파일·명확 원인 버그는 스폰하지 않는다.
     - **고위험·비가역 감지 시 advisor 자문(T4)**: 수정 대상이 data migration / DELETE·삭제 경로 / 결제·billing 경로 중 하나면 → 착수 전 `Agent(subagent_type="advisor-strategist", prompt="<비가역 변경 요약+롤백 전략 현황 500토큰> 비가역 리스크·롤백 전략 조언 요청")` 스폰 + 사용자 [STOP] 게이트와 연계(advisor 조언을 승인 요청에 포함). 그 외 일반 수정은 스폰하지 않는다. → 착수 전 `MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh" T4 2>/dev/null)` 실행. 출력에 `fable` 포함 시 `Agent(subagent_type="advisor-strategist", model:"fable", prompt="...")`, 아니면 `model:"opus"`(또는 model 생략)로 스폰. 리졸버가 kill-switch/일일캡/미가용을 처리하므로 여기선 출력만 신뢰. Fable 스폰이 미가용·크레딧으로 실패하면 즉시 `model:"opus"`로 재스폰(무한재시도 금지, 1회 폴백). **리졸버 출력이 비었거나 스크립트 실행 자체가 실패해도(파일 없음/실행권한 없음) 기본 `model:"opus"`로 진행 — 에러로 중단 금지(non-blocking).** **이 자동 Fable 분기는 T4에 한함 — T1/T2/T3 및 advisor 외 경로(forge-pr/cr-*/자동게이트)엔 배선 금지(비용가드).**
     - root-cause surgical fix (인접 코드 무관 변경 금지)
-    - **클래스 스윕 표 필수(Batch 1-4, 2026-07-10 — WARN-first 초기)**: 수정 심볼/패턴을 **레포 전체 grep** → 발견 항목별 처분 표 작성 — `fix`(이번에 수정) / `verified-clean`(확인 결과 무결) / `follow-up`(티켓팅) + **근거 1줄** 필수. 처분 누락 항목 존재 = 게이트 실패(WARN-first 초기 — fop `sweep.found_count/fixed_count/ticketed`와 정합). 실증: 2026-07-10 스윕이 즉시 동일 클래스 3건 적중(리포트 A-P2).
+    - **클래스 스윕 표 필수(Batch 1-4, 2026-07-10 — WARN-first 초기)**: 수정 심볼/패턴을 **레포 전체 grep** → 발견 항목별 처분 표 작성 — `fix`(이번에 수정) / `verified-clean`(확인 결과 무결) / `follow-up`(티켓팅) + **근거 1줄** 필수. 처분 누락 항목 존재 = 게이트 실패(WARN-first 초기 — fop `sweep.found_count/fixed_count/ticketed`와 정합). 실증: 2026-07-10 스윕이 즉시 동일 클래스 3건 적중(리포트 A-P2). **`git rm`(삭제) 포함 시 스윕 대상 = 삭제된 경로 문자열** — 테스트 스크립트 타깃 배열 · CI path 필터 · qa-config 엔드포인트 · docs 실행예시. 코드 심볼만 grep하면 회귀 게이트가 stale 타깃으로 조용히 죽는다.
     - **상호의존 편집 원자성(F4, WARN-first — 라이브 dev서버 과도기 크래시 방지)**: 필드 제거/optional화 + 그 필드 소비처 가드처럼 **서로 의존하는 다단계 편집**은 반드시 (a) **역순 적용**(소비처의 `?.` 옵셔널 가드·판별 분기를 **먼저** 넣고 → 그 다음 데이터/타입에서 필드 제거) 또는 (b) 한 번에 원자적 적용한다. 순서를 뒤집으면(데이터 먼저 제거) HMR이 중간 상태를 컴파일하는 순간 "데이터엔 없는데 렌더는 아직 비옵셔널 접근" → throw로 라이브 서버에서 실사용자 크래시(최종 코드가 정상이라 '최종 상태 GREEN'으론 못 막는 창). 소비처 전수 grep 후 가드-우선 순서로 편집. non-blocking(규율, 게이트 신설 아님).
     - fix_started_at 타임스탬프 기록 (아티팩트 신선도 기준)
     - **background/headless cr 폴백(WARN-first — A7)**: cr 게이트(cr-code/cr-bug) 진입 전 실행 컨텍스트가 background/headless 세션인지 감지한다 — 이런 세션은 사용자 TTY가 없어 외부 cr 워커(Codex/Gemini HMAC 승인)를 블로킹한다. 감지 시 외부 워커 대신 **Opus-worker cr 폴백으로 자동 라우팅**한다(cr-multi가 이미 보유한 폴백을 forge-fix 레벨에서 배선). 감지 불가·전경(foreground) 세션이면 정상 외부 cr 진행. non-blocking(게이트 신설 아님, 라우팅만 전환).

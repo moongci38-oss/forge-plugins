@@ -73,6 +73,13 @@ interactive 요소에 적절한 ARIA 속성 존재.
 - CSS `animation`/`transition` 사용 시 `@media (prefers-reduced-motion: reduce)` 존재
 - Lenis smooth scroll에 `lerp: 1` fallback
 
+### U-7: WCAG 2.2 신규 기준 (Warning)
+
+- **Focus Not Obscured (2.4.11)**: sticky 헤더/오버레이가 focus된 요소를 가리지 않는가.
+- **Target Size Minimum (2.5.8)**: 인터랙티브 타깃 ≥24×24px(불가 시 충분한 간격).
+- **Dragging Movements (2.5.7)**: 드래그 전용 조작에 단일 포인터(탭/클릭) 대체가 있는가.
+- **Focus Appearance**: focus outline 3px 이상 가시.
+
 ### U-6: Lighthouse 런타임 검증 (선택)
 
 dev 서버가 실행 중일 때만 수행:

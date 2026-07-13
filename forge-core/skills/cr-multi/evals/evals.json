@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/cr-double ~/forge-outputs/11-platform/pipelines/plans/2026-05-24-mas-plan-p0-adr.md",
+      "prompt": "/cr-double ${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/pipelines/plans/2026-05-24-mas-plan-p0-adr.md",
       "expected_output": "2개 worker JSON (codex + gemini) + report.md with Triage 합산 verdict",
       "expectations": [
         "codex.json 생성 (verdict/score/issues 필드 포함)",
@@ -25,7 +25,7 @@
     },
     {
       "id": 3,
-      "prompt": "/cr-double ~/forge-outputs/02-product/projects/forge-platform/specs/approve-worker-spec.md에 API_KEY=secret123456789 포함 시 secret scan",
+      "prompt": "/cr-double ${FORGE_ROOT:-$HOME/forge}-outputs/02-product/projects/forge-platform/specs/approve-worker-spec.md에 API_KEY=secret123456789 포함 시 secret scan",
       "expected_output": "[BLOCKED] Secret detected → exit 2 (외부 전송 차단)",
       "expectations": [
         "Secret regex 패턴 탐지",

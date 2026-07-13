@@ -111,7 +111,7 @@ Claude Code 릴리즈, MCP SDK 변경, API changelog:
 산출물 작성 **직전에** 아래 4단계 검증을 수행하여 인라인 자동 수정한다.
 
 **GTC-1: 관련성 필터** — 언급된 도구/서비스가 실제 사용 중인지 확인
-- Read: `.mcp.json`, `~/.claude.json` (MCP 서버 목록)
+- Read: `.mcp.json`, `$HOME/.claude.json` (MCP 서버 목록)
 - Read: `forge-workspace.json` (활성 프로젝트)
 - Glob: `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`
 - Step 1-4에서 수집된 모든 도구/서비스 언급을 위 파일에서 검색

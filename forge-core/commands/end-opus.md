@@ -45,6 +45,7 @@ echo "$HANDOVER_CONTENT" | \
 - front matter 자동 추가 (date / time / model / slug / status:open / session_id / created_at)
 - INDEX.md 자동 갱신 (latest open + last 5 consumed)
 - flock 보호 + atomic rename = race 0
+- ⚠️ **크로스머신 인계 목적**(다른 PC·다른 세션이 이 handover를 받아야 함)이면 `.claude/handover/`가 해당 프로젝트에서 gitignore 대상인지 먼저 확인 — gitignore 대상이면 추적되는 경로(예: `docs/` 또는 프로젝트 SSoT 디렉토리)에 작성해 git으로 전파되게 한다. 로컬 전용 인계는 기존 경로 그대로.
 
 ### 4. learnings 추가 (있으면)
 
@@ -62,6 +63,21 @@ bash $HOME/.claude/scripts/learnings.sh append --category pge-failure \
   --evidence "<PGE 보고서 경로 또는 사이클 요약>"
 ```
 → 보고에 `📌 learnings 신규: <id>`. (없으면 skip.) 헬퍼 규약: `$HOME/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션.
+
+### 4.5. DO/DON'T + 실패한 시도 inline 추출 (P3 Continuity Spine — M13)
+
+handover 작성 중 inline으로 수행 (추가 LLM 호출 0, H4):
+
+**A. 사용자 제약·지시 (DO/DON'T) 캡처**
+이번 세션에서 사용자가 명시한 금지(DON'T)·요구(DO)를 handover `## 사용자 제약·지시 (DO / DON'T)` 섹션에 기록.
+- 형식: `- [DON'T] {내용} (근거/맥락)` / `- [DO] {내용}`
+- **승격**: durable 제약(설계·아키텍처 레벨) → 글로벌 `~/CLAUDE.md` 또는 프로젝트 루트 CLAUDE.md `## 사용자 제약` 섹션
+- **learnings 저장**: 재사용 가능 교훈 → `learnings.sh append --category user-directive` 또는 `--category forbidden-pattern`
+
+**B. 실패한 시도와 이유**
+handover `## 실패한 시도와 이유` 섹션에 기록:
+- 형식: `- 시도: {무엇} → 실패: {증상} → 이유: {원인} → 교훈: {다음 세션 지침}`
+- 섹션 형식 상세: `$HOME/.claude/rules-on-demand/handover-template.md` §추가 필수 섹션 참조
 
 ### 5. Memory / Rule 업데이트
 
@@ -102,6 +118,7 @@ fi
 - [ ] `handover-manager.sh write opus` 호출 완료 (Sonnet 섹션 포함)
 - [ ] INDEX.md 자동 갱신 확인
 - [ ] learnings 추가 (해당 시) — `learn-append` 호출
+- [ ] DO/DON'T + 실패한 시도 handover 섹션 기록 (§4.5 — P3 Continuity Spine)
 - [ ] Memory/Rule 업데이트 (해당 시)
 - [ ] Obsidian 업데이트 (해당 시)
 - [ ] revise-claude-md 호출 (플러그인 설치 시) — CLAUDE.md 갱신 후보 검토

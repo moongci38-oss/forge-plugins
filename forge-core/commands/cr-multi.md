@@ -156,6 +156,6 @@ ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/cr-multi/
 
 ## 참조
 
-- 모드 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
+- 모드 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
 - Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
 - Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`

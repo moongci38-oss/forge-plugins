@@ -15,6 +15,19 @@ Forge Dev Phase 12 프로덕션 롤백을 실행합니다. 배포 실패 시 아
 | **L2 Release Revert** | 실패 후 < 2시간 | 이전 릴리스 태그로 완전 복구 + 재배포 |
 | **L3 Hotfix Forward** | 실패 후 > 2시간 | `hotfix/*` 브랜치 생성 → Forge Dev Hotfix 플로우 재진입 |
 
+## Advisor 자문 (advisory-only · non-blocking · Opus)
+
+롤백 실행 결정(장애 대응·비가역) 직전에 `advisor-strategist`(Opus) 조언을 구한다. **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+
+```
+Agent(subagent_type="advisor-strategist", prompt="장애 증상·롤백 대상 버전·현재 배포 상태 맥락 3-5줄. 질문: 이 롤백 자체가 유발할 수 있는 데이터 정합·부분배포 부작용과 대안 2-3개는?")
+```
+
+- 트리거: 롤백 명령 실행 직전(장애 대응·비가역)
+- 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 기존 Human 승인 게이트)가 수행.
+- **Fable 5 미배선** — Human 수동 에스컬레이션 전용(자동분기는 forge-fix T4 한정). `advisor-model-resolve` 호출 금지.
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor/결정=Opus.
+
 ## 실행 방법
 
 ### L1 Quick Revert

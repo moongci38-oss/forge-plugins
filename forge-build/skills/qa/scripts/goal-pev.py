@@ -49,8 +49,8 @@ def _check_ralph_hook() -> bool:
         return True
     # 방법 2: settings.json 파일만 체크 (SubagentStop hook registration 위치)
     settings_files = [
-        os.path.expanduser("~/.claude/settings.json"),
-        os.path.expanduser("~/forge/.claude/settings.json"),
+        os.path.expanduser("$HOME/.claude/settings.json"),
+        os.path.expanduser("${FORGE_ROOT:-$HOME/forge}/.claude/settings.json"),
     ]
     for p in settings_files:
         if os.path.isfile(p):
@@ -62,8 +62,8 @@ def _check_ralph_hook() -> bool:
     # 방법 3: hooks 디렉토리의 top-level *.sh / *.json 파일명만 확인 (recursive 금지)
     import glob as _glob
     hook_dirs = [
-        os.path.expanduser("~/.claude/hooks"),
-        os.path.expanduser("~/forge/.claude/hooks"),
+        os.path.expanduser("$HOME/.claude/hooks"),
+        os.path.expanduser("${FORGE_ROOT:-$HOME/forge}/.claude/hooks"),
     ]
     for hook_dir in hook_dirs:
         for pattern in ("*.sh", "*.json"):
@@ -242,6 +242,174 @@ def update_same_issue(state: dict) -> int:
     return max(new_counts.values(), default=0)
 
 
+def check_oracle_manifest(qa_result: dict, log_file: str) -> dict:
+    # root-cause: goal-pev.py가 oracle-manifest를 완전히 무시해 FR매핑 60%여도 qa-report FAIL=0이면
+    # silent false SUCCESS 발생. 이 함수로 manifest 활성 시 5기준 검증 추가.
+    # handover 참조: 2026-06-26-1600-p1-loop-criteria-convention.md §2 (b) backlog 해소.
+    # 반환 형식:
+    #   {"active": False}                               — manifest 없음 → 기존 coarse 폴백
+    #   {"active": True, "status": "warn", "reason"}   — stale/불신 → coarse 폴백
+    #   {"active": True, "status": "pass"}              — 5기준 충족 → END(SUCCESS) 허용
+    #   {"active": True, "status": "fail", "details": list, "advisory": str | None}  — 기준 미충족 → SUCCESS 차단
+    # FIX 1 (freshness): fr-verdict.json mtime < spec or qa-report → stale → warn → coarse 폴백.
+    # FIX 2 (uiux path): manifest.uiux = project-root-relative; resolve against project root, NOT CWD.
+    # FIX 3 (화면매핑 proxy): 기준4 = 파일 존재 proxy — 진짜 화면매핑 검증은 forge-check-ui Check 8.6 별도.
+    # 이 gate는 false SUCCESS만 차단. unmappedFR→forge-implement 자동 라우팅 미구현(별도 backlog).
+    #   FR-gap 프로젝트는 plateau/cycle-cap STOP됨.
+    """Oracle-manifest 5기준 SUCCESS 게이트."""
+
+    # ── manifest 탐색 ────────────────────────────────────────────────────────
+    manifest_path = Path(".specify/oracle-manifest.json")
+    if not manifest_path.exists():
+        return {"active": False}
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        log(f"[oracle-manifest] 파싱 실패: {e} → coarse 폴백", log_file)
+        return {"active": False}
+
+    # FIX 2: project root = .specify/의 부모 (manifest 위치 → 부모 → 프로젝트 루트)
+    # oracle-manifest.json는 .specify/oracle-manifest.json에 고정 → 부모의 부모 = 프로젝트 루트
+    project_root = Path(manifest_path).resolve().parent.parent
+
+    spec_rel = manifest.get("spec", "")
+
+    # root-cause: MEDIUM-1 (cr-code) — uiux_paths가 JSON string이면 Python이 character 단위 이터레이션.
+    # 각 문자가 project_root 직하 단문자 파일이 되어 전부 누락 → 기준4 항상 fail → SUCCESS 영구 차단
+    # → max_cycles 소진 → STOP_CYCLES (false infinite-loop 등가). string은 1-element list로 변환.
+    _uiux_raw = manifest.get("uiux", [])
+    if isinstance(_uiux_raw, list):
+        uiux_paths = _uiux_raw
+    elif isinstance(_uiux_raw, str):
+        uiux_paths = [_uiux_raw]
+    else:
+        uiux_paths = []
+    log(f"[oracle-manifest] 활성. spec={spec_rel}, uiux={len(uiux_paths)}개", log_file)
+
+    # ── FIX 1: fr-verdict.json freshness ─────────────────────────────────────
+    # root-cause: FIX 1 — fr-verdict.json이 spec 또는 qa-report보다 오래되면 stale → 신뢰 불가 → coarse 폴백.
+    # root-cause: HIGH-1 (cr-code) — spec_path=None AND qa-report ≤ fr-verdict일 때 freshness 앵커 둘 다 없음.
+    # 그 상태에서 stale_reason="" → fr-verdict를 fresh로 신뢰 → false SUCCESS 가능. warn 반환으로 수정.
+    fr_verdict_path = Path("docs/qa/fr-verdict.json")
+    spec_path = (project_root / spec_rel) if spec_rel else None
+
+    qa_reports = sorted(glob.glob("docs/qa/*qa-report*.md"), reverse=True)
+    qa_report_path = Path(qa_reports[0]) if qa_reports else None
+
+    if not fr_verdict_path.exists():
+        reason = "fr-verdict.json 없음 (forge-check-traceability 미실행)"
+        log(f"[oracle-manifest] ⚠️ {reason} → coarse 폴백 (FR 게이트 미적용)", log_file)
+        return {"active": True, "status": "warn", "reason": reason}
+
+    fv_mtime = fr_verdict_path.stat().st_mtime
+
+    # 앵커 평가
+    spec_anchor_ok = spec_path and spec_path.exists()
+    qa_anchor_newer = (
+        qa_report_path
+        and qa_report_path.exists()
+        and qa_report_path.stat().st_mtime > fv_mtime
+    )
+
+    stale_reason = ""
+    if spec_anchor_ok and spec_path.stat().st_mtime > fv_mtime:
+        stale_reason = (
+            f"fr-verdict.json(mtime={fv_mtime:.0f}) < spec(mtime={spec_path.stat().st_mtime:.0f})"
+            " — spec 갱신 후 forge-check-traceability 재실행 필요"
+        )
+    elif qa_anchor_newer:
+        stale_reason = (
+            f"fr-verdict.json(mtime={fv_mtime:.0f}) < qa-report(mtime={qa_report_path.stat().st_mtime:.0f})"
+            " — qa-report 갱신 후 forge-check-traceability 재실행 필요"
+        )
+    elif not spec_anchor_ok and not qa_anchor_newer:
+        # HIGH-1 fix: freshness 앵커 둘 다 부재 → fr-verdict 신선도 검증 불가 → warn
+        stale_reason = (
+            "freshness 검증 불가: spec 경로 누락 AND qa-report 없거나 fr-verdict보다 오래됨"
+            " — fr-verdict가 최신 상태인지 확인 불가 (forge-check-traceability 재실행 권장)"
+        )
+
+    if stale_reason:
+        log(
+            f"[oracle-manifest] ⚠️ fr-verdict.json stale/불신 ({stale_reason}) → coarse 폴백 (FR 게이트 미적용)",
+            log_file,
+        )
+        return {"active": True, "status": "warn", "reason": stale_reason}
+
+    try:
+        fr_verdict = json.loads(fr_verdict_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        reason = f"fr-verdict.json 파싱 실패: {e}"
+        log(f"[oracle-manifest] ⚠️ {reason} → coarse 폴백", log_file)
+        return {"active": True, "status": "warn", "reason": reason}
+
+    # ── 5기준 평가 ────────────────────────────────────────────────────────────
+    issues = []
+
+    # 기준 1: FR매핑 100%
+    # root-cause: MEDIUM-2 (cr-code) — fr_done > fr_total도 내부 오류. 두 경우 모두 차단.
+    fr_total = fr_verdict.get("fr_total", 0)
+    fr_done = fr_verdict.get("fr_done", 0)
+    if fr_total == 0:
+        issues.append("기준1 FR매핑: fr_total=0 (빈 집계 — spec FR 미추출 가능성)")
+    elif fr_done > fr_total:
+        issues.append(f"기준1 FR매핑: fr_done({fr_done}) > fr_total({fr_total}) — 집계 오류 (forge-check-traceability 재실행)")
+    elif fr_done < fr_total:
+        pct = fr_done * 100 // fr_total
+        issues.append(f"기준1 FR매핑: {fr_done}/{fr_total} ({pct}% < 100%)")
+
+    # 기준 2: 미매핑 0
+    fr_unmapped = fr_verdict.get("fr_unmapped", 0)
+    if fr_unmapped > 0:
+        issues.append(f"기준2 미매핑FR: {fr_unmapped}건 (NOT DONE / UNVERIFIABLE)")
+
+    # 기준 3: 테스트GREEN — qa_result는 호출자가 check_qa_report()로 이미 계산
+    if qa_result.get("status") != "pass" or qa_result.get("fail", 1) > 0:
+        issues.append(
+            f"기준3 테스트GREEN: qa-report 미통과 "
+            f"(status={qa_result.get('status')}, fail={qa_result.get('fail')})"
+        )
+
+    # 기준 4: 화면매핑100% — 파일존재 proxy (진짜 화면매핑 검증 아님 — forge-check-ui Check 8.6이 별도 수행)
+    # FIX 2: manifest.uiux는 project-root-relative → CWD 기준 아닌 project_root 기준 resolve
+    if not isinstance(uiux_paths, list) or (not _uiux_raw and _uiux_raw is not None and not isinstance(_uiux_raw, (list, str))):
+        issues.append("기준4 화면매핑: manifest.uiux 타입 오류 (list 또는 string 아님)")
+    else:
+        missing_uiux = []
+        for rel in uiux_paths:
+            abs_p = project_root / rel
+            if not abs_p.exists():
+                missing_uiux.append(rel)
+        if missing_uiux:
+            issues.append(
+                f"기준4 화면매핑 파일존재proxy (진짜 화면매핑 검증 아님 — forge-check-ui Check 8.6 별도 수행): "
+                f"uiux 파일 누락 {len(missing_uiux)}건: {missing_uiux[:3]}"
+            )
+
+    # 기준 5: 회귀0 — check_regression() 재활용
+    if check_regression():
+        issues.append("기준5 회귀0: baseline.json에 FAIL 시나리오 존재")
+
+    if issues:
+        log(
+            f"[oracle-manifest] 5기준 미충족 ({len(issues)}건) → SUCCESS 차단:\n"
+            + "\n".join(f"  - {i}" for i in issues),
+            log_file,
+        )
+        advisory = (
+            f"/forge-implement --spec {spec_rel}" if fr_unmapped > 0 and spec_rel else None
+        )
+        return {"active": True, "status": "fail", "details": issues, "advisory": advisory}
+
+    log(
+        "[oracle-manifest] 5기준 모두 충족 (FR매핑100%+미매핑0+테스트GREEN"
+        "+화면매핑proxy+회귀0) → END(SUCCESS) 허용",
+        log_file,
+    )
+    return {"active": True, "status": "pass"}
+
+
 def check_plateau(history: list, epsilon: int = PLATEAU_EPSILON) -> bool:
     """True if fail_count progress < epsilon for 2 consecutive cycles (단조 미개선, kernel §1).
 
@@ -329,12 +497,51 @@ def main():
         result = check_qa_report(args.scope)
         log(f"[Plan] qa-report: status={result['status']} pass={result['pass']} fail={result['fail']}", log_file)
 
-        # ─── 종료 조건 4: 모든 시나리오 PASS
-        if result["status"] == "pass" and result["fail"] == 0:
-            log(f"[END SUCCESS] 모든 시나리오 PASS. 종료 조건 충족: {args.condition}", log_file)
-            state["result"] = "SUCCESS"
-            save_state(state)
-            sys.exit(0)
+        # ─── 종료 조건 4: oracle-manifest 5기준 게이트 (active 시) + coarse 폴백
+        # root-cause: oracle-manifest 존재 프로젝트에서 FR매핑 60%여도 qa-report FAIL=0이면
+        # silent false SUCCESS 발생 → check_oracle_manifest()로 5기준 엄격 게이트 추가.
+        # manifest 없음 또는 fr-verdict stale → 기존 coarse "qa-report PASS" 폴백 유지.
+        # 회귀안전성: (1) manifest 없음 → active=False → coarse 경로 동일.
+        #             (2) fr-verdict 없음/stale → status=warn → coarse 폴백.
+        #             (3) manifest+fresh fr-verdict FR<100% → status=fail → SUCCESS 차단.
+        manifest_result = check_oracle_manifest(result, log_file)
+        if manifest_result["active"]:
+            if manifest_result["status"] == "pass":
+                log(
+                    f"[END SUCCESS] oracle-manifest 5기준 모두 충족. 종료 조건 충족: {args.condition}",
+                    log_file,
+                )
+                state["result"] = "SUCCESS"
+                save_state(state)
+                sys.exit(0)
+            elif manifest_result["status"] == "fail":
+                # 5기준 미충족 → SUCCESS 차단. 기존 coarse PASS 경로 스킵.
+                # plateau/same-issue/cycle STOP 검사로 계속 진행.
+                advisory = manifest_result.get("advisory")
+                if advisory:
+                    log(
+                        f"[ORACLE-ADVISORY] 미매핑FR 해소 권고: {advisory}"
+                        " (자동 실행 X — Human 판단)",
+                        log_file,
+                    )
+                log("[oracle-manifest] SUCCESS 차단 → 루프 계속 (plateau/same-issue/cycle STOP 검사)", log_file)
+            else:
+                # status == "warn": fr-verdict stale → coarse 폴백
+                if result["status"] == "pass" and result["fail"] == 0:
+                    log(
+                        f"[END SUCCESS] oracle-manifest stale → coarse 폴백. 모든 시나리오 PASS. 종료 조건 충족: {args.condition}",
+                        log_file,
+                    )
+                    state["result"] = "SUCCESS"
+                    save_state(state)
+                    sys.exit(0)
+        else:
+            # manifest 없음 → 기존 coarse 경로 (종료 조건 4 원본)
+            if result["status"] == "pass" and result["fail"] == 0:
+                log(f"[END SUCCESS] 모든 시나리오 PASS. 종료 조건 충족: {args.condition}", log_file)
+                state["result"] = "SUCCESS"
+                save_state(state)
+                sys.exit(0)
 
         # 현 사이클 fail_count를 history에 선기록 (plateau 판정 입력)
         state["history"].append(

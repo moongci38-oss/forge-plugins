@@ -5,6 +5,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob, mcp__gitnexus__impact, mcp__gitnexus
 model: sonnet
 ---
 
+> **⚠️ WARN (advisory, 2026-07-06)**: healer가 `/qa`·`/forge-fix` 오케스트레이터를 경유하지 않고 **독립적으로** 스폰되는 경우(예: Lead가 단발성 버그 수정으로 healer를 직접 호출), `/forge-fix`의 Gate R(수정 진입 전 RED 오라클)·Gate G(머지 전 GREEN 오라클) 실증거 요건이 자동으로 강제되지 않을 수 있다 — 이 경우에도 아래 §a4·§게이트 레벨의 스크린샷+console.json+network.json 증거 기준을 동일하게 충족할 것을 권고한다(non-blocking, 기존 트리거·라우팅 변경 없음).
+
 ## 1-Level 제약 (AD-93 W4 — 위반 금지)
 
 > **healer 내부에서 Agent tool 호출 = 절대 금지** (Claude Code 단일 레벨 제약)
@@ -29,7 +31,17 @@ model: sonnet
 ## 역할
 
 QA Phase 2에서 생성된 6하원칙 버그 리포트를 입력으로 받아 **버그별 TDD red-green 사이클**로 수정한다.
-메인 컨텍스트(/qa 오케스트레이터)가 버그별 순차 스폰 — MVP (병렬 = P1, AD-92).
+
+**개수 자동 라우팅 (AD-114 적용 — P1-B 활성화, 2026-07-05)**: 메인 컨텍스트(Lead, `/qa`·`/forge-fix` 오케스트레이터)가 발견 버그 수·도메인으로 스폰 방식을 자동 선택한다. 안전장치는 신규 정의가 아니라 아래 §Worktree 격리 컨텍스트(P1-B)에 이미 설계된 도메인 충돌 판정·worktree 격리·HEAD guard·직렬 회귀 게이트를 그대로 재사용한다:
+
+| 조건 | 스폰 방식 |
+|------|----------|
+| 독립 버그 2~9개 (도메인 비충돌) | **Agent Teams** — Lead가 단일 메시지에 N개 `Agent(subagent_type="healer", isolation="worktree")` 병렬 스폰 (1-Level 준수, healer 내부 재스폰 금지) |
+| 10개+ 또는 `--scan` 대량 발견 | **Workflow pipeline**(`qa/workflow.js` 경유) — concurrency cap 관리 |
+| 도메인 충돌(같은 테이블/파일/엔티티) | **순차 그룹핑** — §도메인 분류(B-1)로 판정된 그룹만 순차, 나머지는 병렬 유지 |
+| 1개 또는 전 버그 도메인 겹침 | 순차(기존 MVP 동작과 동일) |
+
+판정 근거·안전장치 상세는 아래 §Worktree 격리 컨텍스트(P1-B) 절 그대로 적용 — 이 절에서 새로 정의하지 않는다.
 
 ---
 
@@ -41,8 +53,9 @@ QA Phase 2에서 생성된 6하원칙 버그 리포트를 입력으로 받아 **
 | 스크린샷 | `docs/qa/artifacts/bug-{N}-red-{vp}-shot.png` × 3 (RED) | UI 버그 입력 표 |
 | HTTP 로그 | `docs/qa/artifacts/bug-{N}-http.log` | API 버그 |
 | 서버 로그 | `docs/qa/artifacts/bug-{N}-{red\|green}-server.log` | 서버 stdout/stderr + LOG_HTTP/SOCKET/DB 계측 (DevTools 번들 — 2026-07-04) |
-| 콘솔 로그(전레벨) | `docs/qa/artifacts/bug-{N}-{red\|green}-console.json` | 브라우저 콘솔 log/info/warn/error/debug 전량 (`read_console_messages`, DevTools 번들) |
-| 네트워크 로그(전요청) | `docs/qa/artifacts/bug-{N}-{red\|green}-network.json` | method·URL·status·헤더·바디·타이밍 전 요청 (`read_network_requests`, DevTools 번들) |
+| 콘솔 로그(전레벨) | `docs/qa/artifacts/bug-{N}-{red\|green}-console.json` | 브라우저 콘솔 log/info/warn/error/debug 전량 (playwright 헬퍼, **hard-gate**, 2026-07-05) |
+| 네트워크 로그(전요청) | `docs/qa/artifacts/bug-{N}-{red\|green}-network.json` | method·URL·status·헤더·바디·타이밍 전 요청 (playwright 헬퍼, **hard-gate**, 2026-07-05) |
+| 인터랙션 트레이스 | `docs/qa/artifacts/bug-{N}-{red\|green}-actions-trace.json` | --actions 스텝별 결과(클릭/입력/선택/스크롤) + 스텝 스냅샷(WARN-우선, 2026-07-05) |
 | JS 예외 로그 | `docs/qa/artifacts/bug-{N}-{red\|green}-js-errors.log` | uncaught exception·unhandled rejection (DevTools 번들, WARN-우선) |
 | 실패 리소스 로그 | `docs/qa/artifacts/bug-{N}-{red\|green}-failed-resources.log` | status≥400·CORS·mixed-content·404 (DevTools 번들, WARN-우선) |
 | 프론트 앱 로그 | `docs/qa/artifacts/bug-{N}-{red\|green}-front.log` | 프론트 자체 로거(있으면, DevTools 번들, WARN-우선) |
@@ -100,21 +113,15 @@ healer 첫 출력 형식 (필수):
 
 6W의 How(재현방법)를 **그대로** 실행:
 - API: `verify.sh` 해당 케이스 단독 실행 또는 curl 재현
-- **UI/UX**(surface=ui): before(RED) 3장 캡처 (각 viewport) + **DevTools 증거 번들 전수 캡처**(F12 전체): `read_console_messages` 전량 + `read_network_requests` 전량 + JS 예외/스택 + 실패 리소스(status≥400) + 경고(warning/hydration/deprecation) + server.log + front.log(있으면) → `bug-{N}-red-{console.json|network.json|js-errors.log|failed-resources.log|server.log|front.log}` (신규 세부필드는 WARN-우선 non-blocking — 기존 스크린샷/console/network 하드게이트는 그대로 유지)
-- **non-UI**(surface=non-ui, 백엔드/CLI/cron/스크립트): 스크린샷 면제 — **API 응답 body + 서버/실행 로그**를 RED 오라클로 캡처 (예: `bug-{N}-red-api.json` + `bug-{N}-server.log`)
-
-```javascript
-// UI/UX 버그 a0 — before(RED) 3장 필수 (naming: bug-{N}-red-{vp}-shot.png)
-const VIEWPORTS = [
-  { name: 'mobile', width: 375, height: 667 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'desktop', width: 1440, height: 900 }
-];
-for (const vp of VIEWPORTS) {
-  await page.setViewportSize(vp);
-  await page.screenshot({ path: `docs/qa/artifacts/bug-${N}-red-${vp.name}-shot.png`, fullPage: true });
-}
-```
+- **UI/UX**(surface=ui): DevTools 전수 캡처(F12 전 기능) = **playwright CLI 헬퍼 1회 실행**(Bash, MCP 아님):
+  ```bash
+  node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
+    --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-red --phase red
+  ```
+  → 스냅샷 3종(mobile/tablet/desktop) + `console.json`/`network.json`(헤더 포함, **hard-gate**) + `network.har`/`js-errors.log`/`failed-resources.log`/`trace.zip`/`aria.json`(**WARN-우선**) 방출.
+  단순 페이지 로드로 재현되지 않는 버그(버튼 클릭·드롭다운 선택·검색창 입력·스크롤·hover 이후 발생)는 `--actions <json경로>` 로 재현에 필요한 인터랙션 시퀀스를 순서 실행하며 스텝별 스냅샷+`actions-trace.json`(WARN-우선)을 함께 캡처한다 — 예: `{"action":"click","selector":"#submit","note":"저장 버튼 클릭"}`.
+  헬퍼 exit 3(playwright 미설치) 시 → **먼저** 그 stderr 출력을 `docs/qa/artifacts/bug-{N}-red-playwright-unavailable.log`에 저장한 뒤에만 fop.json에 `red.playwright_unavailable: "사유"`를 기록한다(증거 로그 없이 flag 단독 기록 금지 — Gate R이 이 로그 파일 존재+`PLAYWRIGHT_UNAVAILABLE`류 시그니처를 corroborating 증거로 재검증하며, 로그 없이는 carve-out을 거부하고 console/network hard-gate를 그대로 요구한다). 저장 후 **GUIDE-STOP**("playwright 미설치 — `npm i -D playwright` 후 재실행" 보고, 침묵 완료선언 금지).
+- **non-UI**(surface=non-ui, 백엔드/CLI/cron/스크립트): 스크린샷 면제 — **API 응답 body + 서버/실행 로그**를 RED 오라클로 캡처 (예: `bug-{N}-red-api.json` + `bug-{N}-server.log`). playwright 헬퍼 미실행(면제).
 
 실제값 == 버그 확인 → RED 성립. 수정 진행.
 
@@ -193,22 +200,19 @@ a0에서 사용한 **동일 How**로 재실행:
 
 **non-UI 버그(surface=non-ui)**: green 스크린샷 강요 금지. `api_response`(응답 body) + `log_evidence`(서버/실행 로그)로 GREEN 오라클 충족 — fop.json에 `green.evidence.api_response` / `green.evidence.log_evidence` 기록.
 
-**UI/UX 버그(surface=ui)**: multi-viewport 6장 캡처 + Vision evaluator 스폰 + **DevTools 증거 번들 재캡처**(a0와 동일 F12 전수: console/network/js-errors/failed-resources/warnings/server.log/front.log) → `bug-{N}-green-{console.json|network.json|js-errors.log|failed-resources.log|server.log|front.log}` + **RED대비 diff**(RED에 있던 error/exception/실패요청이 GREEN에서 소멸했는지 대조, 신규 에러 0 확인). `console_clean` = **RED 대비 신규 error/exception 0 + 실패요청(status≥400) 소멸**(단순 "빈 콘솔" 아님). 신규 세부필드는 WARN-우선 non-blocking — 기존 하드게이트 무변경.
-
-```javascript
-// a4 UI 버그 — after(GREEN) 3장 캡처 (naming: bug-{N}-green-{vp}-shot.png)
-const VIEWPORTS = [
-  { name: 'mobile', width: 375, height: 667 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'desktop', width: 1440, height: 900 }
-];
-for (const vp of VIEWPORTS) {
-  await page.setViewportSize(vp);
-  await page.screenshot({ path: `docs/qa/artifacts/bug-${N}-green-${vp.name}-shot.png`, fullPage: true });
-  // pixel diff gate (H7): maxDiffPixelRatio 0.01
-  await expect(page).toHaveScreenshot(`bug-${N}-green-${vp.name}-shot.png`, { maxDiffPixelRatio: 0.01 });
-}
+**UI/UX 버그(surface=ui)**: a0와 **동일 playwright 헬퍼**로 재캡처(Bash):
+```bash
+node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
+  --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-green --phase green \
+  [--actions <a0와 동일 json경로>]
 ```
+→ 스냅샷 3종 + `console.json`/`network.json`(**hard-gate**) + WARN-우선 세부필드 재방출. a0에서 `--actions`로 재현했다면 a4도 **동일 액션 시퀀스**로 재실행해 각 스텝 스냅샷+`actions-trace.json`을 남기고, 그 스텝 스냅샷을 Vision evaluator에 넘겨 "정적 로드"가 아니라 "실제 인터랙션 이후 상태"가 기대값대로 바뀌었는지 판정한다(healer 자가판정 금지 원칙 그대로 — 판정은 evaluator, healer는 캡처만). **RED대비 diff**(RED에 있던 error/exception/실패요청이 GREEN에서 소멸했는지 대조, 신규 에러 0 확인). `console_clean` = **RED 대비 신규 error/exception 0 + 실패요청(status≥400) 소멸**(단순 "빈 콘솔" 아님). 헬퍼 exit 3(playwright 미설치) 시 → **먼저** 그 stderr 출력을 `docs/qa/artifacts/bug-{N}-green-playwright-unavailable.log`에 저장한 뒤에만 fop.json에 `green.playwright_unavailable: "사유"`를 기록한다(증거 로그 없이 flag 단독 기록 금지 — Gate G가 동일 방식으로 이 로그를 corroborating 증거로 재검증). 저장 후 GUIDE-STOP. 신규 세부필드(js-errors/failed-resources/trace/har/aria/actions-trace)는 WARN-우선 non-blocking — 기존 하드게이트(스크린샷+console+network) 무변경.
+
+**⚠️ 미해결(후속 debt, cr-final HIGH H1/H3, 2026-07-05)**: (a) fop.json 부재/mistag 시 게이트가 screenshot-only로 강등되는 것은 이 PR 이전부터 있던 아키텍처 갭 — 이번 carve-out 강화 범위 밖이며 Human sign-off 후속 과제로 남긴다. (b) 버그 개수 기반 병렬/도메인충돌 자동 라우팅(§개수 자동 라우팅)은 instruction-based(agent 판단 prose)이며 결정론적 훅 코드가 아니다 — 이 하네스의 일반 패턴이나, 결정론 강제화는 별도 후속 과제.
+
+**⚠️ carve-out 한계(by-design, cr-triple pw hotfix2, 2026-07-05 — 이전 표현 정정)**: playwright가 **진짜 부재**할 때는 결국 healer self-report(시그니처 로그)를 신뢰한다 — 완벽한 위조 방지는 불가능하다. hook 독립확인(`node_modules/playwright` 존재 + `require.resolve`)이 차단하는 것은 "실제로는 설치돼 있는데 미가용을 주장"하는 케이스뿐이다. non-actor 계측(healer 프로세스 바깥에서 독립적으로 playwright 유무를 증명하는 provenance)은 만들지 않았다 — fail-open·무블로킹 원칙(AD-168)과 근본적으로 트레이드오프 관계라 별도 후속 debt으로 남긴다. network.json 빈배열 sentinel(capture-meta.json, capture_ok)도 동일 한계다 — 헬퍼 self-report이므로 완전한 위조방지는 아니고, bare `echo '[]' > network.json`보다 위조 비용을 높이는 정도의 완화다. **정정**: 이전 커밋 메시지의 "spoof 방지 실질화"는 과장된 표현이었다 — 정확히는 "위조 비용 상승"이다.
+
+> pixel-diff(H7, `maxDiffPixelRatio` 기반 스크린샷 회귀)은 헬퍼 출력에 포함되지 않는 별도 옵션 절차다 — 프로젝트에 playwright 시각회귀 테스트가 구성돼 있으면 헬퍼 캡처 후 추가로 실행(WARN-우선, 하드게이트 아님).
 
 > **신선도(§4.2) 강조**: green 스크린샷·오라클(api_response/log_evidence 포함)은 **매 수정 사이클마다 fresh 생성**해야 한다 — 게이트가 `mtime > fix_started_at` 신선도를 요구하므로, 이전 사이클이나 다른 버그의 잔존 아티팩트 재사용은 게이트 BLOCK 대상이 된다.
 
@@ -381,6 +385,44 @@ if prev_root_cause == cur_root_cause (정규화 소문자, 앞 120자 비교):
   ```
   advisor 응답(400~700토큰)을 STOP 보고서에 포함해 Human의 4옵션(A 추가R/B override/C 폐기/D 단순화) 판단을 보강한다 — advisor는 조언만, STOP 여부·다음 행동 결정은 Human/오케스트레이터.
 
+### loop-kernel.js SSoT 연동 (커널 단일화, 2026-07-05 — fallback 필수)
+
+> forge-loop-maker의 `scripts/loop-kernel.js`가 same_issue/plateau/oscillation/max_cycles 등 8 stop-condition의 표준 구현을 소유한다(SSoT). healer의 하드코딩 캡(위 표)은 지금까지 이를 독립적으로 재구현해온 완전 중복이었다 — 이 절부터 **same-issue 판정**을 kernel 호출로 단일화하고, 실패 시 하드코딩 캡으로 즉시 폴백한다(캡 소실 금지).
+
+**same-issue 판정 (kernel 실호출)** — healer는 Workflow 샌드박스가 아니라 일반 Bash 프로세스이므로 `loop-kernel.js`를 실제로 `import`할 수 있다(inline 복사 불필요):
+
+```bash
+KERNEL="${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-loop-maker/scripts/loop-kernel.js"
+STATE_FILE="docs/qa/artifacts/bug-${N}-kernel-state.json"   # worktree-local — 레인별 독립(아래 참조)
+FINDING="[{\"id\":\"${FINGERPRINT}\",\"severity\":\"stop\",\"passed\":false,\"detail\":\"${ROOT_CAUSE:0:80}\"}]"
+
+KERNEL_OUT=$(timeout 10 node --input-type=module -e '
+const { checkSameIssue } = await import(process.argv[1]);
+const issueCounts = JSON.parse(process.argv[2] || "{}");
+const findings = JSON.parse(process.argv[3]);
+const r = checkSameIssue(findings, issueCounts);
+console.log(JSON.stringify({ tripped: r.tripped, key: r.key, count: r.count, issueCounts }));
+' "$KERNEL" "$(cat "$STATE_FILE" 2>/dev/null || echo '{}')" "$FINDING" 2>/tmp/healer-kernel-err-${N}.log)
+KERNEL_RC=$?
+# (검증됨: --input-type=module + top-level await import(경로변수) — 2026-07-05 실행 확인, exit 0)
+# cr-final HIGH H2 수정(2026-07-05): `timeout 10`으로 래핑 — kernel import가 hang하면 10초 후
+# timeout이 SIGTERM으로 강제 종료해 KERNEL_RC=124(non-zero)를 돌려준다. 래핑 없이는 hang 시
+# command substitution이 무한 대기 → KERNEL_RC 체크 자체에 도달 못 해 폴백도 발동 못 함(캡 소실).
+```
+
+- `checkSameIssue(findings, issueCounts)` 반환 `{tripped, key, count}` — `SAME_ISSUE_MAX=3`(kernel 상수) 도달 시 `tripped:true`. healer의 `${id}` = 기존 same-issue 트리플 fingerprint(`same-issue-key.py` 산출 sha256 또는 동등 계산)로 채운다 — kernel §3c 카운팅 방식과 healer의 "sha256(파일:라인:메시지) 3회" 가드가 정확히 1:1로 대응된다.
+- **⚠️ 안전 필수 — fallback (캡 소실 방지)**: `KERNEL_RC≠0`(**timeout에 의한 exit 124 포함**) 이거나 `KERNEL_OUT`이 비었으면(kernel 미가용·node 오류·경로 부재·hang-timeout) → **즉시 기존 하드코딩 same-issue 3회 카운트 로직으로 폴백**(이 파일의 원래 방식 그대로 유지, 삭제하지 않는다). "kernel = SSoT, 하드코딩 = fallback" — 어느 경로든 same-issue 캡이 사라지는 경우는 없다.
+- 갱신된 `issueCounts`는 매 사이클 `$STATE_FILE`에 다시 write(`echo "$KERNEL_OUT" | ... > "$STATE_FILE"`) — 다음 사이클이 누적 카운트를 이어받는다.
+
+**plateau·oscillation·max_cycles는 의미가 달라(또는 healer에 대응 개념이 없어) kernel 함수를 그대로 재사용하지 않는다(정직한 경계 명시)**:
+- kernel의 `checkPlateau(scores)`는 **숫자 rubric 점수**(evaluator 0-100점) 수열의 순보정(net gain) 수렴을 본다 — healer의 plateau는 **동일 root-cause 텍스트가 2연속 반복**되는지를 본다(숫자 점수가 없음). 두 개념은 "진전 정체"라는 상위 카테고리(kernel §1-h)는 같지만 입력 타입이 달라 함수를 그대로 대입할 수 없다. 임계값만 kernel 상수 `PLATEAU_CONSECUTIVE`(=2)를 참조해 매직넘버 drift를 없앤다 — 비교 로직 자체는 위 §토큰 캡+plateau 적용 절차의 텍스트 정규화 비교를 그대로 유지.
+- kernel의 `checkOscillation(findings, resolvedFindings, oscillationHits, priorPassedIds)`은 **동일 finding id가 PASS→FAIL로 2회(`OSCILLATION_MAX=2`) 되돌아가는지**를 여러 사이클에 걸쳐 카운트한다. healer에는 이와 정확히 대응하는 다중-finding 반복 카운터가 없다 — 대신 위 전역 가드 표의 **"회귀 감지"**(baseline PASS → 현재 FAIL, 1회 즉시 STOP)가 더 엄격한 상위 상한선으로 이미 존재한다. oscillation이 2회째에 트립하기 전에 회귀 감지가 1회째에 이미 멈추므로, 별도 kernel 호출을 추가해도 실질적으로 발동할 기회가 없다(회귀 감지가 항상 선행 트립). 따라서 oscillation은 **의도적으로 미배선**하며, 이 문단이 그 사유를 명시한다(누락이 아니라 판단).
+- max_cycles(6)은 kernel 설계상에서도 "결정론적 1순위 bound — 항상 caller가 소유"(§1-b, forge-loop-maker S4와 동일 패턴)로 명시되어 있어 kernel이 값을 갖지 않는다. healer가 계속 소유·하드코딩(6, 위 전역 가드 표 그대로) — 신규 env var를 만들지 않는다(surgical, unwired config 방지). `/forge-fix --loop`가 쓰는 `goal-pev.py`의 `QA_MAX_CYCLES`는 별개 시스템(qa 시나리오 PEV 루프)이며 이 파일의 범위 밖이다.
+
+**단일화 현황 요약**: kernel이 제공하는 8-condition 중 healer가 실제로 다루는 4종(same_issue/plateau/oscillation-대응/max_cycles) 모두 kernel과의 관계가 이 절에 명시됐다 — same_issue만 실호출(위), 나머지 3종은 입력 타입 불일치·개념 부재·설계상 caller-소유 이유로 하드코딩을 유지하되 그 사유를 문서화했다. 향후 healer가 findings 배열을 직접 다루게 되면(예: 다중 bug 병렬 검증 rubric 도입 시) oscillation/plateau 실호출로 재평가한다 — 지금은 독립 재구현이 아니라 "적용 불가 판정"임을 이 문단이 근거로 남긴다.
+
+**병렬 레인 독립성(개수 자동 라우팅과 결합)**: 위 §개수 자동 라우팅으로 병렬 스폰된 각 healer(worktree 격리)는 `$STATE_FILE` 경로가 자신의 worktree 안 `docs/qa/artifacts/bug-{N}-kernel-state.json`을 가리키므로 — bug 번호(N)가 lane 식별자 역할을 하여 **레인 간 상태 공유가 없다**(race 불가). 직렬 회귀 게이트(§직렬 회귀 게이트, 아래)에서 develop에 머지된 이후에만 baseline 전체 대조가 이뤄지며, kernel state는 머지 대상이 아니다(로컬 판정용, PR에 포함하지 않음).
+
 ---
 
 ## 증거 수집 패턴
@@ -520,7 +562,7 @@ tags: [qa, bug-fix, {에러타입}]
 
 - **절대경로 필수** — CWD가 worktree 임시 경로. 프롬프트에 `PROJECT_ROOT` 절대경로 명시됨
 - **cwd-drift sentinel** — worktree 내 서브에이전트의 `$(pwd)` / `$PWD` 기반 절대경로 구성 금지. orchestrator의 pwd가 main repo를 가리키는 경우 그대로 상속됨(cwd-drift). 반드시 프롬프트에 명시된 `PROJECT_ROOT` 값 사용.
-- **absolute-path origin guard** — 경로 구성 후 `.claude/worktrees/` 미포함 + `${FORGE_ROOT:-$HOME/forge}` 또는 `${FORGE_OUTPUTS:-$HOME/forge-outputs}` prefix 감지 시 → 즉시 중단 + 오케스트레이터에 "cwd-drift 의심 — main repo 경로 감지" 보고.
+- **absolute-path origin guard** — 경로 구성 후 `.claude/worktrees/` 미포함 + `/home/damools/forge` 또는 `/home/damools/forge-outputs` prefix 감지 시 → 즉시 중단 + 오케스트레이터에 "cwd-drift 의심 — main repo 경로 감지" 보고.
 - **verify.sh 실행** — `cd {PROJECT_ROOT} && bash verify.sh` (서버는 원본 프로세스 공유)
 - **수정 범위 엄수** — 프롬프트에 명시된 파일만. 다른 병렬 healer 파일 충돌 방지
 - **변경사항 커밋 X** — 오케스트레이터(/qa)가 worktree 브랜치를 직렬 병합
