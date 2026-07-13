@@ -499,6 +499,24 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 
 **Evaluator 최종 FAIL 시 — pge-failure 후보 기록 (compounding)**: 3사이클 후에도 FAIL 잔존하면 (= 이 접근 방식이 막혔다는 신호), 그 실패 패턴을 종료 핸드오버에 `pge-failure 후보:` 1줄로 기록 (`current-analysis.md "## 이전 시도 실패 이력"` 섹션 + handover 모두). `/end-sonnet` 또는 `/end-opus`가 그 후보를 `learnings.sh append --category pge-failure --summary "<무엇을 하려다> <왜 막혔나>" --apply "<향후 PGE에서 이 접근 회피 — 대안은>" --evidence "<PGE 보고서 경로 or 사이클 요약>"`로 learnings에 반영. (end-* 가 이미 learnings append 수행하므로 후보 큐만 넘기면 됨.)
 
+### Phase 6: 사후 Spec 발행 (`.specify/` 프로젝트 한정, WARN-first)
+
+**배경 (2026-07-12 실발화, Batch 4-1)**: PGE는 spec 없는 개발 전용 하네스다. 그런데 SDD를 채택한 프로젝트(`.specify/specs/` 존재)에서는 CI `spec-validation` job이 `fix/*` 외 브랜치에 대해 `.specify/specs/{branch}.md` 존재를 요구한다 — PGE 산출물은 이 요구를 충족하지 못해 PR 단계에서 항상 FAIL한다. 라우팅(spec 無 = pge)과 프로젝트 CI(spec 요구)가 구조적으로 모순되므로, PGE 자신이 종료 시점에 트레이서빌리티 자산을 남겨 이 모순을 해소한다.
+
+**절차** (Phase 5 `SUCCESS` 판정 직후, PR 단계 진입 전):
+
+1. `test -d "{project_root}/.specify"` 확인.
+   - **부재 시**: "Phase 6 스킵 — 이 프로젝트는 SDD(.specify/)를 채택하지 않음" 1줄 명시 후 종료(fail-open — 모든 프로젝트가 SDD를 쓰는 건 아니다).
+   - **존재 시**: 아래 2~3 진행.
+2. `.specify/specs/{branch-name}.md` 사후 Spec 발행 (현재 브랜치명 = `git rev-parse --abbrev-ref HEAD`로 기계적 산출). 기존 파일 있으면 덮어쓰지 않고 append 섹션 추가. 최소 포함 항목:
+   - `## 구현된 FR` — Sprint Contract `done_criteria`/`eval_ids`를 FR 형태로 역변환
+   - `## 변경 범위` — `git diff --name-only {base}...HEAD` 산출 파일 목록
+   - `## 검증 결과` — Phase 4 Evaluator 최종 점수 + PGE_EVAL_HISTORY.jsonl 최종 사이클 items[] 요약
+   - `## 산출 근거` — PGE_SPEC.md·PGE_QA_REPORT.md 경로 링크 (사후 검토 가능하도록)
+3. 발행 완료 후 완료 보고에 "Phase 6: `.specify/specs/{branch}.md` 발행 완료" 1줄 추가.
+
+> **WARN-first**: 발행 실패(쓰기 권한·경로 오류 등)해도 PGE 전체를 FAIL 처리하지 않는다 — WARN 후 완료 보고에 "spec 발행 실패, 수동 보완 필요" 명시(AD-168 준수, 신규 hard-BLOCK 아님).
+
 ---
 
 ## 파일 기반 통신 프로토콜

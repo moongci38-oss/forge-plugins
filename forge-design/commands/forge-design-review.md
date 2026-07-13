@@ -66,6 +66,19 @@ Skill(forge-check-ui, args="<$1 또는 변경 스코프>")
 - 게이트 FAIL → visual-loop 2사이클 후 잔존 CRITICAL 있으면 **[STOP]**(Human), 0이면 PASS로 종료.
 - dev 서버 부재로 라이브 생략 시 → 게이트 결과만으로 판정 + 라이브 보강 권고 명시.
 
+## Advisor 자문 (advisory-only · non-blocking · Opus)
+
+설계 리뷰에서 되돌리기 어려운 트레이드오프·아키텍처 분기 결정 시 `advisor-strategist`(Opus) 조언을 구한다. **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+
+```
+Agent(subagent_type="advisor-strategist", prompt="설계안·핵심 결정·검토된 대안 맥락 3-5줄. 질문: 이 설계의 비가역 트레이드오프와 놓친 대안 2-3개는?")
+```
+
+- 트리거: 되돌리기 어려운 설계 결정·아키텍처 분기 시
+- 반환 조언은 참고만 — 최종 판단·실행은 커맨드가 수행.
+- **Fable 5 미배선** — Human 수동 에스컬레이션 전용(자동분기는 forge-fix T4 한정). `advisor-model-resolve` 호출 금지.
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor/결정=Opus.
+
 ## 비고
 
 - 내부 체인은 파이프라인이 P2/P3/P5에서 자동 수행 중. 본 커맨드는 **수동 단일 진입 UX**용 facade.

@@ -20,7 +20,7 @@ const _a = (typeof args === 'string')
   : (args || {})
 
 // root-cause: Workflow 스크립트는 process 전역 접근 불가(process is not defined) → 하드코딩 폴백
-const outBase = _a?.outBase || '$HOME/forge-outputs'
+const outBase = _a?.outBase || '/home/damools/forge-outputs'
 const defaultQueuePath = `${outBase}/11-platform/pipelines/forge-dev/2026-06-08-v1-harness-diet/diet-queue.json`
 const queuePath = _a?.queuePath || defaultQueuePath
 
@@ -32,7 +32,7 @@ const FORBIDDEN = `
 금지 사항 (절대 위반 불가):
 1. 영구 삭제 금지 — archive 이동만
 2. $HOME/.claude/hooks/ 수정 금지
-3. MCP 설정(.mcp.json, ~/.claude.json mcpServers) 수정 금지
+3. MCP 설정(.mcp.json, $HOME/.claude.json mcpServers) 수정 금지
 4. allowed-tools 확대 금지
 5. 앱 코드(forge-outputs 외 프로젝트 파일) 수정 금지
 6. test/build/deploy 임의 실행 금지
@@ -48,7 +48,7 @@ phase('Prepare')
 // restore point git tag (실패해도 계속 — non-blocking)
 await agent(
   `Bash 1줄 실행 (restore point):
-cd ~/forge && git tag harness-diet-pre-2026-06-08 2>/dev/null && echo "TAG_OK" || echo "TAG_EXISTS_OR_FAIL"`,
+cd ${FORGE_ROOT:-$HOME/forge} && git tag harness-diet-pre-2026-06-08 2>/dev/null && echo "TAG_OK" || echo "TAG_EXISTS_OR_FAIL"`,
   { label: 'restore-tag', phase: 'Prepare' }
 ).catch(e => log(`[WARN] restore tag 실패: ${e?.message || e}`))
 
@@ -113,7 +113,7 @@ ls $HOME/.claude/skills/ | wc -l
 # skills 총 라인수
 find $HOME/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 # CLAUDE.md cascade 총 라인수
-find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 
 결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"claude_md_lines":N}`,
   {
@@ -289,7 +289,7 @@ ${JSON.stringify(applyResults.filter(Boolean).map(r => r?.path || r?.from || r?.
 wc -l $HOME/.claude/rules/*.md | tail -1
 ls $HOME/.claude/skills/ | wc -l
 find $HOME/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
-find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"claude_md_lines":N}`,
     {
       label: 'after-state',

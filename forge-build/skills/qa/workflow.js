@@ -13,7 +13,7 @@ export const meta = {
     { title: 'Plan', detail: 'Phase D: 버그 수정 계획서 + evaluator-contract' },
     { title: 'Fix', detail: 'Phase E: healer 복잡도 라우팅 병렬 수정' },
     { title: 'Validate', detail: 'Phase F: cr-* 순차 검증 + Codex final' },
-    { title: 'Ship', detail: 'Phase G: PR + CI + develop 머지 + Phase H: 지식 축적' },
+    { title: 'Ship', detail: 'Phase G: PR + CI + develop 머지 + Phase H: 지식 축적 (--report-only 시 PR/CI/머지 생략, 리포트만)' },
   ],
 }
 
@@ -37,6 +37,8 @@ const appArg = args?.app || null            // 'all' | 'portal' | 'opstool' | un
 const domainsArg = args?.domains || null    // 'all' | 'a,b,c' | undefined
 const accountsArg = args?.accounts || null  // 'admin,partner' | undefined
 const exhaustiveMode = args?.exhaustive === true || args?.exhaustive === 'on'
+// A5(2026-07-07): report-only — 발견+리포트만, PR/CI/머지 생략. admin-api류 dev머지=STG배포 위험 회피.
+const reportOnly = args?.reportOnly === true || args?.reportOnly === 'on' || args?.['report-only'] === true
 // 4축 중 하나라도 명시되면 매트릭스 경로 진입 — 전부 미지정이면 기존 단일 scope 경로(신규 agent 호출 0건, 회귀0).
 const useMatrix = Boolean(appArg || domainsArg || accountsArg || exhaustiveMode)
 
@@ -177,7 +179,8 @@ if (useMatrix) {
   phase('Setup')
   const resolveResult = await agent(
     `Phase A0 — QA 리소스 해석. app="${appArg || ''}" domains="${domainsArg || ''}" accounts="${accountsArg || ''}". ` +
-    `워크스페이스 루트의 qa-config(.claude/qa-config.json 또는 workspace 루트 동일 파일, 스키마: ` +
+    `워크스페이스 루트의 qa-config(.claude/qa-config.json 또는 docs/qa/qa-config.json(qa-setup 생성 경로) ` +
+    `또는 workspace 루트 동일 파일 — 이 우선순위로 탐색, 스키마: ` +
     `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
     `없으면 프로젝트 실측으로 도메인 자동열거(dev-spec 디렉토리 목록 또는 App Router 파일트리 apps/web/src/app/ 등)를 ` +
     `fallback으로 시도하되, 그마저 불가하면 domains=${JSON.stringify(scopeCsv.length ? scopeCsv : ['full'])} ` +
@@ -228,7 +231,12 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     `"[stale-base WARN] 현재 브랜치가 origin/develop 대비 {behind}커밋 뒤처짐 — git rebase origin/develop 권장(비차단)" 출력 후 그대로 진행(fetch 실패/원격없음=silent skip). ` +
     `fix/qa-${appId ? appId + '-' : ''}${scope}-* idempotency 검사, ` +
     `신규 브랜치 생성(fix/qa-${appId ? appId + '-' : ''}${scope}-$(date +%Y-%m-%d)). ` +
-    `LOG_HTTP=1 LOG_SOCKET=1 LOG_DB=1 export. 브랜치명 + log 경로 반환.`,
+    `LOG_HTTP=1 LOG_SOCKET=1 LOG_DB=1 export. ` +
+    // root-cause(A6, 2026-07-07): 앱-특정 인프라(라이선스 env 미주입 광역 500 등)를 스킬이 몰라 수동 대처가 필요했다.
+    //   qa-config.serverSetup(reference.md §qa-config 스키마)이 있으면 그 startCommand/licenseEnv/healthUrl로
+    //   서버를 기동·판정한다 — 앱 특정값 하드코딩 없음, 전부 프로젝트 선언.
+    `서버 기동(선택): qa-config에 serverSetup이 있으면 licenseEnv에 나열된 env 키를 .env/secret에서 주입 후 startCommand로 기동, healthUrl 있으면 그 URL이 응답할 때까지 readyTimeoutSec(기본 60초) 대기 후 진행. serverSetup 미선언·기동 실패 시 → 기존 스택 자동감지 fallback(WARN, 비차단). ` +
+    `브랜치명 + log 경로 반환.`,
     { label: `${tagPrefix}phase-a:branch`, phase: 'Setup', schema: BRANCH_SCHEMA }
   )
   if (!branchResult) { log('[STOP] Phase A 실패 — 브랜치 생성 불가'); return { error: 'phase-a-failed' } }
@@ -305,11 +313,16 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
               `페이지 내 clickable 요소(button, a[href], input, select, textarea, [role=button], [onclick], [tabindex]) 전수 열거 후 ` +
               `개별 클릭/입력 + 캡처. 삭제·탈퇴·결제·환불·삭제확인 등 파괴적 액션은 헬퍼 내장 스킵리스트로 자동 제외되고 ` +
               `crawl-skipped.json에 사유 기록됨(silent skip 아님) — 그 결과를 bugs[]/리포트에 그대로 반영. ` +
+              // root-cause(A6, 2026-07-07): 메뉴 path(/admin/x)가 FE 라우트와 불일치(FE는 cleanPath로 프리픽스 strip)해
+              //   프리픽스 경로 직접 nav 시 catch-all placeholder 함정에 빠졌다. qa-config.pathTransform(reference.md §qa-config
+              //   스키마)이 있으면 stripPrefix로 실제 FE 라우트를 얻어 nav — 앱 특정값 하드코딩 없음.
+              `[pathTransform] 크롤/nav URL 구성 시 qa-config.pathTransform.stripPrefix가 있으면 메뉴 path에서 해당 프리픽스를 제거한 값으로 nav(FE cleanPath 단일트리 대응). 미선언 시 메뉴 path 그대로 사용(기존 동작, fail-open). ` +
               // root-cause(H1-3, 2026-07-07): crawl 결과 해석 시 오탐 방지. 헬퍼가 이미 필터링하지만 판정도 정합화.
               `[H1-3 오탐 방지] crawl-trace 판정: nextjs-portal/[data-nextjs-*] dev-overlay 요소는 crawl-skipped(reason=dev-overlay-excluded)로 제외됨(에러 아님) — 버그로 올리지 말 것. ` +
               `진짜 렌더 에러는 trace.renderError=true(에러페이지 TEXT 매칭)만 인정(portal 존재 자체는 에러 아님). ` +
               `trace.infraFail=true(ERR_CONNECTION_REFUSED 등 connection 실패)는 INFRA FAIL — 절대 PASS/isolation-OK로 채점 금지(INFRA 버그로 파일링). ` +
-              `격리(isolation) 마커 사용 시 반드시 unique 비추측 토큰(예: qa-iso-<uuid>) — 200000 등 둥근/generic 값 금지(isGenericIsolationMarker 기준, C3). `
+              `격리(isolation) 마커 사용 시 반드시 unique 비추측 토큰(예: qa-iso-<uuid>) — 200000 등 둥근/generic 값 금지(isGenericIsolationMarker 기준, C3). ` +
+              `[C4 mock-unwired 탐지] 데이터를 표시하는 화면(테이블/목록/카드에 행이 렌더됨)인데 상호작용(클릭/필터제출/탭전환/상세오픈) 후 crawl-trace의 network_delta_since_prev=0(특히 /api·/api/proxy 백엔드 호출 0건)이면 → mock 미배선 의심으로 WARN 버그 파일링(false-green 방지). 근거: 실데이터 화면은 상호작용 시 백엔드를 최소 1회 친다. placeholder('준비중'/빈화면)와 구분 — mock은 그럴듯한 데이터 행을 렌더하지만 상호작용이 서버에 안 닿는다. 신호 부재·판정 모호 시 기존 PASS 유지(fail-open, 비차단). `
             : '') +
           `FAIL = 4종 로그 수집 + RED before 스크린샷×3.${acctTagInstr} testType="T2".`,
           { label: `${tagPrefix}phase-c-r${round}:T2-ui${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
@@ -500,16 +513,29 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
 
   // ── Phase G+H: Ship ─────────────────────────────────────────────────────────────
   phase('Ship')
+  // A5(2026-07-07): reportOnly=true — PR/CI/머지 전부 생략, 리포트+메트릭만. false(기본) — 기존 동작 +
+  //   develop-absent graceful degrade 1줄 추가(회귀 0, 기존 문장 그대로 유지).
+  const shipPrompt = reportOnly
+    ? `Phase G+H(report-only) — PR 생성 + CI +머지 전부 생략, 발견+리포트만. 브랜치: ${branchResult.branch}.${appNote} ` +
+      `final-qa-report.md 생성. gh pr create/merge 절대 실행 금지. ` +
+      `H: docs/qa/metrics.jsonl append (bugs_found=${allBugs.length}/fixed=${fixedBugs.length}). ` +
+      (accountBattery.filter(Boolean).length
+        ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
+        : '') +
+      `wiki-sync nohup background. prUrl="" + merged=false 반환.`
+    : `Phase G+H — PR 생성 + CI + develop 머지 + 지식 축적. 브랜치: ${branchResult.branch}.${appNote} ` +
+      `G: gh pr create --base develop --head ${branchResult.branch}. ` +
+      `(develop 브랜치 부재 감지 시 — git show-ref --verify refs/heads/develop 실패 — PR/머지를 graceful하게 생략하고 ` +
+      `report-only로 degrade + "[WARN] develop 없음 → report-only degrade" 로그. admin-api류 dev머지=STG배포 위험도 동일 degrade.) ` +
+      `ci-wait.sh 15분 타임아웃. 9개 조건 충족 시 gh pr merge --squash --delete-branch. ` +
+      `git checkout develop && git pull && git worktree prune. ` +
+      `H: docs/qa/metrics.jsonl append (bugs_found=${allBugs.length}/fixed=${fixedBugs.length}). ` +
+      (accountBattery.filter(Boolean).length
+        ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
+        : '') +
+      `wiki-sync nohup background. prUrl + merged 반환.`
   const shipResult = await agent(
-    `Phase G+H — PR 생성 + CI + develop 머지 + 지식 축적. 브랜치: ${branchResult.branch}.${appNote} ` +
-    `G: gh pr create --base develop --head ${branchResult.branch}. ` +
-    `ci-wait.sh 15분 타임아웃. 9개 조건 충족 시 gh pr merge --squash --delete-branch. ` +
-    `git checkout develop && git pull && git worktree prune. ` +
-    `H: docs/qa/metrics.jsonl append (bugs_found=${allBugs.length}/fixed=${fixedBugs.length}). ` +
-    (accountBattery.filter(Boolean).length
-      ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
-      : '') +
-    `wiki-sync nohup background. prUrl + merged 반환.`,
+    shipPrompt,
     { label: `${tagPrefix}phase-g-h:ship`, phase: 'Ship', schema: SHIP_SCHEMA }
   )
   log(`[G] PR: ${shipResult?.prUrl} merged=${shipResult?.merged}`)

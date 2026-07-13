@@ -46,6 +46,8 @@ ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/{stage}/{slug}-cr-multi.json
 
 AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded}`
 
+**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값·AD-90 JSON)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
+
 ## 보안
 
 - Secret 사전 스캔 (전송 전 차단)

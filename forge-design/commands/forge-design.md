@@ -35,8 +35,16 @@ web 또는 game track을 판별해 `/prd` 또는 `/gdd`로 위임합니다.
 1. **`--track` 인자 최우선**: `--track web` → `/prd` 위임, `--track game` → `/gdd` 위임
 2. **인자 없을 시 — `forge-workspace.json` 감지**:
    ```bash
-   # 프로젝트 루트에서 projectType 확인
-   cat forge-workspace.json | jq -r '.projectType // empty'
+   # forge-workspace.json = $FORGE_ROOT canonical 단일 파일 (프로젝트별 사본 없음 — health-check.sh/forge-paths.sh/deploy-symlinks.sh와 동일 관례) → CWD 무관 절대경로로 조회
+   # 스키마 실측: 타입 키가 트랙별로 이원화 — 게임 프로젝트는 projects.<명>.projectType("game"), 웹/API 프로젝트는 projects.<명>.type("web"). top-level 아님. 둘 다 없는 프로젝트(portfolio-admin 등)는 아래 [STOP]로 Human 확인.
+   # 현재 프로젝트 = CWD가 속한 devTarget으로 역매핑(forge-qa.md의 CWD→매핑 관례, project_knowledge_sync.py의 load_project_map()과 동일 패턴). projectType 우선, 없으면 type 폴백.
+   cat "${FORGE_ROOT:-$HOME/forge}/forge-workspace.json" | jq -r --arg cwd "$PWD" '
+     .projects | to_entries[]
+     | select(.value.devTarget != null)
+     | (.value.devTarget) as $dt
+     | select($cwd == $dt or ($cwd | startswith($dt + "/")))
+     | (.value.projectType // .value.type) // empty
+   ' | head -1
    ```
    - `"web"` 또는 `"webapp"` → `/prd` 위임
    - `"game"` → `/gdd` 위임
@@ -55,6 +63,27 @@ web 또는 game track을 판별해 `/prd` 또는 `/gdd`로 위임합니다.
 /forge-design --track game "전투 시스템 설계"    → /gdd 로직 그대로 실행
 /forge-design "신기능 설명"                      → forge-workspace.json 감지 → 없으면 [STOP]
 ```
+
+## Advisor 조언 (조건부) — 아키텍처 접근 비자명 판단점
+
+**Advisor 조언 (조건부)** — `FORGE_ADVISOR_AUTO` 환경변수가 `"off"`가 아니고 아래 트리거 충족 시 `advisor-strategist` 호출:
+- 트리거: **아키텍처/접근 선택이 비자명** (동등한 선택지 2+: REST vs GraphQL, 모놀리식 vs 분리, 단일 서비스 vs 마이크로서비스 등) **또는 핵심 trade-off 충돌**이 기능 설명에 내포됨
+- PASS(자명한 단일 접근 / 선택지 명시된 경우) → 스킵
+
+```
+Agent(
+  subagent_type="advisor-strategist",
+  prompt="""<설계 맥락 500토큰 이내>
+기능 설명: {기능 설명}
+track: {web|game}
+비자명 결정점: {동등 선택지 또는 trade-off 목록}
+제약: {기존 스택, NFR, 일정 등}
+
+질문: 이 결정점에서 권장 접근 + 핵심 근거 1~2개만."""
+)
+```
+
+→ 400~700토큰 전략 조언 수령 후 dispatch 진행. PASS(자명/단일 선택지)는 스킵.
 
 ## 위임 후 동작
 

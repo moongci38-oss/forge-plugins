@@ -30,6 +30,16 @@
         "중복 항목 쌍 목록화",
         "200줄 초과 시 인덱스화 권고"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "/memory-manage gc (MEMORY.md `## ` 항목 37개 상태)",
+      "expected_output": "시간 기준 GC 후보 + count>30 advisory surface(최고령/최소참조 N개, 병합 후보, learnings 이관 제안) 병기, 자동 삭제 없음",
+      "expectations": [
+        "count(37) > 30 감지 시 advisory surface 섹션 출력",
+        "surface 항목은 제안일 뿐 자동 삭제·수정 실행 안 함",
+        "시간 기준(90일 미참조) GC 결과와 별도 섹션으로 구분 표기"
+      ]
     }
   ]
 }

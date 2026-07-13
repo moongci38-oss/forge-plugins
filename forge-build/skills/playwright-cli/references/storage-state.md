@@ -273,3 +273,21 @@ playwright-cli open https://example.com
 - Delete state files after automation completes
 - Use environment variables for sensitive data
 - By default, sessions run in-memory mode which is safer for sensitive operations
+
+## 비밀값 주입 (secret injection)
+
+로그인 자동화 스크립트에 비밀번호·API 키·토큰을 **코드나 저장소에 평문으로 하드코딩하지 않는다.** (forge-core 보안: "하드코딩 시크릿 금지")
+
+- **허용**: `.env` 참조 또는 secret manager ref로만 주입.
+  ```bash
+  # .env 참조 (환경변수 주입)
+  PW_USER="$LOGIN_USER" PW_PASS="$LOGIN_PASS" playwright-cli run login.js
+  ```
+  ```js
+  // login.js — 값은 env에서만 읽는다
+  const user = process.env.PW_USER;
+  const pass = process.env.PW_PASS;
+  if (!user || !pass) throw new Error('missing credentials env');
+  ```
+- **금지**: `const pass = "myS3cret"` 같은 평문 상수, 저장소에 커밋되는 파일에 비밀값 기입.
+- storage-state(쿠키·세션) 파일 자체도 비밀 자산 — `.gitignore` 등록, 커밋 금지.
