@@ -433,7 +433,7 @@ forge-plugins-repo/
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — learn/memory-manage/wiki-sync/site-deep-analyze/yt
 │   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item/learn/memory-manage/wiki-sync
-│   ├── agents/                        — 7개 (academic-researcher/article-analyst/fact-checker/weekly-research-analyst/yt-cross-analyst/yt-research-followup/yt-video-analyst)
+│   ├── agents/                        — 6개 (academic-researcher/article-analyst/fact-checker/yt-cross-analyst/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
 ├── forge-design/                      — (v0.1.5)
 │   ├── skills/                        — figma-design-sync/image-orchestrate/visual-loop

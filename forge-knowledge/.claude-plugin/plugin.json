@@ -13,7 +13,6 @@
     "./agents/academic-researcher.md",
     "./agents/article-analyst.md",
     "./agents/fact-checker.md",
-    "./agents/weekly-research-analyst.md",
     "./agents/yt-cross-analyst.md",
     "./agents/yt-research-followup.md",
     "./agents/yt-video-analyst.md"
