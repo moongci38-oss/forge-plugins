@@ -23,7 +23,7 @@ group: review
 ```js
 // CR_MODE = (--no-codex 있으면 'degrade') || (--cr 값) || 'on'
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'double', stage: STAGE, crMode: CR_MODE }
 })
 ```

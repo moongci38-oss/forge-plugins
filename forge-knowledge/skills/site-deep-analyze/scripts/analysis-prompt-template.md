@@ -7,7 +7,7 @@
 
 ```bash
 # 쉘 확장으로 플레이스홀더 치환 후 실행
-BYPASS_FORGE_CU_COST=1 python3 $HOME/.claude/scripts/cu-runner.py \
+BYPASS_FORGE_CU_COST=1 python3 ~/.claude/scripts/cu-runner.py \
   --scenario-file /tmp/my-scenario.md \
   --credentials env://SITE_PASSWORD \
   --max-cost=30

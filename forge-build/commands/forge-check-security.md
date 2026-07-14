@@ -8,24 +8,11 @@ group: verify
 
 # /forge-check-security — 보안 검수 게이트
 
-보안 검증을 독립 실행합니다 (P6 QA Phase 1 T6 연계).
+**절차 SSoT = `skills/forge-check-security/SKILL.md`**. 이 커맨드는 진입점일 뿐이다. S1~S15 항목·등급(CRITICAL/HIGH/MEDIUM/LOW)·산출물(`docs/qa/security-report.md`)은 전부 SKILL.md가 정의한다.
 
 ## 실행
 
-1. `security-gate.md` 프롬프트 로드
-2. 프로젝트별 보안 검증 스크립트 실행
-3. OWASP Top 10 패턴 매칭
-4. 의존성 CVE 스캔
-5. 결과를 JSON 형식으로 반환
-
-## 판정 기준
-
-| 레벨 | 조건 | 행동 |
-|------|------|------|
-| Level 1 | WARN만 | 자동 수정 가능 |
-| Level 2 | FAIL 1~2건 | 자동 수정 + 재검증 |
-| Level 3 | FAIL 3건+ | [STOP] Human 승인 |
-> 실패 시 [[pev-self-correction]] 적용
+forge-check-security 스킬의 절차를 그대로 실행한다.
 
 ## Advisor 자문 (advisory-only · non-blocking · Opus)
 

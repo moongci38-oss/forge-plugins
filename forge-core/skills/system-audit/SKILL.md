@@ -1,11 +1,7 @@
 ---
 name: system-audit
-description: >
-  6축 통합 시스템 감사 (ACHCE+Redundancy). Agentic/Context/Harness/Cost/Human-AI 5개 축 +
-  Redundancy(중복/drift 감지) 병렬 스폰, 3-LLM adversarial 검증(Claude+Codex+Gemini 2/3 합의),
-  Lead 종합 + 축간 트레이드오프 + 통합 개선 로드맵을 생성한다.
+description: "6축 통합 시스템 감사(Agentic·Context·Harness·Cost·Human-AI + 중복). 전체 AI 시스템 역량 점검을 요청할 때 사용한다. 하네스 슬림화만 원하면 harness-legacy-scan."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: opus
 ---
@@ -57,7 +53,7 @@ model: opus
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$FORGE_ROOT/.claude/` 또는 `$HOME/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `system` | `$FORGE_ROOT/.claude/` 또는 `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -85,26 +81,26 @@ Workflow 스크립트는 셸 불가 → **기동 前 외부 선발행** 필수 (
 ```bash
 TODAY=$(date +%Y-%m-%d); SLUG="system-audit-${TODAY}"
 # --cr 플래그로 Codex 레그 제어: on(기본) | degrade | off
-# CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
+# CR_MODE=$(~/forge/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
 CR_MODE="${CR_MODE:-on}"
 
 # crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 스킵)
 if [ "$CR_MODE" = "on" ]; then
-  FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+  FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
     --task "$SLUG" --worker codex-critic --tools mcp__codex__codex --paths "$TARGET"
 fi
-FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
   --task "$SLUG" --worker gemini --tools mcp__gemini__analyze_media --paths "$TARGET"
 # 그 후 Workflow 기동
 Workflow({
-  script: Read("${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"),
+  script: Read("~/forge/.claude/skills/system-audit/workflow.js"),
   args: { date: TODAY, projectRoot: TARGET, slug: SLUG, crMode: CR_MODE }
 })
 ```
 
 > nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (cr-multi 참조).
 > `--cr` 값: `on`(기본, 3-LLM) | `degrade`(Codex rate-limit/비용 절감 시) | `off`(Codex 완전 비활성).
-> `cr-mode.sh` 경로: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
+> `cr-mode.sh` 경로: `~/forge/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
 
 Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 아래 Wave 1~4 fallback 실행.
@@ -355,7 +351,7 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 
 ### Wave 3.9: 최종 완료 게이트 (필수, Notion 등록·완료 보고 이전)
 
-1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "docs/reviews/audit/{date}-system-audit.md"`
+1. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh "docs/reviews/audit/{date}-system-audit.md"`
 2. 스크립트 출력 표를 완료 보고에 포함. 표 밖 임의 "완료" 서술 금지.
 3. exit 2(MISSING/0바이트)면 Wave 4 Notion 등록 및 "## 완료 보고" 출력 금지 — 보고서 재생성 후 재검증(exit 0) 통과 시에만 진행한다.
 
@@ -473,8 +469,8 @@ Agent(
 ```bash
 TODAY=$(date +%Y-%m-%d)
 # CR_MODE: on(기본 3-LLM) | degrade(Codex 스킵, Claude+Gemini) | off(동일)
-# ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh 로 자동 결정 가능
-Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
+# ~/forge/shared/scripts/cr-mode.sh 로 자동 결정 가능
+Workflow({ script: Bash("cat ~/forge/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
 ```
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 Wave 1~4 fallback.

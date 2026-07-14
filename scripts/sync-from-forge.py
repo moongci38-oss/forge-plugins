@@ -16,8 +16,11 @@ Scope: only files that exist in BOTH forge SSoT and a plugin bundle subdir
 """
 import argparse, os, re, sys, hashlib
 
-FORGE_ROOT = "/home/damools/forge/.claude"
-PLUGIN_ROOT = "/home/damools/.claude/plugins/marketplaces/forge-plugins"
+_HOME = os.path.expanduser("~")
+FORGE_ROOT = os.environ.get("FORGE_ROOT", os.path.join(_HOME, "forge")) + "/.claude"
+PLUGIN_ROOT = os.environ.get(
+    "PLUGIN_ROOT", os.path.join(_HOME, ".claude/plugins/marketplaces/forge-plugins")
+)
 
 PLUGINS = ["forge-core", "forge-build", "forge-knowledge", "forge-design", "forge-game"]
 SUBDIRS = ["skills", "commands", "agents", "rules"]

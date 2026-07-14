@@ -1,8 +1,9 @@
 ---
 name: harness-legacy-scan
 description: "Forge 하네스 읽기전용 레거시 감사: 낡은룰/중복/과대 전역컨텍스트/넓은 Skill/불필요 Hook·MCP/제품중복 분류. 트리거: /harness-legacy-scan"
-metadata:
-  eval_cases: off
+model: sonnet
+allowed-tools: Read, Bash, Glob, Grep, Write
+argument-hint: [--scope rules|skills|hooks|all]
 ---
 
 # harness-legacy-scan
@@ -33,7 +34,11 @@ Forge 하네스는 지속적으로 누적된다:
 
 ```
 Workflow({
-  script: Bash("cat /home/damools/forge/.claude/skills/harness-legacy-scan/workflow.js"),
-  args: {}
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-legacy-scan/workflow.js"),
+  args: { outBase: Bash("echo ${FORGE_OUTPUTS:-$HOME/forge-outputs}") }
 })
 ```
+
+> **`outBase`를 반드시 주입하라.** Workflow 스크립트는 `process` 전역에 접근할 수 없어 `$HOME`을
+> 스스로 알 수 없다. 미주입 시 workflow.js의 하드코딩 폴백(작성자 로컬 경로)으로 떨어져
+> **다른 PC에서는 리포트 저장이 실패한다.**

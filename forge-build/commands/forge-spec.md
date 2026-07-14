@@ -17,7 +17,7 @@ Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 | 탐색(기존 spec/ADR 충돌·데이터 스키마 확인) | **Haiku** | `Agent(model:"haiku")` subagent |
 | 고위험 전략 자문(범위/NFR) | **Opus** | `advisor-strategist`(기존 배선) |
 
-근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
+근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
 
 ## Phase-hard-gate (GS-B20)
 
@@ -37,7 +37,7 @@ Phase-hard-gate 순서:
      - codex 가용 + FAIL 반환 → Spec 재작성 후 재통과 필수 (blocking 유지)
      - codex/MCP 미가용(도구 부재·인증 실패 등) → fail-open + WARN
        ("Codex 미가용 → advisory로 강등, 수동 리뷰 권고") 명시 후 Phase 진행
-       (근거: `$HOME/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
+       (근거: `~/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
      ↓
   4. [STOP] Human 승인
      ↓

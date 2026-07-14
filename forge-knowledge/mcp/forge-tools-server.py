@@ -215,7 +215,7 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
         subprocess.run(["git", "add", "-A"], cwd=cwd, check=True, timeout=30)
 
     # Commit
-    full_message = f"{message}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+    full_message = f"{message}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"  # root-cause: model version bump — trailer identity → Sonnet 5 (D1)
     result = subprocess.run(
         ["git", "commit", "-m", full_message],
         cwd=cwd, capture_output=True, text=True, timeout=60
@@ -666,4 +666,7 @@ if __name__ == "__main__":
         print(f"  허용 스크립트: {', '.join(ALLOWED_SCRIPTS.keys())}")
         print()
 
-    mcp.run(transport=transport, host="0.0.0.0", port=8765)
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        mcp.run(transport=transport, host="0.0.0.0", port=8765)

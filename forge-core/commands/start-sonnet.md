@@ -1,5 +1,5 @@
 ---
-description: Sonnet 세션 시작 — 구현 컨텍스트 로드
+description: "Sonnet 세션 시작 — 구현 컨텍스트 로드. 트리거: "세션 시작", "구현 시작", "start-sonnet", Opus handover 수신 후 구현 착수 시."
 group: ops
 ---
 

@@ -111,7 +111,7 @@ fi
 # --cr 게이트: cr-mode.sh로 effective mode 결정 (우선순위: --cr 인자 > FORGE_AUTO_CR env > on)
 # codex-review = 단일 Codex 경로 → degrade/off 모두 "Codex 호출 없음"과 동일 → skip
 # --cr on이면 CODEX_REVIEW_AUTO_STAGES=off보다 위에서 이미 빠져나갔으므로 여기서 on = 통과만
-CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "${CR_ARG:-}")
+CR_MODE=$(~/forge/shared/scripts/cr-mode.sh "${CR_ARG:-}")
 if [[ "$CR_MODE" == "off" || "$CR_MODE" == "degrade" ]]; then
   echo "[codex-review] --cr $CR_MODE → Codex 호출 생략"
   exit 0
@@ -153,8 +153,8 @@ EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
 
 # 프롬프트 stage별 선택
-PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-${STAGE}.md"
-[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-default.md"
+PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${STAGE}.md"
+[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
 
 # 호출 (stdin = prompt + target)
 ( cat "$PROMPT_FILE"; echo; echo "---"; echo "## TARGET"; echo "$INPUT" ) | \
@@ -249,7 +249,7 @@ CLAUDE_JSON="${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/claude/${STAGE}/
 CODEX_JSON="${OUT_DIR}/${DATE}-${SLUG}.json"
 
 # 비교 알고리즘 → "agreement" | "disagreement" | "extension" | "null"
-DELTA=$(python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
+DELTA=$(python3 ~/forge/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
 
 # JSON 갱신 (delta_vs_claude 필드 자동 기록)
 jq --arg d "$DELTA" '.delta_vs_claude = $d' "$CODEX_JSON" > "$CODEX_JSON.tmp" \

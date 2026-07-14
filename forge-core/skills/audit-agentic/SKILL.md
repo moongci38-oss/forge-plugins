@@ -1,10 +1,7 @@
 ---
 name: audit-agentic
-description: >
-  에이전틱 AI 역량 감사. 자율성, 도구 사용, 멀티에이전트 조정을
-  Anthropic Composable Patterns 기준으로 평가한다.
+description: "에이전틱 역량(자율성·도구 사용·멀티에이전트 조정·성숙도)을 감사한다. 에이전트 설계 점검을 요청할 때 사용한다."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: sonnet
 ---
@@ -35,7 +32,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `system` | `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -119,8 +116,8 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `ls ${FORGE_ROOT:-$HOME/forge}/.claude/agents/` → 정의된 에이전트 목록 수집
-2. 각 에이전트명으로 `grep -rl "{agent-name}" $HOME/.claude/skills/*/SKILL.md 2>/dev/null` → 실제 호출 여부 확인
+1. `ls ~/forge/.claude/agents/` → 정의된 에이전트 목록 수집
+2. 각 에이전트명으로 `grep -rl "{agent-name}" ~/.claude/skills/*/SKILL.md 2>/dev/null` → 실제 호출 여부 확인
 3. 호출 파일 없음 = orphan → 아카이브 권고 + issues 등록
 4. 호출 있으나 `agentType` 값 불일치 = drift → 정합 권고 + issues 등록
 

@@ -1,64 +1,49 @@
 ---
-description: Generate or edit images using NanoBanana MCP (Google Gemini AI) MAS P1: +Codex DALL-E 3 폴백 지원.
-allowed-tools: Bash, Read, Task, Write
-argument-hint: <mode: generate|edit> <prompt or image-path> [--model pro|normal] [--aspect 16:9|1:1|9:16] [--output path]
+description: 이미지 생성 — gpt-image-1 primary, Gemini 폴백.
+allowed-tools: Bash, Read, Write, mcp__plugin_forge-core_gemini__generate_image
+argument-hint: <mode: generate|edit> <prompt or image-path> [--aspect 16:9|1:1|9:16] [--quality low|medium|high] [--output path]
 model: sonnet
 group: ops
 ---
 
-# AI Image Generation / Editing (Business)
+# AI Image Generation / Editing
 
-NanoBanana MCP를 사용하여 이미지를 생성하거나 편집합니다: $ARGUMENTS
+이미지를 생성하거나 편집합니다: $ARGUMENTS
 
-## 스타일 가이드 자동 참조
+## 실행 순서 (2단계)
 
-이미지 생성 시 프로젝트의 `style-guide.md`와 `art-direction-brief.md`를 자동으로 탐색한다:
+### 1단계 — 기본 경로: gpt-image-1
 
-1. 현재 프로젝트 경로에서 `style-guide.md` 검색
-2. 존재 시 → 키워드/팔레트를 프롬프트에 자동 주입
-3. `art-direction-brief.md` 존재 시 → 감성 키워드 + 안티패턴 키워드 주입
-4. `style-guide.md`에 LoRA 모델 ID가 있으면 → `--model replicate` 분기 제안
-
-### Replicate 분기
-
-학습된 LoRA 모델이 존재하는 경우 (`style-guide.md`의 "LoRA 모델 참조" 섹션):
-
-```
-/generate-image --model replicate {프롬프트}
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image.py" \
+  --prompt "<프롬프트>" \
+  --output "<저장경로>" \
+  --aspect <16:9|1:1|9:16> \
+  --quality <low|medium|high>
 ```
 
-- Replicate MCP를 통해 학습된 LoRA 모델로 이미지 생성
-- 트리거 워드가 자동으로 프롬프트에 추가됨
-- Replicate 미연결 시 NanoBanana로 폴백 (경고 출력)
+- exit 0 → 성공. stdout 마지막 줄이 저장된 절대경로.
+- exit 2 → 실패(키 없음/SDK 없음/API 오류) → 2단계 폴백으로 전환.
 
-## 사전 검증
+### 2단계 — 폴백: Gemini (1단계가 exit 2로 실패한 경우에만)
 
-1. `GOOGLE_API_KEY` 환경변수 확인:
+`mcp__plugin_forge-core_gemini__generate_image` 도구를 호출한다.
 
-NanoBanana MCP 도구(`generate_image` 또는 `edit_image`)를 직접 호출하여 연결 확인.
-
-**사용 불가 시**: 아래 가이드를 출력하고 종료합니다.
+**폴백 사용 시 반드시 다음을 명시**:
 ```
-[ERROR] NanoBanana MCP를 사용하려면 GOOGLE_API_KEY가 필요합니다.
-
-설정 방법:
-  1. Google AI Studio (https://aistudio.google.com/) 에서 API 키 발급
-  2. 환경변수 설정:
-     - Windows: setx GOOGLE_API_KEY "your-key"
-     - Linux/Mac: export GOOGLE_API_KEY="your-key"
-  3. Claude Code 재시작
+gpt-image-1 실패 → Gemini 폴백
 ```
 
 ## 모드
 
 ### `generate` — 텍스트에서 이미지 생성
 
-NanoBanana의 `generate_image` 도구를 호출합니다.
+위 2단계 순서를 그대로 따른다.
 
 **인자 파싱:**
 - 첫 번째 인자: 프롬프트 텍스트
-- `--model`: `pro` (고품질) 또는 `normal` (기본, 빠름)
 - `--aspect`: `16:9` (히어로/배너), `1:1` (정사각), `9:16` (모바일)
+- `--quality`: `low` / `medium`(기본) / `high`
 - `--output`: 저장 경로 (기본: `05-design/images/`)
 
 **예시:**
@@ -70,7 +55,7 @@ NanoBanana의 `generate_image` 도구를 호출합니다.
 
 ### `edit` — 기존 이미지 편집
 
-NanoBanana의 `edit_image` 도구를 호출합니다.
+gpt-image-1 wrapper는 편집을 지원하지 않는다 — edit는 `mcp__plugin_forge-core_gemini__generate_image`(Gemini edit_image)가 유일한 수단이다.
 
 **인자 파싱:**
 - 첫 번째 인자: 편집할 이미지 파일 경로
@@ -94,6 +79,10 @@ NanoBanana의 `edit_image` 도구를 호출합니다.
 
 ## 비용 원칙
 
-- NanoBanana는 **부가 기능** — 검증 게이트에서 사용 금지
-- 이미지 생성은 사용자 명시 요청 시에만 실행
-- Business 워크스페이스에서는 `verify-image-quality.mjs` 미존재 — 생성 후 파일 크기/포맷만 수동 확인
+- 호출자: `game-asset-generate`(게임 에셋 파이프라인) + Human 명시 호출(마케팅/블로그 이미지 등).
+- 개발·구현 파이프라인(forge-implement/forge-pge/forge-design)은 이 커맨드를 호출하지 않는다 — 그 단계의 이미지는 Claude Design/Stitch 산출물이거나, 없으면 없는 대로 진행한다.
+- 디자인 시안은 Human이 /forge-claude-design(메인) 또는 /forge-stitch(서브)를 직접 호출한다.
+- 검증 게이트에서 사용 금지(부가 기능)
+- 생성 후 파일 크기/포맷 수동 확인
+
+> 이 커맨드는 프롬프트를 보고 도구를 판정하지 않는다. 디자인 시안이 필요하면 Human이 /forge-claude-design 또는 /forge-stitch를 직접 호출한다.

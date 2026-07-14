@@ -8,6 +8,7 @@ group: verify
 # /forge-check-traceability — 트레이서빌리티 게이트
 
 P5 Check P5.5 Spec 준수 검증. 로직 SSoT = `spec-compliance-checker` 스킬.
+판정 로직 SSoT = spec-compliance-checker. 동명 스킬(SKILL.md)은 이 문서를 가리키는 포인터일 뿐이다.
 
 ## 실행
 
@@ -53,6 +54,11 @@ Agent(subagent_type="advisor-strategist",
 - 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 Human [STOP] Reconciliation 게이트)가 수행.
 - **Fable 5 미배선** — Human 수동 에스컬레이션 전용(자동분기는 forge-fix T4 한정). `advisor-model-resolve` 호출 금지.
 - 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor/결정=Opus.
+
+## Override 경로
+
+NOT DONE/UNVERIFIABLE 항목의 override 선언·재검증(단일 FR 재탐색, override당 1회)은
+`~/.claude/rules-on-demand/verification-overrides.md` 스키마(`must_have/reason/accepted_by/at`) 참조.
 
 ## 주의사항
 

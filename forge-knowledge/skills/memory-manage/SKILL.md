@@ -1,15 +1,10 @@
 ---
 name: memory-manage
 description: MEMORY.md 관리 — 항목 추가·수정·삭제·GC. forge 프로젝트별 메모리 인덱스 유지보수. 범위 충돌 감지(global > project > session > ephemeral), 90일 미참조 GC + count>30 보조 트리거(advisory), 중복 병합.
-user-invocable: true
 context: fork
 model: haiku
-group: brain
-triggers:
-  - "메모리 정리"
-  - "memory gc"
-  - "기억 업데이트"
-  - "/memory-manage"
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+argument-hint: add <내용> | update <slug> <내용> | remove <slug> | audit | gc [--apply]
 ---
 
 **역할**: forge 프로젝트 MEMORY.md를 관리하는 메모리 큐레이터입니다.

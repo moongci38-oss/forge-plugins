@@ -1,13 +1,8 @@
 ---
 name: site-deep-analyze
-description: 특정 사이트 URL → 정밀 분석 → 재구현 가이드 생성. Playwright 크롤 + DOM 컴포넌트 패턴 + CSS 토큰 + API 엔드포인트 추론 + Gemini Vision 시각 분석 + Tavily 시맨틱 추출. 산출물 7종(analysis-report/screenshots/style-guide/components/api-schema/network-trace/reconstruction-spec). 코드 직접 복제 금지 — 영감 받은 자체 구현 가이드만 생성. /site-deep-analyze <URL> [options] 형식으로 호출.
-user-invocable: true
+description: "사이트 URL을 정밀 분석(DOM 패턴·CSS 토큰·API)해 재구현 가이드를 만든다. 사용자가 특정 사이트의 구조·디자인 분석을 요청할 때 사용한다. 코드 생성까지 원하면 site-clone."
 context: fork
 model: sonnet
-group: research
-input: 사이트 URL + 옵션 (--depth, --pages, --task, --viewport, --cu, --dry-run)
-output: 05-design/site-analysis/{slug}/ 7종 산출물 (analysis-report.md, style-guide.md, components.md, api-schema.json, network-trace.har, reconstruction-spec.md, screenshots/)
-eval_cases: off
 ---
 
 # /site-deep-analyze
@@ -77,9 +72,9 @@ fan-out 완료 후 completeness critic agent가 미탐색 항목 식별:
 3. 여전히 gap 있으면 round 2 (최대)
 4. **cap 2라운드** — 잔여 gap은 `log()`로 드롭 명시 후 Phase 2.5 진행
 
-참조: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
+참조: `~/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipGemini } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipGemini } })`
 skipGemini=true(Gemini 토큰 없는 경우 정적 분석만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 6 Phase 방식 fallback.
 
 ## 6 Phase 절차
@@ -118,7 +113,7 @@ CSS → `/style-forge` Mode A 호환 형식 (color palette / typography / spacin
 Phase 2 정적 분석이 추론한 `apiEndpoints[]`·`components[]`를 Phase 5 산출물에 반영하기 전,
 이미 수집된 HAR·DOM 아티팩트만으로 각 추론의 근거를 역검증한다 (**신규 네트워크 호출 0**).
 
-**참조 표준**: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색
+**참조 표준**: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색
 
 검증 절차:
 1. **API 엔드포인트**: HAR 파일에서 해당 URL 패턴의 실제 요청 존재 여부 확인

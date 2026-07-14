@@ -1,7 +1,6 @@
 ---
 name: visual-loop
-description: 프론트엔드 변경 시 자체 정적 분석 + 실제 렌더링 스크린샷을 Playwright로 캡처하고 Gemini Vision으로 분석하여 closed loop 검증을 수행한다. Boris Cherny Chrome 확장 패턴의 WSL 환경 대체 구현.
-user-invocable: true
+description: "프론트엔드 변경을 실제 브라우저 렌더링으로 캡처해 Vision 분석한다. UI 코드를 수정한 직후 시각 회귀를 확인할 때 사용한다."
 argument-hint: "[url] [--viewport=desktop,tablet,mobile]"
 allowed-tools: "Bash,Read,Write,Edit,Glob,Grep,Skill,Agent"
 context: fork
@@ -308,7 +307,7 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 /visual-loop http://localhost:3000/checkout --viewport=mobile
 
 # 카드게임 프로젝트 예시 (PC 버전)
-/visual-loop http://localhost:5173/game/baduki --viewport=desktop
+/visual-loop http://localhost:5173/game/<project> --viewport=desktop
 ```
 
 ## 트러블슈팅
@@ -332,7 +331,7 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: 3 viewport Gemini Vision parallel().
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/visual-loop/workflow.js") })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/visual-loop/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

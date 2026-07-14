@@ -1,7 +1,6 @@
 ---
 name: screenshot-analyze
-description: 게임/웹/앱 스크린샷(UI, HUD, 이펙트 프레임, 경쟁작, 구현 검증)을 Gemini Vision으로 분석하여 UI 구조/컬러 팔레트/구현 가이드를 생성하는 스킬. 정적 이미지 분석 전문. MAS P1+ (2026-05-25): Codex Vision 우선 (GPT-5 Vision), Gemini Flash 폴백. 정확도 우선 결정.
-user-invocable: true
+description: "스크린샷(UI·HUD·이펙트·경쟁작)을 Vision 모델로 분석해 UI 구조·컬러 팔레트·구현 가이드를 만든다. 사용자가 화면 이미지를 첨부하거나 경쟁작 화면 분석을 요청할 때 사용한다."
 context: fork
 model: sonnet
 ---
@@ -87,7 +86,7 @@ model: sonnet
 > 스킬 문서의 출력 규격과 Gemini에 보내는 프롬프트가 일치해야 한다.
 
 > **모델**: `--extract` 모드 → `GEMINI_MODEL=gemini-3.1-pro-preview` 고정 (정밀도 최우선)
-> 기본 분석 → `gemini-2.5-flash` (기존 유지)
+> 기본 분석 → `gemini-3.5-flash` (기존 유지)
 
 모든 분석 유형에 공통으로 포함되는 **분해 규칙 블록**:
 
@@ -305,7 +304,7 @@ Pass 2 — 정밀 검증 (병렬, CRITICAL):
 
 **단일 이미지 분석:**
 ```bash
-bash $HOME/.claude/scripts/analyze-screenshot.sh \
+bash ~/.claude/scripts/analyze-screenshot.sh \
   "{IMAGE_PATH}" \
   "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" \
   "{Step 2에서 조립한 전체 프롬프트 — 공통 블록 포함}"
@@ -313,7 +312,7 @@ bash $HOME/.claude/scripts/analyze-screenshot.sh \
 
 **멀티 이미지 비교 분석** (경쟁작 비교, 구현 검증):
 ```bash
-bash $HOME/.claude/scripts/analyze-screenshot.sh \
+bash ~/.claude/scripts/analyze-screenshot.sh \
   "{IMAGE1_PATH}" \
   "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-compare.md" \
   "{비교 분석 프롬프트}" \
@@ -326,9 +325,9 @@ bash $HOME/.claude/scripts/analyze-screenshot.sh \
 
 **모델 선택** (환경변수 `GEMINI_MODEL`):
 ```bash
-# 기본: gemini-2.5-flash (빠르고 저렴)
+# 기본: gemini-3.5-flash (빠르고 저렴)
 # 고품질: gemini-2.5-pro (정밀 분해, 복잡한 UI)
-GEMINI_MODEL=gemini-2.5-pro bash $HOME/.claude/scripts/analyze-screenshot.sh ...
+GEMINI_MODEL=gemini-2.5-pro bash ~/.claude/scripts/analyze-screenshot.sh ...
 ```
 
 ### Step 3.5: 컴포넌트 추출 실행 (--extract 모드 전용)
@@ -351,7 +350,7 @@ img.crop((left,top,right,bottom)).save('/tmp/verify_{comp_id}.png')
 "
 
 # Gemini 재확인
-GEMINI_MODEL=gemini-3.1-pro-preview bash $HOME/.claude/scripts/analyze-screenshot.sh \
+GEMINI_MODEL=gemini-3.1-pro-preview bash ~/.claude/scripts/analyze-screenshot.sh \
   "/tmp/verify_{comp_id}.png" \
   "" \
   "이 이미지에서 '{comp_name}'({comp_type}) 컴포넌트가 완전히 포함되어 있는가?
@@ -366,7 +365,7 @@ GEMINI_MODEL=gemini-3.1-pro-preview bash $HOME/.claude/scripts/analyze-screensho
 
 ```bash
 GEMINI_MODEL=gemini-3.1-pro-preview \
-python3 $HOME/.claude/scripts/extract-components.py \
+python3 ~/.claude/scripts/extract-components.py \
   --image "{IMAGE_PATH}" \
   --analysis "{ANALYSIS_MD_PATH}" \
   --output "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components"
@@ -540,7 +539,7 @@ Canvas (Screen Space - Overlay)
 ## 환경 요구사항
 
 - `GEMINI_API_KEY` 환경변수 설정 필수
-- `$HOME/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
+- `~/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
 - Python 3 (JSON 파싱용)
 - curl (API 호출용)
 
@@ -568,13 +567,13 @@ Canvas (Screen Space - Overlay)
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Codex Vision→Gemini fallback.
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 
 ### `--cr` 옵션 (crMode)
 
-Codex Vision 사용 여부를 제어한다. caller는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
+Codex Vision 사용 여부를 제어한다. caller는 `~/forge/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
 
 | 값 | 동작 |
 |----|------|

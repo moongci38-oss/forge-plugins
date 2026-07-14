@@ -12,7 +12,7 @@ group: ops
 
 ## 실행 순서
 
-1. `node $HOME/.claude/scripts/session-state.mjs list` 실행하여 활성 세션 목록 확인
+1. `node ~/.claude/scripts/session-state.mjs list` 실행하여 활성 세션 목록 확인
 2. 세션이 없으면 "No previous session found" 출력 후 종료
 3. 세션이 1개면 자동 선택, 2개 이상이면 목록 출력 후 사용자에게 선택 요청
 4. 선택된 세션의 상태 출력:
@@ -60,7 +60,7 @@ group: ops
 세션 재개 시 단순 상태 복원 외에 **현재 컨텍스트 분석** 후 다음 스텝을 추천한다.
 
 1. **handover 파일 탐색**: `forge-outputs/.claude/handover/sonnet/` 최신 파일 read
-2. **checkpoint 파일 탐색**: `$HOME/.claude/checkpoints/` 최신 파일 read (checkpoint 있으면 우선)
+2. **checkpoint 파일 탐색**: `~/.claude/checkpoints/` 최신 파일 read (checkpoint 있으면 우선)
 3. **git log 분석**: `git log --oneline -5` — 마지막 커밋 기준 Phase 추론
 4. **미완 태스크 감지**: `gate-log.md` 또는 handover의 "다음 스텝" 섹션 파싱
 5. **추천 출력**:
