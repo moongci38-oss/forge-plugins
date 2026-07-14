@@ -15,7 +15,7 @@ group: ops
 ### 1단계 — 기본 경로: gpt-image-1
 
 ```bash
-python3 /home/damools/forge/shared/scripts/generate-image.py \
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image.py" \
   --prompt "<프롬프트>" \
   --output "<저장경로>" \
   --aspect <16:9|1:1|9:16> \

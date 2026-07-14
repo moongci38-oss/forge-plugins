@@ -1,8 +1,0 @@
-{
-  "skill_name": "game-asset-pipeline",
-  "evals": [
-    {"id":1,"prompt":"/game-asset-pipeline character hero-01 'hero warrior'","expected_output":"STORED: .../Characters/hero-01-*.png","expectations":["image-orchestrate 호출","AI_Generated/Characters/ 저장","cost-log 기록"]},
-    {"id":2,"prompt":"/game-asset-pipeline --list","expected_output":"AI_Generated 하위 PNG 파일 목록","expectations":["find 명령 실행","카테고리별 분류","파일 크기 포함"]},
-    {"id":3,"prompt":"/game-asset-pipeline invalid-cat test 'test'","expected_output":"ERROR: 카테고리 오류","expectations":["카테고리 검증","exit 1","사용 가능 카테고리 안내"]}
-  ]
-}

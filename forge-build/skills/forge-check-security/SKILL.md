@@ -7,6 +7,7 @@ description: "코드베이스 보안 취약점 자동 스캔 스킬. 15-phase CS
 
 **역할**: 15-phase CSO 심층 감사 — OWASP Top 10 + CI/CD + STRIDE 위협 모델 + 익스플로잇 패턴 + 트렌드 추적.
 **게이트**: CRITICAL → FAIL (즉시 차단) / HIGH → WARN / MEDIUM/LOW → 리포트만.
+진입점: `/forge-check-security`(커맨드) 및 qa T6. 절차 SSoT = 본 문서.
 
 ## 컨텍스트
 

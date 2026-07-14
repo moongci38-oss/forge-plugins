@@ -41,7 +41,7 @@ Spec 경로: {spec_path}
 구현 완료 브랜치: {branch}
 Traceability Matrix (있으면): {matrix_path}
 
-이 스킬 파일 Read: /home/damools/forge/.claude/skills/spec-compliance-checker/SKILL.md
+이 스킬 파일 Read: ${FORGE_ROOT:-$HOME/forge}/.claude/skills/spec-compliance-checker/SKILL.md
 Step-by-Step 절차를 따라 감사 수행 후 JSON 결과만 반환.
 결과 저장 경로: {result_path}
 """

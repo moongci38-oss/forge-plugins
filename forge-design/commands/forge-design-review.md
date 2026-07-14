@@ -23,7 +23,7 @@ UI/디자인 검수를 **입구 하나**로 실행합니다. 물리적으로 합
 
 ### Step 1 — 게이트 (싼 정적+Lighthouse 우선)
 
-`forge-check-ui` 스킬을 호출해 정적(U-1~U-5) + Lighthouse/반응형(U-6) 검증을 실행하고
+`forge-check-ui` 스킬을 호출해 **4축**(static / lighthouse / responsive / screen-mapping) 검증을 실행하고
 PASS/WARN/FAIL 판정 + CRITICAL 개수 + 발견 목록을 수집한다.
 
 ```

@@ -46,7 +46,7 @@ OUTPUT_DIR  : {IMAGE_PATH 부모}/{파일명}-components/ (기본)
 ```
 
 **Windows 경로 자동 변환**:
-- `z:/home/damools/...` → `/home/damools/...`
+- `z:/home/<user>/...` → `/home/<user>/...` (Windows 드라이브 문자 prefix 제거 → WSL 경로)
 - `C:/Users/...` → `/mnt/c/Users/...`
 
 ## Step 2: 버튼/컴포넌트 추출

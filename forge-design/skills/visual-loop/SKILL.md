@@ -307,7 +307,7 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 /visual-loop http://localhost:3000/checkout --viewport=mobile
 
 # 카드게임 프로젝트 예시 (PC 버전)
-/visual-loop http://localhost:5173/game/baduki --viewport=desktop
+/visual-loop http://localhost:5173/game/<project> --viewport=desktop
 ```
 
 ## 트러블슈팅

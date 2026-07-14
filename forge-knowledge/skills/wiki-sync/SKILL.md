@@ -84,7 +84,7 @@ pingame-server/.claude/rules/some-rule.md     → SKIP
 
 # 포함 대상 (INCLUDE_OVERRIDE .claude/reference 예외)
 pingame-server/.claude/reference/codebase-analysis.md  → INCLUDE ✅
-baduki-client/.claude/reference/codebase-analysis.md   → INCLUDE ✅
+<project>-client/.claude/reference/codebase-analysis.md   → INCLUDE ✅
 ```
 
 **INCLUDE_OVERRIDE 적용 예시** (필터 판단 기준):
@@ -95,7 +95,7 @@ pingame-server/.claude/rules/some-rule.md     → SKIP
 
 # 포함 대상 (INCLUDE_OVERRIDE .claude/reference 예외)
 pingame-server/.claude/reference/codebase-analysis.md  → INCLUDE ✅
-baduki-client/.claude/reference/codebase-analysis.md   → INCLUDE ✅
+<project>-client/.claude/reference/codebase-analysis.md   → INCLUDE ✅
 ```
 
 한 회 처리량은 **10개**로 제한.

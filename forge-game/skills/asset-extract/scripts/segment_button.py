@@ -8,7 +8,7 @@ Usage:
 
 Shape 모드:
   auto       — 컨투어 형태 자동 감지 (기본)
-  trapezoid  — 4점 사다리꼴 강제 (바닥 연장 포함, baduki 스타일 버튼)
+  trapezoid  — 4점 사다리꼴 강제 (바닥 연장 포함, 게임 UI 스타일 버튼)
   contour    — SAM 알파 그대로 사용 (원형/비정형 유지)
 
 파이프라인:
@@ -56,7 +56,7 @@ def detect_shape(contour, mask_shape) -> str:
 
 
 def mask_trapezoid(contour, crop_w, crop_h, bot_margin) -> np.ndarray:
-    """4점 사다리꼴 피팅 + 바닥 연장. baduki 스타일 버튼 전용."""
+    """4점 사다리꼴 피팅 + 바닥 연장. 게임 UI 스타일 버튼 전용."""
     epsilon = 0.02 * cv2.arcLength(contour, True)
     approx = cv2.approxPolyDP(contour, epsilon, True)
     pts = approx.reshape(-1, 2)

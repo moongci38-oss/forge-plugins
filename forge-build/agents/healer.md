@@ -208,11 +208,7 @@ node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
 ```
 → 스냅샷 3종 + `console.json`/`network.json`(**hard-gate**) + WARN-우선 세부필드 재방출. a0에서 `--actions`로 재현했다면 a4도 **동일 액션 시퀀스**로 재실행해 각 스텝 스냅샷+`actions-trace.json`을 남기고, 그 스텝 스냅샷을 Vision evaluator에 넘겨 "정적 로드"가 아니라 "실제 인터랙션 이후 상태"가 기대값대로 바뀌었는지 판정한다(healer 자가판정 금지 원칙 그대로 — 판정은 evaluator, healer는 캡처만). **RED대비 diff**(RED에 있던 error/exception/실패요청이 GREEN에서 소멸했는지 대조, 신규 에러 0 확인). `console_clean` = **RED 대비 신규 error/exception 0 + 실패요청(status≥400) 소멸**(단순 "빈 콘솔" 아님). 헬퍼 exit 3(playwright 미설치) 시 → **먼저** 그 stderr 출력을 `docs/qa/artifacts/bug-{N}-green-playwright-unavailable.log`에 저장한 뒤에만 fop.json에 `green.playwright_unavailable: "사유"`를 기록한다(증거 로그 없이 flag 단독 기록 금지 — Gate G가 동일 방식으로 이 로그를 corroborating 증거로 재검증). 저장 후 GUIDE-STOP. 신규 세부필드(js-errors/failed-resources/trace/har/aria/actions-trace)는 WARN-우선 non-blocking — 기존 하드게이트(스크린샷+console+network) 무변경.
 
-**⚠️ 미해결(후속 debt, cr-final HIGH H1/H3, 2026-07-05)**: (a) fop.json 부재/mistag 시 게이트가 screenshot-only로 강등되는 것은 이 PR 이전부터 있던 아키텍처 갭 — 이번 carve-out 강화 범위 밖이며 Human sign-off 후속 과제로 남긴다. (b) 버그 개수 기반 병렬/도메인충돌 자동 라우팅(§개수 자동 라우팅)은 instruction-based(agent 판단 prose)이며 결정론적 훅 코드가 아니다 — 이 하네스의 일반 패턴이나, 결정론 강제화는 별도 후속 과제.
-
-**⚠️ carve-out 한계(by-design, cr-triple pw hotfix2, 2026-07-05 — 이전 표현 정정)**: playwright가 **진짜 부재**할 때는 결국 healer self-report(시그니처 로그)를 신뢰한다 — 완벽한 위조 방지는 불가능하다. hook 독립확인(`node_modules/playwright` 존재 + `require.resolve`)이 차단하는 것은 "실제로는 설치돼 있는데 미가용을 주장"하는 케이스뿐이다. non-actor 계측(healer 프로세스 바깥에서 독립적으로 playwright 유무를 증명하는 provenance)은 만들지 않았다 — fail-open·무블로킹 원칙(AD-168)과 근본적으로 트레이드오프 관계라 별도 후속 debt으로 남긴다. network.json 빈배열 sentinel(capture-meta.json, capture_ok)도 동일 한계다 — 헬퍼 self-report이므로 완전한 위조방지는 아니고, bare `echo '[]' > network.json`보다 위조 비용을 높이는 정도의 완화다. **정정**: 이전 커밋 메시지의 "spoof 방지 실질화"는 과장된 표현이었다 — 정확히는 "위조 비용 상승"이다.
-
-> pixel-diff(H7, `maxDiffPixelRatio` 기반 스크린샷 회귀)은 헬퍼 출력에 포함되지 않는 별도 옵션 절차다 — 프로젝트에 playwright 시각회귀 테스트가 구성돼 있으면 헬퍼 캡처 후 추가로 실행(WARN-우선, 하드게이트 아님).
+> 미해결 debt·carve-out 한계(playwright 부재 self-report 신뢰 한계, pixel-diff 옵션 절차 등) 상세 → `healer-reference.md §a4 미해결 debt / carve-out 한계` (필요 시 Read)
 
 > **신선도(§4.2) 강조**: green 스크린샷·오라클(api_response/log_evidence 포함)은 **매 수정 사이클마다 fresh 생성**해야 한다 — 게이트가 `mtime > fix_started_at` 신선도를 요구하므로, 이전 사이클이나 다른 버그의 잔존 아티팩트 재사용은 게이트 BLOCK 대상이 된다.
 
@@ -414,14 +410,9 @@ KERNEL_RC=$?
 - **⚠️ 안전 필수 — fallback (캡 소실 방지)**: `KERNEL_RC≠0`(**timeout에 의한 exit 124 포함**) 이거나 `KERNEL_OUT`이 비었으면(kernel 미가용·node 오류·경로 부재·hang-timeout) → **즉시 기존 하드코딩 same-issue 3회 카운트 로직으로 폴백**(이 파일의 원래 방식 그대로 유지, 삭제하지 않는다). "kernel = SSoT, 하드코딩 = fallback" — 어느 경로든 same-issue 캡이 사라지는 경우는 없다.
 - 갱신된 `issueCounts`는 매 사이클 `$STATE_FILE`에 다시 write(`echo "$KERNEL_OUT" | ... > "$STATE_FILE"`) — 다음 사이클이 누적 카운트를 이어받는다.
 
-**plateau·oscillation·max_cycles는 의미가 달라(또는 healer에 대응 개념이 없어) kernel 함수를 그대로 재사용하지 않는다(정직한 경계 명시)**:
-- kernel의 `checkPlateau(scores)`는 **숫자 rubric 점수**(evaluator 0-100점) 수열의 순보정(net gain) 수렴을 본다 — healer의 plateau는 **동일 root-cause 텍스트가 2연속 반복**되는지를 본다(숫자 점수가 없음). 두 개념은 "진전 정체"라는 상위 카테고리(kernel §1-h)는 같지만 입력 타입이 달라 함수를 그대로 대입할 수 없다. 임계값만 kernel 상수 `PLATEAU_CONSECUTIVE`(=2)를 참조해 매직넘버 drift를 없앤다 — 비교 로직 자체는 위 §토큰 캡+plateau 적용 절차의 텍스트 정규화 비교를 그대로 유지.
-- kernel의 `checkOscillation(findings, resolvedFindings, oscillationHits, priorPassedIds)`은 **동일 finding id가 PASS→FAIL로 2회(`OSCILLATION_MAX=2`) 되돌아가는지**를 여러 사이클에 걸쳐 카운트한다. healer에는 이와 정확히 대응하는 다중-finding 반복 카운터가 없다 — 대신 위 전역 가드 표의 **"회귀 감지"**(baseline PASS → 현재 FAIL, 1회 즉시 STOP)가 더 엄격한 상위 상한선으로 이미 존재한다. oscillation이 2회째에 트립하기 전에 회귀 감지가 1회째에 이미 멈추므로, 별도 kernel 호출을 추가해도 실질적으로 발동할 기회가 없다(회귀 감지가 항상 선행 트립). 따라서 oscillation은 **의도적으로 미배선**하며, 이 문단이 그 사유를 명시한다(누락이 아니라 판단).
-- max_cycles(6)은 kernel 설계상에서도 "결정론적 1순위 bound — 항상 caller가 소유"(§1-b, forge-loop-maker S4와 동일 패턴)로 명시되어 있어 kernel이 값을 갖지 않는다. healer가 계속 소유·하드코딩(6, 위 전역 가드 표 그대로) — 신규 env var를 만들지 않는다(surgical, unwired config 방지). `/forge-fix --loop`가 쓰는 `goal-pev.py`의 `QA_MAX_CYCLES`는 별개 시스템(qa 시나리오 PEV 루프)이며 이 파일의 범위 밖이다.
+plateau·oscillation·max_cycles는 kernel 함수를 그대로 재사용하지 않는다 — same_issue만 kernel 실호출, 나머지 3종은 입력 타입 불일치/개념 부재/설계상 caller-소유 이유로 healer가 하드코딩 유지(의도적 미배선, 누락 아님).
 
-**단일화 현황 요약**: kernel이 제공하는 8-condition 중 healer가 실제로 다루는 4종(same_issue/plateau/oscillation-대응/max_cycles) 모두 kernel과의 관계가 이 절에 명시됐다 — same_issue만 실호출(위), 나머지 3종은 입력 타입 불일치·개념 부재·설계상 caller-소유 이유로 하드코딩을 유지하되 그 사유를 문서화했다. 향후 healer가 findings 배열을 직접 다루게 되면(예: 다중 bug 병렬 검증 rubric 도입 시) oscillation/plateau 실호출로 재평가한다 — 지금은 독립 재구현이 아니라 "적용 불가 판정"임을 이 문단이 근거로 남긴다.
-
-**병렬 레인 독립성(개수 자동 라우팅과 결합)**: 위 §개수 자동 라우팅으로 병렬 스폰된 각 healer(worktree 격리)는 `$STATE_FILE` 경로가 자신의 worktree 안 `docs/qa/artifacts/bug-{N}-kernel-state.json`을 가리키므로 — bug 번호(N)가 lane 식별자 역할을 하여 **레인 간 상태 공유가 없다**(race 불가). 직렬 회귀 게이트(§직렬 회귀 게이트, 아래)에서 develop에 머지된 이후에만 baseline 전체 대조가 이뤄지며, kernel state는 머지 대상이 아니다(로컬 판정용, PR에 포함하지 않음).
+> 미배선 사유 상세(plateau 입력타입 불일치·oscillation 상위게이트 선행트립·max_cycles caller-소유 원칙) + 병렬 레인 독립성 근거 → `healer-reference.md §loop-kernel.js 대응 경계 상세` (필요 시 Read)
 
 ---
 
@@ -543,110 +534,14 @@ tags: [qa, bug-fix, {에러타입}]
 
 ## Worktree 격리 컨텍스트 (P1-B 병렬 모드)
 
-### 도메인 분류 (B-1 정정 — 병렬 허용 기준)
+`isolation: "worktree"` 로 병렬 스폰될 때만 적용(순차/단일 버그 모드는 해당 없음). 도메인 분류(같은 도메인=순차 강제/다른 도메인=병렬 허용) → worktree 절대경로·cwd-drift 가드 준수 → 완료 후 오케스트레이터가 develop에 순차 머지하며 직렬 회귀 게이트(머지마다 seed 재주입+verify.sh 전체 실행, 회귀 시 해당 healer worktree 롤백) 수행.
 
-**같은 도메인 = 순차 강제** (DB race 방지):
-- 버그 리포트 "Where"(파일경로)가 같은 테이블/엔티티/모듈 → 순차 처리
-- 판정: `grep -i "customer\|payment\|member\|order"` 등 도메인 키워드 겹침
-
-**다른 도메인 = 병렬 허용**:
-- 서로 다른 기능 영역 (payment vs board, member vs alarm 등)
-- 수정 대상 파일 경로 겹침 없음
-
-> 도메인 판정은 버그 리포트의 "Where"(파일경로) + "What"(기능명) grep 기반 추정.
-> 불확실 → 순차로 보수적 처리.
-
-### worktree 병렬 모드 제약
-
-`isolation: "worktree"` 로 스폰될 때:
-
-- **절대경로 필수** — CWD가 worktree 임시 경로. 프롬프트에 `PROJECT_ROOT` 절대경로 명시됨
-- **cwd-drift sentinel** — worktree 내 서브에이전트의 `$(pwd)` / `$PWD` 기반 절대경로 구성 금지. orchestrator의 pwd가 main repo를 가리키는 경우 그대로 상속됨(cwd-drift). 반드시 프롬프트에 명시된 `PROJECT_ROOT` 값 사용.
-- **absolute-path origin guard** — 경로 구성 후 `.claude/worktrees/` 미포함 + `/home/damools/forge` 또는 `/home/damools/forge-outputs` prefix 감지 시 → 즉시 중단 + 오케스트레이터에 "cwd-drift 의심 — main repo 경로 감지" 보고.
-- **verify.sh 실행** — `cd {PROJECT_ROOT} && bash verify.sh` (서버는 원본 프로세스 공유)
-- **수정 범위 엄수** — 프롬프트에 명시된 파일만. 다른 병렬 healer 파일 충돌 방지
-- **변경사항 커밋 X** — 오케스트레이터(/qa)가 worktree 브랜치를 직렬 병합
-- **DB write 버그 처리** (B-2 정정):
-  - worktree는 코드만 격리. DB는 공유.
-  - write 버그도 병렬 가능 — 단, **검증 시 seed 재주입은 직렬 게이트**에서만
-  - 병렬 healer: 수정 + 자신의 시나리오만 검증 (seed 재주입 없이 기존 seed 상태 사용)
-  - 직렬 게이트에서: seed 재주입 → 전체 시나리오 검증 → baseline 회귀 체크
-
-### HEAD/branch guard at subagent dispatch
-
-worktree 스폰 시점에 base ref 캡처 → 병합 전 mismatch 조기 감지:
-
-```bash
-# worktree 스폰 직후 오케스트레이터가 캡처
-EXPECTED_BASE=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
-
-# 각 병렬 healer 완료 후 검증
-if git -C "$WORKTREE_PATH" rev-parse --git-dir >/dev/null 2>&1; then
-  if ! git -C "$WORKTREE_PATH" merge-base --is-ancestor "$EXPECTED_BASE" HEAD 2>/dev/null; then
-    echo "WARN [HEAD guard]: EXPECTED_BASE mismatch — worktree base가 main repo HEAD와 분기됨. 오케스트레이터 확인 필요."
-  fi
-else
-  echo "WARN [HEAD guard]: WORKTREE_PATH($WORKTREE_PATH)가 유효한 git repo 아님 — 경로 확인 필요."
-fi
-```
-
-mismatch 감지 시 해당 healer STOP + Human 보고. 나머지 병렬 healer는 계속.
-
-### 직렬 회귀 게이트 (B-4 정정 — 책임 식별)
-
-모든 병렬 healer 완료 후 오케스트레이터가 직렬 실행:
-
-```
-1. worktree 브랜치들을 develop에 완료 순서대로 1개씩 머지
-2. 각 머지 후 즉시: seed 재주입 → verify.sh 전체 실행
-3. 회귀 감지 시 → 직전 머지된 healer 책임으로 식별
-   "[회귀] BUG-{N} 수정(healer-X worktree)이 {시나리오명} 깨뜨림"
-4. 회귀 healer = [STOP] + 해당 worktree 브랜치 롤백 (`git revert`)
-5. 나머지 healer 머지 계속 진행
-```
-
-병합 충돌 발생 시 → 즉시 [STOP] + Human 개입 요청.
+> 도메인 분류 기준·worktree 제약 전체·HEAD/branch guard 코드·직렬 회귀 게이트 절차 → `healer-reference.md §Worktree 격리 컨텍스트` (병렬 스폰 시 Read)
 
 ---
 
 ## Auto-Fix 분류 (WI-06 gsd ADAPT)
 
-### 자동수정 분류 기준 (4-rule taxonomy)
+batch qa/audit 결과 일괄 처리 시에만 적용(단일 버그리포트 통상 사이클은 불필요). AUTO-FIX(단일파일·확실한 원인)는 즉시 수정, MANUAL-ONLY(다중파일 교차의존·원인불확실)는 [STOP] + Human 위임.
 
-| 분류 | 조건 | 행동 |
-|------|------|------|
-| AUTO-FIX | 단일 파일, 확실한 원인, 테스트 커버 있음 | a2 즉시 수정 |
-| AUTO-FIX | dead code / 명확한 타입 오류 / magic number | a2 즉시 수정 |
-| MANUAL-ONLY | 다중 파일 교차 의존 / 아키텍처 변경 필요 | [STOP] + Human 위임 |
-| MANUAL-ONLY | 원인 불확실 ("when uncertain = manual-only") | [STOP] + 근본원인 재분석 |
-
-**[healer→Lead] advisor 자문 요청 (MANUAL-ONLY, T2)**: 다중 파일 교차의존/아키텍처 변경 필요로 MANUAL-ONLY 판정된 경우, [STOP] 전에 Lead에게 advisor-strategist 자문을 위임 요청한다:
-```
-[healer → Lead 위임 요청]:
-"MANUAL-ONLY 분류 — advisor-strategist 자문 요청(아키텍처 영향 판단).
-수정 대상: {파일 목록 N개}
-교차의존/인터페이스·계약 변경: {요약}
-질문: 이 수정의 설계 정합성·회귀위험·대안 접근을 조언해주세요."
-```
-advisor 응답을 [STOP] + Human 위임 보고에 포함한다 — advisory이며 MANUAL-ONLY 판정 자체를 변경하지 않는다. AUTO-FIX 건은 스폰하지 않는다(비용 방지).
-
-### Audit-Fix 파이프라인 (batch qa/audit 결과 처리 시)
-
-batch audit 결과 처리 시:
-1. **분류 먼저** — 각 finding을 AUTO-FIX / MANUAL-ONLY 분류
-2. **순차 실행** — AUTO-FIX 건만 순차 처리 (병렬 X — 충돌 방지)
-3. **test-then-commit** — 각 수정 후 즉시 테스트, PASS 후 finding-ID 추적 커밋
-4. **첫 실패 시 halt** — 이후 항목 처리 중단 + Human 보고
-
-### Crash-safe 정리 (worktree 병렬 모드)
-
-worktree 병렬 healer 완료·STOP 어느 경우든 반드시 실행:
-```bash
-# transactional cleanup tail (gsd-code-fixer 패턴 ADAPT)
-git -C "$WORKTREE_PATH" merge "$FIX_BRANCH" --ff-only  # 성공 시
-git worktree remove "$WORKTREE_PATH"
-git branch -d "$FIX_BRANCH"
-rm -f "$SENTINEL_FILE"
-```
-sentinel = `/tmp/healer-{BUG_N}-sentinel`. 존재 = 진행 중. 제거 = 완료.
-crash 후 재시작 시: sentinel 존재 확인 → worktree 상태 점검 → cleanup 재실행.
+> 4-rule taxonomy 전체·Audit-Fix 파이프라인·Crash-safe 정리 절차 → `healer-reference.md §Auto-Fix 분류` (batch audit 처리 시 Read)
