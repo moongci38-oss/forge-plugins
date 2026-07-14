@@ -166,7 +166,7 @@ if (!codexEnabled) {
 TASKDIR="\${FORGE_OUTPUTS:-$HOME/forge-outputs}/13-multiagent/tasks/${safeSlug}" && mkdir -p "\$TASKDIR" && printf 'status: in_progress\\ntask_id: ${safeSlug}\\nworker: codex-critic\\n' > "\$TASKDIR/task.md" && echo "OK: \$TASKDIR/task.md"
 
 [Step 2] 토큰 발행:
-python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task "${safeSlug}" --worker codex-critic --tools "mcp__codex__codex,mcp__codex__codex-reply" --paths "${pathsArg}"
+python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task "${safeSlug}" --worker codex-critic --tools "mcp__codex__codex,mcp__codex__codex-reply" --paths "${pathsArg}"
 
 출력에 "[APPROVED]" 포함 시 "TOKEN_OK" 반환.`,
       { label: 'approve-token', phase: 'ApproveWorker', model: 'haiku' }
@@ -443,7 +443,7 @@ const results = (await parallel(workers))
 
 // ── GS-B19: Finding Dedup + Confidence Scoring + Fix-First ordering ──────────
 // root-cause: GS-B19 — cross-worker agreement → confidence score; dedup by (file|line|category); Fix-First sort
-// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ~/forge/shared/scripts/synthesize.py
+// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ${FORGE_ROOT:-$HOME/forge}/shared/scripts/synthesize.py
 //   (review 키 file|line|category — 아래 inline과 동일 계약 / code 키 export|signature + conflict surfacing 추가).
 //   Workflow 샌드박스는 require 불가라 review hot-path는 inline 유지. 비-Workflow fan-out 소비자는 synthesize.py 사용.
 const _sevOrd = { critical: 0, high: 1, medium: 2, low: 3 }
@@ -729,7 +729,7 @@ if (crRefute && dedupedIssues.length > 0) {
   if (killedFindings.length > 0) {
     await agent(
       `P-8 killed findings 감사 로그 append (생성 메시지 금지).\n` +
-      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
+      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','${FORGE_ROOT:-$HOME/forge}-outputs'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
       { label: 'p8-audit-killed', phase: 'Refute' }
     )
   }

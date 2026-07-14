@@ -153,8 +153,8 @@ EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
 
 # 프롬프트 stage별 선택
-PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${STAGE}.md"
-[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
+PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-${STAGE}.md"
+[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-default.md"
 
 # 호출 (stdin = prompt + target)
 ( cat "$PROMPT_FILE"; echo; echo "---"; echo "## TARGET"; echo "$INPUT" ) | \

@@ -75,7 +75,7 @@ find ~/forge/.claude/agents -name "*.md" 2>/dev/null | while read f; do lines=$(
 find ~/forge/.claude/commands -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 [Step 5] CLAUDE.md cascade:
-find ~/forge-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 결과를 JSON 구조로 반환:
 {
@@ -127,7 +127,7 @@ wc -l ~/.claude/rules/*.md | tail -1
 # rules-on-demand/ 파일 수
 ls ~/.claude/rules-on-demand/*.md 2>/dev/null | wc -l
 # CLAUDE.md cascade 경로별 라인수
-find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\;
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\;
 
 [Step 4] cascade 5종 분류 (분석):
 - per-session (항상 로드): rules/*.md — 전역 항상 적용

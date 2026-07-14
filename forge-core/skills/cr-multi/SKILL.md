@@ -65,6 +65,8 @@ AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded, evid
 
 **집계 자가대조 (Batch 3-3)**: 리포트 헤더·요약의 **집계 숫자는 본문 항목표에서 기계 도출**(`grep -c` 등)하거나 작성 직후 자가 대조한다. **헤더 숫자는 그 자체가 검증 대상이다** — 눈으로 센 값을 쓰지 마라. (목록형 산출물의 헤더 집계 오류 4회 실증. 이 세션에서도 harness-diet가 `skills_count: -97`이라는 허구 수치를 보고했다.)
 
+**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값·AD-90 JSON)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
+
 ## 보안
 
 - Secret 사전 스캔 (전송 전 차단)

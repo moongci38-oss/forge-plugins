@@ -19,7 +19,7 @@
 
 ```
 /external-harness-sweep https://github.com/garrytan/gstack --name gstack
-/external-harness-sweep https://github.com/garrytan/gsd --name gsd --seed ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/videos/analyses/gsd-analysis.md
+/external-harness-sweep https://github.com/garrytan/gsd --name gsd --seed /home/damools/forge-outputs/01-research/videos/analyses/gsd-analysis.md
 ```
 
 ## 실행 흐름

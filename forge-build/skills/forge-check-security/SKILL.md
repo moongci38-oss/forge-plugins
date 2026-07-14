@@ -17,6 +17,14 @@ QA Phase 1 T6(보안 WARN 게이트)에서 자동 트리거되거나 `/forge-che
 
 `docs/qa/security-report.md`(CRITICAL/HIGH/MEDIUM/LOW 등급별 finding + 공격 시나리오 + 수정 방법) + PASS/WARN/FAIL 판정.
 
+## 컨텍스트
+
+QA Phase 1 T6(보안 WARN 게이트)에서 자동 트리거되거나 `/forge-check-security` 직접 호출 시 실행. 입력은 프로젝트 루트 경로(기본값 CWD)이며 PR 생성 전 보안 게이트로도 사용된다.
+
+## 출력
+
+`docs/qa/security-report.md`(CRITICAL/HIGH/MEDIUM/LOW 등급별 finding + 공격 시나리오 + 수정 방법) + PASS/WARN/FAIL 판정.
+
 ## 실행 순서 (4단계)
 
 ### 1. 스캔 대상 결정

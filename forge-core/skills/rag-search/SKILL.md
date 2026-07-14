@@ -64,6 +64,12 @@ python3 -c "import json; m=json.load(open('{target_dir}/.rag-index/meta.json'));
 ```
 현재 `{target_dir}` 실제 파일 수 대비 `file_count`가 미달(신규 문서 다수 추가됨)하거나 `built_at`이 오래된 경우 → "grep 폴백 필요 — 커버리지 X% (색인 {file_count}건 / 최종인덱싱 {built_at})" 경고를 결과에 포함한다. meta.json 부재 시에도 동일하게 "미인덱싱 — grep 폴백 필요" 명시(침묵 금지).
 
+**커버리지 항상 보고 (meta.json 존재 확인만으로 끝내지 않는다)**: 검색 결과 반환 시 `meta.json`의 `file_count`(색인 문서수)·`built_at`(최종 인덱싱 시각)을 함께 명시한다.
+```bash
+python3 -c "import json; m=json.load(open('{target_dir}/.rag-index/meta.json')); print(f\"색인 {m['file_count']}건 / built_at={m['built_at']}\")"
+```
+현재 `{target_dir}` 실제 파일 수 대비 `file_count`가 미달(신규 문서 다수 추가됨)하거나 `built_at`이 오래된 경우 → "grep 폴백 필요 — 커버리지 X% (색인 {file_count}건 / 최종인덱싱 {built_at})" 경고를 결과에 포함한다. meta.json 부재 시에도 동일하게 "미인덱싱 — grep 폴백 필요" 명시(침묵 금지).
+
 ### Step 2: 검색 실행
 
 **KnowledgeStore 경유 (AD-173 T2, 권장)** — 소비자가 엔진 무관하게 검색:

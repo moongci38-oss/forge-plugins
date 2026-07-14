@@ -57,7 +57,7 @@ phase('Prepare')
 // restore point git tag (실패해도 계속 — non-blocking)
 await agent(
   `Bash 1줄 실행 (restore point):
-cd ~/forge && git tag harness-diet-pre-2026-06-08 2>/dev/null && echo "TAG_OK" || echo "TAG_EXISTS_OR_FAIL"`,
+cd ${FORGE_ROOT:-$HOME/forge} && git tag harness-diet-pre-2026-06-08 2>/dev/null && echo "TAG_OK" || echo "TAG_EXISTS_OR_FAIL"`,
   { label: 'restore-tag', phase: 'Prepare' }
 ).catch(e => log(`[WARN] restore tag 실패: ${e?.message || e}`))
 
@@ -128,7 +128,7 @@ ls ~/.claude/skills/ | wc -l
 # skills 총 라인수
 find ~/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 # CLAUDE.md cascade 총 라인수
-find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 
 결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"claude_md_lines":N}`,
   {

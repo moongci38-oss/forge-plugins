@@ -79,6 +79,21 @@ handover `## 실패한 시도와 이유` 섹션에 기록:
 - 형식: `- 시도: {무엇} → 실패: {증상} → 이유: {원인} → 교훈: {다음 세션 지침}`
 - 섹션 형식 상세: `~/.claude/rules-on-demand/handover-template.md` §추가 필수 섹션 참조
 
+### 4.5. DO/DON'T + 실패한 시도 inline 추출 (P3 Continuity Spine — M13)
+
+handover 작성 중 inline으로 수행 (추가 LLM 호출 0, H4):
+
+**A. 사용자 제약·지시 (DO/DON'T) 캡처**
+이번 세션에서 사용자가 명시한 금지(DON'T)·요구(DO)를 handover `## 사용자 제약·지시 (DO / DON'T)` 섹션에 기록.
+- 형식: `- [DON'T] {내용} (근거/맥락)` / `- [DO] {내용}`
+- **승격**: durable 제약(설계·아키텍처 레벨) → 글로벌 `~/CLAUDE.md` 또는 프로젝트 루트 CLAUDE.md `## 사용자 제약` 섹션
+- **learnings 저장**: 재사용 가능 교훈 → `learnings.sh append --category user-directive` 또는 `--category forbidden-pattern`
+
+**B. 실패한 시도와 이유**
+handover `## 실패한 시도와 이유` 섹션에 기록:
+- 형식: `- 시도: {무엇} → 실패: {증상} → 이유: {원인} → 교훈: {다음 세션 지침}`
+- 섹션 형식 상세: `$HOME/.claude/rules-on-demand/handover-template.md` §추가 필수 섹션 참조
+
 ### 5. Memory / Rule 업데이트
 
 | 발견 유형 | 저장 위치 |
