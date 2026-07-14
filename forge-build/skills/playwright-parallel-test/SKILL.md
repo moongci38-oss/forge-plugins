@@ -1,7 +1,6 @@
 ---
 name: playwright-parallel-test
 description: Run parallel UI tests using 3 subagents with Playwright CLI. Tests form validation, navigation/routing, and responsive layout simultaneously. Use when the user wants to run comprehensive UI tests, parallel browser tests, or says "UI 테스트", "폼 테스트", "parallel test".
-user-invocable: true
 context: fork
 model: sonnet
 ---
@@ -153,7 +152,7 @@ model: sonnet
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: 3개 parallel() 동시 (form/nav/layout).
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/playwright-parallel-test/workflow.js") })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/playwright-parallel-test/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

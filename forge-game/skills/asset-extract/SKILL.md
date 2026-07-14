@@ -11,6 +11,18 @@ description: |
 
 스크린샷에서 게임에 바로 사용 가능한 에셋 PNG를 추출한다.
 
+## 역할
+
+게임/앱 UI 스크린샷에서 배경·버튼·컴포넌트를 게임에 바로 합성 가능한 투명 PNG로 추출하는 에셋 파이프라인 실행자. 배경은 nanobanana inpainting, 버튼/컴포넌트는 템플릿 매칭+SAM2 세그멘테이션으로 분리한다.
+
+## 컨텍스트
+
+사용자가 이미지 경로와 함께 "배경 뽑아줘"/"버튼 추출해줘"/"컴포넌트 분리해줘" 등을 요청할 때 발동. 입력은 IMAGE_PATH(절대경로) + TARGET(배경/버튼/전체) + 선택적 OUTPUT_DIR이며, 버튼 추출은 `/clip`으로 받은 크롭 이미지(`/tmp/clip.png`)를 전제로 한다.
+
+## 출력
+
+`{OUTPUT_DIR}/backgrounds/bg_nano.png`(배경) + `{OUTPUT_DIR}/buttons/{name}.png`(투명 PNG, IoU 점수 포함) + 완료 요약(추출 개수·해상도·품질 경고).
+
 ## 도구 분담
 
 | 대상 | 도구 | 결과 |
@@ -34,7 +46,7 @@ OUTPUT_DIR  : {IMAGE_PATH 부모}/{파일명}-components/ (기본)
 ```
 
 **Windows 경로 자동 변환**:
-- `z:/home/<user>/...` → `/home/<user>/...`
+- `z:/home/damools/...` → `/home/damools/...`
 - `C:/Users/...` → `/mnt/c/Users/...`
 
 ## Step 2: 버튼/컴포넌트 추출
@@ -49,7 +61,7 @@ OUTPUT_DIR  : {IMAGE_PATH 부모}/{파일명}-components/ (기본)
 ### 2-2. 템플릿 매칭으로 bbox 자동 탐지
 
 ```bash
-python3 $HOME/.claude/skills/asset-extract/scripts/match_bbox.py \
+python3 ~/.claude/skills/asset-extract/scripts/match_bbox.py \
   --original "{IMAGE_PATH}" \
   --clip /tmp/clip.png
 ```
@@ -67,7 +79,7 @@ score > 20 이면 매칭 품질 경고 → 사용자에게 안내 후 계속 진
 ### 2-3. SAM2 세그멘테이션 → 투명 PNG
 
 ```bash
-python3 $HOME/.claude/skills/asset-extract/scripts/segment_button.py \
+python3 ~/.claude/skills/asset-extract/scripts/segment_button.py \
   --image "{IMAGE_PATH}" \
   --bbox {left} {top} {right} {bottom} \
   --output "{OUTPUT_DIR}/buttons/{name}.png"

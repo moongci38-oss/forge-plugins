@@ -6,7 +6,7 @@
 ## 빠른 사용
 
 ```bash
-cd $HOME/.claude/skills/asset-extract/tests
+cd ~/.claude/skills/asset-extract/tests
 
 python3 run_tests.py --all              # 모든 fixture 실행
 python3 run_tests.py --fixture {name}   # 단일 케이스

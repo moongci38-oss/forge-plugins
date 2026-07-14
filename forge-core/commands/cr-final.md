@@ -50,4 +50,4 @@ $0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.10~0.30 (high ef
 
 - 본명령: `/codex-review --stage final --effort high --blocking`
 - Forge Dev P7 Check 7-X에서 자동 호출
-- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`
+- 정책: `~/forge/dev/rules/codex-review-policy.md`

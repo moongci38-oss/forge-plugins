@@ -7,11 +7,23 @@ description: "Use when performing a full 1:1 source sweep of an external harness
 
 외부 AI 하네스 레포를 Forge와 1:1 전수 대조하여 채택 매트릭스를 생성한다. yt/article 1차분석 seed가 있으면 claim 가설로 가속, 없으면 전수 enumerate. 소스 검증은 항상 fresh `git clone --depth 1` (seed 단독 판정 금지).
 
+## 역할
+
+외부 AI 하네스/스킬 레포를 Forge와 1:1 전수 대조해 ADOPT/ADAPT/DEFER/SKIP 채택 매트릭스를 생성하는 감사자. seed(1차 분석) 유무와 무관하게 fresh clone 기반 소스 검증을 강제한다.
+
+## 컨텍스트
+
+"외부 레포 전수 대조"/"하네스 sweep"/"external sweep [url]" 요청 또는 gstack·gsd·superpowers류 하네스와 Forge 비교 시 발동. 5-Phase(Scout→Inventory→Compare→Refute→Synthesize) workflow로 실행되며, 단순 요약만 원하거나 대상이 하네스/스킬 레포가 아니면 SKIP.
+
+## 출력
+
+`docs/reviews/final/<name>-sweep.json`(채택 매트릭스) + `11-platform/reports/<name>-forge-analysis-<date>.md`(종합 리포트) + `docs/planning/active/plans/<date>-<name>-apply-plan.md`(적용 계획서).
+
 ## 실행
 
 ```
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/external-harness-sweep/workflow.js"),
+  script: Bash("cat ~/.claude/skills/external-harness-sweep/workflow.js"),
   args: {
     target_url: "<외부 레포 git URL>",          // 필수
     target_name: "<slug>",                       // 선택 (없으면 URL 마지막 세그먼트)

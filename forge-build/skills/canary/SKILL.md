@@ -1,7 +1,6 @@
 ---
 name: canary
 description: develop/staging 통합 후 15분 헬스 모니터링을 수행하는 스킬. 에러율, 응답 시간, 메모리 사용량 추적. P7-DI PASS 후 자동 트리거.
-user-invocable: true
 context: fork
 model: haiku
 ---
@@ -118,5 +117,5 @@ Agent(
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() 3종 메트릭(에러율/응답시간/메모리) → canary-judge 판정.
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/canary/workflow.js"), args: { healthCheckUrl, duration, env } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/canary/workflow.js"), args: { healthCheckUrl, duration, env } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 /canary 방식 fallback.

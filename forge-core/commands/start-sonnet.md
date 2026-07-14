@@ -1,5 +1,5 @@
 ---
-description: Sonnet 세션 시작 — 구현 컨텍스트 로드
+description: "Sonnet 세션 시작 — 구현 컨텍스트 로드. 트리거: "세션 시작", "구현 시작", "start-sonnet", Opus handover 수신 후 구현 착수 시."
 group: ops
 ---
 
@@ -42,7 +42,7 @@ Sonnet 세션 시작 시 실행.
    - ⚠️ **변이 절대 금지**: consumed 마킹·INDEX 수정 등 어떤 파일도 변경하지 않는다 (C2 TOCTOU 방지).
    - 섹션 부재 시 = **grace**: 차단·GUIDE-STOP 없이 다음 단계로 진행. 1줄 advisory 출력:
      > "`## 핵심정보` 미설정 — `/forge-onboard`로 생성 권고"
-   - → `check-continuity.sh` advisory 실행(비차단) — populated/secret 검증 결과 1줄 표시.
+   - → `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/check-continuity.sh"` advisory 실행(비차단) — populated/secret 검증 결과 1줄 표시. 스크립트 부재 시 skip(fail-open).
 
 3. **오늘 작업 요약 출력**
    - 우선순위 순 구현 태스크 목록

@@ -1,11 +1,13 @@
 {
   "name": "forge-knowledge",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Forge 지식·리서치 레이어 — 학습(learn)·메모리(memory-manage)·위키(wiki-sync)·RAG 검색 + 외부 리서치(article/yt/site-deep-analyze). forge-tools MCP(ADR-174 unified_search).",
   "author": {
     "name": "forge"
   },
-  "dependencies": ["forge-core"],
+  "dependencies": [
+    "forge-core"
+  ],
   "skills": "./skills/",
   "agents": [
     "./agents/academic-researcher.md",

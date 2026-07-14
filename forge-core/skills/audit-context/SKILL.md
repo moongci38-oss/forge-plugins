@@ -1,10 +1,7 @@
 ---
 name: audit-context
-description: >
-  컨텍스트 엔지니어링 역량 감사. 컨텍스트 구성 체크리스트(7개 레이어), RAG 성숙도, 메모리 시스템,
-  컨텍스트 실패 패턴(Clash/Rot)을 평가한다.
+description: "컨텍스트 엔지니어링 역량(7레이어·RAG 성숙도·메모리·Context Rot)을 감사한다. 컨텍스트 설계 점검을 요청할 때 사용한다."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: sonnet
 ---
@@ -35,7 +32,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
+| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `.claude/`, `docs/` 등) |
 
 ## 실행 흐름
@@ -130,7 +127,7 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `ls $HOME/.claude/rules/ $HOME/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
+1. `ls ~/.claude/rules/ ~/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
 2. 각 파일의 frontmatter `name:` + 첫 번째 헤딩 추출 → 목적/주제 매핑
 3. 유사 주제 파일 쌍 탐지 (예: memory-schema.md + memory-lifecycle.md / plan-* 3개)
 4. 중복률 = (중복 파일 쌍 수 × 2 / 전체 규칙 파일 수) × 100

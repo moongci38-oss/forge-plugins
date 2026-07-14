@@ -1,14 +1,19 @@
 ---
 name: cr-multi
 description: "Multi-worker 검수 스킬 (Codex + Gemini Double / Opus + Codex + Gemini Triple). 단일 Codex 검수 대비 100% 보완 카테고리 커버. 트리거: /cr-multi, /cr-double, /cr-triple, plan/spec 저장 후 자동(CR_MULTI_AUTO=on), plateau 3회 자동 승격."
-input: target-file path + mode (double|triple) + stage (plan|code|test|final)
-output: "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/{stage}/{slug}-cr-multi.json (AD-90 증거 JSON)"
-eval_cases: off
 ---
 
 # /cr-multi
 
 Codex + Gemini (Double) 또는 Opus + Codex + Gemini (Triple) 병렬 리뷰 + Triage 합산 verdict.
+
+> **인자 정본 = `.claude/commands/cr-multi.md`.** 실행(Workflow 스폰)은 이 파일이 하지만,
+> 인자 스펙(`--mode` / `--stage` / `--cr on|degrade|off` / `--no-codex` / `--fable`)은 커맨드가 정본이다.
+> 2026-07-14 실측: 이 스킬에 `--fable`·`--degrade` 설명이 누락돼 있어, 스킬 경로로 들어오면
+> 존재하는 인자를 모르는 상태였다. 인자 추가 시 **양쪽을 함께** 고친다.
+>
+> - `--cr degrade` / `--no-codex` → Codex 레그 제외 (Opus + Gemini 2-worker)
+> - `--fable` → **Human 수동 전용.** Claude 레그를 Fable 5로 승격 (Codex·Gemini 불변). 자동 발동 금지.
 
 ## Quick Start
 
@@ -46,6 +51,8 @@ ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/{stage}/{slug}-cr-multi.json
 
 AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded}`
 
+**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값·AD-90 JSON)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
+
 ## 보안
 
 - Secret 사전 스캔 (전송 전 차단)
@@ -56,7 +63,7 @@ AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded}`
 
 cr-multi 실행 후 usage 데이터 기록:
 ```bash
-bash $HOME/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
+bash ~/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
 ```
 usage 필드는 Anthropic SDK response.usage 에서 추출. 미지원 시 0 기본값 사용.
 
@@ -67,7 +74,7 @@ mcp__codex__ 토큰 = **Phase -1 자동 발행 내장** (외부 선발행 불필
 ```js
 // Workflow 실행 (Phase -1 ApproveWorker + GitNexus StructuralContext + 3-LLM parallel)
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
@@ -76,10 +83,10 @@ Agent Teams fallback: `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Agent 패턴.
 
 ## 참조
 
-- 명령: `${FORGE_ROOT:-$HOME/forge}/.claude/commands/cr-multi.md`
-- 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
-- Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
-- Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`
+- 명령: `~/forge/.claude/commands/cr-multi.md`
+- 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
+- Triage: `~/forge/shared/scripts/cr-multi-triage.py`
+- Plateau: `~/forge/shared/scripts/cr-multi-plateau-guard.py`
 
 ## Evaluator (Wave 2.5)
 

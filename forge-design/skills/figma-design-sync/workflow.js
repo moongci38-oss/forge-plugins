@@ -149,7 +149,7 @@ if (tokenSource?.source === 'fallback-failed') {
   log('[STOP] Figma MCP rate limit + Codex/Gemini 폴백 실패. 외부 토큰 선발행 없이 진행 불가.')
   return {
     error: 'all-fallbacks-failed',
-    note: 'Figma MCP 한도 초과. approve-worker로 Codex/Gemini 토큰 선발행 필요. ${FORGE_ROOT:-$HOME/forge}/.claude/prompts/approve-worker-presign.md 참조',
+    note: 'Figma MCP 한도 초과. approve-worker로 Codex/Gemini 토큰 선발행 필요. ~/forge/.claude/prompts/approve-worker-presign.md 참조',
   }
 }
 

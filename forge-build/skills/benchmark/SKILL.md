@@ -1,7 +1,6 @@
 ---
 name: benchmark
 description: PR 생성 전 develop 대비 feature 브랜치의 성능을 비교하는 스킬. 번들 크기, 테스트 시간, API 응답 시간을 측정. P7 PR 생성 전 자동 트리거.
-user-invocable: true
 model: haiku
 ---
 
@@ -178,5 +177,5 @@ Agent(
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: sequential (git stash/checkout 직렬 필수).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/benchmark/workflow.js"), args: { branch, baseline } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/benchmark/workflow.js"), args: { branch, baseline } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 /benchmark 방식 fallback.

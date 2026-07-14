@@ -18,6 +18,18 @@ description: |
 
 예: `/migration-audit matgo/server/legacy matgo/server/src --stack=node-nest`
 
+## 역할
+
+레거시→신규 스택 마이그레이션 검수 하네스. legacy=SSoT 원칙 하에 7-Phase(인벤토리→이벤트커버리지→로직대조→DB대조→멀티검수→리포트→fix루프)로 100% sync 도달까지 audit→fix→re-audit을 자율 반복한다.
+
+## 컨텍스트
+
+"/migration-audit", "마이그레이션 검수", "레거시 대조" 요청 시 발동. node-nest(Socket.IO↔NestJS)·php-nest 스택을 지원하며, 검수 전 `feature/migration-audit-<name>` 브랜치 생성과 legacy working-tree stash가 전제조건이다.
+
+## 출력
+
+`MIGRATION-AUDIT-REPORT.md` + `SYNC-STATUS.md` + 확정 CRITICAL/HIGH는 `docs/bug_report/BUG-NNN-*.md`(legacy=SSoT 대조근거 필드 포함) + golden test 영구 편입.
+
 **핵심 원칙**: legacy = 정답 기준. src≠legacy → src 의심 (legacy 버그 가능성도 기록). 대조 불가 = UNVERIFIED(BLOCKING), silent skip 금지.
 
 스택별 엔트리포인트 매핑 → `references/stack-mappings.md`
@@ -86,7 +98,7 @@ src 인라인 주석(`legacy:.../g-N:...`) + bug_report + learnings 교차수집
 
 `--cr=on` (기본): codex-critic(`agentType:'codex-critic'`) 스폰 — 외부 토큰 선발행 전제.
 `--cr=degrade` | `--cr=off`: codex-critic 스폰 생략. Phase 2 findings를 WARN verdict로 그대로 통과. 비용 절감 또는 Codex 불가 환경용.
-crMode 해석은 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
+crMode 해석은 `~/forge/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
 
 Claude 1차 finding → `/cr-multi --mode triple`:
 
@@ -191,8 +203,8 @@ Golden tests: `<migrated-path>/test/migration-golden.*` (영구 편입)
 ## Workflow 통합 (계획서 P2-3)
 Phase 7 PEV 루프 = while() 자동화 (사이클 캡 6 + plateau 2연속 감지 중단).
 패턴: Phase 0 parallel(legacy/src 인벤토리) → Phase 2 pipeline(도메인별 병렬 대조) → Phase 5 [STOP] M1 게이트 → Phase 7 while(CRITICAL>0 && cycles<6).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix, crMode } })`
-`crMode` 값은 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 출력을 caller가 읽어 전달 (`on`|`degrade`|`off`, 기본 `on`).
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix, crMode } })`
+`crMode` 값은 `~/forge/shared/scripts/cr-mode.sh` 출력을 caller가 읽어 전달 (`on`|`degrade`|`off`, 기본 `on`).
 fix='off'(기본) → Phase 5에서 PENDING_APPROVAL 반환. fix='auto' → Phase 6+7 자동 실행.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 7 Phase 수동 실행 방식 fallback.
 
@@ -205,6 +217,6 @@ fix='off'(기본) → Phase 5에서 PENDING_APPROVAL 반환. fix='auto' → Phas
 ### 절차
 1. 산출물 저장 후: `/eval-rubric --target {경로}`
 2. verdict + 4축 점수 수신
-3. eval_cases.jsonl append (`$HOME/.claude/scripts/eval-cases-append.py`, case_id: EC-migration-audit-{N})
+3. eval_cases.jsonl append (`~/.claude/scripts/eval-cases-append.py`, case_id: EC-migration-audit-{N})
 
 자동 비활성: `EVAL_RUBRIC_AUTO=off`

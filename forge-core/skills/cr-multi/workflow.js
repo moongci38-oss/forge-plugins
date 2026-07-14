@@ -121,6 +121,10 @@ const fableLeg = _a?.fable === true
 log(`[INFO] mode=${mode} stage=${stage} crMode=${crMode} fable=${fableLeg} args_type=${typeof args}`)
 const slug = _a?.slug || 'cr'
 const targetPath = _a?.targetPath || ''
+// root-cause: cr-triple 2026-07-10 — FileLoad 게이트가 targetPath를 raw로 bash에 보간(3레그 합의 지적,
+//   Gemini=critical). 하단 _safe()는 line 463 선언이라 TDZ로 여기서 참조 불가했다. 동일 화이트리스트를
+//   경로 전용으로 상단에 둔다. 값이 바뀌면 wc -c가 실패해 actualBytes=0 → 게이트 skip(fail-open).
+const _safePath = s => String(s == null ? '' : s).replace(/[^A-Za-z0-9_./:-]/g, '_').slice(0, 200)
 // root-cause: P-6 crCompleteness — stage=final default-on (2026-06-19, dead-code 탈출).
 // 비-final(code/plan/test)은 기존 opt-in 유지 (기본 off, true/'on' 명시 시만 활성).
 // [default-on 설계 의도 — HIGH-1 해소]:
@@ -173,6 +177,28 @@ python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task "$
   }
 }
 
+// ── Phase 0-pre: 대상 원문 스냅샷 (StructuralContext보다 반드시 먼저) ─────────
+// root-cause (2026-07-14 실증): GitNexus 에이전트에게 "대상: <targetPath>"를 넘겼더니
+//   그 경로를 **출력 경로로 해석해 impact 리포트를 덮어썼다.** 그 뒤 실행되던 File Pre-load가
+//   덮어써진 내용을 읽었고, 3-LLM 레그가 원본 대신 GitNexus 리포트를 리뷰했다.
+//   기존 무결성 게이트(바이트 수 대조)는 "지어낸 내용"만 잡고 "덮어써진 원본"은 못 잡는다 —
+//   이미 훼손된 파일끼리 비교하므로 통과한다. **검수 결과가 조용히 무효화된다.**
+//   → 원문을 어떤 에이전트보다 먼저 확보한다. 프롬프트 금지문(산문)은 chokepoint가 아니다.
+const _snapshot = await (async () => {
+  if (!targetPath) return ''
+  try {
+    const r = await agent(
+      `Read 도구 1회만 사용: Read("${targetPath}") 실행. 파일 내용을 **한 글자도 바꾸지 말고 그대로(verbatim)** 반환하라. 요약·번역·재작성·리포트 생성 절대 금지. 성공: {"ok":true,"content":"<파일 원문 전체>"} 반환. 파일 없으면: {"ok":false,"content":""}`,
+      { label: 'snapshot-target', phase: 'StructuralContext', schema: { type: 'object', additionalProperties: false, properties: { ok: {type:'boolean'}, content: {type:'string'} }, required: ['ok','content'] }, model: 'haiku' }
+    )
+    return r?.ok ? (r.content || '') : ''
+  } catch (e) {
+    log(`[WARN] 원문 스냅샷 실패(후속 File Pre-load로 폴백): ${e?.message || e}`)
+    return ''
+  }
+})()
+if (_snapshot) log(`[Snapshot] 원문 선확보 ${_snapshot.length}자 — 이후 에이전트가 대상 파일을 훼손해도 리뷰는 원본으로 진행`)
+
 // ── Phase 0: StructuralContext (GitNexus — approve-worker 불필요) ─────────────
 phase('StructuralContext')
 // root-cause: Codex MED — Phase 0는 보조 컨텍스트. agent 실패가 전체 워크플로 abort 금지 → try/catch best-effort.
@@ -180,10 +206,16 @@ let structuralCtx = null
 try {
   structuralCtx = await agent(
     `gitnexus-pr-review 스킬 실행 (approve-worker 불필요 — LLM worker 아님).
+
+     ⚠️ **읽기 전용. 어떤 파일도 쓰지 마라(Write/Edit 금지).** 리포트 파일 생성 금지 —
+     구조화 JSON만 반환한다. 아래 "분석 대상"은 **입력 경로**이지 출력 경로가 아니다.
+     (2026-07-14 실증: 이 지시가 없어 에이전트가 분석 대상 파일에 impact 리포트를 덮어썼고,
+      3-LLM 레그가 원본 대신 그 리포트를 리뷰했다 — 검수 결과가 조용히 무효화됐다.)
+
      1. mcp__gitnexus__list_repos 로 인덱스 신선도 확인 (7일+ stale = 경고)
      2. mcp__gitnexus__detect_changes({scope: "unstaged"}) → 변경 심볼 목록
      3. 변경 심볼 각각 mcp__gitnexus__impact({direction: "upstream", maxDepth: 2})
-     대상: ${targetPath || '현재 staged/unstaged 변경'}
+     분석 대상(입력, 읽기 전용): ${targetPath || '현재 staged/unstaged 변경'}
      결과: changed_symbols, risk_level (LOW/MEDIUM/HIGH/CRITICAL), affected_processes 반환.`,
     { label: 'gitnexus-ctx', phase: 'StructuralContext', schema: STRUCTURAL_SCHEMA, model: 'haiku' }  // root-cause: model 핀 — Opus 상속 비용누수 차단
   )
@@ -203,11 +235,17 @@ const structuralNote = structuralCtx
 // root-cause: Bug 2 — targetPath 미주입 시 에이전트가 git diff로 대체 실행 → 잘못된 대상 리뷰.
 //   targetPath 있으면 내용 선로드 후 basePrompt 임베드 → 3-LLM worker git diff 의존 완전 제거.
 let targetContent = ''
-if (targetPath) {
+// Phase 0-pre에서 원문을 이미 확보했으면 그것이 정본이다 — 이후 에이전트가 파일을 덮어썼더라도
+// 리뷰는 원본으로 진행된다(2026-07-14 GitNexus 덮어쓰기 사고).
+if (_snapshot) {
+  targetContent = _snapshot
+  log(`[FileLoad] 스냅샷 재사용 ${targetContent.length}자 (재읽기 생략)`)
+}
+if (targetPath && !targetContent) {
   try {
     // root-cause: FileLoad sentinel 자기참조 버그 — workflow.js 자신 리뷰 시 파일 내 "FILE_NOT_FOUND" 문자열이 sentinel 검사에 오탐. schema 방식으로 교체.
     const readResult = await agent(
-      `Read 도구 1회만 사용: Read("${targetPath}") 실행. 성공: {"ok":true,"content":"<전체 내용>"} 반환. 파일 없으면: {"ok":false,"content":""}`,
+      `Read 도구 1회만 사용: Read("${targetPath}") 실행. 파일 내용을 **한 글자도 바꾸지 말고 그대로(verbatim)** 반환하라. 요약·번역·재작성·리포트 생성 절대 금지. 성공: {"ok":true,"content":"<파일 원문 전체>"} 반환. 파일 없으면: {"ok":false,"content":""}`,
       { label: 'read-target', phase: 'Review', schema: { type: 'object', additionalProperties: false, properties: { ok: {type:'boolean'}, content: {type:'string'} }, required: ['ok','content'] }, model: 'haiku' }  // root-cause: model 핀 — Opus 상속 비용누수 차단
     )
     targetContent = readResult?.ok ? (readResult.content || '') : ''
@@ -220,6 +258,63 @@ if (targetPath) {
 if (targetPath && !targetContent) {
   log(`[FAIL] 대상 파일 없음 또는 빈 파일: ${targetPath} — review 중단`)
   return { verdict: 'FAIL', score: 0, issues: [{ category: 'fileload', severity: 'critical', description: `대상 파일 없음: ${targetPath}` }], hasCrit: true, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage }
+}
+
+// ── FileLoad 무결성 게이트 (2026-07-10) ───────────────────────────────────────
+// root-cause: read-target agent가 파일을 읽는 대신 **내용을 지어내** 반환한 실사례.
+//   pipeline-gates.md(11,766B) 리뷰 요청에 haiku가 4,653자짜리 가짜 "Status Report"를 반환했고,
+//   Opus·Gemini 두 레그가 존재하지 않는 문서를 검수해 FAIL(68.3)을 냈다. 위 빈-내용 가드는
+//   "빈 내용"만 잡고 "틀린 내용"은 못 잡는다 → 침묵 환각 리뷰. 실 바이트수와 대조해 차단한다.
+//   bash가 반환하는 정수 1개는 산문보다 날조 여지가 훨씬 작다. 불일치 = fail-closed(리뷰 중단).
+// root-cause: cr-triple v2 HIGH(codex) — Read는 raw targetPath, wc는 _safePath(targetPath)를 써서
+//   공백 등 화이트리스트 밖 문자를 가진 경로에서 서로 다른 파일을 가리켰다. 정상 파일이 drift 위반으로
+//   오차단(false-closed)된다. sanitize한 경로를 bash에 넘기는 대신, sanitize로 값이 바뀌는 경로는
+//   애초에 게이트를 건너뛴다(fail-open). 그러면 bash에 도달하는 경로는 항상 화이트리스트 통과분이며
+//   Read와 wc가 동일 경로를 본다. 인젝션 차단과 경로 일치를 동시에 만족.
+const _pathGateSafe = targetPath && targetPath === _safePath(targetPath)
+if (targetPath && targetContent && !_pathGateSafe) {
+  log(`[WARN] FileLoad 무결성 게이트 skip — 경로에 화이트리스트 밖 문자 포함(bash 미전달): ${targetPath.slice(0, 80)}`)
+}
+if (targetPath && targetContent && _pathGateSafe) {
+  let actualBytes = 0
+  try {
+    const sizeResult = await agent(
+      `Bash 1회: wc -c < "${targetPath}" 실행. 출력된 정수만 반환.`,
+      { label: 'fileload-verify', phase: 'Review', schema: { type: 'object', additionalProperties: false, properties: { bytes: { type: 'integer' } }, required: ['bytes'] }, model: 'haiku' }
+    )
+    actualBytes = sizeResult?.bytes || 0
+  } catch (e) {
+    log(`[WARN] FileLoad 무결성 검사 실패(스킵): ${e?.message || e}`)
+  }
+  if (actualBytes > 0) {
+    // root-cause: Workflow 샌드박스에 TextEncoder 미정의(Buffer·Date.now와 동일 제약군) → 런타임 크래시로
+    //   3-LLM 리뷰 4개가 전부 완료된 뒤 집계에서 전량 폐기됐다. UTF-8 바이트수를 코드포인트로 직접 센다
+    //   (서로게이트 페어는 for...of가 1회 순회하므로 4바이트로 정확히 계산됨).
+    let loadedBytes = 0
+    for (const ch of targetContent) {
+      const cp = ch.codePointAt(0)
+      loadedBytes += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4
+    }
+    // root-cause: cr-triple 2026-07-10 — 상대비율 단독 임계는 소형 파일에서 오탐(false-closed)한다.
+    //   20B 파일의 trailing newline 1B = 5% 초과 → 정상 리뷰가 FAIL. 절대 하한(512B)을 AND 조건으로 둔다.
+    //   실제 환각 사례는 11,766B→4,653B(absDiff 7,113B)라 하한을 훨씬 넘어 그대로 검출된다.
+    const absDiff = Math.abs(loadedBytes - actualBytes)
+    const drift = absDiff / actualBytes
+    const MIN_ABS_DRIFT_BYTES = 512
+    log(`[FileLoad] 무결성: 로드 ${loadedBytes}B vs 실제 ${actualBytes}B (drift ${(drift * 100).toFixed(1)}%, absDiff ${absDiff}B)`)
+    if (drift > 0.05 && absDiff > MIN_ABS_DRIFT_BYTES) {
+      // 스냅샷(Phase 0-pre, 어떤 에이전트보다 먼저 읽음)을 쓴 경우 = 로드 내용이 정본이다.
+      // 불일치는 "에이전트가 지어냈다"가 아니라 "리뷰 도중 누군가 대상 파일을 덮어썼다"를 뜻한다.
+      // 원본은 이미 손에 있으므로 리뷰를 중단할 이유가 없다 — 훼손 사실만 크게 알리고 진행한다.
+      if (_snapshot) {
+        log(`[WARN] 대상 파일이 리뷰 도중 변경됐다 (스냅샷 ${loadedBytes}B vs 현재 ${actualBytes}B). ` +
+            `리뷰는 스냅샷(원본)으로 진행한다. 누가 ${targetPath} 를 덮어썼는지 확인하라.`)
+      } else {
+        log(`[FAIL] FileLoad 무결성 위반 — 에이전트가 원문 대신 다른 내용을 반환했다. 리뷰 중단.`)
+        return { verdict: 'FAIL', score: 0, issues: [{ category: 'fileload', severity: 'critical', description: `FileLoad 무결성 위반: 로드 ${loadedBytes}B vs 실제 ${actualBytes}B (drift ${(drift * 100).toFixed(1)}%, absDiff ${absDiff}B) — 리뷰 대상이 원문이 아님` }], hasCrit: true, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage }
+      }
+    }
+  }
 }
 const contentSection = targetContent
   ? `\n\n[파일 내용 — 직접 분석할 것, git diff/Read 재실행 금지]\n\`\`\`\n${targetContent}\n\`\`\``
@@ -381,7 +476,7 @@ const expected = mode === 'triple' ? (codexEnabled ? 3 : 2) : (codexEnabled ? 2 
 
 // root-cause: Codex HIGH — triple→2 생존 시 double 가중 오적용(opus가 codex 몫) + silent degradation.
 //   degraded(생존<expected) 시 가중합산 금지 → identity 소실이므로 균등 평균 + WARN. quorum<2 = FAIL.
-let combined, degraded = false
+let combined, degraded = false, degradedBanner = null
 if (mode === 'triple' && results.length === 3) {
   // root-cause: autoGate 폐기(2026-06-12) — 단일 가중치로 통일. Opus(Sonnet)×0.35 + Codex×0.35 + Gemini×0.3
   combined = scores[0] * 0.35 + scores[1] * 0.35 + scores[2] * 0.3
@@ -395,11 +490,16 @@ if (mode === 'triple' && results.length === 3) {
   degraded = true
   combined = scores.reduce((a, b) => a + b, 0) / scores.length  // identity 소실 → 균등 평균
   // root-cause: "Gemini 코드리뷰 제약" 삭제 — gemini-text-mcp 복원으로 제약 없음
+  // root-cause: Batch 3 증거등급 정직화 — degraded 판정 자체는 기존 로직 그대로(추가 트리거 없음), 사람 대면 표면화만 추가.
+  degradedBanner = `⚠️ DEGRADED: ${results.length}/${expected} worker 생존 — 외부 워커(Codex/Gemini) 미가용, 동일 모델 대체. 이 검수의 근거등급은 낮다(상관된 맹점 공유).`
   log(`[WARN] ${mode} degraded: ${results.length}/${expected} worker 생존 — 가중합산 대신 균등평균`)
+  log(degradedBanner)
 } else {
   degraded = true
   combined = scores[0] || 0
+  degradedBanner = `⚠️ DEGRADED: ${results.length}/${expected} worker 생존 — 외부 워커(Codex/Gemini) 미가용, 동일 모델 대체. 이 검수의 근거등급은 낮다(상관된 맹점 공유).`
   log(`[WARN] 정족수 미달: ${results.length}/${expected} worker — 검증 신뢰도 낮음`)
+  log(degradedBanner)
 }
 
 // root-cause: Codex MED — high severity도 verdict 반영 (adversarial 게이트 일관성). quorum<2=FAIL.
@@ -426,6 +526,10 @@ if (_a?.prevScore !== undefined) {
 // security(2026-06-12 자동 리뷰 HIGH): file/mode/stage=caller 제어 free-string → python -c r'''...''' 인젝션.
 // workflow.js=Workflow 스크립트(fs/Node API 불가)라 subprocess 불가피 → 입력 화이트리스트가 런타임-호환 가드.
 const _safe = s => String(s == null ? '' : s).replace(/[^A-Za-z0-9_./:-]/g, '_').slice(0, 200)
+// root-cause: cr-triple v2 HIGH(gemini)+MED(codex) — JSON.stringify는 $ / 백틱을 이스케이프하지 않는다.
+//   그 출력을 bash 큰따옴표 문맥에 넣으면 `$(...)`·백틱이 명령 치환된다(_safe 계약에만 의존하는 구조).
+//   bash 싱글쿼트로 감싸면 어떤 확장도 일어나지 않는다. 내부 ' 는 '\'' 로 닫고-이스케이프-열기.
+const _shq = s => `'${String(s).replace(/'/g, `'\\''`)}'`
 const _all = results.flatMap(r => r.issues || [])
 const _cnt = sev => _all.filter(i => i.severity === sev).length
 const auditEntry = {
@@ -444,9 +548,16 @@ const auditEntry = {
   })),
 }
 // sanitized 입력 전제: _safe()로 화이트리스트 처리된 값만 포함되므로 r'''...''' 탈출 불가
+// root-cause: P-9 verify-tier advisory (2026-07-10 A안) — cr-multi가 모든 검수의 실제 100%
+//   chokepoint다. tier를 별도 agent로 스폰해 LLM이 값을 중계하게 두면, 제거하려던 "LLM 자발
+//   실행" 의존이 그대로 남는다. 기존 audit bash에 접어 넣어 결정론적으로 계산·기록한다.
+//   fail-open: verify-tier.sh 부재/실패 → tier="unknown", append는 그대로 진행.
 await agent(
-  `Bash 1줄: 감사 로그 append (생성 메시지·요약 금지, append만).
-python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs'))+'/.claude/audit/cr-multi-calls.jsonl'; e=json.loads(r'''${JSON.stringify(auditEntry)}'''); e['ts']=time.time(); open(p,'a').write(json.dumps(e)+chr(10))"`,
+  `Bash 실행 (생성 메시지·요약 금지, 실행만).
+VT=$(bash "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-tier.sh" "${_safe(targetPath || 'staged')}" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tier','unknown'))" 2>/dev/null || echo unknown)
+[ "$VT" = "full" ] && [ "${_safe(mode)}" != "triple" ] && echo "[verify-tier] WARN: full tier인데 mode=${_safe(mode)} — cr-triple 권고" >&2
+python3 -c "import json,time,os,sys; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs'))+'/.claude/audit/cr-multi-calls.jsonl'; e=json.loads(sys.argv[2]); e['verify_tier']=sys.argv[1]; e['ts']=time.time(); open(p,'a').write(json.dumps(e)+chr(10))" "$VT" ${_shq(JSON.stringify(auditEntry))}
+true`,
   { label: 'audit-log', phase: 'Triage', model: 'haiku' }  // root-cause: model 핀 — Opus 상속 비용누수 차단
 )
 
@@ -458,6 +569,8 @@ if (GATE_STAGES.includes(stage)) {
     score: parseFloat(combined.toFixed(1)),
     issues: dedupedIssues,  // root-cause: GS-B19 — deduped + Fix-First ordered
     mode, slug, degraded,
+    // root-cause: Batch 3 증거등급 정직화 — additive, 기존 소비자는 무시 가능
+    ...(degraded ? { degradedBanner } : {}),
   }
   await agent(
     `AD-90 증거 JSON 파일 작성 (codex-gate-enforce.sh 호환).
@@ -626,6 +739,8 @@ return {
   slug, mode,
   combined: parseFloat(combined.toFixed(1)),
   verdict, scores, hasCrit, hasHigh, degraded, quorumFail,
+  // root-cause: Batch 3 증거등급 정직화 — degraded 사람 대면 표면화(additive). 소비자는 null-safe 처리.
+  ...(degraded ? { degradedBanner } : {}),
   structuralRisk: structuralCtx?.risk_level,
   results,
   dedupedIssues,  // root-cause: GS-B19 — deduped+Fix-First sorted findings with confidence scores

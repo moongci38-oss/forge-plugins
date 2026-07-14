@@ -1,9 +1,12 @@
-<!-- root-cause: forge-loop-maker scaffold 템플릿 — loop-SKILL.md 생성용 -->
 ---
 name: {{LOOP_NAME}}
-description: >
-  Self-running loop: {{GOAL}}
+description: "{{LOOP_NAME}} 루프를 실행한다. 트리거: 사용자가 /{{LOOP_NAME}} 를 호출할 때만. 종료조건 — {{GOAL}}"
+disable-model-invocation: true
 ---
+
+<!-- forge-loop-maker scaffold 템플릿 — loop-SKILL.md 생성용.
+     ⚠️ frontmatter(---)는 반드시 1행에서 시작해야 한다. 그 앞에 주석·공백이 있으면
+     YAML 파싱이 실패해 스킬로 인식되지 않는다(2026-07-14 실증: 루프 스킬 4종 전부 미인식). -->
 
 # {{LOOP_NAME}}
 

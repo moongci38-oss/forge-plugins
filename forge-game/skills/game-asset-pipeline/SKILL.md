@@ -1,8 +1,6 @@
 ---
 name: game-asset-pipeline
-description: GodBlade 게임 에셋 5 카테고리 워크플로우 오케스트레이터. /game-asset-pipeline <category> <name> <description> 또는 배치 생성. AI_Generated/{Characters,Monsters,UI,Backgrounds,Effects}/ 경로 자동 라우팅. game-asset-generate 경유 (6-axis 크리틱 루프 상속). Use for: (1) GodBlade 게임 에셋 배치 생성, (2) 카테고리별 에셋 생성·관리, (3) 생성된 에셋 목록 조회. SKIP: 단일 이미지 생성(/image-orchestrate), 비-GodBlade 게임 에셋.
-input: category + name + description 또는 batch YAML/JSON
-output: AI_Generated/{Category}/ PNG 파일 목록 + cost-log 요약
+description: "GodBlade 게임 에셋 5개 카테고리 워크플로를 오케스트레이션한다. 게임 에셋을 카테고리 단위로 일괄 생산할 때 사용한다."
 ---
 
 # game-asset-pipeline

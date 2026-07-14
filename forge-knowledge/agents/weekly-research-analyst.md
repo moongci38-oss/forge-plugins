@@ -120,7 +120,7 @@ Claude Code 릴리즈, MCP SDK 변경, API changelog:
 **GTC-2: 기구현 확인** — 액션 아이템이 이미 존재하는 기능을 제안하는지 확인
 - Glob: `.github/workflows/*.yml` (GitHub Actions)
 - Glob: `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`
-- Glob: `$HOME/.claude/forge/rules/*.md`, `$HOME/.claude/rules/*.md`
+- Glob: `~/.claude/forge/rules/*.md`, `~/.claude/rules/*.md`
 - tech-trends 액션 아이템 초안을 위 파일과 대조
 - **이미 구현된 기능을 제안하는 항목** → ~~취소선~~ + "이미 완료: {파일 경로}" 표기, 액션 목록에서 제거
 

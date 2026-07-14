@@ -1,6 +1,6 @@
 ---
 name: spec-compliance-checker
-description: "Spec 문서와 구현 코드 간의 추적성(Traceability)을 검증하는 전문 스킬. FR별 구현 파일 매핑, 테스트 존재 여부, API 계약 일치, 데이터 모델 일치를 체크하고 PASS/WARN/FAIL JSON을 반환한다. Forge Dev P5 구현 완료 후 Check P5.5에서 자동 실행."
+description: "Spec 문서와 구현 코드의 추적성(FR별 파일 매핑·테스트 존재·누락 판정)을 검증한다. 구현 완료 후 스펙 충족 여부를 확인할 때 사용한다."
 context: fork
 agent: general-purpose
 model: sonnet
@@ -41,7 +41,7 @@ Spec 경로: {spec_path}
 구현 완료 브랜치: {branch}
 Traceability Matrix (있으면): {matrix_path}
 
-이 스킬 파일 Read: ${FORGE_ROOT:-$HOME/forge}/.claude/skills/spec-compliance-checker/SKILL.md
+이 스킬 파일 Read: /home/damools/forge/.claude/skills/spec-compliance-checker/SKILL.md
 Step-by-Step 절차를 따라 감사 수행 후 JSON 결과만 반환.
 결과 저장 경로: {result_path}
 """
@@ -139,7 +139,7 @@ PASS 판정 직전 마지막 절차:
 
 ## 4-Level 검증 모델
 
-> **Canonical SSoT = `$HOME/.claude/rules-on-demand/verification-patterns.md`.** 아래는 검증 실행 편의 요약 — Level 정의·Stub 패턴 변경 시 verification-patterns.md를 우선 갱신(drift 방지).
+> **Canonical SSoT = `~/.claude/rules-on-demand/verification-patterns.md`.** 아래는 검증 실행 편의 요약 — Level 정의·Stub 패턴 변경 시 verification-patterns.md를 우선 갱신(drift 방지).
 
 검증 깊이를 4단계로 분류한다. 상위 Level은 하위를 포함한다.
 
@@ -390,8 +390,8 @@ Walkthrough 파일이 존재하면 추가 검증:
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() 4축(FR→코드/테스트, API계약, 데이터모델) → 집계.
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/spec-compliance-checker/workflow.js"), args: { specPath, branch } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/spec-compliance-checker/workflow.js"), args: { specPath, branch } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Subagent 격리 방식 fallback.
 
 ## 참조
-- 4-level 검증 모델 상세: `$HOME/.claude/rules-on-demand/verification-patterns.md`
+- 4-level 검증 모델 상세: `~/.claude/rules-on-demand/verification-patterns.md`
