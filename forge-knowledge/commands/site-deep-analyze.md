@@ -10,6 +10,12 @@ group: research
 
 사이트 URL → 정밀 분석 → 재구현 가이드 생성. 기존 도구(playwright-cli, screenshot-analyze, Tavily, style-forge) wrapper 스킬.
 
+> **절차·가드레일 SSoT = `skills/site-deep-analyze/SKILL.md`.** 이 커맨드는 진입점(6-Phase 요약)일 뿐이다.
+> robots.txt Disallow 시 STOP·localhost/RFC1918(사설망) 접근 차단·PII redact·rate limit(윤리·법적 가드레일),
+> Computer Use 사용 시 자격증명은 `env://` 참조만 허용·**결제 직전 [STOP]**·max-cost/max-actions 상한
+> (Computer Use 가드레일), Phase 2.5 추론검증, fan-out+Coverage Loop는 **전부 스킬이 정의**한다.
+> 이 커맨드 문서만 읽고 실행하지 마라 — 가드레일이 누락된 채 사이트를 크롤링·조작하게 된다.
+
 ## 절차
 
 | Phase | 동작 | 도구 |

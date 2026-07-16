@@ -181,7 +181,7 @@ if (useMatrix) {
     `Phase A0 — QA 리소스 해석. app="${appArg || ''}" domains="${domainsArg || ''}" accounts="${accountsArg || ''}". ` +
     `워크스페이스 루트의 qa-config(.claude/qa-config.json 또는 docs/qa/qa-config.json(qa-setup 생성 경로) ` +
     `또는 workspace 루트 동일 파일 — 이 우선순위로 탐색, 스키마: ` +
-    `~/forge/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
+    `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
     `없으면 프로젝트 실측으로 도메인 자동열거(dev-spec 디렉토리 목록 또는 App Router 파일트리 apps/web/src/app/ 등)를 ` +
     `fallback으로 시도하되, 그마저 불가하면 domains=${JSON.stringify(scopeCsv.length ? scopeCsv : ['full'])} ` +
     `그대로 유지(graceful fallback, guideStop=false)하라. ` +

@@ -23,7 +23,7 @@ description: "Use when performing a full 1:1 source sweep of an external harness
 
 ```
 Workflow({
-  script: Bash("cat ~/.claude/skills/external-harness-sweep/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/external-harness-sweep/workflow.js"),
   args: {
     target_url: "<외부 레포 git URL>",          // 필수
     target_name: "<slug>",                       // 선택 (없으면 URL 마지막 세그먼트)

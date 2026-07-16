@@ -17,14 +17,6 @@ QA Phase 1 T6(보안 WARN 게이트)에서 자동 트리거되거나 `/forge-che
 
 `docs/qa/security-report.md`(CRITICAL/HIGH/MEDIUM/LOW 등급별 finding + 공격 시나리오 + 수정 방법) + PASS/WARN/FAIL 판정.
 
-## 컨텍스트
-
-QA Phase 1 T6(보안 WARN 게이트)에서 자동 트리거되거나 `/forge-check-security` 직접 호출 시 실행. 입력은 프로젝트 루트 경로(기본값 CWD)이며 PR 생성 전 보안 게이트로도 사용된다.
-
-## 출력
-
-`docs/qa/security-report.md`(CRITICAL/HIGH/MEDIUM/LOW 등급별 finding + 공격 시나리오 + 수정 방법) + PASS/WARN/FAIL 판정.
-
 ## 실행 순서 (4단계)
 
 ### 1. 스캔 대상 결정
@@ -37,7 +29,7 @@ QA Phase 1 T6(보안 WARN 게이트)에서 자동 트리거되거나 `/forge-che
 `scripts/check-security.sh` 실행:
 
 ```
-bash ~/forge/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"
 # JSON 결과: /tmp/security-scan-results.json
 ```
 
@@ -142,5 +134,5 @@ eval_cases.jsonl에 결과 자동 누적.
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() S1~S7 7종 보안 스캔 → 집계.
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-check-security/workflow.js"), args: { target } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/forge-check-security/workflow.js"), args: { target } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 check-security.sh 방식 fallback.

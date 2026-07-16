@@ -69,7 +69,7 @@ healer 로그: docs/bug_report/artifacts/{BUG_ID}-healer.log
 )
 ```
 
-> healer agent 상세 로직: `~/forge/.claude/agents/healer.md`
+> healer agent 상세 로직: `${FORGE_ROOT:-$HOME/forge}/.claude/agents/healer.md`
 
 ## Step 4: 리포트 상태 갱신
 

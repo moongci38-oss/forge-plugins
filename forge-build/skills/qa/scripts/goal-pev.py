@@ -242,6 +242,15 @@ def update_same_issue(state: dict) -> int:
     return max(new_counts.values(), default=0)
 
 
+def _state_breakdown(fr_verdict: dict) -> str:
+    """fr_by_state(additive)가 있으면 ' [DONE=3 PARTIAL=1 ...]' 형태로 붙인다. 없으면 빈 문자열."""
+    by_state = fr_verdict.get("fr_by_state")
+    if not isinstance(by_state, dict) or not by_state:
+        return ""
+    parts = [f"{k}={v}" for k, v in by_state.items() if isinstance(v, int) and v > 0]
+    return f" [{' '.join(parts)}]" if parts else ""
+
+
 def check_oracle_manifest(qa_result: dict, log_file: str) -> dict:
     # root-cause: goal-pev.py가 oracle-manifest를 완전히 무시해 FR매핑 60%여도 qa-report FAIL=0이면
     # silent false SUCCESS 발생. 이 함수로 manifest 활성 시 5기준 검증 추가.
@@ -357,7 +366,19 @@ def check_oracle_manifest(qa_result: dict, log_file: str) -> dict:
         issues.append(f"기준1 FR매핑: fr_done({fr_done}) > fr_total({fr_total}) — 집계 오류 (forge-check-traceability 재실행)")
     elif fr_done < fr_total:
         pct = fr_done * 100 // fr_total
-        issues.append(f"기준1 FR매핑: {fr_done}/{fr_total} ({pct}% < 100%)")
+        issues.append(f"기준1 FR매핑: {fr_done}/{fr_total} ({pct}% < 100%){_state_breakdown(fr_verdict)}")
+
+    # 기준 1b: 5-state 불변식 — sum(fr_by_state) == fr_total.
+    # fr_by_state는 additive 필드(구 스키마 호환) → 있을 때만 검사한다.
+    # 어긋나면 집계 오류이므로 나머지 판정을 신뢰할 수 없다.
+    by_state = fr_verdict.get("fr_by_state")
+    if isinstance(by_state, dict):
+        state_sum = sum(v for v in by_state.values() if isinstance(v, int))
+        if state_sum != fr_total:
+            issues.append(
+                f"기준1b 5-state 불변식 위반: sum(fr_by_state)={state_sum} != fr_total={fr_total} "
+                f"— 집계 오류 (forge-check-traceability 재실행)"
+            )
 
     # 기준 2: 미매핑 0
     fr_unmapped = fr_verdict.get("fr_unmapped", 0)

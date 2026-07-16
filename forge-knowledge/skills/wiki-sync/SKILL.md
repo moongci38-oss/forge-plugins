@@ -44,9 +44,9 @@ TRACKING=${FORGE_OUTPUTS:-$HOME/forge-outputs}/20-wiki/_meta/sync-tracking.json
 # 1.2 Raw 후보 디렉토리 (최근 30일 우선)
 RAW_DIRS=(
   ${FORGE_OUTPUTS:-$HOME/forge-outputs}
-  ~/.claude/skills
-  ~/forge/.claude/skills
-  ~/forge/.claude/agents
+  $HOME/.claude/skills
+  ${FORGE_ROOT:-$HOME/forge}/.claude/skills
+  ${FORGE_ROOT:-$HOME/forge}/.claude/agents
 )
 
 # 1.3 제외 경로 패턴 (소스코드·리소스·설정 파일 제외)
@@ -310,6 +310,6 @@ tracking.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 - `forge-outputs/20-wiki/README.md` — Karpathy 3-layer 원칙 + 노트 작성 규칙
 - `forge-outputs/20-wiki/_meta/MOC.md` — 위키 전체 허브
 - `forge-outputs/20-wiki/_meta/pending-review.md` — AI가 처리 보류한 LOW 신뢰도 항목 목록
-- `~/forge/shared/scripts/wiki-sync.sh` — Obsidian vault 양방향 동기화 + LightRAG 자동 재인덱싱 (이 스킬과 별개로 백그라운드 실행 중)
-- `~/forge/shared/scripts/lightrag-pilot.py index --context wiki` — wiki 인덱스 재구축 (Apply 후 자동 트리거됨)
+- `${FORGE_ROOT:-$HOME/forge}/shared/scripts/wiki-sync.sh` — Obsidian vault 양방향 동기화 + LightRAG 자동 재인덱싱 (이 스킬과 별개로 백그라운드 실행 중)
+- `${FORGE_ROOT:-$HOME/forge}/shared/scripts/lightrag-pilot.py index --context wiki` — wiki 인덱스 재구축 (Apply 후 자동 트리거됨)
 - `/rag-search --context wiki` — 위키 의미 검색 보강

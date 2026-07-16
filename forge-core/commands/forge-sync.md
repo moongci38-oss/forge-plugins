@@ -8,46 +8,46 @@ group: ops
 
 # /forge-sync — Forge Dev 동기화
 
-`~/.claude/forge/` 원본 저장소의 Core 구성요소를 프로젝트에 배포합니다.
+`$HOME/.claude/forge/` 원본 저장소의 Core 구성요소를 프로젝트에 배포합니다.
 
 ## 동기화
 
 ```bash
 # 전체 프로젝트 동기화
-node ~/.claude/scripts/forge-sync.mjs sync
+node $HOME/.claude/scripts/forge-sync.mjs sync
 
 # 특정 프로젝트만
-node ~/.claude/scripts/forge-sync.mjs sync --target my-project
+node $HOME/.claude/scripts/forge-sync.mjs sync --target my-project
 
 # Recommended 포함
-node ~/.claude/scripts/forge-sync.mjs sync --include-recommended
+node $HOME/.claude/scripts/forge-sync.mjs sync --include-recommended
 
 # 변경 사항만 확인 (실제 복사 안 함)
-node ~/.claude/scripts/forge-sync.mjs sync --dry-run
+node $HOME/.claude/scripts/forge-sync.mjs sync --dry-run
 ```
 
 ## 등록 목록 조회
 
 ```bash
 # 전체 target 목록 (워크스페이스별 그룹)
-node ~/.claude/scripts/forge-sync.mjs list
+node $HOME/.claude/scripts/forge-sync.mjs list
 
 # 특정 워크스페이스만 필터
-node ~/.claude/scripts/forge-sync.mjs list --workspace wsl
+node $HOME/.claude/scripts/forge-sync.mjs list --workspace wsl
 ```
 
 ## 새 프로젝트 온보딩
 
 ```bash
 # 1. 등록 (scope, description, workspace 지정)
-node ~/.claude/scripts/forge-sync.mjs init /path/to/project \
+node $HOME/.claude/scripts/forge-sync.mjs init /path/to/project \
   --name my-project \
   --scope all \
   --description "프로젝트 설명" \
   --workspace wsl
 
 # 2. forge 배포
-node ~/.claude/scripts/forge-sync.mjs sync --target my-project --include-recommended
+node $HOME/.claude/scripts/forge-sync.mjs sync --target my-project --include-recommended
 
 # 3. 프로젝트별 설정 (수동)
 #    - CLAUDE.md 작성

@@ -20,7 +20,7 @@ group: research
 | 신호 수집·시장 탐색(web/grep) | **Haiku** | `Agent(model:"haiku")` subagent (50p+ 장문 분석은 기존 Gemini 라우팅 유지) |
 | GO/NO-GO 자문 | **Opus** | `advisor-strategist` |
 
-근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
+근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
 
 **방법론 출처** (forge-outputs RAG): Mike Hill 10단계 / Mom Test / Lean Validation 4주 / 10 후보 v2 Reject·Priority 룰
 
@@ -216,7 +216,7 @@ Reject 4가 다루지 않는 두 축만 확인한다(나머지 4문항 = Reject 
 
 ### Step 4.5 — 반증 탐색 counter-case (deep-research 메커니즘 c)
 
-> 참조: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색 — "핵심 주장마다 반대증거 1회+ 실행, Confirmation Loop(반대증거 미탐색) 회피 의무"
+> 참조: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색 — "핵심 주장마다 반대증거 1회+ 실행, Confirmation Loop(반대증거 미탐색) 회피 의무"
 
 5 신호 수집 완료 후, `pass` 판정 전 필수 실행. 동일 에이전트 자가채점 편향을 방지하기 위해 **후보에 불리한 증거를 능동 탐색**한다.
 
@@ -270,7 +270,7 @@ Reject 4가 다루지 않는 두 축만 확인한다(나머지 4문항 = Reject 
 
 ### Step 5 — `validated-item.md` 1페이지 작성
 
-템플릿: `~/forge/.claude/templates/validated-item.md` 읽고 채워서 저장.
+템플릿: `${FORGE_ROOT:-$HOME/forge}/.claude/templates/validated-item.md` 읽고 채워서 저장.
 
 필수 섹션 (v3):
 - H1 제목 + Karpathy `> [!info]` callout

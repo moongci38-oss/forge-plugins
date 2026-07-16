@@ -301,7 +301,7 @@ model: sonnet
 ## Workflow 통합 (계획서 P2-2)
 파일 기반 통신 → JS 변수 직접 전달. 중간 파일(.claude/state/AUTOPLAN_*.md) 생성 없음. 컨텍스트 격리.
 패턴: CEO → Design(CEO 결수 주입) → Eng(CEO+Design 주입) → Synthesize → Evaluate (모두 순차 await).
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/autoplan/workflow.js"), args: { docPath, skip } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/autoplan/workflow.js"), args: { docPath, skip } })`
 agentType: Wave 2 = ux-researcher / Wave 3 = cto-advisor.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 5-Wave 파일 기반 방식 fallback.
 
