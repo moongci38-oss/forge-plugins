@@ -304,7 +304,7 @@ Pass 2 — 정밀 검증 (병렬, CRITICAL):
 
 **단일 이미지 분석:**
 ```bash
-bash ~/.claude/scripts/analyze-screenshot.sh \
+bash $HOME/.claude/scripts/analyze-screenshot.sh \
   "{IMAGE_PATH}" \
   "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" \
   "{Step 2에서 조립한 전체 프롬프트 — 공통 블록 포함}"
@@ -312,7 +312,7 @@ bash ~/.claude/scripts/analyze-screenshot.sh \
 
 **멀티 이미지 비교 분석** (경쟁작 비교, 구현 검증):
 ```bash
-bash ~/.claude/scripts/analyze-screenshot.sh \
+bash $HOME/.claude/scripts/analyze-screenshot.sh \
   "{IMAGE1_PATH}" \
   "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-compare.md" \
   "{비교 분석 프롬프트}" \
@@ -327,7 +327,7 @@ bash ~/.claude/scripts/analyze-screenshot.sh \
 ```bash
 # 기본: gemini-3.5-flash (빠르고 저렴)
 # 고품질: gemini-2.5-pro (정밀 분해, 복잡한 UI)
-GEMINI_MODEL=gemini-2.5-pro bash ~/.claude/scripts/analyze-screenshot.sh ...
+GEMINI_MODEL=gemini-2.5-pro bash $HOME/.claude/scripts/analyze-screenshot.sh ...
 ```
 
 ### Step 3.5: 컴포넌트 추출 실행 (--extract 모드 전용)
@@ -350,7 +350,7 @@ img.crop((left,top,right,bottom)).save('/tmp/verify_{comp_id}.png')
 "
 
 # Gemini 재확인
-GEMINI_MODEL=gemini-3.1-pro-preview bash ~/.claude/scripts/analyze-screenshot.sh \
+GEMINI_MODEL=gemini-3.1-pro-preview bash $HOME/.claude/scripts/analyze-screenshot.sh \
   "/tmp/verify_{comp_id}.png" \
   "" \
   "이 이미지에서 '{comp_name}'({comp_type}) 컴포넌트가 완전히 포함되어 있는가?
@@ -365,7 +365,7 @@ GEMINI_MODEL=gemini-3.1-pro-preview bash ~/.claude/scripts/analyze-screenshot.sh
 
 ```bash
 GEMINI_MODEL=gemini-3.1-pro-preview \
-python3 ~/.claude/scripts/extract-components.py \
+python3 $HOME/.claude/scripts/extract-components.py \
   --image "{IMAGE_PATH}" \
   --analysis "{ANALYSIS_MD_PATH}" \
   --output "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components"
@@ -539,7 +539,7 @@ Canvas (Screen Space - Overlay)
 ## 환경 요구사항
 
 - `GEMINI_API_KEY` 환경변수 설정 필수
-- `~/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
+- `$HOME/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
 - Python 3 (JSON 파싱용)
 - curl (API 호출용)
 
@@ -567,13 +567,13 @@ Canvas (Screen Space - Overlay)
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Codex Vision→Gemini fallback.
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 
 ### `--cr` 옵션 (crMode)
 
-Codex Vision 사용 여부를 제어한다. caller는 `~/forge/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
+Codex Vision 사용 여부를 제어한다. caller는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
 
 | 값 | 동작 |
 |----|------|

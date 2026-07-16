@@ -16,7 +16,7 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 
 1. 세션 초기화:
    ```bash
-   node ~/.claude/scripts/session-state.mjs init --name <작업명>
+   node $HOME/.claude/scripts/session-state.mjs init --name <작업명>
    ```
 
 2. 작업 규모 분류 (자동 또는 `--size` 인자):
@@ -50,7 +50,7 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 ## 규칙
 
 - Phase 전환 시 자동 체크포인트 생성
-- Check 8 실패 시 최대 3회 autoFix 순환
+- Check 8 실패 시 최대 3회 autoFix 순환 — ⚠️ 이 상한은 **코드에 미배선**이다(`check3CycleCount` 참조자 0건, 2026-07-15 실측). 선언된 값이 실제로 강제되지 않는다 — 배선 전까지 신뢰하지 마라.
 - Human 승인 게이트: P4 완료 시 필수
 - 세션 재개: `/forge-resume` 사용
 - 통합 파이프라인: `forge/pipeline.md` 참조

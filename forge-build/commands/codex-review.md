@@ -1,6 +1,6 @@
 ---
 description: OpenAI Codex 경유 2차 리뷰 게이트 (Claude 1차 리뷰 후 추가 검증). 모든 개발 단계 (plan/code/test/final/bugfix) 지원.
-argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high] [--blocking] [--cr <on|degrade|off>]"
+argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high] [--blocking] [--cr <on|degrade|off>] [--sol|--terra|--luna]"
 group: verify
 ---
 
@@ -111,7 +111,7 @@ fi
 # --cr 게이트: cr-mode.sh로 effective mode 결정 (우선순위: --cr 인자 > FORGE_AUTO_CR env > on)
 # codex-review = 단일 Codex 경로 → degrade/off 모두 "Codex 호출 없음"과 동일 → skip
 # --cr on이면 CODEX_REVIEW_AUTO_STAGES=off보다 위에서 이미 빠져나갔으므로 여기서 on = 통과만
-CR_MODE=$(~/forge/shared/scripts/cr-mode.sh "${CR_ARG:-}")
+CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "${CR_ARG:-}")
 if [[ "$CR_MODE" == "off" || "$CR_MODE" == "degrade" ]]; then
   echo "[codex-review] --cr $CR_MODE → Codex 호출 생략"
   exit 0
@@ -148,7 +148,15 @@ fi
 ```bash
 # 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. config model=gpt-5.5. codex 호출 $0.
 # apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 gpt-5.5 API 가격 과금.
-MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+# --sol/--terra/--luna (Human opt-in, 2026-07-15): Codex 검수 레그 tier 승격 (model-registry SSoT).
+#   caller 인자 파싱: --sol→CODEX_TIER=max · --terra→high · --luna→low. 미지정 시 기본 gpt-5.5 유지(no-op).
+#   resolve 실패 시 fail-open → gpt-5.5 폴백. 버전무관: 모델 id는 model-registry.json이 소유.
+CODEX_TIER="${CODEX_TIER:-}"
+if [[ -n "$CODEX_TIER" ]]; then
+  MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) || MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+else
+  MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+fi
 EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
 
@@ -249,7 +257,7 @@ CLAUDE_JSON="${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/claude/${STAGE}/
 CODEX_JSON="${OUT_DIR}/${DATE}-${SLUG}.json"
 
 # 비교 알고리즘 → "agreement" | "disagreement" | "extension" | "null"
-DELTA=$(python3 ~/forge/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
+DELTA=$(python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
 
 # JSON 갱신 (delta_vs_claude 필드 자동 기록)
 jq --arg d "$DELTA" '.delta_vs_claude = $d' "$CODEX_JSON" > "$CODEX_JSON.tmp" \

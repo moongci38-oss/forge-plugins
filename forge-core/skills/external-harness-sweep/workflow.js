@@ -109,7 +109,7 @@ const [inv, forgeInv] = await parallel([
     { label: `inv:${NAME}-all`, phase: 'Inventory', schema: INV, model: 'sonnet' }
   ),
   () => agent(
-    `Forge 자산 전체 인벤토리(read-only, 대조용). ~/.claude/skills/(전체 ls) + ~/forge/.claude/agents/ + ~/forge/.claude/commands/ + ~/.claude/hooks/ + ~/forge/pipeline.md + ~/.claude/rules-on-demand/(목록).\n` +
+    `Forge 자산 전체 인벤토리(read-only, 대조용). $HOME/.claude/skills/(전체 ls) + ${FORGE_ROOT:-$HOME/forge}/.claude/agents/ + ${FORGE_ROOT:-$HOME/forge}/.claude/commands/ + $HOME/.claude/hooks/ + ${FORGE_ROOT:-$HOME/forge}/pipeline.md + $HOME/.claude/rules-on-demand/(목록).\n` +
     `각 스킬/에이전트/훅의 이름 + 1줄 역할. 외부 항목과 매칭에 쓸 수 있게 도메인별 정리. 구조화 텍스트.`,
     { label: 'inv:forge-all', phase: 'Inventory', model: 'sonnet' }
   ),
@@ -126,7 +126,7 @@ const results = await pipeline(
   (it) => agent(
     `외부 항목 "${it}"을 Forge와 1:1 소스 대조하라(read-only).\n\n` +
     `1. 외부측: ${SRC}/${it.startsWith('bin:') ? 'bin/' + it.slice(4) : it + '/SKILL.md'} read (+관련 소스). 실제 기능 파악(file 근거). **fresh clone된 ${SRC} 사용 — seed/1차분석 신뢰 금지.**\n` +
-    `2. Forge측: ~/.claude/skills/ ~/forge/.claude/{agents,commands,hooks} grep/read로 동등물 탐색. 있으면 path, 없으면 부재 확정.\n` +
+    `2. Forge측: $HOME/.claude/skills/ ${FORGE_ROOT:-$HOME/forge}/.claude/{agents,commands,hooks} grep/read로 동등물 탐색. 있으면 path, 없으면 부재 확정.\n` +
     `3. 판정: mapping / gap_type(forge-equivalent=Forge 동등 / forge-superior=Forge가 더 강함 / forge-lacks=진짜 부재 / external-only=외부제품 / mac-only / phantom) / decision(${ROI_CONTEXT}: ADOPT 통째도입 / ADAPT 경량차용 / DEFER 보류 / SKIP) / confidence / evidence(양측 path:line).${seedHint}\n` +
     `Forge 인벤토리 참고:\n${String(forgeInv).slice(0, 2200)}`,
     { label: `cmp:${it}`, phase: 'Compare', schema: VERDICT, model: 'sonnet' }

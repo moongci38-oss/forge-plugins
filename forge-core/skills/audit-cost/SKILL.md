@@ -32,7 +32,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
+| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -109,7 +109,7 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `find ~/.claude/skills -name "eval_cases.jsonl" | xargs wc -l 2>/dev/null` → 스킬별 eval 호출 수
+1. `find $HOME/.claude/skills -name "eval_cases.jsonl" | xargs wc -l 2>/dev/null` → 스킬별 eval 호출 수
 2. eval_cases.jsonl 0건 or 파일 없는 스킬 = 미사용 후보
 3. 미사용 스킬의 SKILL.md 토큰 수 추정: `wc -c SKILL.md` ÷ 4 × cascade 로딩 횟수
 4. 비용 추정: 미사용 스킬 cascade 토큰 합산 → 월 세션 수(~150) × 토큰당 비용($0.003/1K)

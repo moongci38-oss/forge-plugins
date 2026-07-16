@@ -362,7 +362,7 @@ const verifyResult = await agent(
   `   근거 selector 존재 → verifiedComponents[]에 {name, selector_evidence} 추가. ` +
   `   근거 없음 → unverifiedComponents[]에 {name, unverified:true} 추가.\n` +
   `3. summary: 검증 비율 요약 (예: "APIs 8/12 verified, Components 5/7 verified").\n` +
-  `참조 표준: ~/.claude/rules-on-demand/research-verification-protocol.md #4 반증탐색.`,
+  `참조 표준: $HOME/.claude/rules-on-demand/research-verification-protocol.md #4 반증탐색.`,
   { label: 'verify:adversarial', phase: 'Verify', schema: VERIFY_SCHEMA }
 )
 log(`[Verify] verifiedApis=${verifyResult?.verifiedApis?.length} unverifiedApis=${verifyResult?.unverifiedApis?.length} verifiedComponents=${verifyResult?.verifiedComponents?.length} unverifiedComponents=${verifyResult?.unverifiedComponents?.length}`)
@@ -385,7 +385,7 @@ log(`[Semantic] languages=${semanticResult?.languages?.join(',')}`)
 phase('Output')
 const outputResult = await agent(
   `site-deep-analyze Phase 5 산출물 생성. slug="${gateResult?.slug}". ` +
-  `저장 경로: ~/forge-outputs/05-design/site-analysis/${gateResult?.slug}/. ` +
+  `저장 경로: ${FORGE_ROOT:-$HOME/forge}-outputs/05-design/site-analysis/${gateResult?.slug}/. ` +
   // root-cause: finalStaticResult(coverage-loop 보완) + 신규 fan-out 결과 포함 (deep-research a+e)
   `정적 분석 (coverage-loop 보완): ${JSON.stringify(finalStaticResult)}. ` +
   `페이지 유형 분석: ${JSON.stringify(pageTypeResult)}. ` +

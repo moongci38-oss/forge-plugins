@@ -41,7 +41,7 @@ Codex + Gemini (Double) 또는 Opus + Codex + Gemini (Triple) 병렬 리뷰 + Tr
 | 모드 | Worker | 합산 |
 |------|--------|------|
 | Double | Codex + Gemini | `codex×0.6 + gemini×0.4` |
-| Triple | Opus + Codex + Gemini | `opus×0.3 + codex×0.4 + gemini×0.3` |
+| Triple | Opus + Codex + Gemini | `opus×0.35 + codex×0.35 + gemini×0.3` |
 
 ## 산출물
 
@@ -65,8 +65,6 @@ AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded, evid
 
 **집계 자가대조 (Batch 3-3)**: 리포트 헤더·요약의 **집계 숫자는 본문 항목표에서 기계 도출**(`grep -c` 등)하거나 작성 직후 자가 대조한다. **헤더 숫자는 그 자체가 검증 대상이다** — 눈으로 센 값을 쓰지 마라. (목록형 산출물의 헤더 집계 오류 4회 실증. 이 세션에서도 harness-diet가 `skills_count: -97`이라는 허구 수치를 보고했다.)
 
-**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값·AD-90 JSON)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
-
 ## 보안
 
 - Secret 사전 스캔 (전송 전 차단)
@@ -77,7 +75,7 @@ AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded, evid
 
 cr-multi 실행 후 usage 데이터 기록:
 ```bash
-bash ~/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
+bash $HOME/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
 ```
 usage 필드는 Anthropic SDK response.usage 에서 추출. 미지원 시 0 기본값 사용.
 
@@ -88,7 +86,7 @@ mcp__codex__ 토큰 = **Phase -1 자동 발행 내장** (외부 선발행 불필
 ```js
 // Workflow 실행 (Phase -1 ApproveWorker + GitNexus StructuralContext + 3-LLM parallel)
 Workflow({
-  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
@@ -97,10 +95,10 @@ Agent Teams fallback: `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Agent 패턴.
 
 ## 참조
 
-- 명령: `~/forge/.claude/commands/cr-multi.md`
-- 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
-- Triage: `~/forge/shared/scripts/cr-multi-triage.py`
-- Plateau: `~/forge/shared/scripts/cr-multi-plateau-guard.py`
+- 명령: `${FORGE_ROOT:-$HOME/forge}/.claude/commands/cr-multi.md`
+- 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
+- Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
+- Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`
 
 ## Evaluator (Wave 2.5)
 

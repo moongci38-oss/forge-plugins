@@ -102,20 +102,20 @@ skills:
 ```bash
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)
 RECENT=$(ls -t "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/claude/code/"*.json 2>/dev/null | head -5)
-PAST=$(LEARN_BY=code-reviewer bash ~/.claude/scripts/learnings.sh load review-pattern 2>/dev/null)
+PAST=$(LEARN_BY=code-reviewer bash $HOME/.claude/scripts/learnings.sh load review-pattern 2>/dev/null)
 echo "[learnings] loaded $(printf '%s\n' "$PAST" | grep -c '^{') active review-patterns"   # 결정성 마커
 # 프로젝트 지식 로드 (Graph RAG 롤업 노트 — 해당 프로젝트 과거 버그/리뷰 패턴). non-blocking.
 IDX="${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index"
 PROJKB=""
 if [ -d "$IDX" ] && [ "$REPO" != unknown ]; then
-  PROJKB=$(OPENAI_API_KEY="" timeout 60 python3 ~/forge/shared/scripts/rag/search.py \
+  PROJKB=$(OPENAI_API_KEY="" timeout 60 python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/search.py \
     "$REPO 버그수정 리뷰 패턴" --graph --top-k 3 --json --index-dir "$IDX" 2>/dev/null || true)
 fi
 echo "[project-kb] $(printf '%s' "$PROJKB" | grep -c projects/ || echo 0) rollup hits"   # 결정성 마커
 ```
 - `learnings.sh load` = active review-pattern만 stdout, learnings.jsonl 변경 0, access.log 자동 기록.
 - `[project-kb]` = `20-wiki/projects/{REPO}.md` 롤업 노트(버그수정·리뷰 패턴 집계) + Graph RAG 위키링크 이웃을 prior context로 로드. 인덱스 부재/타임아웃 시 빈 결과로 skip — **리뷰 차단 안 함**. 롤업의 과거 패턴을 이번 리뷰 판단에 참고(중복 지적·기존 안티패턴 인지).
-- 리뷰 본체 수행 → issues 확정 후 → `ESC=$(python3 ~/.claude/scripts/fingerprints.py "$RECENT" "$ISSUES_JSON" "$PAST")`.
+- 리뷰 본체 수행 → issues 확정 후 → `ESC=$(python3 $HOME/.claude/scripts/fingerprints.py "$RECENT" "$ISSUES_JSON" "$PAST")`.
 - 활용: `ESC`의 `count<TAB>fingerprint` 중 count≥2 이고 그 fingerprint가 이번 issues에도 있으면 → 그 issue message에 `[재발 — 이전 N회]` 추가 + severity 1단계 상향. 직전 리뷰 JSON의 fingerprint와 동일+이미 fixed면 재지적 X.
 - `forge-outputs/` + git repo 둘 다 부재(스탠드얼론) → Step 0 skip.
 
@@ -235,7 +235,7 @@ JSON
 JSON 사이드카 저장 후:
 
 ```bash
-H=~/.claude/scripts/learnings.sh
+H=$HOME/.claude/scripts/learnings.sh
 # ESC = Step 0의 fingerprints.py 출력 (count\tfp 줄들 + SUPERSEDE\told-id 줄들)
 [ -z "$(printf '%s\n' "$ESC" | grep -E '^([3-9]|[0-9]{2,})\s|^SUPERSEDE\s')" ] && echo "[learnings] recurrence: none"   # 결정성 마커 (skip 시)
 printf '%s\n' "$ESC" | while IFS=$'\t' read -r A B; do
@@ -261,7 +261,7 @@ done
 - 정상 리뷰 흐름에서 프로덕션 learnings 변경 = recurrence 누적 3회 충족 시만 (의도된 동작). 과거 리뷰 0건이면 절대 미충족 → append 안 일어남.
 - `forge-outputs/` 또는 git repo 부재 → Step 5 skip.
 
-> 상세: `~/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션 + `~/.claude/rules-on-demand/compounding-knowledge.md`.
+> 상세: `$HOME/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션 + `$HOME/.claude/rules-on-demand/compounding-knowledge.md`.
 
 ## Step 6 — 프로젝트 롤업 자동 갱신 (신선도 엔진, compounding)
 
@@ -270,7 +270,7 @@ done
 
 ```bash
 if [ -d "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index" ] && [ "$REPO" != unknown ]; then
-  OPENAI_API_KEY="" timeout 180 python3 ~/forge/shared/scripts/rag/project_knowledge_sync.py \
+  OPENAI_API_KEY="" timeout 180 python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/project_knowledge_sync.py \
     --project "$REPO" >/dev/null 2>&1 \
     && echo "[rollup] $REPO 갱신" || echo "[rollup] skip"   # 결정성 마커. non-blocking.
 fi

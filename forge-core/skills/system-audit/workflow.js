@@ -149,25 +149,25 @@ const redundancyPrompt =
   `Forge 시스템 중복/불필요 기능 탐지. Bash 도구 사용 가능.
 
 1. 스킬 중복 탐지:
-   ls ~/.claude/skills/ | sort → 전체 스킬 목록
-   grep -rl "DEPRECATED\\|ARCHIVED\\|OOS" ~/.claude/skills/*/SKILL.md 2>/dev/null
+   ls $HOME/.claude/skills/ | sort → 전체 스킬 목록
+   grep -rl "DEPRECATED\\|ARCHIVED\\|OOS" $HOME/.claude/skills/*/SKILL.md 2>/dev/null
    유사 목적 스킬 그룹핑 (이름/설명 기반)
 
 2. Orphan 에이전트:
-   ls ~/forge/.claude/agents/ → 정의된 에이전트
+   ls ${FORGE_ROOT:-$HOME/forge}/.claude/agents/ → 정의된 에이전트
    각 에이전트명으로 스킬 내 실제 호출 grep
    호출 없음 = orphan
 
 3. 미사용 스킬:
-   find ~/.claude/skills -name "eval_cases.jsonl" -empty → 0건
-   grep -r "eval_cases.jsonl" ~/.claude/skills 2>/dev/null | wc -l
+   find $HOME/.claude/skills -name "eval_cases.jsonl" -empty → 0건
+   grep -r "eval_cases.jsonl" $HOME/.claude/skills 2>/dev/null | wc -l
 
 4. Hook 중복/theater:
-   grep -l "exit 0$" ~/.claude/hooks/*.sh 2>/dev/null → 항상 통과 hook
+   grep -l "exit 0$" $HOME/.claude/hooks/*.sh 2>/dev/null → 항상 통과 hook
    동일 목적 hook 중복 확인 (asi-*.sh 개별 vs 메가훅)
 
 5. 규칙 중복:
-   ls ~/.claude/rules/ ~/.claude/rules-on-demand/ 2>/dev/null
+   ls $HOME/.claude/rules/ $HOME/.claude/rules-on-demand/ 2>/dev/null
    제목/목적 유사 파일 매칭
 
 위 탐지 결과를 REDUNDANCY_SCHEMA 형식으로 반환.`
