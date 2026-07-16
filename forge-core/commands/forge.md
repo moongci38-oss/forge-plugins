@@ -16,7 +16,7 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 
 1. 세션 초기화:
    ```bash
-   node $HOME/.claude/scripts/session-state.mjs init --name <작업명>
+   node ~/.claude/scripts/session-state.mjs init --name <작업명>
    ```
 
 2. 작업 규모 분류 (자동 또는 `--size` 인자):

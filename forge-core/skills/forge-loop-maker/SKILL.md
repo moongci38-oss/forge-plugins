@@ -137,10 +137,10 @@ Phase 4: Blueprint → [STOP] 승인 → scaffold
 
 | 분류 | 경로 | 템플릿 |
 |------|------|-------|
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl` |
 | Changing | `{PROJECT_CWD}/loops/{LOOP_NAME}/STATE.md` | `templates/STATE.md.tmpl` |
 
 scaffold 완료 후 파일 트리 출력.
@@ -168,7 +168,7 @@ scaffold 완료 후 파일 트리 출력.
 
 ## forge-sync 필수
 
-`${FORGE_ROOT:-$HOME/forge}` SSoT → `$HOME/.claude/` 미러. scaffold 후 반드시:
+`~/forge` SSoT → `~/.claude/` 미러. scaffold 후 반드시:
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
+node ~/forge/dev/scripts/forge-sync.mjs sync
 ```

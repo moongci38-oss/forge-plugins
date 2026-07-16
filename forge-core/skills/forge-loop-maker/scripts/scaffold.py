@@ -115,7 +115,7 @@ def main():
     print(f"  {state_file}  (changing — project cwd)")
 
     print("\n[scaffold] 다음 단계:")
-    print("  1. forge-sync 실행: node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync")
+    print("  1. forge-sync 실행: node ~/forge/dev/scripts/forge-sync.mjs sync")
     print("  2. HUMAN-GATES.md wall-clock 상한 구체적 수치 확인")
     print("  3. G1 pre-run sign-off 후 첫 실행")
 

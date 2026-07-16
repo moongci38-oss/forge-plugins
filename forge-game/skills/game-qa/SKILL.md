@@ -57,7 +57,7 @@ get_scene_summary()           → 씬 상태 스냅샷
 `scripts/game-verify.sh` 실행:
 
 ```bash
-bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/game-qa/scripts/game-verify.sh
+bash ~/forge/.claude/skills/game-qa/scripts/game-verify.sh
 ```
 
 검사 항목:
@@ -100,7 +100,7 @@ WARN만 → WARN / 전체 0건 → PASS
 ## Workflow 통합 (계획서 P2-1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원.
 패턴: Detect → parallel(Unity테스트, 서버/봇빌드) → 집계 Report.
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/game-qa/workflow.js"), args: { project } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/game-qa/workflow.js"), args: { project } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 4단계 직접 실행 방식 fallback.
 
 ## FAIL 라우팅 + 재시도 루프 [BOUNDED]

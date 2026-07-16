@@ -25,9 +25,9 @@ group: review
 ```js
 // CR_MODE = (--no-codex 있으면 'degrade') || (--cr 값) || 'on'
 // --sol/--terra/--luna 파싱: CODEX_TIER = sol→max·terra→high·luna→low.
-//   CODEX_MODEL = CODEX_TIER 설정 시 Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:$CODEX_TIER`), 없으면 null (fail-open).
+//   CODEX_MODEL = CODEX_TIER 설정 시 Bash(`~/forge/shared/scripts/model-registry-resolve.sh codex:$CODEX_TIER`), 없으면 null (fail-open).
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'double', stage: STAGE, crMode: CR_MODE, codexModel: CODEX_MODEL }
 })
 ```

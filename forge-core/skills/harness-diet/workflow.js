@@ -8,7 +8,7 @@ export const meta = {
   description: 'harness-legacy-scan diet-queue.json 소비 — low-risk 자동 적용 + Human 승인 목록',
   phases: [
     { title: 'Prepare', detail: 'restore point tag + diet-queue.json Read + 항목 분류' },
-    { title: 'Apply', detail: 'low-risk 항목별 agent 병렬 적용 (SSoT ${FORGE_ROOT:-$HOME/forge}/.claude/ 편집)' },
+    { title: 'Apply', detail: 'low-risk 항목별 agent 병렬 적용 (SSoT ~/forge/.claude/ 편집)' },
     { title: 'Verify', detail: 'verify agent — 적용 결과 code-review + smoke-test 6개' },
     { title: 'Report', detail: '7보고 섹션 + Human 승인 high-risk 목록' },
   ],
@@ -40,13 +40,13 @@ const archiveBase = `${outBase}/11-platform/pipelines/forge-dev/2026-06-08-v1-ha
 const FORBIDDEN = `
 금지 사항 (절대 위반 불가):
 1. 영구 삭제 금지 — archive 이동만
-2. $HOME/.claude/hooks/ 수정 금지
-3. MCP 설정(.mcp.json, $HOME/.claude.json mcpServers) 수정 금지
+2. ~/.claude/hooks/ 수정 금지
+3. MCP 설정(.mcp.json, ~/.claude.json mcpServers) 수정 금지
 4. allowed-tools 확대 금지
 5. 앱 코드(forge-outputs 외 프로젝트 파일) 수정 금지
 6. test/build/deploy 임의 실행 금지
 7. 불확실한 변경 → 수동 승인 목록 반환 (자동 적용 X)
-편집 SSoT = ${FORGE_ROOT:-$HOME/forge}/.claude/ (직접 Edit/Write). ~\.claude/ 직접 편집 = hook block.
+편집 SSoT = ~/forge/.claude/ (직접 Edit/Write). ~\.claude/ 직접 편집 = hook block.
 `
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ phase('Prepare')
 // restore point git tag (실패해도 계속 — non-blocking)
 await agent(
   `Bash 1줄 실행 (restore point):
-cd ${FORGE_ROOT:-$HOME/forge} && git tag harness-diet-pre-2026-06-08 2>/dev/null && echo "TAG_OK" || echo "TAG_EXISTS_OR_FAIL"`,
+cd ~/forge && git tag harness-diet-pre-2026-06-08 2>/dev/null && echo "TAG_OK" || echo "TAG_EXISTS_OR_FAIL"`,
   { label: 'restore-tag', phase: 'Prepare' }
 ).catch(e => log(`[WARN] restore tag 실패: ${e?.message || e}`))
 
@@ -122,13 +122,13 @@ if (autoItems.length === 0) {
 const beforeState = await agent(
   `Before 상태 측정. Bash 도구:
 # per-session rules 라인수
-wc -l $HOME/.claude/rules/*.md | tail -1
+wc -l ~/.claude/rules/*.md | tail -1
 # skills 수
-ls $HOME/.claude/skills/ | wc -l
+ls ~/.claude/skills/ | wc -l
 # skills 총 라인수
-find $HOME/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+find ~/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 # CLAUDE.md cascade 총 라인수
-find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 
 결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"claude_md_lines":N}`,
   {
@@ -167,8 +167,8 @@ ${FORBIDDEN}
 1. Read 도구로 ${item.path} 읽기
 2. 중복/일반지침 섹션만 제거. Forge 특화 내용 유지.
 3. 인라인주석 과다 시 → 최종요약으로 집약 (허용 7)
-4. Edit 도구로 ${FORGE_ROOT:-$HOME/forge}/.claude/ 하위 SSoT 파일 수정
-   ($HOME/.claude/ 직접 편집 X — hook block됨)
+4. Edit 도구로 ~/forge/.claude/ 하위 SSoT 파일 수정
+   (~/.claude/ 직접 편집 X — hook block됨)
 5. 결과: {"applied":true,"path":"str","lines_removed":N,"summary":"str"} 반환`
 
     case 'MOVE':
@@ -177,7 +177,7 @@ ${FORBIDDEN}
 [허용 2: 절차 CLAUDE.md→Skills 이동 또는 MOVE rules/→on-demand]
 이동 대상: ${item.move_target || 'rules-on-demand/'}
 1. Read 도구로 ${item.path} 읽기 → 이동 섹션 식별
-2. 이동 후 경로에 내용 Write (${FORGE_ROOT:-$HOME/forge}/.claude/ 하위 SSoT)
+2. 이동 후 경로에 내용 Write (~/forge/.claude/ 하위 SSoT)
 3. 원본에서 해당 섹션 Edit으로 제거 (또는 참조 링크로 교체)
 4. 결과: {"applied":true,"from":"str","to":"str","summary":"str"} 반환`
 
@@ -190,7 +190,7 @@ ${FORBIDDEN}
 3. 상세 레퍼런스 → reference.md 분리 (같은 폴더)
 4. 예제 코드/패턴 → examples.md 분리 (같은 폴더)
 5. SKILL.md에 "상세: reference.md / 예제: examples.md" 링크 추가
-6. 모든 파일은 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/ 하위 SSoT 편집
+6. 모든 파일은 ~/forge/.claude/skills/ 하위 SSoT 편집
 7. 결과: {"applied":true,"skill_lines":N,"ref_lines":N,"examples_lines":N} 반환`
 
     case 'CONVERT':
@@ -199,7 +199,7 @@ ${FORBIDDEN}
 [허용 2 변형: CLAUDE.md→Skill 변환]
 1. Read 도구로 ${item.path} 읽기
 2. 작업전용 절차 섹션 식별
-3. ${FORGE_ROOT:-$HOME/forge}/.claude/skills/ 에 새 스킬 폴더 생성 (간단한 SKILL.md만)
+3. ~/forge/.claude/skills/ 에 새 스킬 폴더 생성 (간단한 SKILL.md만)
 4. 원본 CLAUDE.md에서 해당 섹션 제거 + 스킬 참조 링크 추가
 5. 결과: {"applied":true,"new_skill":"str","from":"str","summary":"str"} 반환`
 
@@ -215,7 +215,7 @@ archive 경로: ${archiveBase}
 3. ⚠️ CRITICAL — forge-sync 삭제 미전파 FIX:
    스킬 폴더인 경우 mirror orphan 제거 필수:
    skillName=$(basename "${item.path}")
-   python3 -c "import shutil,os; mirror=os.path.expanduser('$HOME/.claude/skills/' + '$skillName'); shutil.rmtree(mirror) if os.path.exists(mirror) else print('no mirror')"
+   python3 -c "import shutil,os; mirror=os.path.expanduser('~/.claude/skills/' + '$skillName'); shutil.rmtree(mirror) if os.path.exists(mirror) else print('no mirror')"
 4. 결과: {"applied":true,"archived_to":"str","mirror_removed":bool,"summary":"str"} 반환`
 
     default:
@@ -233,7 +233,7 @@ ${FORBIDDEN}
 1. Read 도구로 ${item.path}/SKILL.md 읽기
 2. description에 "쓰지 말아야 할 때" 또는 "When NOT to use" 섹션이 없으면 추가
 3. description 문자열이 너무 넓으면 (기준: 300자+) — 더 구체적으로 수정
-4. Edit 도구로 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/${item.path.split('/skills/')[1]?.split('/')[0] || ''}/SKILL.md 수정
+4. Edit 도구로 ~/forge/.claude/skills/${item.path.split('/skills/')[1]?.split('/')[0] || ''}/SKILL.md 수정
 5. 결과: {"applied":true,"guard_added":bool,"desc_shortened":bool} 반환
 `
 
@@ -278,7 +278,7 @@ ${JSON.stringify(applyResults.filter(Boolean).map(r => r?.path || r?.from || r?.
 1. 편집된 파일의 YAML frontmatter 유효성 (name/description 필수 필드 존재)
 2. 이동(MOVE)된 파일이 대상 경로에 존재하는지 Bash ls로 확인
 3. archive된 파일이 archive 경로에 존재하는지 확인
-4. mirror orphan 제거 확인: 삭제한 스킬이 $HOME/.claude/skills/ 에 없는지 확인
+4. mirror orphan 제거 확인: 삭제한 스킬이 ~/.claude/skills/ 에 없는지 확인
 5. SKILL.md 분할(SPLIT) 시 reference.md/examples.md 존재 확인
 6. 원본 파일에서 이동된 섹션이 제거되었는지 Read로 확인
 
@@ -301,10 +301,10 @@ ${JSON.stringify(applyResults.filter(Boolean).map(r => r?.path || r?.from || r?.
   // After 상태 측정
   () => agent(
     `After 상태 측정. Bash 도구:
-wc -l $HOME/.claude/rules/*.md | tail -1
-ls $HOME/.claude/skills/ | wc -l
-find $HOME/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
-find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+wc -l ~/.claude/rules/*.md | tail -1
+ls ~/.claude/skills/ | wc -l
+find ~/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
 결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"claude_md_lines":N}`,
     {
       label: 'after-state',
@@ -392,18 +392,18 @@ diff: ${JSON.stringify(diff)}
 
 ## ⑦ smoke-test 6개
 아래 6가지 Bash로 직접 확인하고 결과 표시:
-1. $HOME/.claude/rules/*.md 존재 확인: ls $HOME/.claude/rules/*.md | wc -l → 0이면 FAIL
-2. 주요 스킬 SKILL.md frontmatter 검증: python3 $HOME/.claude/skills/skill-creator/scripts/quick_validate.py $HOME/.claude/skills/cr-multi
-3. hooks 미수정 확인: ls -la $HOME/.claude/hooks/ | md5sum (before/after 같으면 OK)
+1. ~/.claude/rules/*.md 존재 확인: ls ~/.claude/rules/*.md | wc -l → 0이면 FAIL
+2. 주요 스킬 SKILL.md frontmatter 검증: python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py ~/.claude/skills/cr-multi
+3. hooks 미수정 확인: ls -la ~/.claude/hooks/ | md5sum (before/after 같으면 OK)
 4. archive 복구 가능 확인: ls "${archiveBase}" 2>/dev/null && echo "ARCHIVE_OK" || echo "ARCHIVE_EMPTY"
-5. mirror orphan 부재 확인: archive한 스킬이 $HOME/.claude/skills/ 에 없는지 확인
-6. forge-sync 안내: echo "forge-sync 재실행 필요: node $HOME/.claude/scripts/forge-sync.mjs sync"
+5. mirror orphan 부재 확인: archive한 스킬이 ~/.claude/skills/ 에 없는지 확인
+6. forge-sync 안내: echo "forge-sync 재실행 필요: node ~/.claude/scripts/forge-sync.mjs sync"
 
 ⚠️ smoke-test 실패 항목은 즉시 명시.
 
 [forge-sync 안내]
 적용 완료 후 forge-sync 재실행 권장:
-\`node $HOME/.claude/scripts/forge-sync.mjs sync\`
+\`node ~/.claude/scripts/forge-sync.mjs sync\`
 (archive 이동/SSoT 편집이 mirror에 반영됨)`,
   { label: 'report', phase: 'Report' }
 )

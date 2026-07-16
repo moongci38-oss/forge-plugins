@@ -49,8 +49,8 @@ def _check_ralph_hook() -> bool:
         return True
     # 방법 2: settings.json 파일만 체크 (SubagentStop hook registration 위치)
     settings_files = [
-        os.path.expanduser("$HOME/.claude/settings.json"),
-        os.path.expanduser("${FORGE_ROOT:-$HOME/forge}/.claude/settings.json"),
+        os.path.expanduser("~/.claude/settings.json"),
+        os.path.expanduser("~/forge/.claude/settings.json"),
     ]
     for p in settings_files:
         if os.path.isfile(p):
@@ -62,8 +62,8 @@ def _check_ralph_hook() -> bool:
     # 방법 3: hooks 디렉토리의 top-level *.sh / *.json 파일명만 확인 (recursive 금지)
     import glob as _glob
     hook_dirs = [
-        os.path.expanduser("$HOME/.claude/hooks"),
-        os.path.expanduser("${FORGE_ROOT:-$HOME/forge}/.claude/hooks"),
+        os.path.expanduser("~/.claude/hooks"),
+        os.path.expanduser("~/forge/.claude/hooks"),
     ]
     for hook_dir in hook_dirs:
         for pattern in ("*.sh", "*.json"):

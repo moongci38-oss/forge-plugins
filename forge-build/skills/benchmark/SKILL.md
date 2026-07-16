@@ -177,5 +177,5 @@ Agent(
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: sequential (git stash/checkout 직렬 필수).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/benchmark/workflow.js"), args: { branch, baseline } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/benchmark/workflow.js"), args: { branch, baseline } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 /benchmark 방식 fallback.

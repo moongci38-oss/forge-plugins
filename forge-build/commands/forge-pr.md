@@ -18,7 +18,7 @@ PR 생성 단독 실행. `/sdd` Phase 5 분리 명령 (AD-46).
 | cr-final(Step 3) | **Opus**+Codex+Gemini | Claude 레그 Sonnet 고정(degrade=Opus+Gemini) |
 | 고위험 결정 advisor(BOUNDARY·scope-drift·봇충돌) | **Opus** | `advisor-strategist` — advisory only |
 
-근거: `$HOME/.claude/rules/model-routing.md`. ⚠️ **forge-pr advisor는 Opus 고정 — Fable 자동분기 없음**(Fable 자동은 forge-fix T4 한정, forge-pr은 Human 수동 전용, `model-routing.md` Fable 카브아웃). Human 명시 요청 시에만 Fable.
+근거: `~/.claude/rules/model-routing.md`. ⚠️ **forge-pr advisor는 Opus 고정 — Fable 자동분기 없음**(Fable 자동은 forge-fix T4 한정, forge-pr은 Human 수동 전용, `model-routing.md` Fable 카브아웃). Human 명시 요청 시에만 Fable.
 
 ## 선적 전 체크리스트 (Pre-ship) — AI-instruction 전용 (기계적 강제 없음)
 
@@ -44,7 +44,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
 감지 시 → 해당 정보 마스킹 후 재생성. STOP 불가.
 
-미충족 항목 → [STOP] 해소 후 진행. override 필요 시 → `$HOME/.claude/rules-on-demand/verification-overrides.md` 참조.
+미충족 항목 → [STOP] 해소 후 진행. override 필요 시 → `~/.claude/rules-on-demand/verification-overrides.md` 참조.
 
 ## 브랜치 완료 시 4-Choice 메뉴
 
@@ -133,7 +133,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
    **`--cr <on|degrade|off>` 인자** (Codex 비용 통제 게이트):
    ```
-   MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "$CR_ARG")
+   MODE=$(~/forge/shared/scripts/cr-mode.sh "$CR_ARG")
    # 우선순위: --cr 인자 > $FORGE_AUTO_CR 환경변수 > 기본값 on
    case "$MODE" in
      off)     echo "auto cr-final skip (cr=off). 강제: /forge-pr --cr on 또는 수동 /cr-final." ;;
@@ -307,7 +307,7 @@ accepted_by: <Human 이름 또는 AI-instruction>
 at: <YYYY-MM-DD>
 ```
 
-override 처리 → `$HOME/.claude/rules-on-demand/verification-routing.md` §Override 처리 분기 참조.
+override 처리 → `~/.claude/rules-on-demand/verification-routing.md` §Override 처리 분기 참조.
 
 ### 선행 조건
 
@@ -319,7 +319,7 @@ override 처리 → `$HOME/.claude/rules-on-demand/verification-routing.md` §Ov
 
 PR 생성 전 변경 파일 스캔 → BOUNDARY 범주 감지 시 human 승인 필수.
 
-**감지 범주** (상세: `${FORGE_ROOT:-$HOME/forge}/BOUNDARY.md`):
+**감지 범주** (상세: `~/forge/BOUNDARY.md`):
 | 범주 | 감지 패턴 |
 |------|-----------|
 | B1 DB스키마 변경 | `ALTER/CREATE/DROP TABLE`, `migrations/` 신규 파일 |

@@ -38,7 +38,7 @@ SLUG="kebab-case-summary"  # 예: token-opt-and-server-manual
 
 ```bash
 echo "$HANDOVER_CONTENT" | \
-  $HOME/.claude/scripts/handover-manager.sh write opus "$PROJECT_ROOT" "$SLUG"
+  ~/.claude/scripts/handover-manager.sh write opus "$PROJECT_ROOT" "$SLUG"
 ```
 
 - 파일 경로: `{PROJECT_ROOT}/.claude/handover/opus/{date}-{HHMM}-{slug}.md`
@@ -51,18 +51,18 @@ echo "$HANDOVER_CONTENT" | \
 
 ```bash
 echo '{"id":"L-29","date":"2026-05-07","category":"...","summary":"...","trigger":"...","apply":"...","evidence":"..."}' | \
-  $HOME/.claude/scripts/handover-manager.sh learn-append "$PROJECT_ROOT"
+  ~/.claude/scripts/handover-manager.sh learn-append "$PROJECT_ROOT"
 ```
 
 별도 flock으로 동시 append race 차단.
 
 **+ pge-failure 후보 큐 처리 (compounding)**: 핸드오버에 `pge-failure 후보:` 가 있으면 → `learnings.sh` 헬퍼로 반영 (sanitize·collision-id·validate 자동):
 ```bash
-bash $HOME/.claude/scripts/learnings.sh append --category pge-failure \
+bash ~/.claude/scripts/learnings.sh append --category pge-failure \
   --summary "<무엇을 하려다 / 왜 막혔나 1줄>" --apply "<향후 PGE에서 이 접근 회피 — 대안 1줄>" \
   --evidence "<PGE 보고서 경로 또는 사이클 요약>"
 ```
-→ 보고에 `📌 learnings 신규: <id>`. (없으면 skip.) 헬퍼 규약: `$HOME/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션.
+→ 보고에 `📌 learnings 신규: <id>`. (없으면 skip.) 헬퍼 규약: `~/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션.
 
 ### 4.5. DO/DON'T + 실패한 시도 inline 추출 (P3 Continuity Spine — M13)
 
@@ -77,14 +77,14 @@ handover 작성 중 inline으로 수행 (추가 LLM 호출 0, H4):
 **B. 실패한 시도와 이유**
 handover `## 실패한 시도와 이유` 섹션에 기록:
 - 형식: `- 시도: {무엇} → 실패: {증상} → 이유: {원인} → 교훈: {다음 세션 지침}`
-- 섹션 형식 상세: `$HOME/.claude/rules-on-demand/handover-template.md` §추가 필수 섹션 참조
+- 섹션 형식 상세: `~/.claude/rules-on-demand/handover-template.md` §추가 필수 섹션 참조
 
 ### 5. Memory / Rule 업데이트
 
 | 발견 유형 | 저장 위치 |
 |-----------|-----------|
-| 설계 원칙·패턴 | `$HOME/.claude/projects/*/memory/` |
-| 재발 방지 규칙 | `$HOME/.claude/rules/` 또는 `rules-on-demand/` |
+| 설계 원칙·패턴 | `~/.claude/projects/*/memory/` |
+| 재발 방지 규칙 | `~/.claude/rules/` 또는 `rules-on-demand/` |
 
 ### 6. Obsidian 업데이트 (해당 시)
 
@@ -98,8 +98,8 @@ handover `## 실패한 시도와 이유` 섹션에 기록:
 
 ```bash
 # 플러그인 설치 검사
-if ls $HOME/.claude/plugins/installed_plugins.json 2>/dev/null && \
-   grep -q "claude-md-management" $HOME/.claude/plugins/installed_plugins.json; then
+if ls ~/.claude/plugins/installed_plugins.json 2>/dev/null && \
+   grep -q "claude-md-management" ~/.claude/plugins/installed_plugins.json; then
   /claude-md-management:revise-claude-md
   # → 세션 분석 → 갱신 후보 제시 → 사용자 승인 후 CLAUDE.md edit
 else

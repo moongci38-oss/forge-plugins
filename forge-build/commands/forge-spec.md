@@ -17,7 +17,7 @@ Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 | 탐색(기존 spec/ADR 충돌·데이터 스키마 확인) | **Haiku** | `Agent(model:"haiku")` subagent |
 | 고위험 전략 자문(범위/NFR) | **Opus** | `advisor-strategist`(기존 배선) |
 
-근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
+근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
 
 ## Phase-hard-gate (GS-B20)
 
@@ -37,7 +37,7 @@ Phase-hard-gate 순서:
      - codex 가용 + FAIL 반환 → Spec 재작성 후 재통과 필수 (blocking 유지)
      - codex/MCP 미가용(도구 부재·인증 실패 등) → fail-open + WARN
        ("Codex 미가용 → advisory로 강등, 수동 리뷰 권고") 명시 후 Phase 진행
-       (근거: `$HOME/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
+       (근거: `~/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
      ↓
   4. [STOP] Human 승인
      ↓
@@ -165,6 +165,7 @@ derive 확인 예시:
      - 근거(1줄): LLM이 신뢰성 있게 틀리는 지점 = 비-happy-path UI 상태·ARIA — 리뷰 시점엔 그럴듯해 보이나 배포 후 실패로 드러난다. 그래서 이 항목들은 암묵 전제가 아니라 §2.6 측정가능성 AC 차원으로 명시돼야 한다.
      - 위 4상태·접근성 항목 중 AC에 누락된 것 발견 시 → WARN + "UI-상태 갭: FR-NNN → {누락 상태/축} 미기재" 명시. BLOCK 아님(§2.6 기존 톤 유지).
      - Phase 0.7 FE 실측 구조(§실측 컴포넌트/스타일)와 상호보완 — 실측이 "무엇이 있는가"를 박제한다면, 이 서브체크는 "그 화면의 어떤 상태까지 검증 대상인가"를 측정가능하게 만든다.
+  5. **시각 바인딩 서브체크 (F3, WARN-우선 — 2026-07-16)**: UI/연출 포함 Spec은 작성 전 `forge-spec-visual-binding.md`(on-demand 룰)를 명시 Read하고, 작성 완료 후 `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/check-visual-binding.sh <spec-path>` 실행. 판정기 = 기준 SSoT(디자인 토큰 실질 행 수 + FR 실참조 + FR-기획서 매핑 — 기준을 문서에 복제하지 않는다). WARN → 토큰/매핑 보강 후 재실행. UI 무표면 Spec은 `디자인 토큰: 해당 없음` 1줄 선언(SKIP). 룰 파일 부재 시 forge-workflow.md 폴백 규약(WARN 1줄 후 진행) 적용 — 침묵 통과 금지.
 - 끊긴 노드 발견 시 → WARN 보고(BLOCK 아님) + "완결성체인 갭: FR-NNN → predicate 미작성" 명시
 - 프론트 프로젝트: oracle-manifest.json 생성 또는 갱신 제안
 
@@ -250,7 +251,12 @@ AI 기능 없는 Spec은 섹션 생략 허용.
 **M7 EXIT self-check** (`/readiness-gate §M7`): P4 EXIT 항목 전수 확인 → `forge-spec-exit-readiness-{date}.md` 자동생성. FAIL = [STOP] + 보강 작업지시.
 - **EXIT ② 판정 강화(measurability 결속)**: `/readiness-gate` P4 EXIT ②("FR 전수 acceptance_predicate")는 존재 여부만 확인하므로 "정상 작동" 같은 비측정 predicate로도 통과 가능 — 갭. forge-spec 실행 시 이 항목은 **존재 확인 + Phase 2.6 측정가능성 통과(비측정 predicate WARN 건수 = 0)**를 모두 충족해야 PASS로 인정한다. Phase 2.6에서 발생한 측정가능성 WARN이 1건이라도 남아있으면 EXIT ②는 FAIL 처리 → [STOP] + 해당 FR predicate 구체화 후 재통과 필수.
 
-**[STOP] Human 검토 + 승인**
+**[STOP] Human 검토 + 승인 — M1 Intent-Lock**
+- AI는 승인 요청과 함께 **4줄 계약** 제시: ①이 기능이 보장하는 동작 ②왜(비즈니스/시스템 이유) ③시스템 어디에 어떻게 붙나 ④핵심 결정·트레이드오프.
+- Human에게 본인 말 restate 또는 교정을 요청한다. restate 후의 짧은 긍정("ㅇㅇ")은 유효 승인.
+- restate 없이 승인만 오면 **차단하지 않되(WARN-first)** spec 헤더에 `intent: unconfirmed` 표기 + `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/complement-protocol.jsonl`에 `{ts, mech:"M1", event:"intent_unconfirmed", spec, session}` append (기록 실패해도 진행 — fail-open).
+- restate 수신 시 `event:"restate_received"` append + spec 헤더 `intent: confirmed`.
+- kill: 사용자가 "M1 끄자" 한마디면 이 절차 skip (행동 규율 — env 불필요).
 - Spec 승인 없이 `/forge-implement` 진입 금지 (PHASE4-IRON-1)
 
 ## 다음 단계

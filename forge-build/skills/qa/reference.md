@@ -580,7 +580,7 @@ healer 분담: 병렬 | 순차
 
 **evaluator-contract.json 자동 생성**:
 ```bash
-python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/contract-gen.py \
+python3 ~/forge/.claude/skills/qa/scripts/contract-gen.py \
   --plan docs/qa/{date}-bug-fix-plan.md \
   --scenarios docs/qa/scenarios-filtered.md \
   --scope {scope}
@@ -715,8 +715,8 @@ gh pr create \
   --base develop \
   --head "${QA_BRANCH}"
 
-bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/ci-wait.sh "${QA_BRANCH}"
-bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/codex-cr-final.sh "${PR_BODY_PATH}"
+bash ~/forge/.claude/skills/qa/scripts/ci-wait.sh "${QA_BRANCH}"
+bash ~/forge/.claude/skills/qa/scripts/codex-cr-final.sh "${PR_BODY_PATH}"
 gh pr merge --squash --delete-branch
 git checkout develop && git pull
 git worktree prune
