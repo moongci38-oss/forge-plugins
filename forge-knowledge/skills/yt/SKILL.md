@@ -482,3 +482,9 @@ Agent(
 피드백 루프:
 - PASS → 파이프라인 계속
 - FAIL → 재작업 후 1회 재실행. 2회 연속 FAIL 시 [STOP] Human 에스컬레이션
+
+## Gotchas (흔한 실패 패턴 — 실증만, 증거 링크 의무)
+
+- **GTC 기구현 확인을 Glob(파일명)만으로 단정 금지** — 스킬/스크립트 '내용 grep' 없이 "미적용 갭"으로 단정해 false gap 2연속 발생. 내장 기능·런타임 기능은 파일명에 안 보인다. (증거: learnings `L-20260703T015846-3a9960f3`, `L-20260712T031446`)
+- **yt/ 폴더는 gitignore 상태에서 SKILL.md만 grandfathered tracked** — 신규 참조 파일(reference.md 등)을 폴더에 추가하면 커밋이 조용히 차단된다. 분할 배치 전 `.gitignore` 선확인. (증거: learnings `L-20260705T131617-185f0342`)
+- **Notion 인증 실패 시 즉시 Tier 2(index.json) 전환** — 질문 대기 금지. (증거: `~/.claude/rules/tool-rules.md §Notion 인증 실패`)
