@@ -1,5 +1,5 @@
 ---
-description: Sonnet 세션 종료 — 구현 결과 인수인계 + 실전 교훈 업데이트
+description: "Sonnet 세션 종료 — 구현 결과 인수인계 + 실전 교훈 업데이트. 트리거: "세션 종료", "end-sonnet", 구현 완료 후 handover 작성 시."
 group: ops
 ---
 

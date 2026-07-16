@@ -1,7 +1,6 @@
 ---
 name: screenshot-analyze
-description: 게임/웹/앱 스크린샷(UI, HUD, 이펙트 프레임, 경쟁작, 구현 검증)을 Gemini Vision으로 분석하여 UI 구조/컬러 팔레트/구현 가이드를 생성하는 스킬. 정적 이미지 분석 전문. MAS P1+ (2026-05-25): Codex Vision 우선 (GPT-5 Vision), Gemini Flash 폴백. 정확도 우선 결정.
-user-invocable: true
+description: "스크린샷(UI·HUD·이펙트·경쟁작)을 Vision 모델로 분석해 UI 구조·컬러 팔레트·구현 가이드를 만든다. 사용자가 화면 이미지를 첨부하거나 경쟁작 화면 분석을 요청할 때 사용한다."
 context: fork
 model: sonnet
 ---
@@ -87,7 +86,7 @@ model: sonnet
 > 스킬 문서의 출력 규격과 Gemini에 보내는 프롬프트가 일치해야 한다.
 
 > **모델**: `--extract` 모드 → `GEMINI_MODEL=gemini-3.1-pro-preview` 고정 (정밀도 최우선)
-> 기본 분석 → `gemini-2.5-flash` (기존 유지)
+> 기본 분석 → `gemini-3.5-flash` (기존 유지)
 
 모든 분석 유형에 공통으로 포함되는 **분해 규칙 블록**:
 
@@ -326,7 +325,7 @@ bash $HOME/.claude/scripts/analyze-screenshot.sh \
 
 **모델 선택** (환경변수 `GEMINI_MODEL`):
 ```bash
-# 기본: gemini-2.5-flash (빠르고 저렴)
+# 기본: gemini-3.5-flash (빠르고 저렴)
 # 고품질: gemini-2.5-pro (정밀 분해, 복잡한 UI)
 GEMINI_MODEL=gemini-2.5-pro bash $HOME/.claude/scripts/analyze-screenshot.sh ...
 ```

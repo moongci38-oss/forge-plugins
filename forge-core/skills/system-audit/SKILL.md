@@ -1,11 +1,7 @@
 ---
 name: system-audit
-description: >
-  6축 통합 시스템 감사 (ACHCE+Redundancy). Agentic/Context/Harness/Cost/Human-AI 5개 축 +
-  Redundancy(중복/drift 감지) 병렬 스폰, 3-LLM adversarial 검증(Claude+Codex+Gemini 2/3 합의),
-  Lead 종합 + 축간 트레이드오프 + 통합 개선 로드맵을 생성한다.
+description: "6축 통합 시스템 감사(Agentic·Context·Harness·Cost·Human-AI + 중복). 전체 AI 시스템 역량 점검을 요청할 때 사용한다. 하네스 슬림화만 원하면 harness-legacy-scan."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: opus
 ---

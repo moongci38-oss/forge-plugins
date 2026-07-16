@@ -1,9 +1,10 @@
 ---
 name: learn
-description: 프로젝트별 세션 간 학습을 축적·검색·활용하는 스킬. "이전에 이 패턴으로 해결했다"를 AI가 기억. learnings.jsonl에 저장하여 다음 세션에서 자동 참조.
-user-invocable: true
+description: "세션 간 학습을 learnings.jsonl에 축적·검색한다. 시행착오를 겪어 재발을 막아야 할 때, 또는 과거에 같은 문제를 어떻게 풀었는지 확인할 때 사용한다."
 context: fork
 model: haiku
+allowed-tools: Read, Bash, Glob, Grep
+argument-hint: save "<내용>" | search "<키워드>" | gc [--apply] | list [--tag <태그>]
 ---
 
 **역할**: 당신은 프로젝트별 세션 간 학습을 축적·검색·활용하는 학습 관리자입니다.

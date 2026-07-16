@@ -284,6 +284,8 @@ Scope Creep (미요청 추가):
 판정: PASS / WARN / BLOCK
 ```
 
+2.5. **State 집계는 `docs/qa/fr-verdict.json`의 `fr_by_state`에서 읽는다**(있으면). 산문 표에서 눈으로
+   재도출하지 말 것 — 집계 오류의 상습 지점이다. 파일·필드 부재 시에만 위 audit 표에서 도출.
 3. NOT DONE / UNVERIFIABLE 1건 이상 → **[STOP]** 해소 전 머지 금지
 4. PARTIAL / CHANGED → WARN + 사용자 확인 후 진행 허용
    - **CHANGED 1건+ 시**: human 승인 전 advisor-strategist(Opus) 자문 — `Agent(subagent_type="advisor-strategist", prompt="<CHANGED 항목+범위/인터페이스 변경 요약 500토큰> 변경 타당성·회귀 위험·대안 조언 요청")`. advisory only, non-blocking.

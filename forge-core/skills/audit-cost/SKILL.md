@@ -1,10 +1,7 @@
 ---
 name: audit-cost
-description: >
-  AI 비용 효율 감사. 모델 라우팅, 프롬프트 캐싱, 배치 처리, 토큰 예산 관리,
-  RouteLLM/CEBench 기준으로 비용 최적화 현황을 평가한다.
+description: "AI 비용 효율(모델 라우팅·프롬프트 캐싱·배치·토큰 예산)을 감사한다. 비용 최적화 점검을 요청할 때 사용한다."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: sonnet
 ---

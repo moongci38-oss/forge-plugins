@@ -1,10 +1,7 @@
 ---
 name: audit-context
-description: >
-  컨텍스트 엔지니어링 역량 감사. 컨텍스트 구성 체크리스트(7개 레이어), RAG 성숙도, 메모리 시스템,
-  컨텍스트 실패 패턴(Clash/Rot)을 평가한다.
+description: "컨텍스트 엔지니어링 역량(7레이어·RAG 성숙도·메모리·Context Rot)을 감사한다. 컨텍스트 설계 점검을 요청할 때 사용한다."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: sonnet
 ---

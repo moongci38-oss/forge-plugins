@@ -1,10 +1,7 @@
 ---
 name: audit-agentic
-description: >
-  에이전틱 AI 역량 감사. 자율성, 도구 사용, 멀티에이전트 조정을
-  Anthropic Composable Patterns 기준으로 평가한다.
+description: "에이전틱 역량(자율성·도구 사용·멀티에이전트 조정·성숙도)을 감사한다. 에이전트 설계 점검을 요청할 때 사용한다."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: sonnet
 ---

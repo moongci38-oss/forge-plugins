@@ -1,6 +1,6 @@
 ---
 description: Forge Dev P5 진입 — Spec 기준 구현 + 빌드/린트 통과 게이트.
-argument-hint: "[--spec <path>]"
+argument-hint: "[--spec <path>] [--coder claude:tier|codex:tier|sol|terra|luna|ab] [--advisor sol|terra|opus|fable]"
 group: implement
 model: sonnet
 ---
@@ -19,6 +19,7 @@ Check 5.x(5/5.5/5.6/5.7/**5.8**/5.9 — pipeline.md §Phase 5 참조) 생략 금
 | 작업 | 모델 | 방법 |
 |------|------|------|
 | 구현 본체(코드 작성·편집·리팩터·테스트) | **Sonnet** | 커맨드 frontmatter `model: sonnet`(실행자 계층) |
+| 구현 본체 **--coder 지정 시** | claude:tier / **Codex(gpt-5.x)** / ab | `coder-model-resolve.sh` 라우팅(DMC 트랙C). Codex=mcp workspace-write+worktree |
 | 탐색·검색(기계적 grep/glob/파일 위치) | **Haiku** | `Agent(model:"haiku")` subagent |
 | 중요 의사결정 자문(§3.5 advisor) | **Opus** | `advisor-strategist` |
 | 리뷰 판정(Check 5.7-X cr-triple) | **Opus**+Codex+Gemini | Claude 레그 Sonnet 고정 |
@@ -228,6 +229,29 @@ Agent(
 ```
 
 → 400~700토큰 조언 수령 후 구현 진행. 조언은 advisory — 실행자가 최종 판단.
+
+### 3.6. 구현 실행자 라우팅 (--coder, DMC 트랙C — 2026-07-15)
+
+`--coder <spec>` 지정 시 구현 본체를 Claude/Codex/ab로 라우팅. **미지정 = 기존 Sonnet(frontmatter) 유지**(무변경).
+
+```bash
+CODER_SPEC="${CODER_ARG:-}"   # --coder 값 파싱. 없으면 기존 동작.
+[ -n "$CODER_SPEC" ] && MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")
+```
+
+- **미지정** → 기존 Sonnet 구현 (무변경, no-op).
+- **claude:tier** → `Agent(model=sonnet|opus|fable)`로 구현.
+- **codex:tier** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=worktree, model=$MODEL). 단:
+  - **Unity/게임 프로젝트 감지**(`ProjectSettings/ProjectVersion.txt` 존재) → **Claude 폴백**. Codex는 Linux 샌드박스라 Unity batchmode 불가(실측 확정 2026-07-15: Unity Windows 전용).
+  - **시크릿 마스킹**: Codex diff·출력을 표시·머지 전 `secret-content-scan.sh` 경유(LN-03).
+  - **advisor tier-gate (2026-07-16)**: `GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")`. **`skip`**(구현자≥Opus: sol/terra/opus/fable) → §3.5 strategic advisor **생략**(하위 Opus가 상위 구현자 훈수하는 tier 역전 방지). **`advise`**(구현자<Opus) → advisor 발동 + **그 400~700토큰 조언을 Codex 프롬프트에 주입**(Codex는 메인 컨텍스트 미상속 → 명시 주입해야 실효). ⚠️ **bounding/STOP(T3 plateau·thrash 캡)·T4(비가역) 자문은 tier 무관 항상 유지**(제어 기능이지 capability 경쟁 아님).
+- **--advisor 오버라이드 (2026-07-16)**: `--advisor <spec>`(sol/terra/opus/fable)로 advisor 모델을 경우별 선택. `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → 결과가 gpt/codex면 **`mcp__codex__codex`(sandbox=read-only)로 advisor 스폰**(sol/terra, Plus 정액=무료·독립 관점), claude면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`(opus/fable). 미지정=현행(Opus + tier-gate). ⚠️ **독립성: advisor 벤더 ≠ 구현자 벤더 권고**(같은 벤더=자기훈수 무의미 → Codex 구현엔 opus/fable advisor, Claude 구현엔 sol/terra advisor). fable은 **현재 구독 정액(종량 아님, 2026-07-16 사용자 확인)**이라 sol과 동급으로 자유 선택 가능(advisor-model-resolve 가드=kill-switch·가용성 폴백만 유지).
+- **coder-attribution (기계 강제)**: 구현 직후 `coder-attribution.sh write "$WORKTREE" "$MODEL"` → 검수 진입 시 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")` 결과를 cr-* 에 `--cr $MODE`로 전달(codex 구현→`degrade`=codex 레그 배제 / 그 외→`on` / 무마커→`on` fail-open). 구현자≠검수자 산문 아닌 스크립트 강제.
+- **ab** → claude:high + codex:max 두 레그 각 worktree 병렬 → Evaluator(독립) 채점 → 승자 채택.
+- **산출물 = worktree만**, 커밋·머지는 기존 MERGE-IRON-1/forge-pr 게이트 경유(우회 금지).
+- kill-switch `FORGE_DUAL_CODE=off` → codex 요청도 Claude 대체. Fail-open: Codex 미가용 → Claude(로그+경고).
+
+> Check 5.x(5.8 Spec-Conformance E2E)·qa·cr-triple 게이트는 --coder 무관 유지. Codex 구현 시 검수는 codex 레그 배제(coder-attribution). 모델 id는 `model-registry.json` SSoT(버전무관).
 
 **머지 브랜치 검증 (MERGE-IRON-1 강제)**:
 ```

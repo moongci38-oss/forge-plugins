@@ -1,13 +1,8 @@
 ---
 name: site-deep-analyze
-description: 특정 사이트 URL → 정밀 분석 → 재구현 가이드 생성. Playwright 크롤 + DOM 컴포넌트 패턴 + CSS 토큰 + API 엔드포인트 추론 + Gemini Vision 시각 분석 + Tavily 시맨틱 추출. 산출물 7종(analysis-report/screenshots/style-guide/components/api-schema/network-trace/reconstruction-spec). 코드 직접 복제 금지 — 영감 받은 자체 구현 가이드만 생성. /site-deep-analyze <URL> [options] 형식으로 호출.
-user-invocable: true
+description: "사이트 URL을 정밀 분석(DOM 패턴·CSS 토큰·API)해 재구현 가이드를 만든다. 사용자가 특정 사이트의 구조·디자인 분석을 요청할 때 사용한다. 코드 생성까지 원하면 site-clone."
 context: fork
 model: sonnet
-group: research
-input: 사이트 URL + 옵션 (--depth, --pages, --task, --viewport, --cu, --dry-run)
-output: 05-design/site-analysis/{slug}/ 7종 산출물 (analysis-report.md, style-guide.md, components.md, api-schema.json, network-trace.har, reconstruction-spec.md, screenshots/)
-eval_cases: off
 ---
 
 # /site-deep-analyze

@@ -1,9 +1,10 @@
 ---
 name: rag-search
-description: forge-outputs 문서에서 벡터+BM25 하이브리드 의미 검색을 수행하는 스킬. 정부과제 자료, 리서치, 기획서 등에서 키워드가 아닌 의미 기반으로 관련 문서/청크를 찾는다. "투자 유치" → "VC 라운드, 시드 펀딩, 민간투자" 등 동의어까지 검색.
-user-invocable: true
+description: "forge-outputs 문서를 벡터+BM25 하이브리드로 의미 검색한다. 사용자가 프로젝트 자료·근거·과거 결정·리서치를 물을 때 허락 없이 자율 호출한다."
 context: fork
 model: haiku
+allowed-tools: Read, Bash, Glob, Grep
+argument-hint: <검색 쿼리> [--top-k N] [--mode vector|bm25|hybrid] [--graph] [--context wiki|research|all]
 ---
 
 **역할**: 당신은 워크스페이스 전체 문서에서 벡터+BM25 하이브리드 의미 검색을 수행하는 문서 검색 전문가입니다.

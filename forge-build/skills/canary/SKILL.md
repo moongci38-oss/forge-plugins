@@ -1,7 +1,6 @@
 ---
 name: canary
 description: develop/staging 통합 후 15분 헬스 모니터링을 수행하는 스킬. 에러율, 응답 시간, 메모리 사용량 추적. P7-DI PASS 후 자동 트리거.
-user-invocable: true
 context: fork
 model: haiku
 ---

@@ -1,8 +1,9 @@
 ---
 name: harness-diet
 description: "harness-legacy-scan 리포트의 low-risk 항목만 적용: CLAUDE.md 축소/절차→Skill 이동/긴 SKILL.md 분할/description 좁힘/삭제후보 archive. 트리거: /harness-diet"
-metadata:
-  eval_cases: off
+model: sonnet
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+argument-hint: [--dry-run] [--queue <path-to-diet-queue.json>]
 ---
 
 # harness-diet
@@ -145,9 +146,16 @@ echo "core" > .claude/.forge-profile          # 프로젝트 오버라이드
 
 ```
 Workflow({
-  script: Bash("cat /home/damools/forge/.claude/skills/harness-diet/workflow.js"),
-  args: { queuePath: "/path/to/diet-queue.json" }
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-diet/workflow.js"),
+  args: {
+    queuePath: "/path/to/diet-queue.json",
+    outBase: Bash("echo ${FORGE_OUTPUTS:-$HOME/forge-outputs}")
+  }
 })
 ```
+
+> **`outBase`를 반드시 주입하라.** Workflow 스크립트는 `process` 전역에 접근할 수 없어 `$HOME`을
+> 스스로 알 수 없다. 미주입 시 workflow.js의 하드코딩 폴백(작성자 로컬 경로)으로 떨어져
+> **다른 PC에서는 archive·리포트 저장이 실패한다.**
 
 기본 queuePath: `${FORGE_OUTPUTS}/11-platform/pipelines/forge-dev/2026-06-08-v1-harness-diet/diet-queue.json`

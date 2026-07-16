@@ -1,7 +1,6 @@
 ---
 name: autoplan
 description: 기획서를 CEO(비즈니스)→Design(UX)→Engineering(기술) 3관점 순차 리뷰 + Synthesizer 종합 + 독립 Evaluator 검증(5-Wave)하는 스킬. Phase 3 에이전트 회의 후 자동 트리거. (적대적 Codex 검수는 cr-triple/codex-review 별도 게이트.)
-user-invocable: true
 model: sonnet
 ---
 
@@ -93,64 +92,7 @@ model: sonnet
 **입력**: 기획서 파일 Read
 **임무**: 비즈니스 관점 리뷰
 
-#### CEO 리뷰 모드 (GS-B14)
-
-호출 시 `--mode` 인자로 선택. 기본: `standard`.
-
-| 모드 | 설명 | 출력 밀도 |
-|------|------|----------|
-| `quick` | Kill Signal + 수익 모델만 확인 | 1페이지 이내 |
-| `standard` | 5축 전체 검토 | 2~3페이지 |
-| `deep` | 경쟁사 비교 + 시나리오 3종 포함 | 5페이지+ |
-| `challenge` | Premise Challenge 의무 실행 | 표준 + 도전 섹션 |
-
-#### Premise Challenge (GS-B14 — `challenge` 또는 `deep` 모드 의무)
-
-기획서의 핵심 전제 3개를 선정하여 각각 도전한다:
-
-```
-전제 1: {전제 내용}
-  도전: 이 전제가 틀렸다면? (반증 시나리오)
-  결론: [취약 / 강건 / 검증 필요]
-
-전제 2: ...
-전제 3: ...
-```
-
-전제가 취약하거나 검증 필요인 경우 → `[WARN] Premise 불안정: {내용}` 출력.
-
-#### 구현 대안 의무 (GS-B14)
-
-핵심 기능 1~3개에 대해 반드시 대안 구현 방식 1개 이상 제시:
-
-```
-기능: {기능명}
-  현재 방식: {기획서 내 방식}
-  대안: {더 단순 / 더 빠른 / 더 저렴한 방식}
-  선택 기준: {현재 방식 유지 or 대안 채택 조건}
-```
-
-#### Scope 결정 게이트 (GS-B14)
-
-Wave 0 Scope 초기 판단에서 "불가" 판정 시:
-
-```
-[STOP] Scope 초과 감지 — CEO Wave 진입 전 범위 재조정 필요
-  현재 범위: {요약}
-  팀 규모 1Sprint 한도: {추정 SP vs 가용 SP(인당 ~7SP × 팀원 수)}
-  축소 제안:
-    - 제거 가능: {기능 목록}
-    - 연기 가능: {기능 목록}
-  사용자 확인 후 재진행.
-```
-
-| 검증 항목 | 기준 |
-|----------|------|
-| 비즈니스 모델 | 수익화 경로 명확, 단가/마진 계산 |
-| 시장 적합성 | TAM/SAM/SOM 대비 제품 포지셔닝 |
-| ROI | 개발 비용 대비 기대 수익 |
-| 경쟁 우위 | 진입장벽, 차별점, MOAT |
-| Kill Signal | 시장 없음, 수익 모델 없음, 경쟁 불가 |
+> CEO 리뷰 모드 표 + Premise Challenge/구현대안/Scope게이트 템플릿 + 검증 항목표 → `reference.md §Wave 1 CEO 상세` (필요 시 Read)
 
 **출력**: `.claude/state/AUTOPLAN_CEO.md`
 - CEO 어노테이션 + [PASS]/[WARN]/[FAIL] 항목별 판정
@@ -170,60 +112,7 @@ model: sonnet
 **입력**: 기획서 파일 Read + `.claude/state/AUTOPLAN_CEO.md` Read
 **임무**: CEO 리뷰 결과를 참고하여 UX/UI 관점 리뷰 (ux-researcher 전용 UX 검증 + CRITICAL/HIGH/MEDIUM/LOW 등급)
 
-#### 7차원 0-10 채점 (GS-B15)
-
-각 차원을 0-10으로 독립 채점. 6점 미만 = [FAIL], 6-7 = [WARN], 8+ = [PASS].
-
-| 차원 | 0-10 | 기준 |
-|------|:----:|------|
-| 1. Task Flow | | 핵심 태스크 3클릭 이내 완료 가능 |
-| 2. 정보 구조 | | 내비게이션 계층 ≤ 3단계, 라벨 직관적 |
-| 3. 시각 일관성 | | 디자인 시스템/토큰 준수, 컬러·타입·스페이싱 통일 |
-| 4. 접근성 (A11y) | | WCAG 2.1 AA: 대비비 ≥ 4.5:1, 포커스 가시, aria-label |
-| 5. 반응성 | | 모바일/태블릿/데스크톱 3뷰 모두 명세 존재 |
-| 6. 에러 처리 UX | | 에러 → 원인 + 복구 경로 명시 |
-| 7. 온보딩 | | 신규 사용자 3분 내 핵심 가치 체험 가능 |
-
-**7차원 합산 (가중 평균)**: ≥ 7.0 = [PASS] / 5.0~6.9 = [WARN] / < 5.0 = Kill Signal
-
-#### AI Slop 블랙리스트 (GS-B15)
-
-기획서 UX 문구에서 아래 패턴 발견 시 [WARN] 표시:
-
-- "직관적인 인터페이스" (측정 불가 주장)
-- "사용하기 쉬운" / "간편한" (근거 없는 단언)
-- "최고의 UX" / "최상의 경험" (상대적 우열 미증명)
-- "모든 사용자를 위한" (페르소나 미정의)
-- "심플하고 직관적" (이중 슬롭)
-
-패턴 발견 시: `[WARN] AI Slop: "{문구}" — 측정 기준 또는 근거 필요`
-
-#### 인터랙션 상태 표 (GS-B15)
-
-기획서 내 핵심 UI 컴포넌트(≥3개)에 대해 5가지 상태 명세 점검:
-
-| 컴포넌트 | Idle | Loading | Success | Error | Empty |
-|---------|:----:|:-------:|:-------:|:-----:|:-----:|
-| {컴포넌트명} | ✓/✗ | ✓/✗ | ✓/✗ | ✓/✗ | ✓/✗ |
-
-✗ 항목 = [WARN] 상태 명세 누락.
-
-#### 감정 여정 검증 (GS-B15)
-
-핵심 사용자 플로우에서 감정 곡선 확인:
-
-```
-단계 1 [진입]: 기대감 → [명세 있음/없음]
-단계 2 [탐색]: 혼란/안도 → [명세 있음/없음]
-단계 3 [핵심 액션]: 성취/좌절 → [명세 있음/없음]
-단계 4 [이탈/완료]: 만족/실망 → [명세 있음/없음]
-```
-
-부정 감정(혼란/좌절/실망)이 예상되는 지점에서 완화 장치 없으면 [WARN].
-
-| 검증 항목 | 기준 |
-|----------|------|
-| Kill Signal | UX 복잡도 과다, 학습곡선 급경사, 7차원 평균 < 5.0 |
+> 7차원 0-10 채점표(합산 기준 포함) + AI Slop 블랙리스트 + 인터랙션 상태표 + 감정여정 템플릿 + Kill Signal표 → `reference.md §Wave 2 Design 상세` (필요 시 Read). 7차원 합산 기준만 요약: ≥7.0=[PASS] / 5.0~6.9=[WARN] / <5.0=Kill Signal.
 
 **디자인 레퍼런스 URL (필수 수집)**
 기획서에 아래 항목을 반드시 포함할 것:
@@ -261,29 +150,7 @@ model: sonnet
 **입력**: 기획서 파일 Read + `.claude/state/AUTOPLAN_CEO.md` Read + `.claude/state/AUTOPLAN_DESIGN.md` Read
 **임무**: 개발자 경험(DX) 관점 리뷰
 
-#### DX 3축 점검
-
-| 축 | 검증 항목 | 기준 |
-|----|---------|------|
-| **CLI/API UX** | 명령 구조 | 동사-명사 일관성, `--help` 존재, tab completion 고려 |
-| | 옵션 이름 | 직관적 약어, 충돌 없음 |
-| | 출력 형식 | 기본 human-readable, `--json` 옵션, stderr vs stdout 분리 |
-| **에러 메시지** | 에러 내용 | 원인 + 복구 방법 모두 포함 |
-| | 에러 코드 | 문서화된 에러 코드 체계 존재 |
-| | 디버그 정보 | `--verbose` / `--debug` 모드 명세 |
-| **DX 지표** | Time-to-Hello | 신규 개발자가 첫 성공 출력까지 ≤ 5분 |
-| | 문서 완성도 | 퀵스타트 + 레퍼런스 + 예제 3종 존재 |
-| | 로컬 개발 | 외부 의존 없이 로컬 실행 가능 여부 |
-
-#### 개발자 감정 여정
-
-```
-단계 1 [설치]: ≤ 3분 설치 가능? 의존성 명확?
-단계 2 [첫 실행]: Hello World까지 ≤ 5분?
-단계 3 [문서 탐색]: API Ref 위치 3클릭 이내?
-단계 4 [에러 만남]: 에러 메시지가 스스로 해결 가능?
-단계 5 [고급 사용]: 예제→커스터마이징 경로 명확?
-```
+> DX 3축 점검표(CLI/API UX·에러메시지·DX지표) + 개발자 감정여정 5단계 템플릿 → `reference.md §Wave 2.5 DevEx 상세` (필요 시 Read)
 
 각 단계에서 마찰 포인트 발견 시 [WARN].
 
@@ -304,102 +171,7 @@ model: sonnet
 **입력**: 기획서 파일 Read + `.claude/state/AUTOPLAN_CEO.md` Read + `.claude/state/AUTOPLAN_DESIGN.md` Read
 **임무**: CEO + Design 리뷰 결과를 참고하여 기술 관점 리뷰 (cto-advisor 7축: 아키텍처·API·데이터모델·보안·성능·테스트전략·기술부채)
 
-#### Step 0: 스코프 확인 + Confidence 캘리브레이션 (GS-B17)
-
-리뷰 시작 전 즉시 실행:
-
-```
-스코프 선언: {구현 범위 1줄 요약}
-스택 확인: {기술 스택 나열 — 없으면 "미명시"}
-Confidence: {1-10}
-  - 10: 기술 스택 명확 + 팀 경험 풍부
-  - 7-9: 스택 명확 but 일부 미지 영역
-  - 4-6: 핵심 기술 스택 미명시 또는 미경험 기술 다수
-  - 1-3: 기술 미명시, 구현 방식 불분명
-```
-
-Confidence < 6 → `[WARN] confidence {n}/10 — 기술 스택 보완 후 진행 권장`
-
-#### Pre-Emit (GS-B17)
-
-4-Section 리뷰 시작 전 주요 발견 예고:
-
-```
-[PRE-EMIT] 예상 주요 이슈:
-- CRITICAL: {있을 경우}
-- HIGH: {예상 항목}
-- 확인 필요: {불분명한 영역}
-```
-
-#### 4-Section 리뷰 구조 (GS-B17)
-
-**Section 1: 아키텍처 + ASCII 다이어그램**
-
-시스템 구성 요소를 ASCII 다이어그램으로 표현 (필수):
-
-```
-[Client] → [API Gateway] → [Service A]
-                         → [Service B] → [DB]
-                         → [Queue] → [Worker]
-```
-
-- 확장성: 트래픽 10x 시 병목 지점 식별
-- 유지보수성: 단일 책임 원칙 준수 여부
-- 의존 관계: 순환 의존 없음 확인
-
-**Section 2: 보안 + 데이터 모델**
-
-| 검증 항목 | 기준 |
-|----------|------|
-| 인증/인가 | OWASP A01 — Broken Access Control |
-| 입력 검증 | OWASP A03 — Injection |
-| 데이터 암호화 | PII 필드 암호화 여부 |
-| 데이터 모델 | ERD 또는 주요 엔티티 관계 명세 존재 |
-
-**Section 3: 실패 모드 분석 (GS-B17)**
-
-핵심 컴포넌트별 실패 시나리오 및 복구 경로:
-
-```
-컴포넌트: {이름}
-  실패 유형: {timeout / crash / 데이터 손실 / ...}
-  영향 범위: {서비스 X 전체 / 특정 기능만 / ...}
-  복구 경로: {retry / fallback / 수동 개입 / ...}
-  MTTR 추정: {분/시간}
-```
-
-구현 불가능한 복구 경로 → [FAIL].
-
-**Section 4: 병렬화 전략 + 일정 (GS-B17)**
-
-```
-병렬 가능 작업:
-  T1: {작업} ─┬─ T2: {작업}
-              └─ T3: {작업}
-  합류점: T4 (T2+T3 완료 후)
-
-순차 의존:
-  T5 → T6 → T7 (데이터 스키마 먼저)
-
-SP 추정:
-  전체: {N SP}
-  병렬 효율: {M%} → 실효 {K SP}
-  팀 규모 1Sprint 가용 SP 한도 내: {예/아니오}
-```
-
-#### JSONL 아티팩트 출력 (GS-B17)
-
-리뷰 완료 후 `.claude/state/AUTOPLAN_ENG_FINDINGS.jsonl`에 findings 추가:
-
-```jsonl
-{"section":"architecture","severity":"HIGH","item":"단일 장애점 발견: API Gateway에 redundancy 없음","action":"이중화 또는 health-check 추가"}
-{"section":"security","severity":"CRITICAL","item":"PII 필드 평문 저장","action":"암호화 필드 추가 또는 vault 연동"}
-```
-
-| 검증 항목 | 기준 |
-|----------|------|
-| 기술 실현성 | 기술 스택으로 구현 가능 여부 |
-| Kill Signal | 기술 불가, 일정 3배+ 초과, Confidence < 4 |
+> Step0 스코프/Confidence 템플릿 + Pre-Emit 템플릿 + 4-Section 리뷰 구조(아키텍처 ASCII·보안/데이터모델표·실패모드템플릿·병렬화템플릿) + JSONL 아티팩트 예시 + 검증항목표 → `reference.md §Wave 3 Engineering 상세` (필요 시 Read). 절차 요약: Step0(스코프+Confidence<6 WARN) → Pre-Emit 예고 → 4-Section 리뷰(아키텍처/보안·데이터모델/실패모드/병렬화) → findings를 `.claude/state/AUTOPLAN_ENG_FINDINGS.jsonl`에 append.
 
 **출력**: `.claude/state/AUTOPLAN_ENG.md`
 - Pre-Emit 요약
@@ -479,38 +251,7 @@ model: sonnet
 - `.claude/state/AUTOPLAN_SYNTHESIS.md` (내부 작업 파일)
 - `{기획서 경로}-autoplan-review.md` (최종 리뷰 리포트)
 
-```
-## Autoplan 3관점 리뷰 결과
-
-### CEO Review
-- [PASS] 비즈니스 모델: ...
-- [WARN] ROI: ...
-
-### Design Review
-- [PASS] UX 플로우: ...
-- [FAIL] 접근성: ...
-
-### Engineering Review
-- [PASS] 기술 실현성: ...
-- [WARN] 일정: ...
-
-### 충돌 사항
-- CEO vs Eng: 기능 A의 우선순위 (비즈니스 가치 높음 vs 기술 복잡도 높음)
-
-### Rubric 점수 (Lead Synthesizer 판정)
-| 항목 | 가중치 | 점수 | 비고 |
-|------|:------:|:----:|------|
-| 비즈니스 타당성 | 30% | X/100 | ... |
-| UX 실현성 | 25% | X/100 | ... |
-| 기술 실현성 | 25% | X/100 | ... |
-| 디자인 레퍼런스 완성도 | 20% | X/100 | ... |
-| **가중 합산** | 100% | X.X/100 | |
-
-### 판정: PASS / FAIL
-
-### 개선 권고사항
-- [위치]: [이유] → [방법]
-```
+> Wave 4 최종 리뷰 리포트 출력 템플릿(CEO/Design/Eng 섹션 + 충돌사항 + Rubric점수표 + 판정 + 개선권고 전문) → `reference.md §Wave 4 Synthesizer 출력 템플릿 예시` (필요 시 Read)
 
 ---
 
@@ -548,20 +289,7 @@ model: sonnet
 
 **출력**: `{기획서 경로}-autoplan-review.md` 하단에 "## Wave 5 독립 Evaluator 검증" 섹션 추가
 
-```
-## Wave 5 독립 Evaluator 검증
-
-### Lead Synthesizer 판정 검증
-- Kill Signal 재확인: [OK / ESCALATE — 이유]
-- 관대함 체크: [OK / 지적사항]
-- 충돌 해소 검증: [OK / 불충분 — 이유]
-- Rubric 독자 점수: X.X/100 (Lead: X.X/100, 차이: X점)
-
-### 최종 판정: CONFIRM PASS / CONFIRM FAIL / ESCALATE
-
-### 에스컬레이션 항목 (해당 시)
-- [항목]: [이유] → [Human 확인 필요 사항]
-```
+> Wave 5 Evaluator 검증 섹션 출력 템플릿(Lead 판정검증 + 최종판정 + 에스컬레이션항목 전문) → `reference.md §Wave 5 Evaluator 출력 템플릿 예시` (필요 시 Read)
 
 **최종 판정 기준**:
 - **CONFIRM PASS**: Rubric 차이 10점 미만, Kill Signal 없음, 충돌 해소 납득

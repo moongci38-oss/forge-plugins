@@ -1,6 +1,6 @@
 ---
 name: agent-drift-auditor
-description: "Forge Dev Check 8.9 하네스 무결성 감사. 파이프라인 내 agent drift 3종 검사 — (1) 삭제 Agent 호출 감지(subagent_type 참조 vs agents/*.md 실재 비교), (2) 중간 산출물 잔존(FR 결과 handover/docs 미기록 탐지), (3) 외부발송 전 Human 게이트(Telegram/PR/이메일 발송 코드에 [STOP] 승인 지점 여부). Check 8.5와 병렬 실행 가능. read-only grep 기반 subagent 격리. CRITICAL/HIGH → [STOP], MEDIUM → WARN. pipeline.md Check 8.9 자동 배선. 수동 호출 /agent-drift-auditor"
+description: "파이프라인의 agent drift 3종(삭제된 agent 호출·미등록 agent·모델 핀 불일치)을 감사한다. PR 머지 전 하네스 무결성을 점검할 때 사용한다."
 ---
 
 # agent-drift-auditor

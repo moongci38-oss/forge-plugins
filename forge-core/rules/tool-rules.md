@@ -41,6 +41,8 @@ IF 스킬 호출 후 맞지 않으면 → 그냥 진행 (호출 자체는 문제
 
 ## UI/UX 작업
 - 모든 UI/UX 작업의 시작점은 Claude Design (claude.ai/design)
+- 배선: `/forge-claude-design push|pull|status <project-slug>` (DesignSync 도구). 산문 아님 — 실행 경로다.
+- ⚠️ DesignSync ≠ 이미지 생성기. 디자인시스템 컴포넌트 동기화 전용. 이미지 생성은 `/generate-image`(gpt-image-1).
 - 결과물 받아서 Forge 파이프라인에 연결
 
 ## 스크립트 경로

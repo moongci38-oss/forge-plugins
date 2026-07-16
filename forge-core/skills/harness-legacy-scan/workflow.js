@@ -17,8 +17,17 @@ const _a = (typeof args === 'string')
   ? (() => { try { return JSON.parse(args) } catch (e) { return null } })()
   : (args || {})
 
-// root-cause: Workflow 스크립트는 process 전역 접근 불가(process is not defined) → 하드코딩 폴백
-const outBase = _a?.outBase || '/home/damools/forge-outputs'
+// root-cause: Workflow 스크립트는 process 전역 접근 불가(process is not defined) → $HOME을 스스로 못 읽는다.
+//   하드코딩 폴백은 작성자 로컬 경로라 **다른 PC(공개 플러그인 사용자)에서 저장이 실패**했다.
+//   → outBase 미주입 시 haiku 에이전트 1회로 런타임 해석한다. 호출자가 args.outBase를 주면 이 비용도 0.
+const outBase = _a?.outBase || (await agent(
+  `Bash 1회만 실행: echo "\${FORGE_OUTPUTS:-$HOME/forge-outputs}"
+출력된 절대경로 문자열만 path 필드에 담아 반환하라. 다른 작업 금지.`,
+  {
+    label: 'resolve-outbase', phase: 'Scan', model: 'haiku',
+    schema: { type: 'object', additionalProperties: false, properties: { path: { type: 'string' } }, required: ['path'] },
+  }
+))?.path
 const reportDir = `${outBase}/11-platform/pipelines/forge-dev/2026-06-08-v1-harness-diet`
 const reportPath = `${reportDir}/scan-report.md`
 const queuePath = `${reportDir}/diet-queue.json`
@@ -162,66 +171,113 @@ find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\;
   // ── Lens 3: Skill Quality ──────────────────────────────────────────────────
   // SKILL.md 길이·description 폭·필요성 분석 (audit-cost/audit-harness 로직을 프롬프트에 흡수 — 스킬 호출 X)
   () => agent(
-    `Forge 스킬 품질 감사. Bash + Read 도구 사용.
+    `Forge 스킬 품질 감사 — Pocock 4축(트리거/구조/유도/가지치기). Bash + Read 도구 사용.
 
-[Step 1] 스킬 목록 + 기본 지표:
-for d in $HOME/.claude/skills/*/; do
-  name=$(basename "$d")
-  skill_lines=$(wc -l < "$d/SKILL.md" 2>/dev/null || echo 0)
-  has_wf=$([ -f "$d/workflow.js" ] && echo yes || echo no)
-  desc=$(grep "^description:" "$d/SKILL.md" 2>/dev/null | head -1 || echo "")
-  eval_count=$(wc -l < "$d/eval_cases.jsonl" 2>/dev/null || echo 0)
-  echo "$name|$skill_lines|$has_wf|$desc|$eval_count"
-done
+[Step 1] 결정론 린터를 먼저 돌린다. **눈으로 세지 마라.** 판정이 흔들린다.
 
-[Step 2] description 폭 분석:
-description이 너무 넓은 스킬 = "언제 써야 하는지" 경계가 없고
-"언제 쓰지 말아야 하는지" 섹션 없음.
-기준: description에 "always", "any", "all", "whenever" 등 무한정 키워드.
+  python3 "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-lint.py" --json
 
-[Step 3] 미사용 / 저활용 스킬:
-eval_cases.jsonl가 없거나 0줄인 스킬 목록.
-(audit-cost unused 로직 흡수 — audit-cost 스킬 직접 호출 X)
+출력 스키마:
+  { "skills":[{name, violations:[{axis,severity,message}], resident_chars, body_lines, dmi, refs}],
+    "commands":[{name, violations:[...], lines}],
+    "duplicate_entry_points":[...],      // skills/ 와 commands/ 에 같은 이름 = 정답 위치가 두 곳
+    "resident_chars": N,                 // description 상시 상주 총량 (매 세션 과금)
+    "severity_counts": {...} }
 
-[Step 4] 필요성 분석:
-각 스킬이 Claude Code 제품 자체 기능으로 대체 가능한지 판단.
-(audit-harness coverage 로직 흡수 — audit-harness 직접 호출 X)
-예: "git status 실행" 지침 → Claude Code Bash 도구로 충분.
+axis 의미 (Matt Pocock, "The Missing Manual: How to Write Great Skills"):
+  TRIGGER   — description은 **항상 컨텍스트 상주**한다. disable-model-invocation:true 면 상주 0.
+              사용자가 /명령으로만 부르는 워크플로가 model-invoked면 = 순수 낭비.
+  STRUCTURE — 본문은 매번 필요한 **절차만**. 템플릿·예시·상세규칙은 별도 파일로 조건부 로드.
+  STEERING  — 모델이 학습한 고전 용어(TDD·code smell·surgical change)는 행동을 유도한다.
+              사내 코드네임(Check 8.7·AD-168·Lane A)은 모델이 모르므로 아무것도 유도하지 못한다.
+  PRUNING   — 중복(정답 위치 2곳) / 퇴적물(죽은 참조) / 무동작 문장(지워도 행동 불변).
 
-결과:
+[Step 2] 린터가 **판정할 수 없는 것만** 네가 판단하라 (린터 결과를 다시 세지 마라):
+  (a) INFO로 뜬 model-invoked 스킬 각각 — 사람이 /명령으로만 부르는가?
+      그렇다면 disable-model-invocation:true 권고 (상주 비용 → 0).
+      단 rag-search·skill-creator·번들(pptx/docx/pdf)은 자율 발동이 **의도된 것**이다. 제외하라.
+  (b) STRUCTURE HIGH로 뜬 본문 비대 스킬 — 어느 섹션(제목·행범위)을 어느 파일로 뺄지 구체적으로.
+  (c) PRUNING LOW(무동작 문장) — 실제로 지워도 행동이 안 바뀌는지 삭제 테스트로 판정.
+  (d) duplicate_entry_points 각각 — 커맨드가 얇은 래퍼(정상)인가, 절차 중복(결함)인가?
+      두 파일을 **직접 읽고** 판정하라. 내용이 어긋나면 어느 쪽이 stale인지 명시.
+
+[Step 3] Claude Code 제품 기능으로 대체 가능한 스킬 판정.
+  예: "git status 실행" 지침 → Bash 도구로 충분. (audit-harness coverage 로직 흡수)
+
+[Step 4] **미사용 판정은 3경로 합산으로만 한다. 직접 호출만 세지 마라.**
+
+  python3 "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-usage.py" --json
+
+  스킬은 최소 3경로로 불린다: ① Skill 도구 직접 호출/슬래시 ② Agent(subagent_type=…)
+  ③ 다른 스킬·커맨드·workflow.js가 내부에서 호출. **①만 세면 살아있는 스킬이 0회로 나온다.**
+  2026-07-14 실증: ①만 세어 17개를 "미사용"으로 판정했으나, 재측정 결과 cto-advisor 55곳·
+  style-forge 35곳·video-reference-guide 74곳이 파이프라인에 배선돼 있었다. 전부 오판이었다.
+
+  **usage=0을 DELETE 근거로 쓰지 마라.** 0은 "죽었다"가 아니라 "이 측정이 못 봤다"일 수 있다
+  (스케줄러·외부 트리거·프로젝트 휴지기). DELETE는 *증거로 죽음을 입증*했을 때만 —
+  참조하는 파일이 실재하지 않거나, 의존 도구·MCP가 제거됐거나, 상위 스킬이 이미 삭제된 경우.
+  단순 저사용은 DELETE가 아니라 **트리거 강등(disable-model-invocation)** 으로 처리한다 —
+  기능은 그대로 두고 상주 비용만 0이 된다.
+
+결과 JSON:
 {
-  "skills": [{
-    "name":"str","lines":N,"has_workflow":bool,
-    "description_broad":bool,"no_negative_guard":bool,
-    "eval_count":N,"product_replaceable":bool,"notes":"str"
-  }],
-  "broad_description_count": N,
-  "zero_eval_count": N,
-  "product_replaceable_count": N
-}`,
+  "lint_summary": {"resident_chars":N, "critical":N, "high":N, "medium":N},
+  "trigger_downgrade": [{"name":"str","reason":"str"}],   // dmi 권고 대상
+  "structure_split":  [{"name":"str","section":"str","lines":"str","target_file":"str"}],
+  "noop_confirmed":   [{"name":"str","line":N,"text":"str"}],
+  "duplicate_verdict":[{"name":"str","verdict":"THIN_WRAPPER|DUPLICATED|NAME_CLASH","stale_side":"str"}],
+  "product_replaceable": [{"name":"str","replaced_by":"str"}],
+  "notes":"str"
+}
+**추측 금지.** 린터가 준 수치를 그대로 쓰고, 읽지 않은 파일은 판단하지 마라.`,
     {
       label: 'skill-quality',
       phase: 'Scan',
       schema: {
         type: 'object',
         properties: {
-          skills: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                name:{type:'string'}, lines:{type:'number'}, has_workflow:{type:'boolean'},
-                description_broad:{type:'boolean'}, no_negative_guard:{type:'boolean'},
-                eval_count:{type:'number'}, product_replaceable:{type:'boolean'}, notes:{type:'string'},
-              },
-              required:['name'],
+          lint_summary: {
+            type: 'object',
+            properties: {
+              resident_chars:{type:'number'}, critical:{type:'number'},
+              high:{type:'number'}, medium:{type:'number'},
             },
           },
-          broad_description_count: { type: 'number' },
-          zero_eval_count: { type: 'number' },
-          product_replaceable_count: { type: 'number' },
+          trigger_downgrade: {
+            type: 'array',
+            items: { type:'object',
+                     properties:{ name:{type:'string'}, reason:{type:'string'} },
+                     required:['name'] },
+          },
+          structure_split: {
+            type: 'array',
+            items: { type:'object',
+                     properties:{ name:{type:'string'}, section:{type:'string'},
+                                  lines:{type:'string'}, target_file:{type:'string'} },
+                     required:['name'] },
+          },
+          noop_confirmed: {
+            type: 'array',
+            items: { type:'object',
+                     properties:{ name:{type:'string'}, line:{type:'number'}, text:{type:'string'} },
+                     required:['name'] },
+          },
+          duplicate_verdict: {
+            type: 'array',
+            items: { type:'object',
+                     properties:{ name:{type:'string'}, verdict:{type:'string'},
+                                  stale_side:{type:'string'} },
+                     required:['name'] },
+          },
+          product_replaceable: {
+            type: 'array',
+            items: { type:'object',
+                     properties:{ name:{type:'string'}, replaced_by:{type:'string'} },
+                     required:['name'] },
+          },
+          notes: { type:'string' },
         },
-        required: ['skills'],
+        required: ['lint_summary'],
       },
     }
   ),
@@ -556,7 +612,21 @@ await agent(
 [데이터]
 inventory_totals: ${JSON.stringify(inventory?.totals || {})}
 context_tax: ${JSON.stringify({ per_session_lines: contextTax?.per_session_lines, per_session_tokens_est: contextTax?.per_session_tokens_est, heavy_rules: contextTax?.heavy_rules?.length })}
-skill_quality: ${JSON.stringify({ broad: skillQuality?.broad_description_count, zero_eval: skillQuality?.zero_eval_count, product_replaceable: skillQuality?.product_replaceable_count })}
+skill_quality (Pocock 4축): ${JSON.stringify({
+  resident_chars: skillQuality?.lint_summary?.resident_chars,
+  critical: skillQuality?.lint_summary?.critical,
+  high: skillQuality?.lint_summary?.high,
+  trigger_downgrade: skillQuality?.trigger_downgrade?.length,
+  structure_split: skillQuality?.structure_split?.length,
+  noop_confirmed: skillQuality?.noop_confirmed?.length,
+  duplicate_verdict: skillQuality?.duplicate_verdict?.filter(d => d.verdict === 'DUPLICATED').length,
+  product_replaceable: skillQuality?.product_replaceable?.length,
+})}
+skill_quality_detail: ${JSON.stringify({
+  trigger_downgrade: skillQuality?.trigger_downgrade,
+  structure_split: skillQuality?.structure_split,
+  duplicate_verdict: skillQuality?.duplicate_verdict,
+})}
 product_overlap_count: ${productOverlap?.overlap_count || 0}
 safety: ${JSON.stringify({ safety_deterrent: safetyPermission?.safety_deterrent_count, theater: safetyPermission?.theater_hook_count })}
 plan_summary: KEEP=${keep} SHRINK=${shrink} MOVE=${move} SPLIT=${split} CONVERT=${convert} DELETE=${del}
@@ -566,7 +636,7 @@ adjusted_items: ${JSON.stringify(adjustedItems)}
 
 [저장 지시]
 1. Bash: mkdir -p "${reportDir}"
-2. Write 도구로 ${reportPath} 저장 — 반드시 아래 9섹션 전부 포함:
+2. Write 도구로 ${reportPath} 저장 — 반드시 아래 10섹션 전부 포함:
 
 # Forge 하네스 레거시 스캔 리포트
 생성: 2026-06-08 | 도구: harness-legacy-scan
@@ -574,8 +644,23 @@ adjusted_items: ${JSON.stringify(adjustedItems)}
 ## ① 전체 요약
 - 스킬 수 (실측): N개
 - per-session 컨텍스트: N줄 / 추정 N 토큰
+- **description 상시 상주: N자 (≈N 토큰) — 매 세션, 첫 프롬프트 전에 이미 소비**
 - 총 항목: N | KEEP N / SHRINK N / MOVE N / SPLIT N / CONVERT N / DELETE N
 - diet_auto 자동적용 후보: N개 (diet_auto=true && risk=low)
+
+## ①-b 스킬 4축 진단 (Pocock 체크리스트)
+skill_quality / skill_quality_detail 데이터를 그대로 쓴다. 눈으로 다시 세지 말 것.
+
+| 축 | 위반 | 조치 |
+|----|------|------|
+| ① 트리거 | model-invoked인데 사용자 전용 워크플로 N개 | disable-model-invocation:true → 상주 N자 절감 |
+| ② 구조 | 본문 비대 N개 | 참고자료 분리 (structure_split 표) |
+| ③ 유도 | 미정의 사내 코드네임 N종 | 고전 용어 치환 or 파일 내 1줄 정의 |
+| ④ 가지치기 | 무동작 문장 N건 / 상·하위 중복 N건 | 삭제 / 정답 위치 1곳으로 |
+
+**트리거 강등 권고 (trigger_downgrade)**: 표로 — 스킬 | 현재 상주(자) | 사유
+**상·하위 중복 (duplicate_verdict)**: 표로 — 이름 | 판정 | stale 쪽
+재현 명령: python3 shared/scripts/skill-lint.py
 
 ## ② 유지 항목 (KEEP)
 ... 표: 경로 | 목적 | 유지 이유 | 효과판정 ...

@@ -28,14 +28,32 @@ const AXIS_SCHEMA = {
   required: ['axis', 'status'],
 }
 
+// frByState = 5-state 집계. 축 판정(status)과 직교한다 — verification-routing이 머지를 이 값으로
+// 라우팅하므로(NOT_DONE/UNVERIFIABLE>0 → [STOP]) 산출물이 반드시 실어 날라야 한다.
+// 도출 규칙 SSoT = SKILL.md §FR 상태(5-state) 도출 규칙.
+const FR_BY_STATE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    DONE: { type: 'integer' },
+    PARTIAL: { type: 'integer' },
+    NOT_DONE: { type: 'integer' },
+    CHANGED: { type: 'integer' },
+    UNVERIFIABLE: { type: 'integer' },
+  },
+  required: ['DONE', 'PARTIAL', 'NOT_DONE', 'CHANGED', 'UNVERIFIABLE'],
+}
+
 const RESULT_SCHEMA = {
   type: 'object',
   properties: {
     checkId: { type: 'string' },
     status: { type: 'string', enum: ['PASS', 'WARN', 'FAIL'] },
     summary: { type: 'string' },
+    frTotal: { type: 'integer' },
+    frByState: FR_BY_STATE_SCHEMA,
   },
-  required: ['status', 'summary'],
+  required: ['status', 'summary', 'frTotal', 'frByState'],
 }
 
 const specPath = args?.specPath || '.specify/specs/'
@@ -78,9 +96,29 @@ if (axes.length < 4) log(`[WARN] axis ${axes.length}/4 — 부분 감사, 커버
 const result = await agent(
   `Spec 준수 감사 4축 결과 집계. 결과: ${JSON.stringify(axes)}. ` +
   `High FR 누락 → FAIL, Medium/Low 누락 → WARN, 전체 PASS → PASS. ` +
-  `checkId="check-8.5". summary에 전체N/구현N/테스트N/누락N 포함.`,
+  `checkId="check-8.5". summary에 전체N/구현N/테스트N/누락N 포함.\n` +
+  `추가로 FR마다 5-state를 부여해 frByState로 집계하라(도출 규칙 = SKILL.md §FR 상태(5-state) 도출 규칙):\n` +
+  `  DONE=impl+test+Wired확인 / PARTIAL=impl은 있으나 test없음 또는 stub의심 /\n` +
+  `  NOT_DONE=impl없음 / CHANGED=spec과 범위·인터페이스 다름 / UNVERIFIABLE=검증수단 부재(판정불가).\n` +
+  `frTotal=FR 총수. 불변식: sum(frByState) === frTotal. 눈으로 세지 말고 축 결과 항목에서 기계 도출하라.\n` +
+  `이 값이 머지 라우팅을 결정한다(NOT_DONE/UNVERIFIABLE>0 → 머지 금지). 관대한 DONE 부여 금지.`,
   { label: 'aggregate', phase: 'Aggregate', schema: RESULT_SCHEMA }
 )
 log(`spec-compliance ${result?.status}: ${result?.summary}`)
 
-return { checkId: 'check-8.5', status: result?.status, summary: result?.summary, axes }
+// 불변식 검사 — 집계가 깨졌으면 결과를 신뢰할 수 없다. 조용히 통과시키지 않는다.
+const byState = result?.frByState
+const stateSum = byState ? Object.values(byState).reduce((a, b) => a + b, 0) : null
+if (byState && stateSum !== result?.frTotal) {
+  log(`[FAIL] 5-state 불변식 위반: sum(frByState)=${stateSum} !== frTotal=${result?.frTotal} — 집계 오류`)
+  return {
+    checkId: 'check-8.5', status: 'FAIL',
+    summary: `5-state 집계 오류 (sum=${stateSum}, frTotal=${result?.frTotal})`,
+    frTotal: result?.frTotal, frByState: byState, axes,
+  }
+}
+
+return {
+  checkId: 'check-8.5', status: result?.status, summary: result?.summary,
+  frTotal: result?.frTotal, frByState: byState, axes,
+}

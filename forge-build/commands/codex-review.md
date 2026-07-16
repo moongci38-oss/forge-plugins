@@ -1,6 +1,6 @@
 ---
 description: OpenAI Codex 경유 2차 리뷰 게이트 (Claude 1차 리뷰 후 추가 검증). 모든 개발 단계 (plan/code/test/final/bugfix) 지원.
-argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high] [--blocking] [--cr <on|degrade|off>]"
+argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high] [--blocking] [--cr <on|degrade|off>] [--sol|--terra|--luna]"
 group: verify
 ---
 
@@ -148,13 +148,21 @@ fi
 ```bash
 # 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. config model=gpt-5.5. codex 호출 $0.
 # apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 gpt-5.5 API 가격 과금.
-MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+# --sol/--terra/--luna (Human opt-in, 2026-07-15): Codex 검수 레그 tier 승격 (model-registry SSoT).
+#   caller 인자 파싱: --sol→CODEX_TIER=max · --terra→high · --luna→low. 미지정 시 기본 gpt-5.5 유지(no-op).
+#   resolve 실패 시 fail-open → gpt-5.5 폴백. 버전무관: 모델 id는 model-registry.json이 소유.
+CODEX_TIER="${CODEX_TIER:-}"
+if [[ -n "$CODEX_TIER" ]]; then
+  MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) || MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+else
+  MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+fi
 EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
 
 # 프롬프트 stage별 선택
-PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-${STAGE}.md"
-[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="/home/damools/forge/.claude/prompts/codex-review-default.md"
+PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${STAGE}.md"
+[[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
 
 # 호출 (stdin = prompt + target)
 ( cat "$PROMPT_FILE"; echo; echo "---"; echo "## TARGET"; echo "$INPUT" ) | \

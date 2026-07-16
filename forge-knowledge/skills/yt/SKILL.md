@@ -1,12 +1,7 @@
 ---
 name: yt
-description: >
-  Performs end-to-end YouTube video analysis: extracts transcript + comments + description links
-  via yt-analyzer.py, runs AI analysis with critical evaluation, fact-checking, web research,
-  GTC verification (4-step), and ACHCE-tagged system improvement proposals. Supports multiple formats
-  (summary/timeline/mindmap/full/blog) and parallel multi-video analysis. Use with any YouTube URL.
+description: "YouTube 영상을 트랜스크립트·댓글·설명란까지 수집해 비판적 분석·팩트체크·시스템 개선 제안을 생성한다. 사용자가 YouTube URL을 보내거나 영상 분석을 요청할 때 사용한다."
 argument-hint: <YouTube-URL> [--format summary|timeline|mindmap|full|blog] [--deep]
-user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, mcp__brave-search__brave_web_search
 model: sonnet
 ---
@@ -270,45 +265,8 @@ tech 카테고리 영상이 2개 이상인 경우, 개별 분석을 종합하여
    - slug는 영상들의 공통 주제를 kebab-case로 요약 (50자 이내)
 
 **보고서 형식:**
-```markdown
-# 종합 적용 계획 보고서
-> 분석 영상: {영상 제목 목록} | 작성일: {date}
 
-## 핵심 요약
-{2-3문장: 이번 영상들에서 공통적으로 도출된 우리 시스템 개선 방향}
-
-## 영상별 주요 인사이트 종합
-| 영상 | 핵심 제안 | 우리 시스템 적용 여부 |
-|------|---------|:-----------------:|
-| 영상1 제목 | 핵심 제안 요약 | 적용/부분/미적용 |
-
-## 현재 시스템 대비 갭 분석
-| 기능/패턴 | 영상 출처 | 우리 현황 | 갭 | 영향도 | 난이도 |
-|----------|---------|---------|:--:|:----:|:----:|
-
-## 꼭 필요한 적용 항목 (선별 기준: 영향도 High + 실현 가능)
-
-### P0 — 즉시 적용 (이번 주)
-- **[시스템]** 기능명: 현황 → 변경 내용 → 기대 효과
-
-### P1 — 단기 (이번 달)
-- **[시스템]** 기능명: 현황 → 변경 내용 → 기대 효과
-
-### P2 — 중기 (다음 분기)
-- **[시스템]** 기능명: 현황 → 변경 내용 → 기대 효과
-
-## 제외 항목 (이유 포함)
-| 항목 | 제외 이유 |
-|------|---------|
-| ... | 이미 적용됨 / 영향도 낮음 / 리소스 대비 효과 낮음 |
-
-## 실행 체크리스트
-- [ ] P0 항목 (담당: Business/Portfolio/GodBlade)
-- [ ] P1 항목
-
-## 참고 영상
-{각 영상 URL 및 분석 파일 경로}
-```
+> 전체 템플릿 → `reference.md §Step 4.5 종합 적용 계획 보고서 형식` (필요 시 Read)
 
 **Notion 업로드 (Step 5와 별도):**
 - 보고서를 "YouTube 영상 분석" 페이지 하위에 별도 페이지로 생성
@@ -388,89 +346,9 @@ stale 여부 확인: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analy
 
 ## 출력 형식
 
-```markdown
-# {title}
-> {channel} | {published} | {view_count} views | {duration}
-> 원본: https://youtu.be/{video_id}
-> 자막: {자막 유형} (신뢰도 {등급})
+산출물은 title/TL;DR/카테고리/핵심 포인트/댓글 인사이트/설명란 자료/비판적 분석/팩트체크 대상·결과/웹 리서치 결과/시스템 비교 분석/필수 개선 제안(P0~P2)/실행 가능 항목/관련성/핵심 인용/추가 리서치 필요 섹션을 이 순서로 포함한다.
 
-## TL;DR
-(1-2문장)
-
-## 카테고리
-{category} | #{tags}
-
-## 핵심 포인트
-1. **포인트** [🕐 MM:SS](url?t=seconds)
-...
-
-## 댓글 인사이트
-> 상위 댓글 {N}개 분석 (총 {총댓글수})
-
-### 커뮤니티 반응 패턴
-- **동의/확인**: ...
-- **이견/반론**: ...
-- **보충 정보**: ...
-
-### 주목할 댓글
-> "댓글 내용" — 작성자 👍 N
-
-## 설명란 자료 요약
-| # | 링크 | 유형 | 핵심 내용 |
-|:-:|------|:----:|---------|
-| 1 | [제목](url) | 공식문서/블로그/논문 | ... |
-
-## 비판적 분석
-
-### 주장 1: "{핵심 주장}"
-- **제시된 근거**: ...
-- **근거 유형**: 실증/경험/의견
-- **한계**: ...
-- **반론/대안**: ...
-
-## 팩트체크 대상
-- **주장**: "..." | **검증 필요 이유**: ... | **검증 방법**: ...
-
-## 팩트체크 결과
-| # | 주장 | 판정 | 근거 |
-|:-:|------|:----:|------|
-| 1 | "..." | ✅/⚠️/❌/❓ | 출처 + 요약 |
-
-## 웹 리서치 결과
-| 주제 | 출처 | 핵심 인사이트 | 영상과의 관계 |
-|------|------|-------------|:-----------:|
-| ... | [제목](url) | ... | 일치/보완/반박 |
-
-## 시스템 비교 분석
-| 제안/발견 | 우리 현황 | 갭 | 영향도 | 난이도 |
-|----------|---------|:--:|:----:|:----:|
-| ... | 이미 적용/부분/미적용 | 구체적 갭 | H/M/L | H/M/L |
-
-## 필수 개선 제안
-
-### P0 — 즉시 적용 가능
-- **[시스템]** [개선 내용]: [현재 문제] → [제안] → [기대 효과]
-
-### P1 — 이번 주
-- ...
-
-### P2 — 이번 달
-- ...
-
-## 실행 가능 항목
-- [ ] 항목 (적용 대상: Portfolio/GodBlade/Business 명시)
-
-## 관련성
-- **Portfolio**: N/5 — 이유
-- **GodBlade**: N/5 — 이유
-- **비즈니스**: N/5 — 이유
-
-## 핵심 인용
-> "원문" — 발표자
-
-## 추가 리서치 필요
-- 주제 (검색 키워드: `keyword1`, `keyword2`)
-```
+> 전체 마크다운 템플릿(정확한 헤딩·표 컬럼) → `reference.md §출력 형식 전체 템플릿` (필요 시 Read)
 
 ## 멀티 영상 병렬 분석
 
@@ -556,23 +434,9 @@ stale 여부 확인: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analy
 
 ### 결과 합성 룰
 
-| codex 결과 | eval-rubric 결과 | 종합 verdict | 처리 |
-|-----------|----------------|------------|------|
-| PASS | PASS | **PASS** | 종결 |
-| PASS | WARN (≤1축 0점) | **WARN** | rationale 사용자 알림 |
-| PASS | FAIL (≥2축 0점) | **WARN** | 사용자 결정 게이트 (적용 전) |
-| WARN | * | **WARN** | codex WARN 우선 + rubric 보조 |
-| FAIL (c=0,h=0) | * | **WARN** | L-31 적용. rubric으로 보강 |
-| FAIL (c≥1 또는 h≥1) | * | **FAIL [STOP]** | 사용자 검토 의무 (자동 fix X) |
+codex와 eval-rubric 결과를 조합해 종합 verdict를 정한다: 둘 다 PASS면 종결, codex WARN 또는 eval-rubric FAIL 조합은 사용자 알림/게이트, codex FAIL(c≥1 또는 h≥1)이면 **FAIL [STOP]** 사용자 검토 의무.
 
-### 영역 차이 (왜 둘 다 필요한가)
-
-| 검증 | 영역 | 강점 | 약점 |
-|------|------|------|------|
-| codex-review | adversarial extension | 동일 모델 맹점 보완 (Claude/Codex 다른 모델) | 정량 점수 X |
-| eval-rubric | 다축 정량 | clarity/consistency/completeness/safety 4축 점수 | 모델 동일 (자체 편향 가능) |
-
-**상호 보완**: codex가 못 잡는 정량 측면 = eval-rubric 보강. eval-rubric이 못 잡는 적대적 견제 = codex 보강.
+> 결과 조합표 전체 + 영역 차이(codex vs eval-rubric 강점/약점) → `reference.md §호출 순서 합성 룰 상세` (필요 시 Read)
 
 ### 비활성 조건
 
@@ -582,12 +446,9 @@ stale 여부 확인: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analy
 
 ### eval_cases.jsonl 표기
 
-두 결과 모두 누적 (별도 라인):
+두 결과 모두 누적 (별도 라인, skill 필드로 구분: `yt-codex` / `yt-rubric`).
 
-```json
-{"case_id":"EC-yt-codex-1","skill":"yt-codex","target":"apply-plan.md","verdict":"PASS",...}
-{"case_id":"EC-yt-rubric-1","skill":"yt-rubric","target":"analysis.md","verdict":"WARN","scores":{...},...}
-```
+> JSON 라인 예시 → `reference.md §호출 순서 합성 룰 상세 §eval_cases.jsonl 표기` (필요 시 Read)
 
 > 출처: AD-19 (eval-rubric 시스템 통합) + AD-21 (warn 기본). 합성 룰 = 본 작업 (2026-05-11).
 

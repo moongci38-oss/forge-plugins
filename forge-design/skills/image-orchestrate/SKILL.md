@@ -1,8 +1,6 @@
 ---
 name: image-orchestrate
-description: GodBlade AI 이미지 생성 주 진입점. orchestrator.sh + nanobanana-wrapper.py (gpt-image-1 primary, nano-banana fallback) + path-safe-storage.sh + quality-check.py 래핑. Use for: (1) GodBlade game asset 이미지 생성, (2) 카테고리별 AI 이미지 생성 (character/monster/ui/background/effect), (3) /image-orchestrate <category> <name> <description> 호출. SKIP: 비-GodBlade 이미지, 일반 AI 이미지 생성 (/generate-image 사용).
-input: category (character|monster|ui|background|effect) + name + description + optional --dry-run
-output: ASSETS_ROOT/GraphicResource/AI_Generated/{Category}/{name}-{sha8}.png + cost-log entry
+description: "GodBlade 이미지 생성 주 진입점(orchestrator.sh + gpt-image-1). 게임 이미지 에셋 생성을 요청할 때 사용한다."
 ---
 
 # image-orchestrate

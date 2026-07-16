@@ -19,8 +19,17 @@ const _a = (typeof args === 'string')
   ? (() => { try { return JSON.parse(args) } catch (e) { return null } })()
   : (args || {})
 
-// root-cause: Workflow 스크립트는 process 전역 접근 불가(process is not defined) → 하드코딩 폴백
-const outBase = _a?.outBase || '/home/damools/forge-outputs'
+// root-cause: Workflow 스크립트는 process 전역 접근 불가(process is not defined) → $HOME을 스스로 못 읽는다.
+//   하드코딩 폴백은 작성자 로컬 경로라 **다른 PC(공개 플러그인 사용자)에서 archive·저장이 실패**했다.
+//   → outBase 미주입 시 haiku 에이전트 1회로 런타임 해석한다. 호출자가 args.outBase를 주면 이 비용도 0.
+const outBase = _a?.outBase || (await agent(
+  `Bash 1회만 실행: echo "\${FORGE_OUTPUTS:-$HOME/forge-outputs}"
+출력된 절대경로 문자열만 path 필드에 담아 반환하라. 다른 작업 금지.`,
+  {
+    label: 'resolve-outbase', phase: 'Prepare', model: 'haiku',
+    schema: { type: 'object', additionalProperties: false, properties: { path: { type: 'string' } }, required: ['path'] },
+  }
+))?.path
 const defaultQueuePath = `${outBase}/11-platform/pipelines/forge-dev/2026-06-08-v1-harness-diet/diet-queue.json`
 const queuePath = _a?.queuePath || defaultQueuePath
 
@@ -57,7 +66,8 @@ let queue = null
 try {
   const readResult = await agent(
     `Read 도구로 ${queuePath} 읽기.
-성공: {"ok":true,"content":"<전체 JSON 문자열>"} 반환.
+content 필드에는 **파일 원문 그대로**(최상위 키가 generated/scan_report/items인 JSON)를 문자열로 넣는다.
+이 응답 봉투({ok,content})를 content 안에 다시 넣지 마라 — 이중 래핑 금지.
 파일 없으면: {"ok":false,"content":""}`,
     {
       label: 'read-queue',
@@ -71,8 +81,13 @@ try {
     }
   )
   if (readResult?.ok && readResult.content) {
-    queue = JSON.parse(readResult.content)
-    log(`[Queue] ${queue.items?.length || 0}개 항목 로드 (scan: ${queue.scan_report || 'unknown'})`)
+    // 에이전트가 응답 봉투를 content 안에 다시 넣는 경우가 있다(이중 래핑) → 최대 3겹까지 벗긴다
+    let parsed = JSON.parse(readResult.content)
+    for (let i = 0; i < 3 && parsed && !Array.isArray(parsed.items) && typeof parsed.content === 'string'; i++) {
+      parsed = JSON.parse(parsed.content)
+    }
+    queue = parsed
+    log(`[Queue] ${queue?.items?.length || 0}개 항목 로드 (scan: ${queue?.scan_report || 'unknown'})`)
   }
 } catch (e) {
   log(`[FAIL] diet-queue.json 읽기 실패: ${e?.message || e}`)

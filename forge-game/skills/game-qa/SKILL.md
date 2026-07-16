@@ -1,7 +1,6 @@
 ---
 name: game-qa
-description: "Unity 게임 클라이언트 + 게임 서버 QA 자동화 (AD-93 W5: Phase A~H 정합). GodBlade/바둑이/맞고 전용. Unity MCP run_tests + .NET bot 빌드 + 소켓 스모크 + C# 정적분석. /qa Phase A~H와 동일 패턴 — 자동 브랜치 / bug-report 6하원칙+Failure Attribution / healer 라우팅 / cr-* / develop 자동 머지."
-role: orchestrator
+description: "Unity 게임 클라이언트와 게임 서버 QA를 자동화한다. 게임 빌드 검증이나 게임 QA를 요청할 때 사용한다."
 ---
 
 # game-qa — 게임 프로젝트 QA (Phase A~H 정합)

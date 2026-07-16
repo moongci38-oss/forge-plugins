@@ -1,7 +1,6 @@
 ---
 name: game-asset-generate
-description: 게임 에셋(스프라이트, VFX, 배경, 3D, UI, 아이콘, 오디오)을 대량 생산하는 오케스트레이터. Library-First 탐색으로 MCP 비용을 절감하고, 12요소 Soul 프롬프트와 모델 어댑터(FLUX/Gemini/Replicate)로 품질을 극대화한다. style-guide.md가 준비된 후 게임 에셋 생성 시 사용. 리소스 파이프라인 P3 단계. MAS P1: + Codex image_gen 직접 생성 지원 (NanoBanana 병행).
-user-invocable: true
+description: "게임 에셋(스프라이트·VFX·배경·3D·UI·아이콘·오디오)을 대량 생산한다. style-guide.md가 준비된 뒤 게임 에셋 생성을 요청할 때 사용한다."
 context: fork
 model: sonnet
 paths:
@@ -126,8 +125,8 @@ paths:
       └─ Replicate: {trigger_word} + 스타일 키워드 (150토큰 이내)
 
  8. MCP 도구 호출 → 에셋 생성
-    → 주 도구: `mcp__nano-banana__generate_image` (Gemini 기반, 기본)
-    → 편집 모드: `mcp__nano-banana__edit_image` (원본 이미지 변형)
+    → 주 도구: `/generate-image` 커맨드 호출 (gpt-image-1 primary + Gemini 폴백)
+    → 편집 모드: `mcp__plugin_forge-core_gemini__generate_image` (Gemini edit — gpt-image-1 래퍼는 편집 미지원, 편집은 Gemini가 유일 수단)
     → 생성 실패 시 → 폴백 도구로 자동 전환 + Human 알림
     → 다중 생성: 같은 프롬프트로 3장 생성 (T1/T2 에셋)
 
@@ -259,7 +258,7 @@ python -m asset_injector \
 
 ```
 Step 1 [분석]: 원본 이미지 → JSON 속성 추출
-  → mcp__nano-banana__edit_image로 원본 분석 요청
+  → mcp__plugin_forge-core_gemini__generate_image(edit)로 원본 분석 요청
   → 프롬프트: "Analyze this image and describe: dominant colors (hex),
     material/texture, pattern, shape, lighting, background"
   → 출력: image_attributes (색상, 재질, 패턴, 형태, 조명, 배경)
@@ -270,7 +269,7 @@ Step 2 [치환]: 속성 JSON에서 변경 대상만 교체
   → 색상은 반드시 Hex Code (#RRGGBB)로 지정
 
 Step 3 [재생성]: 원본 이미지 + 치환된 속성으로 편집
-  → mcp__nano-banana__edit_image 호출 (원본 이미지 + 편집 프롬프트)
+  → mcp__plugin_forge-core_gemini__generate_image(edit) 호출 (원본 이미지 + 편집 프롬프트)
   → 프롬프트: "Keep the exact same {유지 속성}. Change only: {변경 속성}"
   → Step 9 6축 독립 Evaluator 검증 (기존 파이프라인 유지)
 ```

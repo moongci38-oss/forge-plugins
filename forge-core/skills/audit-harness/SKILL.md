@@ -1,10 +1,7 @@
 ---
 name: audit-harness
-description: >
-  AI 하네스 엔지니어링 감사. Check Chain, OWASP Agentic Top 10,
-  가드레일 패턴, Hook 커버리지를 기준으로 측정·제어 역량을 평가한다.
+description: "AI 하네스(체크체인·가드레일·훅 커버리지·OWASP Agentic)를 감사한다. 하네스 역량 점검을 요청할 때 사용한다."
 argument-hint: "[target: system|{project-name}]"
-user-invocable: true
 context: fork
 model: sonnet
 ---

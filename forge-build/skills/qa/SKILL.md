@@ -1,8 +1,6 @@
 ---
 name: qa
-description: QA 전 사이클 오케스트레이터 (AD-93 Phase A~H). spec FR 기반 시나리오 전수→버그 발견(Phase A~C, Lane B) — 발견된 버그는 Lane A(/forge-fix ①~④)로 위임 수정·검수→develop 자동 머지→Wiki 축적. 스코프 지정 가능 (--scope=full|domain|file-pattern) + Phase C.5 spec-code 방향판별 게이트.
-role: orchestrator
-user-invocable: true
+description: "QA 전 사이클 오케스트레이터 — spec FR 기반 시나리오 전수 → 버그 발견 → 수정 → 재검증. 구현 완료 후 E2E 검증이 필요할 때 사용한다."
 model: sonnet
 ---
 
