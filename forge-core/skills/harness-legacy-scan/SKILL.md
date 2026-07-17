@@ -10,7 +10,8 @@ argument-hint: [--scope rules|skills|hooks|all]
 
 **역할**: Forge 하네스(rules/skills/hooks/agents/commands/CLAUDE.md) 슬림화 전용 읽기전용 감사기.  
 **컨텍스트**: `/harness-legacy-scan` 호출 시. 하네스가 비대해졌다고 느낄 때, context-tax 줄이고 싶을 때.  
-**출력**: 9섹션 스캔 리포트 + diet-queue.json.
+**출력**: 9섹션 스캔 리포트 + diet-queue.json.  
+**입력 신호**: 최근 harness-gaps 리포트(`reviews/*harness-gaps*.md` 최신 8개)를 스캔 전 자동 요약해 Lens 5/6/7에 주입 — 실발화 결함(반복 FP=과차단 근거)·긍정 확인(실효 입증=KEEP 근거)을 정적 추정보다 우선 (2026-07-17 배선, fail-open).
 
 ## 쓰지 말아야 할 때
 

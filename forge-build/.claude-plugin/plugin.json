@@ -1,6 +1,6 @@
 {
   "name": "forge-build",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "Forge 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수). SDD 본류.",
   "author": {
     "name": "forge"
