@@ -1,7 +1,7 @@
 ---
 description: Resume previous session from last checkpoint
 allowed-tools: Bash, Read, Write
-argument-hint: [session-name] or --all to list sessions
+argument-hint: "[session-name] or --all to list sessions"
 model: sonnet
 group: ops
 ---

@@ -15,11 +15,12 @@ export const meta = {
 // 내부도구 ROI 관점(과대엔지니어링 경계 유지, 분산시스템 정답 ≠ SME 정답).
 const ROI_CONTEXT = '중소규모 조직(SME, 5인+ 확장 전제) · 멀티세션 · 내부도구 ROI 관점(과대엔지니어링 경계 유지, 고정 인원 절대기준 아님)'
 
-const URL = args?.target_url
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const URL = _a?.target_url
 if (!URL) throw new Error('args.target_url 필수 (git clone 대상 외부 레포 URL)')
-const NAME = (args?.target_name || String(URL).replace(/\/+$/, '').split('/').pop() || 'external').replace(/[^A-Za-z0-9._-]/g, '-')
+const NAME = (_a?.target_name || String(URL).replace(/\/+$/, '').split('/').pop() || 'external').replace(/[^A-Za-z0-9._-]/g, '-')
 const SRC = `/tmp/ehs-${NAME}-src`
-const SEED_PATH = args?.seed_path || ''
+const SEED_PATH = _a?.seed_path || ''
 const DEPTH = 'exhaustive'
 
 const SCOUT = {

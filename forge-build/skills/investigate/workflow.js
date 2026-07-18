@@ -11,9 +11,10 @@ export const meta = {
   ],
 }
 
-const issue = args?.issue || ''
-const target = args?.target || '.'
-const skipVerify = args?.skipVerify || false  // Stage 3 skip → human이 직접 verify 선택
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const issue = _a?.issue || ''
+const target = _a?.target || '.'
+const skipVerify = _a?.skipVerify || false  // Stage 3 skip → human이 직접 verify 선택
 
 const RAG_SCHEMA = {
   type: 'object',

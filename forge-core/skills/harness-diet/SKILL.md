@@ -3,7 +3,7 @@ name: harness-diet
 description: "harness-legacy-scan 리포트의 low-risk 항목만 적용: CLAUDE.md 축소/절차→Skill 이동/긴 SKILL.md 분할/description 좁힘/삭제후보 archive. 트리거: /harness-diet"
 model: sonnet
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
-argument-hint: [--dry-run] [--queue <path-to-diet-queue.json>]
+argument-hint: "[--dry-run] [--queue <path-to-diet-queue.json>]"
 ---
 
 # harness-diet

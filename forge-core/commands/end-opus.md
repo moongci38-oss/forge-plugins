@@ -1,5 +1,5 @@
 ---
-description: "Opus 세션 종료 — 아키텍처 결정·전략 인수인계 + 장기기억 업데이트. 트리거: "전략 세션 종료", "end-opus", ADR 작성 완료 후, Sonnet 큐 handover 생성 시."
+description: "Opus 세션 종료 — 아키텍처 결정·전략 인수인계 + 장기기억 업데이트. 트리거: \"전략 세션 종료\", \"end-opus\", ADR 작성 완료 후, Sonnet 큐 handover 생성 시."
 group: ops
 ---
 

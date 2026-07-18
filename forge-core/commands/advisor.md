@@ -1,5 +1,5 @@
 ---
-description: Opus를 advisor로 Sonnet/Haiku 실행자와 결합 호출 (API + advisor_20260301 tool) MAS P1: +Codex critic 추가.
+description: "Opus를 advisor로 Sonnet/Haiku 실행자와 결합 호출 (API + advisor_20260301 tool) MAS P1: +Codex critic 추가."
 argument-hint: "<task 설명> [파일 경로]"
 group: ops
 ---

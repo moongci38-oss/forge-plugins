@@ -1,6 +1,6 @@
 ---
 name: api-e2e
-description: REST API 엔드포인트 HTTP 레벨 E2E 자동 테스트. Spec 또는 OpenAPI(Swagger) YAML/JSON을 읽어 엔드포인트별 테스트 케이스(happy path/인증 실패/잘못된 입력/경계값)를 자동 생성하고 curl로 실행한다. 응답 스키마를 OpenAPI 스펙과 대조해 드리프트를 감지한다. /qa 스킬이 서버/API 프로젝트 감지 시 자동 트리거. 직접 호출: /api-e2e <spec-path> [--base-url http://localhost:3000]
+description: "REST API 엔드포인트 HTTP 레벨 E2E 자동 테스트. Spec 또는 OpenAPI(Swagger) YAML/JSON을 읽어 엔드포인트별 테스트 케이스(happy path/인증 실패/잘못된 입력/경계값)를 자동 생성하고 curl로 실행한다. 응답 스키마를 OpenAPI 스펙과 대조해 드리프트를 감지한다. /qa 스킬이 서버/API 프로젝트 감지 시 자동 트리거. 직접 호출: /api-e2e <spec-path> [--base-url http://localhost:3000]"
 context: fork
 model: sonnet
 ---

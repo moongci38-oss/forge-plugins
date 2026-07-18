@@ -56,8 +56,10 @@ const RESULT_SCHEMA = {
   required: ['status', 'summary', 'frTotal', 'frByState'],
 }
 
-const specPath = args?.specPath || '.specify/specs/'
-const branch = args?.branch || 'HEAD'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
+const specPath = _a?.specPath || '.specify/specs/'
+const branch = _a?.branch || 'HEAD'
 
 // ── Phase 1: Audit (4축 parallel) ─────────────────────────────────────────────
 phase('Audit')

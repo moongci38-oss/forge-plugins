@@ -29,7 +29,9 @@ const EVAL_SCHEMA = {
   required: ['verdict', 'score'],
 }
 
-const requirement = args?.requirement || ''
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
+const requirement = _a?.requirement || ''
 
 // ── Phase 1: Plan ───────────────────────────────────────────────────────────
 phase('Plan')

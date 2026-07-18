@@ -24,10 +24,12 @@ const VISION_SCHEMA = {
   required: ['description'],
 }
 
-const imagePath = args?.imagePath || ''
-const intent = args?.intent || 'UI 스크린샷 분석 — 요소 추출 + 이슈 탐지'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
+const imagePath = _a?.imagePath || ''
+const intent = _a?.intent || 'UI 스크린샷 분석 — 요소 추출 + 이슈 탐지'
 // root-cause: crMode default flip 'on'→'degrade' (fail-safe Codex-off, 2026-06-15)
-const crMode = args?.crMode || 'degrade'
+const crMode = _a?.crMode || 'degrade'
 const prompt = `${intent}. 이미지: ${imagePath}. description + elements + issues + verdict 반환.`
 
 // ── Phase 1: Analyze (Codex Vision → Gemini fallback) ────────────────────────

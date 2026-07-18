@@ -1,6 +1,6 @@
 ---
 name: healer
-description: QA 버그 리포트 기반 자동 버그 수정 에이전트. Use proactively after QA bug report generation (Phase 2 완료 후) — 버그별 TDD red-green 사이클 실행: 재현(RED)→근본원인 분석→외과적 수정→코드리뷰(blocking)→재현(GREEN, 브라우저 스크린샷)→회귀체크→영구 회귀테스트화. 전역캡: 6사이클/same-issue 3x/회귀감지 즉시 STOP.
+description: "QA 버그 리포트 기반 자동 버그 수정 에이전트. Use proactively after QA bug report generation (Phase 2 완료 후) — 버그별 TDD red-green 사이클 실행: 재현(RED)→근본원인 분석→외과적 수정→코드리뷰(blocking)→재현(GREEN, 브라우저 스크린샷)→회귀체크→영구 회귀테스트화. 전역캡: 6사이클/same-issue 3x/회귀감지 즉시 STOP."
 tools: Read, Write, Edit, Bash, Grep, Glob, mcp__gitnexus__impact, mcp__gitnexus__context, mcp__gitnexus__query, mcp__gitnexus__detect_changes, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__read_console_messages, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__tabs_context_mcp
 model: sonnet
 ---

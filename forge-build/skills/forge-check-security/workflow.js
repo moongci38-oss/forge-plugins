@@ -29,7 +29,8 @@ const REPORT_SCHEMA = {
   required: ['verdict', 'report'],
 }
 
-const target = args?.target || '.'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const target = _a?.target || '.'
 
 const SCANS = [
   { id: 'S1', name: '하드코딩 시크릿', desc: 'password/secret/api_key 하드코딩 grep (CRITICAL)' },

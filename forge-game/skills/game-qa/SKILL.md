@@ -36,6 +36,7 @@ run_tests(testPlatform: "editmode")
 
 get_console_logs(logType: "Error")
 → NullReferenceException / SocketException / ProtocolError 목록
+→ **console_clean 판정**: QA 시작 시 이 호출로 콘솔 에러 기준선을 캡처하고, QA 종료 시 동일 호출로 재캡처해 diff한다. 기준선 대비 신규 에러 0건 = PASS(console_clean), 1건+ = 리포트 "콘솔 에러" 섹션에 기록 후 FAIL/WARN 판정에 반영.
 
 # UI 버그 의심 시
 capture_screenshot()          → docs/qa/artifacts/game-shot-{N}.png
@@ -45,6 +46,8 @@ get_scene_summary()           → 씬 상태 스냅샷
 **MCP 프리플라이트**: MCP 도구 호출 전 엔진 브리지 헬스를 curl 1콜로 확인 (예: `curl -s -o /dev/null -w '%{http_code}' --max-time 2 <MCP endpoint>`). DOWN이면 툴 타임아웃을 기다리지 말고 즉시 사용자에게 에디터 기동 요청.
 
 **인게임 E2E 프로브 (런타임 GREEN 증거)**: 정적 검사·테스트가 전부 PASS여도 런타임 연출/표시 버그는 못 잡는다. 프로젝트 스코프 레시피가 있으면 로드해 따른다 — 예: GodBlade `src/.claude/rules/unity-e2e-probe.md` (Play 진입 → 이벤트 기반 UI 클릭 → 마커 로그 프로브(씬 저장 금지·종료 시 회수·씬 diff 0 확인) → 스크린샷 → DB 실측(DESCRIBE 먼저)). 엔진·UI 프레임워크 구현 디테일은 프로젝트 룰이 정본 — 이 스킬에 하드코딩하지 않는다.
+
+**팝업 해소 루프 (시나리오 진입 전 표준 선행 스텝)**: 자정 경과 등으로 출석·일일 보상 팝업이 스택으로 쌓이면 E2E 내비게이션이 막힌다. 시나리오 진입 직전 "팝업 감지(`get_scene_summary()`/`capture_screenshot()`) → 닫기 클릭 → 재확인" 루프를 최대 5회 반복한다. 5회 후에도 팝업이 남으면 [STOP] — 팝업 종류·스크린샷 첨부해 Human 확인 요청(무한 루프 금지).
 
 **MCP 없는 경우** (ToolSearch("unity run_tests") 결과 없음): Unity CLI 폴백.
 

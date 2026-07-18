@@ -9,7 +9,8 @@ export const meta = {
   ],
 }
 
-const project = args?.project || ''
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const project = _a?.project || ''
 
 const DETECT_SCHEMA = {
   type: 'object',

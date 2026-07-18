@@ -1,5 +1,5 @@
 ---
-description: 비즈니스 아이템 후보를 5 신호로 검증해 실패 위험 최소화. Reject 룰 4 + Moat 4종 + Mike Hill 5 원칙 + 카테고리별 옵션. 산출물은 Obsidian forge-vault 적재. MAS P1: 50p+ 시장 리포트 → Gemini Pro 장문 분석 자동 라우팅.
+description: "비즈니스 아이템 후보를 5 신호로 검증해 실패 위험 최소화. Reject 룰 4 + Moat 4종 + Mike Hill 5 원칙 + 카테고리별 옵션. 산출물은 Obsidian forge-vault 적재. MAS P1: 50p+ 시장 리포트 → Gemini Pro 장문 분석 자동 라우팅."
 allowed-tools: Read, Write, WebSearch, WebFetch, Glob, Grep, Task, Skill, Bash, mcp__brave-search__*, mcp__tavily__*, mcp__exa__*
 argument-hint: "<후보 한 줄>"
 model: sonnet

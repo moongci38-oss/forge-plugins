@@ -1,5 +1,5 @@
 ---
-description: Forge Dev P5 Check P5.6 UI/UX 품질 검수 — 독립 실행 MAS P1+ (2026-05-25): + Codex Vision 우선 (정확도), Gemini Vision 폴백.
+description: "Forge Dev P5 Check P5.6 UI/UX 품질 검수 — 독립 실행 MAS P1+ (2026-05-25): + Codex Vision 우선 (정확도), Gemini Vision 폴백."
 allowed-tools: Bash, Read, Grep, Glob, ToolSearch
 model: sonnet
 group: verify

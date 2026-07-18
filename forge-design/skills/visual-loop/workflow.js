@@ -20,8 +20,10 @@ const DIFF_SCHEMA = {
   required: ['viewport', 'matchScore', 'converged'],
 }
 
-const designRef = args?.designRef || ''
-const implUrl = args?.implUrl || 'http://localhost:3000'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
+const designRef = _a?.designRef || ''
+const implUrl = _a?.implUrl || 'http://localhost:3000'
 const viewports = [
   { name: 'mobile', w: 375 },
   { name: 'tablet', w: 768 },

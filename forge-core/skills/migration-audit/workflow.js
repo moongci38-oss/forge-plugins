@@ -11,15 +11,17 @@ export const meta = {
   ],
 }
 
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
 // args = { legacyPath, migratedPath, stack='node-nest', scope='full', fix='off'|'propose'|'auto', crMode='on'|'degrade'|'off' }
 // root-cause: crMode gate — degrade/off skips codex-critic Phase 4 spawn to allow cost/availability fallback
-const legacyPath = args?.legacyPath || ''
-const migratedPath = args?.migratedPath || ''
-const stack = args?.stack || 'node-nest'
-const scope = args?.scope || 'full'
-const fixMode = args?.fix || 'off'
+const legacyPath = _a?.legacyPath || ''
+const migratedPath = _a?.migratedPath || ''
+const stack = _a?.stack || 'node-nest'
+const scope = _a?.scope || 'full'
+const fixMode = _a?.fix || 'off'
 // root-cause: crMode default flip 'on'→'degrade' (fail-safe Codex-off, 2026-06-15)
-const crMode = args?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제)
+const crMode = _a?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제)
 
 if (!legacyPath || !migratedPath) {
   log('[STOP] legacyPath + migratedPath 필수 (args.legacyPath / args.migratedPath)')

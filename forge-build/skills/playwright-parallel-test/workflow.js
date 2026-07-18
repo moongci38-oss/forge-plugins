@@ -18,7 +18,9 @@ const TEST_SCHEMA = {
   required: ['verdict','failCount'],
 }
 
-const baseUrl = args?.baseUrl || 'http://localhost:3000'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
+const baseUrl = _a?.baseUrl || 'http://localhost:3000'
 
 // ── Phase 1: Test (3개 parallel()) ───────────────────────────────────────────
 phase('Test')

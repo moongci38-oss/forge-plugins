@@ -17,28 +17,30 @@ export const meta = {
   ],
 }
 
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
 // ── 기존 인자 (무변경) ──────────────────────────────────────────────────────────
-const scope = args?.scope || 'full'
-const mode = args?.mode || 'full'  // 'full' | 'hotfix'
+const scope = _a?.scope || 'full'
+const mode = _a?.mode || 'full'  // 'full' | 'hotfix'
 // root-cause: crMode gates Phase F Codex spawn. 'degrade'/'off' → skip codex-critic, not an error.
-const crMode = args?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제) | 'on' | 'off'
+const crMode = _a?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제) | 'on' | 'off'
 // root-cause: P-7 loop-until-dry opt-in greybox. loopUntilDry=false 기본 — 기존 Phase C 동작 100% 보존.
-const loopUntilDry = args?.loopUntilDry === true || args?.loopUntilDry === 'on'
-const dryK = Math.max(1, Math.min(5, parseInt(args?.dryK) || 2))
+const loopUntilDry = _a?.loopUntilDry === true || _a?.loopUntilDry === 'on'
+const dryK = Math.max(1, Math.min(5, parseInt(_a?.dryK) || 2))
 // root-cause: P-3 prLanes opt-in greybox — 독립 bug(worktree 격리 = 의존0)을 배리어 없는 pipeline()
 //   fix→verify 레인으로. 기본 off → 기존 Phase E parallel 배리어 + Phase F 순차 100% 보존.
 //   독립 판정 SSoT = P-1 의존그래프(fr-lanes.py). worktree 격리가 머지충돌 0 보장(Phase E 기존 주석).
-const prLanes = args?.prLanes === true || args?.prLanes === 'on'
+const prLanes = _a?.prLanes === true || _a?.prLanes === 'on'
 
 // ── 신규 4축 인자 (2026-07-06, 전부 optional·fail-open) ─────────────────────────
 // scope 콤마 파싱(plan §목표1) — 명시 --domains 없으면 --scope csv가 도메인 목록으로 쓰인다.
 const scopeCsv = scope.split(',').map(s => s.trim()).filter(Boolean)
-const appArg = args?.app || null            // 'all' | 'portal' | 'opstool' | undefined(CWD 자동감지)
-const domainsArg = args?.domains || null    // 'all' | 'a,b,c' | undefined
-const accountsArg = args?.accounts || null  // 'admin,partner' | undefined
-const exhaustiveMode = args?.exhaustive === true || args?.exhaustive === 'on'
+const appArg = _a?.app || null            // 'all' | 'portal' | 'opstool' | undefined(CWD 자동감지)
+const domainsArg = _a?.domains || null    // 'all' | 'a,b,c' | undefined
+const accountsArg = _a?.accounts || null  // 'admin,partner' | undefined
+const exhaustiveMode = _a?.exhaustive === true || _a?.exhaustive === 'on'
 // A5(2026-07-07): report-only — 발견+리포트만, PR/CI/머지 생략. admin-api류 dev머지=STG배포 위험 회피.
-const reportOnly = args?.reportOnly === true || args?.reportOnly === 'on' || args?.['report-only'] === true
+const reportOnly = _a?.reportOnly === true || _a?.reportOnly === 'on' || _a?.['report-only'] === true
 // 4축 중 하나라도 명시되면 매트릭스 경로 진입 — 전부 미지정이면 기존 단일 scope 경로(신규 agent 호출 0건, 회귀0).
 const useMatrix = Boolean(appArg || domainsArg || accountsArg || exhaustiveMode)
 

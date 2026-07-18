@@ -30,9 +30,10 @@ const VERDICT_SCHEMA = {
   required: ['verdict'],
 }
 
-const healthUrl = args?.healthCheckUrl || 'http://localhost:3000/api/health'
-const duration = args?.duration || 15
-const env = args?.env || 'develop'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const healthUrl = _a?.healthCheckUrl || 'http://localhost:3000/api/health'
+const duration = _a?.duration || 15
+const env = _a?.env || 'develop'
 
 // ── Phase 1: Monitor (3종 parallel) ───────────────────────────────────────────
 phase('Monitor')

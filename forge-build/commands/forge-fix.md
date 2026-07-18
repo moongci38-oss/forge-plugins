@@ -1,7 +1,7 @@
 ---
 description: 버그 수정 통합 파이프라인 단일 진입점 — 4-스테이지(조사·재현→리포트→수정→검수) + 게이트 R/G 강제, 실브라우저·실DB 검증 항상 강제 (plan v1.1, 2026-07-03)
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
-argument-hint: "<버그 설명>" | --scan <URL> | --loop "<종료조건>" | [--coder claude:tier|codex:tier|sol|terra|luna|ab] [--advisor sol|terra|opus|fable]
+argument-hint: "\"<버그 설명>\" | --scan <URL> | --loop \"<종료조건>\" | [--coder claude:tier|codex:tier|sol|terra|luna|ab] [--advisor sol|terra|opus|fable]"
 model: sonnet
 group: implement
 ---
@@ -69,7 +69,7 @@ group: implement
       (`healer-log-read-required.sh` 배선 — PreToolUse Edit/Write 훅, current-bug 귀속 + fix_started_at 이전 신선도 검사, Tier-E day-1 hard-block. surface=ui는 screenshot+console.json+network.json playwright 실측까지 포함)
     - **red_symptom_observed 필드(Batch 1-2, 2026-07-10)**: RED = **리포트 증상 문구와 대응하는 관측**이다(fop `red.symptom_observed`, optional 필드). "코드가 이렇게 생겼다" 같은 정적 코드 관찰은 `hypothesis` 태그 — **RED 자격 없음**, GREEN 판정 근거에서 제외. 판정 기준 = `rules-on-demand/bug-feedback-loop.md`의 red-capable 정의(중복 정의 금지 — 그 문서가 SSoT).
     - **AMBIGUOUS 라우팅 시 advisor 자문(T1)**: 초기 증거로 근본원인 가설이 좁혀지지 않으면(AMBIGUOUS) → `/investigate` 선행 라우팅 직전 `Agent(subagent_type="advisor-strategist", prompt="<증상+가설후보+검증현황 500토큰> 조사 접근·가설 방향 조언 요청")` 스폰. advisor 조언(400~700토큰)을 investigate 가설 우선순위에 반영 후 재개. 근본원인이 이미 명확한 SIMPLE 버그는 스폰하지 않는다(비용 방지 — 매 버그 자동 호출 금지).
-    - **버그-클래스 discriminator(WARN, 프로덕션 결함 vs 테스트/mock drift)**: RED 재현 확보 직후, 실패 원인이 (a) 프로덕션 코드 결함인지 (b) 테스트/mock이 스키마·계약 변경을 못 따라간 drift(프로덕션은 정상)인지 조사 초기에 판별한다. 판별 근거: 실패 assertion이 참조하는 계약(API 응답 스키마·DB 컬럼·이벤트 페이로드)을 최근 프로덕션 커밋이 의도적으로(feat/fix/refactor 커밋 메시지) 변경했고 프로덕션 코드는 신규 계약대로 정상 동작하는데 테스트/mock만 구계약을 기대하면 (b)로 판정 — qa Phase C.5 `spec-code-discriminate.sh`(spec↔code 방향 판별: git 커밋 타임스탬프·커밋유형 시그널로 IMPL_GAP/SPEC_STALE_CANDIDATE/AMBIGUOUS 판정, `${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-code-discriminate.sh`)의 판별 패턴을 개념적으로 준용한다(대상이 spec↔code가 아니라 프로덕션↔테스트라 스크립트 재사용은 아님 — 판별 체크리스트만 차용). (b) 판정 시 ③ 진입 대상을 프로덕션 코드 수정이 아니라 테스트/mock 갱신으로 전환한다 — 정상 프로덕션 코드를 되돌리는 회귀를 방지. 판별 모호(AMBIGUOUS) 시 안전 기본값은 조사 지속(추측 라우팅 금지). 선례: blog-search 버그(f03dc7e)는 실제로 (b) mock drift였고 RED 재현이 우연히 프로덕션 코드 교정으로 이어졌다가 ce04bf4에서 mock 쪽으로 재보정된 사례 — 동일 오분류 재발 방지 목적.
+    - **버그-클래스 discriminator(WARN, 프로덕션 결함 vs 테스트/mock drift)**: RED 재현 확보 직후, 실패 원인이 (a) 프로덕션 코드 결함인지 (b) 테스트/mock이 스키마·계약 변경을 못 따라간 drift(프로덕션은 정상)인지 조사 초기에 판별한다. 판별 근거: 실패 assertion이 참조하는 계약(API 응답 스키마·DB 컬럼·이벤트 페이로드)을 최근 프로덕션 커밋이 의도적으로(feat/fix/refactor 커밋 메시지) 변경했고 프로덕션 코드는 신규 계약대로 정상 동작하는데 테스트/mock만 구계약을 기대하면 (b)로 판정 — qa Phase C.5 `spec-code-discriminate.sh`(spec↔code 방향 판별: git 커밋 타임스탬프·커밋유형 시그널로 IMPL_GAP/SPEC_STALE_CANDIDATE/AMBIGUOUS 판정, `${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-code-discriminate.sh`)의 판별 패턴을 개념적으로 준용한다(대상이 spec↔code가 아니라 프로덕션↔테스트라 스크립트 재사용은 아님 — 판별 체크리스트만 차용). (b) 판정 시 ③ 진입 대상을 프로덕션 코드 수정이 아니라 테스트/mock 갱신으로 전환한다 — 정상 프로덕션 코드를 되돌리는 회귀를 방지. 판별 모호(AMBIGUOUS) 시 안전 기본값은 조사 지속(추측 라우팅 금지). 선례: blog-search 버그(f03dc7e)는 실제로 (b) mock drift였고 RED 재현이 우연히 프로덕션 코드 교정으로 이어졌다가 ce04bf4에서 mock 쪽으로 재보정된 사례 — 동일 오분류 재발 방지 목적. **게임 도메인 확장(버그 vs 의도설계)**: 게임 도메인은 확률·꽝·페널티가 의도된 설계인 경우가 많아 무보상/실패 경로를 버그로 단정하기 전 기획 확률 테이블 실측이 선행되어야 한다. 선례: NewGacha 꽝(무보상) 경로를 버그로 오판할 뻔했으나 코드·확률 패턴테이블 실측으로 설계 동작임을 확증(godblade, 2026-07-18).
 
 ② 리포트   [bug-report 흡수]
     - 6하원칙(누가/언제/어디서/무엇을/어떻게/왜) bug-fix-plan.md 작성

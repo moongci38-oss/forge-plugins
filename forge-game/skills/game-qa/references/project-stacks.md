@@ -20,7 +20,7 @@
 
 ---
 
-## 바둑이 (Baduggi) — `/mnt/e/new_workspace/boardGames/baduggi/`
+## 바둑이 (Baduggi) — `/mnt/e/new_workspace/boardGames/baduggi/` (경로 미검증 2026-07-18 — 해당 머신 세션에서 실측 필요)
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|
@@ -33,7 +33,7 @@
 
 ---
 
-## 맞고 (MatGo) — `/mnt/e/new_workspace/boardGames/matgo/`
+## 맞고 (MatGo) — `/mnt/e/new_workspace/boardGames/matgo/` (경로 미검증 2026-07-18 — 해당 머신 세션에서 실측 필요)
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|
@@ -45,13 +45,15 @@
 
 ---
 
-## GodBlade — `/mnt/e/new_workspace/god_Sword/src/`
+## GodBlade — `/mnt/e/workspace/godblade/` (Windows: `E:\workspace\godblade\`) — 실측 2026-07-18
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|
 | 공통 | `common/` | dotnet-msbuild | — |
 | 서버 | `server/` | dotnet-msbuild | tcp + http |
-| 클라이언트 | `client/` | Unity 2019.4.40f1 | — |
+| 클라이언트 | `client/` | Unity 6000.3.10f1 | — |
+
+서버 서브프로젝트(`server/` 하위): `EodAuthenticationServer`, `EodGameServer`, `EodGlobalServer` 등. 테스트: `EodGameServer.Tests`(NUnit, `server/EodGameServer.Tests/`).
 
 빌드 순서:
 ```bash

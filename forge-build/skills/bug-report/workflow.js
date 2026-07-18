@@ -40,10 +40,11 @@ const REPORT_SCHEMA = {
   required: ['bugCount'],
 }
 
-const baseUrl = args?.baseUrl || 'http://localhost:3000'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const baseUrl = _a?.baseUrl || 'http://localhost:3000'
 // root-cause: P-7 loop-until-dry opt-in greybox. loopUntilDry=false 기본 — 기존 Phase 2 동작 100% 보존.
-const loopUntilDry = args?.loopUntilDry === true || args?.loopUntilDry === 'on'
-const dryK = Math.max(1, Math.min(5, parseInt(args?.dryK) || 2))
+const loopUntilDry = _a?.loopUntilDry === true || _a?.loopUntilDry === 'on'
+const dryK = Math.max(1, Math.min(5, parseInt(_a?.dryK) || 2))
 
 // ── Phase 1: Navigate ─────────────────────────────────────────────────────────
 phase('Navigate')

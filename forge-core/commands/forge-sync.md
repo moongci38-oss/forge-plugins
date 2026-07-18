@@ -1,7 +1,7 @@
 ---
 description: Forge Dev 중앙 저장소에서 프로젝트로 동기화
 allowed-tools: Bash, Read
-argument-hint: [--target <name>] [--include-recommended] [--dry-run]
+argument-hint: "[--target <name>] [--include-recommended] [--dry-run]"
 model: haiku
 group: ops
 ---

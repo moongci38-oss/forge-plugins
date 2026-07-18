@@ -11,8 +11,9 @@ export const meta = {
   ],
 }
 
-const docPath = args?.docPath || ''
-const skipCeo = args?.skip === 'ceo'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const docPath = _a?.docPath || ''
+const skipCeo = _a?.skip === 'ceo'
 
 const VERDICT3 = { type: 'string', enum: ['PASS', 'WARN', 'FAIL'] }
 
@@ -123,7 +124,7 @@ const designResult = await agent(
   `기획서 내 디자인 레퍼런스 URL 반드시 수집 → designReferenceUrls. ` +
   `Kill Signal: UX 복잡도 과다·학습곡선 급경사. ` +
   `killSignal + items + ceoConflicts + designReferenceUrls + summary 반환.`,
-  { label: 'wave-2:design', phase: 'Design', schema: DESIGN_SCHEMA, agentType: 'ux-researcher' }
+  { label: 'wave-2:design', phase: 'Design', schema: DESIGN_SCHEMA }
 )
 if (designResult?.killSignal) {
   log(`[STOP] Design Kill Signal: ${designResult.summary}`)

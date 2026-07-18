@@ -1,7 +1,7 @@
 ---
 description: 이미지 생성 — gpt-image-1 primary, Gemini 폴백.
 allowed-tools: Bash, Read, Write, mcp__plugin_forge-core_gemini__generate_image
-argument-hint: <mode: generate|edit> <prompt or image-path> [--aspect 16:9|1:1|9:16] [--quality low|medium|high] [--output path]
+argument-hint: "<mode: generate|edit> <prompt or image-path> [--aspect 16:9|1:1|9:16] [--quality low|medium|high] [--output path]"
 model: sonnet
 group: ops
 ---

@@ -1,6 +1,6 @@
 ---
 allowed-tools: Bash, Read
-description: 클립보드 이미지 또는 파일 경로 이미지를 현재 대화에 표시 (다중 지원) MAS P1+ (2026-05-25): Codex Vision 우선 (GPT-5 Vision), Gemini Flash 폴백. 품질 우선 결정.
+description: "클립보드 이미지 또는 파일 경로 이미지를 현재 대화에 표시 (다중 지원) MAS P1+ (2026-05-25): Codex Vision 우선 (GPT-5 Vision), Gemini Flash 폴백. 품질 우선 결정."
 group: ops
 ---
 

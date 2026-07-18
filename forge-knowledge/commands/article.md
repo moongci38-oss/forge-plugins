@@ -1,5 +1,5 @@
 ---
-description: "웹 기사 URL 심층 분석 — 본문 추출 + 내부 링크 파고들기 + 시스템 비교 + 적용 계획서 생성 (Agent Teams 4-Wave)" MAS P1: Sonnet 1M 기본 + Gemini Pro 폴백 (50p+).
+description: "웹 기사 URL 심층 분석 — 본문 추출 + 내부 링크 파고들기 + 시스템 비교 + 적용 계획서 생성 (Agent Teams 4-Wave) MAS P1: Sonnet 1M 기본 + Gemini Pro 폴백 (50p+)."
 argument-hint: <article-URL> [--deep] [--skip-research]
 allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, WebSearch, mcp__brave-search__brave_web_search, Agent
 model: sonnet

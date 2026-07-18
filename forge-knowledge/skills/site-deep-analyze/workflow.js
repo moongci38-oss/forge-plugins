@@ -12,12 +12,14 @@ export const meta = {
   ],
 }
 
-const url = args?.url || ''
-const depth = args?.depth || 2
-const pages = args?.pages || 20
-const task = args?.task || 'full'  // 'ui-audit' | 'api-discovery' | 'full'
-const viewport = args?.viewport || 'desktop,tablet,mobile'
-const skipGemini = args?.skipGemini || false  // Gemini 토큰 선발행 없는 경우
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
+const url = _a?.url || ''
+const depth = _a?.depth || 2
+const pages = _a?.pages || 20
+const task = _a?.task || 'full'  // 'ui-audit' | 'api-discovery' | 'full'
+const viewport = _a?.viewport || 'desktop,tablet,mobile'
+const skipGemini = _a?.skipGemini || false  // Gemini 토큰 선발행 없는 경우
 
 if (!url) {
   log('[STOP] url 필수 (args.url)')

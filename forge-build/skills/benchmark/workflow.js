@@ -29,8 +29,9 @@ const VERDICT_SCHEMA = {
   required: ['verdict', 'report'],
 }
 
-const branch = args?.branch || 'HEAD'
-const baseline = args?.baseline || 'develop'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const branch = _a?.branch || 'HEAD'
+const baseline = _a?.baseline || 'develop'
 
 // ── Phase 1: Measure ───────────────────────────────────────────────────────────
 phase('Measure')

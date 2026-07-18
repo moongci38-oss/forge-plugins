@@ -16,12 +16,13 @@ export const meta = {
   ],
 }
 
-const figmaUrl = args?.figmaUrl || ''
-const docPath = args?.docPath || '.'
-const brandRules = args?.brandRules || ''  // 브랜드 정정 룰
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+const figmaUrl = _a?.figmaUrl || ''
+const docPath = _a?.docPath || '.'
+const brandRules = _a?.brandRules || ''  // 브랜드 정정 룰
 // root-cause: crMode gate — 'degrade'/'off' 시 Codex Vision 폴백 스킵, Gemini 직행
 // root-cause: crMode default flip 'on'→'degrade' (fail-safe Codex-off, 2026-06-15)
-const crMode = args?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제) | 'on' | 'off'
+const crMode = _a?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제) | 'on' | 'off'
 
 if (!figmaUrl) {
   log('[STOP] figmaUrl 필수 (args.figmaUrl)')

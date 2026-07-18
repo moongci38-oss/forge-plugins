@@ -107,13 +107,15 @@ const VERIFY_SCHEMA = {
   required: ['confirmed_finding_ids','disputed'],
 }
 
-const projectRoot = args?.projectRoot || '.'
+const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
+
+const projectRoot = _a?.projectRoot || '.'
 // root-cause: B-6 Codex LOW — 'today' 리터럴 → 보고서 경로 충돌
-if (!args?.date) log("[WARN] args.date 미전달 — 보고서 경로 'unknown-date' 사용. SKILL.md presign 블록에서 date 주입 권고.")
-const auditDate = args?.date || 'unknown-date'
+if (!_a?.date) log("[WARN] args.date 미전달 — 보고서 경로 'unknown-date' 사용. SKILL.md presign 블록에서 date 주입 권고.")
+const auditDate = _a?.date || 'unknown-date'
 // crMode gate: 기본 degrade (Codex-off fail-safe; --cr on 으로 강제); 'on' → Codex spawn; 'degrade'|'off' → skip Codex, degrade to 2-LLM
 // root-cause: crMode default flip 'on'→'degrade' (fail-safe Codex-off, 2026-06-15)
-const crMode = args?.crMode ?? 'degrade'
+const crMode = _a?.crMode ?? 'degrade'
 
 // ── P1 turn-budget-aware guard ────────────────────────────────────────────────
 // root-cause: F2 — AUDIT_TOKEN_CAP renamed to BUDGET_RESERVE (no semantic collision with

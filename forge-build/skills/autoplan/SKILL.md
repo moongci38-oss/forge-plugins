@@ -105,12 +105,13 @@ model: sonnet
 ### Wave 2: Design Subagent (UX/UI 리뷰)
 
 ```
-subagent_type: ux-researcher
 model: sonnet
 ```
 
+> Wave 2는 전용 `subagent_type`을 지정하지 않고 **기본 workflow 에이전트**를 사용한다 (`ux-researcher` 미등록). 구조화 출력은 `agent()`의 `schema` 옵션이 담당하므로 agentType와 무관하다.
+
 **입력**: 기획서 파일 Read + `.claude/state/AUTOPLAN_CEO.md` Read
-**임무**: CEO 리뷰 결과를 참고하여 UX/UI 관점 리뷰 (ux-researcher 전용 UX 검증 + CRITICAL/HIGH/MEDIUM/LOW 등급)
+**임무**: CEO 리뷰 결과를 참고하여 UX/UI 관점 리뷰 (CRITICAL/HIGH/MEDIUM/LOW 등급)
 
 > 7차원 0-10 채점표(합산 기준 포함) + AI Slop 블랙리스트 + 인터랙션 상태표 + 감정여정 템플릿 + Kill Signal표 → `reference.md §Wave 2 Design 상세` (필요 시 Read). 7차원 합산 기준만 요약: ≥7.0=[PASS] / 5.0~6.9=[WARN] / <5.0=Kill Signal.
 
@@ -302,7 +303,7 @@ model: sonnet
 파일 기반 통신 → JS 변수 직접 전달. 중간 파일(.claude/state/AUTOPLAN_*.md) 생성 없음. 컨텍스트 격리.
 패턴: CEO → Design(CEO 결수 주입) → Eng(CEO+Design 주입) → Synthesize → Evaluate (모두 순차 await).
 실행: `Workflow({ script: Bash("cat ~/.claude/skills/autoplan/workflow.js"), args: { docPath, skip } })`
-agentType: Wave 2 = ux-researcher / Wave 3 = cto-advisor.
+agentType: Wave 2 = default (ux-researcher 미등록) / Wave 3 = cto-advisor.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 5-Wave 파일 기반 방식 fallback.
 
 ### Restore Point 원칙
