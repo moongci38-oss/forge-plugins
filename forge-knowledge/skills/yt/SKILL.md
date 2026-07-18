@@ -307,6 +307,22 @@ stale 여부 확인: `python3 ~/forge/shared/scripts/yt-analyzer/yt-sync-check.p
 3. 스크립트 출력 표를 **그대로** 완료 보고로 사용. 표 밖에서 "완료" 임의 서술 금지.
 4. exit 2면 "완료" 선언 금지 — 누락 산출물 재생성 후 재검증(exit 0)까지 Step 5(Notion 업로드) 진행 금지.
 
+### Step 4.97: 학습노트 생성 + 텔레그램 전달 (장문 안전)
+
+daily의 학습자료 제공과 동일한 규약 (2026-07-18 배선):
+
+1. `concept-notes-writer` 에이전트(sonnet) 스폰 — 입력: 이번 분석의 `-analysis.md` 절대경로(복수 영상이면 전부). 출력: 같은 analyses 폴더에 `{date}-{video_id}-{slug}-study-notes.md` (개념 0개면 파일 미생성 — 규약 준수).
+2. 텔레그램 전달 (fail-open — 실패해도 스킬 verdict 불변):
+   ```bash
+   bash ~/forge/shared/scripts/tg-report-analysis.sh \
+     "🎬 YT 분석 — {title}" \
+     <(sed -n '/^## TL;DR/,/^## /p' "{analysis.md}" | head -40) \
+     "{analysis.md}" "{study-notes.md (있으면)}"
+   ```
+   - 요약 메시지는 `tg_send_long`이 줄 경계 분할 발송 — **4096자 초과여도 잘리지 않는다.**
+   - 전체 자료는 문서 첨부(길이 무제한). study-notes 부재 시 자동 skip.
+   - process substitution(`<(...)`) 불가 환경이면 TL;DR을 임시 파일(`$CLAUDE_JOB_DIR/tmp` 또는 `/tmp`)로 저장 후 전달.
+
 ### Step 5: Notion 업로드
 
 | Tier | 조건 | 동작 |

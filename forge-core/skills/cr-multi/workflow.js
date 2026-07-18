@@ -195,8 +195,82 @@ python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py --task "$
 //   기존 무결성 게이트(바이트 수 대조)는 "지어낸 내용"만 잡고 "덮어써진 원본"은 못 잡는다 —
 //   이미 훼손된 파일끼리 비교하므로 통과한다. **검수 결과가 조용히 무효화된다.**
 //   → 원문을 어떤 에이전트보다 먼저 확보한다. 프롬프트 금지문(산문)은 chokepoint가 아니다.
+// ── G8 fidelity: 청크 검증 로더 (2026-07-17, cr-final 1회차 수정 반영) ─────────
+// root-cause: 단일 haiku 에코가 대용량/한글 본문을 자체 요약으로 반환(28KB→1,114자 실증, 4라운드 실측).
+//   무결성 게이트는 비-스냅샷 경로만 fail-closed — "요약된 스냅샷"은 게이트가 '리뷰 도중 파일 훼손'으로
+//   오판해 요약본으로 진행하는 우회로가 남는다. 20줄 청크(에코 여력 확보) + 청크별 wc -c 대조 +
+//   haiku→sonnet 재시도 + 전체 바이트 정확 대조로 verbatim 로드를 보장한다.
+// cr-final 반영: ① 마지막 청크는 sed '$'로 EOF까지 강제(wc -l이 trailing newline 없는 파일에서
+//   마지막 줄을 언더카운트하는 결함 차단) ② 청크 text의 trailing newline을 정규화한 뒤 join('\n')
+//   재조립 — 기대 차이가 청크당 정확히 0 또는 1B가 되어 밴드 허용(±5%/16B) 없이 정확 대조 가능
+//   (부분 손실·빈 반환도 전부 거부) ③ 600줄 상한 초과 시 폴백 위임(호출 폭증 방지) + parallel 병렬화
+//   ④ 메모이즈 — 스냅샷·pre-load 이중 호출 시 재실행하지 않음(라벨 충돌·낭비 방지).
+//   경로가 _safePath 화이트리스트 밖이면 bash 미전달 원칙(기존 게이트와 동일)에 따라 '' 반환(폴백 위임).
+const _utf8ByteLen = (str) => { let n = 0; for (const ch of str) { const cp = ch.codePointAt(0); n += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4 } return n }
+let _rtvAttempted = false
+let _rtvCache = ''
+let _snapshotVerified = false // 스냅샷이 청크 검증 로더 산물일 때만 true — 무결성 게이트의 신뢰 근거
+async function _readTargetVerbatim() {
+  if (_rtvAttempted) return _rtvCache
+  _rtvAttempted = true
+  if (!targetPath || targetPath !== _safePath(targetPath)) return ''
+  try {
+    const stat = await agent(
+      `Bash 도구로 실행: wc -c < "${targetPath}" && wc -l < "${targetPath}" — 두 정수를 {"bytes": <바이트>, "lines": <줄수>}로 반환. 실패 시 {"bytes":-1,"lines":-1}`,
+      { label: 'stat-target', phase: 'StructuralContext', schema: { type: 'object', additionalProperties: false, properties: { bytes: { type: 'integer' }, lines: { type: 'integer' } }, required: ['bytes','lines'] }, model: 'haiku' }
+    )
+    const expectBytes = stat?.bytes ?? -1
+    const statLines = stat?.lines ?? -1
+    // statLines=0(개행 없는 1줄 파일)은 폴백 위임 — 소형 파일은 단일-read+게이트로 충분
+    if (expectBytes <= 0 || statLines <= 0) return ''
+    const MAX_LINES = 600
+    if (statLines > MAX_LINES) { log(`[FileLoad] ${statLines}줄 > ${MAX_LINES} — 청크 로더 스킵(폴백 위임)`); return '' }
+    const CHUNK = 20
+    const starts = []
+    for (let st = 1; st <= statLines; st += CHUNK) starts.push(st)
+    const chunkResults = await parallel(starts.map((start) => async () => {
+      // 마지막 청크는 '$'로 EOF까지 — wc -l 언더카운트(무개행 마지막 줄)를 sed가 흡수
+      const isLast = start + CHUNK - 1 >= statLines
+      const end = isLast ? '$' : String(start + CHUNK - 1)
+      const range = `${start},${end}`
+      for (const readModel of ['haiku', 'sonnet']) {
+        const c = await agent(
+          `Bash 도구로 두 명령 실행: (1) sed -n '${range}p' "${targetPath}" (2) sed -n '${range}p' "${targetPath}" | wc -c — {"text": "<(1) 출력 원문 그대로 한 글자도 빠짐없이>", "bytes": <(2)의 정수>} 반환. text는 요약·의역·생략·재구성 절대 금지.`,
+          { label: `read-chunk-${start}${readModel === 'sonnet' ? '-retry' : ''}`, phase: 'StructuralContext', schema: { type: 'object', additionalProperties: false, properties: { text: { type: 'string' }, bytes: { type: 'integer' } }, required: ['text','bytes'] }, model: readModel }
+        )
+        const raw = c?.text ?? ''
+        const b = c?.bytes ?? -1
+        // cr-final 2회차 반영: 말미 개행을 모델 반환에 의존하지 않는다 — 전부 제거 후, 신뢰된 wc 바이트(b)로
+        //   말미 개행 수를 복원(K = b - bodyBytes). 경계 빈줄·모델의 개행 트리밍/추가 전부에 불변(결정론 재조립).
+        const tNorm = raw.replace(/\n+$/, '')
+        const bodyBytes = _utf8ByteLen(tNorm)
+        const K = b - bodyBytes
+        const lineSpan = (end === '$' ? statLines - start + 2 : CHUNK)
+        if (b > 0 && K >= 1 - (end === '$' ? 1 : 0) && K <= lineSpan) return tNorm + '\n'.repeat(K)
+        log(`[FileLoad][chunk ${range}] ${readModel} body ${bodyBytes}B + K${K} vs 자가보고 ${b}B — ${readModel === 'haiku' ? '재시도' : '실패'}`)
+      }
+      return null
+    }))
+    if (chunkResults.some((x) => x === null || x === undefined)) { log('[FileLoad] 청크 검증 실패 — 포기(폴백 위임)'); return '' }
+    const joined = chunkResults.join('')
+    const loadedBytes = _utf8ByteLen(joined)
+    // 전체 정확 대조: concat 재조립 = sum(b) — sed가 무개행 EOF에 개행을 보정하는 1B만 허용(±1B). 그 외 전부 거부
+    const absDiff = Math.abs(loadedBytes - expectBytes)
+    if (absDiff > 1) { log(`[FileLoad] 청크 조립 ${loadedBytes}B vs 실측 ${expectBytes}B — 불일치, 포기(폴백 위임)`); return '' }
+    log(`[FileLoad] 청크 검증 로드 ${joined.length}자/${loadedBytes}B (실측 ${expectBytes}B, ${starts.length}청크)`)
+    _rtvCache = joined
+    return joined
+  } catch (e) {
+    log(`[WARN] 청크 로더 실패(단일-read 폴백): ${e?.message || e}`)
+    return ''
+  }
+}
+
 const _snapshot = await (async () => {
   if (!targetPath) return ''
+  // G8: 검증된 청크 로드를 우선 — 성공 시 그것이 정본(요약 스냅샷 우회로 차단)
+  const viaChunks = await _readTargetVerbatim()
+  if (viaChunks) { _snapshotVerified = true; return viaChunks }
   try {
     const r = await agent(
       `Read 도구 1회만 사용: Read("${targetPath}") 실행. 파일 내용을 **한 글자도 바꾸지 말고 그대로(verbatim)** 반환하라. 요약·번역·재작성·리포트 생성 절대 금지. 성공: {"ok":true,"content":"<파일 원문 전체>"} 반환. 파일 없으면: {"ok":false,"content":""}`,
@@ -317,7 +391,9 @@ if (targetPath && targetContent && _pathGateSafe) {
       // 스냅샷(Phase 0-pre, 어떤 에이전트보다 먼저 읽음)을 쓴 경우 = 로드 내용이 정본이다.
       // 불일치는 "에이전트가 지어냈다"가 아니라 "리뷰 도중 누군가 대상 파일을 덮어썼다"를 뜻한다.
       // 원본은 이미 손에 있으므로 리뷰를 중단할 이유가 없다 — 훼손 사실만 크게 알리고 진행한다.
-      if (_snapshot) {
+      // cr-final 2회차 반영: 신뢰 근거는 스냅샷의 '존재'가 아니라 '검증 출처'다 — 미검증(단일-read) 스냅샷의
+      //   drift는 요약/날조 가능성이 있으므로 fail-closed로 떨어뜨린다(대형 파일 무보호 구멍 봉쇄).
+      if (_snapshot && _snapshotVerified) {
         log(`[WARN] 대상 파일이 리뷰 도중 변경됐다 (스냅샷 ${loadedBytes}B vs 현재 ${actualBytes}B). ` +
             `리뷰는 스냅샷(원본)으로 진행한다. 누가 ${targetPath} 를 덮어썼는지 확인하라.`)
       } else {
