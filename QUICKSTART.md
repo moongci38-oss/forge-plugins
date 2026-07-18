@@ -6,7 +6,19 @@
 
 ## 1단계 — Claude Code 설치 (처음 한 번만)
 
-아직 없다면 여기서 설치하세요 → **https://claude.ai/code**
+> 💡 Node.js 같은 건 설치 안 해도 됩니다. 아래 방법이 알아서 다 받습니다.
+
+**🪟 윈도우**: 시작 메뉴에서 **PowerShell** 실행 → 아래 한 줄 붙여넣기:
+```
+irm https://claude.ai/install.ps1 | iex
+```
+
+**🍎 맥**: **터미널** 실행 → 아래 한 줄 붙여넣기:
+```
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+설치 확인: `claude --version` 입력 시 `2.1.xxx (Claude Code)`가 나오면 성공.
 
 ---
 
