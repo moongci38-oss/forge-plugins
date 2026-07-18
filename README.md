@@ -1,5 +1,7 @@
 # forge-plugins
 
+> 🚀 **처음이신가요? / 비개발자이신가요?** → [**QUICKSTART.md**](./QUICKSTART.md) 문서 하나로 5분 만에 설치됩니다.
+
 Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + forge-game).
 
 > **레포**: `github.com/moongci38-oss/forge-plugins` (public)
@@ -24,11 +26,11 @@ Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + 
 
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
-| **forge-core** | v0.6.0 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep/agent-drift) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
-| **forge-build** | v0.2.0 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
-| **forge-knowledge** | v0.2.0 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
-| **forge-design** | v0.1.5 | 디자인·에셋 — figma-sync/image-orchestrate/visual-loop | forge-core |
-| **forge-game** | v0.1.2 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
+| **forge-core** | v0.6.10 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep/agent-drift) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
+| **forge-build** | v0.4.8 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
+| **forge-knowledge** | v0.2.9 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
+| **forge-design** | v0.2.4 | 디자인·에셋 — figma-sync/image-orchestrate/visual-loop | forge-core |
+| **forge-game** | v0.1.8 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
 
 ---
 
