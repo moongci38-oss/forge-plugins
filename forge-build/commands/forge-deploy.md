@@ -54,6 +54,8 @@ group: deploy
 
 **하위호환 (CRITICAL)**: `targets` 키가 **없으면** 해당 env 노드 전체가 **단일 암묵 타깃**이다 — 기존 godblade `staging` 단일 키 파일(`{ "staging": { method, script, repos[], remote } }`)이 **무수정으로 유효**하다. 신 `targets` 스키마는 멀티 레포 워크스페이스(boardGames 등)의 부분 머지 갭을 해소하는 확장일 뿐, 기존 파일을 깨지 않는다.
 
+**접속정보 관례 (`remote.envFile` 공유, 2026-07-18 Human 확정)**: `envFile`은 경로 선언 — **배포 단위가 같은 멀티 레포 워크스페이스는 루트 공유 `.env` 하나**(`"envFile": "../.env"`)를 권장하고, 프로젝트별로 값이 다른 키만 `envPrefix`로 분리한다(예: 공통 `STG_SSH_*` + `MATGO_STG_DB_NAME`). **머신 전역 단일 .env로 배포 단위가 다른 프로젝트까지 통합은 금지**(유출 폭발 반경·키 충돌·이식성). `envFile` 경로는 프로젝트 루트(deploy-config.json 위치) 기준으로 해석하며, 시크릿 값은 어떤 로그·PR·보고에도 출력 금지.
+
 ## Step 0 — 인자 파싱 + env 정규화 + config 라우팅 (fail-open)
 
 1. **env 정규화**: `stg` → config 키 `staging`. `dev`/`prod`는 그대로.

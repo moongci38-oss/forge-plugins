@@ -92,6 +92,20 @@ handover `## 실패한 시도와 이유` 섹션에 기록:
 - 재사용 가능한 설계 템플릿
 - 프로젝트 방향 전환 결정
 
+### 6.5. 팀 공유 지식 동기화 (advisory·fail-open)
+
+디버깅 지식 투영 + auto-memory 팀 공유(push) + forge-outputs 산출물(리서치·audit·handover·
+platform·docs·memory)을 자동 커밋·푸시해 팀원 간 공유(wiki-sync·RAG 루프)에 편입시킨다.
+**advisory·fail-open — 실패해도 세션 종료를 막지 않는다.**
+
+```bash
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/debug-knowledge-sync.sh
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/memory-sync.sh push
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-outputs-autosync.sh
+```
+
+kill-switch: `FORGE_DEBUG_KNOWLEDGE_SYNC=off` / `FORGE_MEMORY_SYNC=off` / `FORGE_AUTOSYNC=off`
+
 ### 7. CLAUDE.md 갱신 (revise-claude-md, 플러그인 설치 시만)
 
 세션 학습을 다음 세션 cascade에 즉시 반영. learnings.jsonl(장기 이력) ↔ CLAUDE.md(즉각 cascade) 병행.
@@ -121,4 +135,5 @@ fi
 - [ ] DO/DON'T + 실패한 시도 handover 섹션 기록 (§4.5 — P3 Continuity Spine)
 - [ ] Memory/Rule 업데이트 (해당 시)
 - [ ] Obsidian 업데이트 (해당 시)
+- [ ] 팀 공유 지식 동기화 (§6.5 — debug-knowledge-sync + memory-sync push + forge-outputs-autosync, advisory)
 - [ ] revise-claude-md 호출 (플러그인 설치 시) — CLAUDE.md 갱신 후보 검토
