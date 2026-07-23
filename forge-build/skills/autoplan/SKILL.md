@@ -1,6 +1,6 @@
 ---
 name: autoplan
-description: 기획서를 CEO(비즈니스)→Design(UX)→Engineering(기술) 3관점 순차 리뷰 + Synthesizer 종합 + 독립 Evaluator 검증(5-Wave)하는 스킬. Phase 3 에이전트 회의 후 자동 트리거. (적대적 Codex 검수는 cr-triple/codex-review 별도 게이트.)
+description: 기획서를 CEO→Design→Engineering 3관점 순차리뷰+Synthesizer 종합+독립 Evaluator 검증(5-Wave). Phase 3 에이전트 회의 후 자동 트리거.
 model: sonnet
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: bug-report
-description: "웹앱 LNB 전체 메뉴를 자동 순회하며 기능 오류·레이아웃 이슈를 탐지하고 bug-report 표준 포맷(BUG-NNN, 6하원칙, INDEX.md)으로 저장. 트리거: 'QA 해줘', '버그 찾아줘', '메뉴 돌아봐줘', URL+로그인 정보 주면서 탐색 요청, 레이아웃 확인 요청."
+description: "웹앱 LNB 전메뉴 자동순회로 기능오류·레이아웃 이슈 탐지, BUG-NNN 표준포맷(6하원칙, INDEX.md) 저장. 트리거: 'QA 해줘', '버그 찾아줘', '메뉴 돌아봐줘', URL+로그인정보 탐색요청."
 ---
 
 # Web QA

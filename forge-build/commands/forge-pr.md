@@ -82,6 +82,29 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
    ```
    - 드리프트 감지 시: `git fetch && git rebase origin/$BASE` 권고 후 Human 확인 → 재CI
    - 드리프트 없음: 그대로 Step 3 진행
+2.7b. **저장소 정체성 게이트 (repo identity gate, harness-gaps 2026-07-23, cross-OS/cross-repo mis-merge 방지)** — GS-B11 base-drift 체크와 별개로, 머지 실행(`gh pr merge`) **직전** 항상 아래 3항목을 검증한다. 하나라도 불일치하면 머지를 **중단**한다 (진행 금지, [STOP] Human 에스컬레이션):
+   ```bash
+   # (1) 로컬 remote origin == gh가 타깃으로 하는 repo
+   LOCAL_REMOTE=$(git config --get remote.origin.url)
+   GH_REMOTE=$(gh repo view --json url -q .url)
+   # owner/repo만 비교 — host/scheme 차이(ssh alias 등) false-STOP 방지. host 무결성은 (2)(3) SHA 바인딩이 담당
+   norm() { echo "$1" | sed -E 's#\.git$##' | tr 'A-Z' 'a-z' | grep -oiE '[^/:]+/[^/:]+$'; }
+   [ "$(norm "$LOCAL_REMOTE")" = "$(norm "$GH_REMOTE")" ] \
+     || { echo "[STOP] repo-identity 불일치: local=$LOCAL_REMOTE gh=$GH_REMOTE — 머지 중단"; exit 1; }
+
+   # (2) PR head SHA == 로컬 push된 브랜치 HEAD
+   PR_HEAD_SHA=$(gh pr view --json headRefOid -q .headRefOid)
+   LOCAL_HEAD_SHA=$(git rev-parse HEAD)
+   [ "$PR_HEAD_SHA" = "$LOCAL_HEAD_SHA" ] \
+     || { echo "[STOP] repo-identity 불일치: PR head=$PR_HEAD_SHA local HEAD=$LOCAL_HEAD_SHA — 머지 중단"; exit 1; }
+
+   # (3) (있다면) 앞선 플로우에서 기록한 review SHA == PR head SHA
+   if [ -n "${REVIEWED_SHA:-}" ]; then
+     [ "$REVIEWED_SHA" = "$PR_HEAD_SHA" ] \
+       || { echo "[STOP] repo-identity 불일치: reviewed=$REVIEWED_SHA PR head=$PR_HEAD_SHA — 머지 중단"; exit 1; }
+   fi
+   ```
+   - 셋 중 하나라도 실패 시 `gh pr merge`를 호출하지 않는다 — 잘못된 저장소·구버전 SHA 머지(cross-OS 워크트리·stale 로컬 클론 사고) 방지가 목적.
 2.8. **머지·배포 실패 시 서버 상태 보존 (GS-B11)**
    머지 또는 배포 단계에서 실패 발생 시, 서비스를 불안정한 반-머지 상태로 방치하지 않는다:
    - **즉시 중단**: 실패 감지 즉시 이후 배포 단계 중단 (`set -e` 또는 `|| exit 1`)
@@ -243,9 +266,14 @@ git worktree remove <worktree-path>
 
 # 3. 고아 worktree 항목 정리
 git worktree prune
+
+# 4. 누수된 gitnexus MCP 프로세스 정리 (harness-gaps G1)
+#    worktree remove는 그 worktree에 스폰된 gitnexus MCP를 종료하지 않아 누적됨.
+#    이 스크립트는 cwd가 '삭제된 worktree'인 gitnexus MCP만 골라 종료(활성 worktree 무손상, fail-open).
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/kill-orphan-gitnexus-mcp.sh"
 ```
 
-**정리 순서**: PR 머지 확인 → worktree remove → worktree prune. 머지 전 remove 금지.
+**정리 순서**: PR 머지 확인 → worktree remove → worktree prune → gitnexus MCP 정리. 머지 전 remove 금지.
 
 ## Scope-Drift Audit (머지 전)
 

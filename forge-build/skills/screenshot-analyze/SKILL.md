@@ -1,6 +1,6 @@
 ---
 name: screenshot-analyze
-description: "스크린샷(UI·HUD·이펙트·경쟁작)을 Vision 모델로 분석해 UI 구조·컬러 팔레트·구현 가이드를 만든다. 사용자가 화면 이미지를 첨부하거나 경쟁작 화면 분석을 요청할 때 사용한다."
+description: "스크린샷(UI·HUD·이펙트·경쟁작)을 Vision 모델로 분석해 구조·컬러팔레트·구현가이드 생성. 화면이미지 첨부 또는 경쟁작 분석 요청 시 사용."
 context: fork
 model: sonnet
 ---

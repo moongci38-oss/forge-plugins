@@ -1,6 +1,6 @@
 ---
 name: qa-setup
-description: "QA 하네스 부트스트랩 스킬 (AD-92 Phase 0 + P0-FIX). /qa 실행 전 자동 호출되어 서버 생명주기 관리, qa-config.json 생성, DB seed 격리, API 전수 발견, scenarios.md 게이트를 준비한다. 트리거: /qa 실행 시 Phase 0 자동 진입, 또는 QA 환경 세팅, 서버 기동 후 테스트, scenarios.md 생성 요청 시."
+description: "QA 하네스 부트스트랩(AD-92 Phase0+P0-FIX). /qa 실행 전 자동 호출 — 서버 생명주기·qa-config.json·DB seed 격리·API 전수 발견·scenarios.md 게이트 준비. 트리거: /qa Phase 0, QA 환경 세팅, scenarios.md 생성 요청."
 ---
 
 # qa-setup — QA 하네스 부트스트랩 (Phase 0, AD-92 P0-FIX)
@@ -28,7 +28,7 @@ description: "QA 하네스 부트스트랩 스킬 (AD-92 Phase 0 + P0-FIX). /qa 
 ### 0. 전제 — qa-config.json이 이미 존재하면 재생성 스킵 + --scope 파싱
 
 > **config 계약 검증 + 의존 서비스 선확인 (2026-07-10, 범용 — 프로젝트 값 하드코딩 금지)**
-> - **스키마 검증(4-3b)**: qa-config에 `surfaceAdapters`·`authBootstrap`·`dependencies` 필드가 있으면 형식 검증 — `authBootstrap.type ∈ {cookie-inject, token-header, login-flow, none}`(시크릿 값은 `.env` 참조만, 평문 발견 시 WARN+마스킹), `dependencies[] = {name, check: "port:<n>" | "url:<healthcheck>"}`. invalid = **WARN + 해당 필드 무시(fail-open)** — 기존 동작 불변.
+> - **스키마 검증(4-3b)**: qa-config에 `surfaceAdapters`·`authBootstrap`·`dependencies` 필드가 있으면 형식 검증 — `authBootstrap.type ∈ {cookie-inject, token-header, login-flow, none}`(시크릿 값은 `.env` 참조만, 평문 발견 시 WARN+마스킹), `dependencies[] = {name, check: "port:<n>" | "url:<healthcheck>"}`. **game-engine 어댑터(W2-5)**: `surfaceAdapters.gameEngine = {popupLoop?: {enabled: bool, maxAttempts: int}, consoleClean?: {enabled: bool, logType: string}}` — 둘 다 선택, 미지정 시 game-qa 기본값(maxAttempts=5, consoleClean.enabled=true). invalid = **WARN + 해당 필드 무시(fail-open)** — 기존 동작 불변.
 > - **의존 서비스 liveness(4-4)**: `dependencies[]` 선언이 있으면 서버 기동 전 각 항목을 `ss -tln`(port) 또는 curl(url)로 선확인. DOWN 발견 시 WARN + "의존 서비스 DOWN이 404/Unauthorized로 위장할 수 있음" 명시 후 Human 확인 — 포트·서비스 목록은 **프로젝트 선언 값**이며 이 스킬에 어떤 기본 포트도 하드코딩하지 않는다. 선언 부재 = 스킵(기존 동작).
 
 ```bash

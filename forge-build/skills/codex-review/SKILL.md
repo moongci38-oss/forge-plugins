@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: OpenAI Codex (gpt-5.5)를 경유한 2차 리뷰 게이트. Claude 1차 리뷰는 그대로 유지하고 동일 모델 맹점을 보완. Stage 분기 (plan/code/test/final/bugfix) · AUTO_STAGES 환경변수 정책 · OAuth 모드 비용 0 · P3/P4/P5/P6/P7 자동 호출. 자동 트리거 시점 - Spec 또는 Plan 작성 후 (stage=plan, blocking), 코드 변경 PR (stage=code, 권고), E2E 시나리오 작성 후 (stage=test, 권고, P6 Check 6-TX), PR 머지 직전 통합 검수 (stage=final, blocking high-effort, P7 Check 7-X), 버그 수정 patch 후 (stage=bugfix, 수동). 본 절차 실행은 ~/forge/.claude/commands/codex-review.md를 참조한다.
+description: "OpenAI Codex(gpt-5.5) 경유 2차 리뷰 게이트 — Claude 1차 리뷰의 동일모델 맹점 보완. Stage 분기: plan/code/test/final/bugfix. P3~P7 자동 호출(spec/plan 작성 후, PR, E2E 시나리오, 머지 직전, 버그수정 patch 후)."
 ---
 
 # Codex Review

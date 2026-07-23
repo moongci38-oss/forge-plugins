@@ -5,7 +5,7 @@ export const meta = {
   description: '배포 후 헬스 모니터링 — 3종 메트릭 parallel() 수집 + canary-judge 자동 판정',
   phases: [
     { title: 'Monitor', detail: '에러율·응답시간·메모리 parallel 수집' },
-    { title: 'Judge', detail: 'canary-judge 에이전트 종합 판정 → PASS/WARN/FAIL' },
+    { title: 'Judge', detail: 'canary-judge 에이전트 종합 판정 → PASS/WARN/FAIL/INCONCLUSIVE' },
   ],
 }
 
@@ -23,7 +23,7 @@ const METRIC_SCHEMA = {
 const VERDICT_SCHEMA = {
   type: 'object',
   properties: {
-    verdict: { type: 'string', enum: ['PASS', 'WARN', 'FAIL'] },
+    verdict: { type: 'string', enum: ['PASS', 'WARN', 'FAIL', 'INCONCLUSIVE'] },
     summary: { type: 'string' },
     rollbackRecommended: { type: 'boolean' },
   },
@@ -62,7 +62,7 @@ const metrics = [errorRate, latency, memory].filter(Boolean)
 const verdict = await agent(
   `canary 모니터링 결과 종합 판정. ` +
   `에러율: ${JSON.stringify(errorRate)}. 응답시간: ${JSON.stringify(latency)}. 메모리: ${JSON.stringify(memory)}. ` +
-  `FAIL 시 rollbackRecommended=true. verdict PASS/WARN/FAIL + summary 반환.`,
+  `FAIL 시 rollbackRecommended=true. 메트릭 수집 실패/타임아웃/healthCheckUrl 접근불가 등으로 헬스 상태를 판정할 근거가 부족하면 verdict=INCONCLUSIVE(임의 PASS/WARN 추정 금지). verdict PASS/WARN/FAIL/INCONCLUSIVE + summary 반환.`,
   { label: 'judge', phase: 'Judge', schema: VERDICT_SCHEMA, agentType: 'canary-judge' }
 )
 log(`canary ${verdict?.verdict} rollback=${verdict?.rollbackRecommended}`)
@@ -102,7 +102,7 @@ if (evalResult?.evalVerdict === 'FAIL') {
     `canary 모니터링 결과 재판정 (1회 재시도). evaluator 피드백: ${evalResult?.feedback}. ` +
     `에러율: ${JSON.stringify(errorRate)}. 응답시간: ${JSON.stringify(latency)}. 메모리: ${JSON.stringify(memory)}. ` +
     `3개 메트릭 모두 포함 + 임계값 판정 + 모니터링 ${duration}분 완료 여부 명시. ` +
-    `FAIL 시 rollbackRecommended=true. verdict PASS/WARN/FAIL + summary 반환.`,
+    `FAIL 시 rollbackRecommended=true. 메트릭 수집 실패/타임아웃/healthCheckUrl 접근불가 등으로 헬스 상태를 판정할 근거가 부족하면 verdict=INCONCLUSIVE(임의 PASS/WARN 추정 금지). verdict PASS/WARN/FAIL/INCONCLUSIVE + summary 반환.`,
     { label: 'judge-retry', phase: 'Evaluate', schema: VERDICT_SCHEMA, agentType: 'canary-judge' }
   )
   log(`canary retry: ${retryVerdict?.verdict} rollback=${retryVerdict?.rollbackRecommended}`)
@@ -131,6 +131,12 @@ if (evalResult?.evalVerdict === 'FAIL') {
     log('[ROLLBACK] /forge-rollback 즉시 실행 권고')
     return { verdict: 'FAIL', rollbackRecommended: true, rollbackTrigger: '/forge-rollback', summary: retryVerdict?.summary, metrics }
   }
+  if (retryVerdict?.verdict === 'INCONCLUSIVE') {
+    // root-cause: cr-final MERGE-BLOCK PR#99 — INCONCLUSIVE = 헬스 미검증(PASS 아님). 자동 진행 금지, halt.
+    log('canary INCONCLUSIVE — 헬스 미검증: healthCheckUrl/인프라/네트워크 확인 후 재판정 필요. 자동 진행 중단')
+    log('[STOP] canary INCONCLUSIVE — Phase 11 자동 진행 금지, Human 재판정 필요')
+    return { verdict: 'INCONCLUSIVE', halt: true, rollbackRecommended: false, summary: retryVerdict?.summary, metrics }
+  }
   if (retryVerdict?.verdict === 'WARN') log('canary WARN — 모니터링 지속 권장')
   else log('배포 안정. Phase 11 진행 가능.')
   return { verdict: retryVerdict?.verdict, summary: retryVerdict?.summary, rollbackRecommended: retryVerdict?.rollbackRecommended ?? false, metrics }
@@ -142,6 +148,11 @@ if (verdict?.verdict === 'FAIL') {
   // root-cause: P0-2b — final FAIL 시 rollback 명시적 트리거 (기존 prose only)
   log('[ROLLBACK] /forge-rollback 즉시 실행 권고')
   return { verdict: 'FAIL', rollbackRecommended: true, rollbackTrigger: '/forge-rollback', summary: verdict?.summary, metrics }
+} else if (verdict?.verdict === 'INCONCLUSIVE') {
+  // root-cause: cr-final MERGE-BLOCK PR#99 — INCONCLUSIVE = 헬스 미검증(PASS 아님). 자동 진행 금지, halt.
+  log('canary INCONCLUSIVE — 헬스 미검증: healthCheckUrl/인프라/네트워크 확인 후 재판정 필요. 자동 진행 중단')
+  log('[STOP] canary INCONCLUSIVE — Phase 11 자동 진행 금지, Human 재판정 필요')
+  return { verdict: 'INCONCLUSIVE', halt: true, rollbackRecommended: false, summary: verdict?.summary, metrics }
 } else if (verdict?.verdict === 'WARN') {
   log('canary WARN — 모니터링 지속 권장')
 } else {

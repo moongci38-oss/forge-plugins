@@ -1,6 +1,6 @@
 ---
 name: forge-check-security
-description: "코드베이스 보안 취약점 자동 스캔 스킬. 15-phase CSO 심층 감사(OWASP Top 10 + CI/CD + STRIDE + 익스플로잇 패턴 + 트렌드). 입력: 프로젝트 루트 경로(기본값 CWD). 출력: docs/qa/security-report.md (CRITICAL/HIGH/MEDIUM/LOW 등급 리포트 + PASS/WARN/FAIL 판정). QA Phase 1 T6(보안 WARN 게이트)로 자동 트리거되거나 /forge-check-security 직접 호출. 트리거: QA T6 단계, PR 생성 전 보안 게이트, 수동 보안 검수."
+description: "코드베이스 보안 취약점 스캔 — 15-phase OWASP Top10+CI/CD+STRIDE+익스플로잇 감사. 출력: docs/qa/security-report.md. 트리거: QA T6 단계, PR 전 보안게이트, /forge-check-security 수동 호출."
 ---
 
 # forge-check-security — 보안 취약점 스캔

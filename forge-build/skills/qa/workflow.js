@@ -531,6 +531,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
       `report-only로 degrade + "[WARN] develop 없음 → report-only degrade" 로그. admin-api류 dev머지=STG배포 위험도 동일 degrade.) ` +
       `ci-wait.sh 15분 타임아웃. 9개 조건 충족 시 gh pr merge --squash --delete-branch. ` +
       `git checkout develop && git pull && git worktree prune. ` +
+      `worktree prune 직후 누수 gitnexus MCP 정리(harness-gaps G1): bash "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/kill-orphan-gitnexus-mcp.sh". ` +
       `H: docs/qa/metrics.jsonl append (bugs_found=${allBugs.length}/fixed=${fixedBugs.length}). ` +
       (accountBattery.filter(Boolean).length
         ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
