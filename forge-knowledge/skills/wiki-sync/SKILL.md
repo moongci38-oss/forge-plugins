@@ -1,6 +1,6 @@
 ---
 name: wiki-sync
-description: Karpathy 3-layer 개인 지식 체계의 Raw → Wiki 추출 워크플로우. forge-outputs의 Raw 레이어(01-research/, daily-system-review/, weekly-research/, videos/, yt 분석)에서 아직 위키화되지 않은 신규 문서를 스캔하고, 기존 wiki 노트와 매칭하여 업데이트 또는 신규 생성을 제안하며, Human 승인 루프를 통해 forge-outputs/20-wiki/에 반영한다. /wiki-sync, "위키 동기화", "raw to wiki", "20-wiki 업데이트" 요청 시 트리거. Phase C 지식 체계 워크플로우.
+description: "Raw(01-research/daily/weekly/videos/yt) → Wiki 추출 워크플로우. 신규문서 스캔·기존노트 매칭·Human승인 후 20-wiki/ 반영. 트리거: /wiki-sync, '위키 동기화', 'raw to wiki', '20-wiki 업데이트'."
 ---
 
 # Wiki Sync — Raw to Wiki Extraction Workflow
@@ -281,8 +281,15 @@ tracking.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 5. **트래킹 갱신은 마지막**: Apply 완료 후에만 sync-tracking.json 갱신
 6. **컨텍스트 절약**: 한 회 처리량 10개 Raw로 제한
 7. **유사도 의심 시**: --auto 모드에서는 skip + pending-review.md 기록
-8. **--auto 완료 후**: `git add -A -- . ':!20-wiki' && git commit -m "wiki-sync(auto): ..." && git push`
-   - ⚠️ `20-wiki/`는 forge-outputs에서 ignore된 별도 vault(forge-vault) — 절대 `git add -f`/명시적 add 금지. vault 커밋은 `wiki-sync.sh`가 `/mnt/e/forge-vault`로 별도 처리한다.
+8. **--auto 완료 후 git 반영**: 직접 `git add`하지 말고 **반드시 아래 단일 경로로 위임**한다.
+
+   ```bash
+   bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-outputs-autosync.sh"
+   ```
+
+   - ⚠️ **`git add -A` 금지**(2026-07-20 cr-final CRITICAL). 과거 이 단계는 `git add -A -- . ':!20-wiki'`였는데, 이는 `forge-outputs-autosync.sh`가 보유한 **화이트리스트·제외패턴(`06-finance/` `07-legal/` `08-admin/` `10-operations/recruitment/` `.claude/logs/`)·시크릿 9종 스캔을 전부 우회**하는 별도 커밋 경로였다. daily/weekly 파이프라인이 `--auto`를 자동 호출하게 되면서, 민감 경로가 워킹트리에 dirty 상태이기만 하면 무조건 스테이징·push되는 구조가 됐다.
+   - autosync 스크립트가 화이트리스트·제외·시크릿 스캔·커밋·push를 모두 담당한다. **공유 트리에 대한 git 쓰기 경로는 이 하나로 유지한다**(경로가 둘이면 한쪽 가드가 반드시 우회된다).
+   - ⚠️ `20-wiki/`는 forge-outputs에서 ignore된 별도 vault(forge-vault, `.gitignore:35`) — 절대 `git add -f`/명시적 add 금지. vault 커밋은 `wiki-sync.sh`가 `/mnt/e/forge-vault`로 별도 처리한다.
 
 ## 트래킹 파일 스키마
 

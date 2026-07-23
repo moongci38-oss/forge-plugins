@@ -20,28 +20,32 @@
 
 ---
 
-## 바둑이 (Baduggi) — `/mnt/e/new_workspace/boardGames/baduggi/` (경로 미검증 2026-07-18 — 해당 머신 세션에서 실측 필요)
+## 바둑이 (Baduggi) — `E:\workspace\boardgames\baduggi\` (WSL: `/mnt/e/workspace/boardgames/baduggi/`) — 실측 2026-07-21
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|
-| 서버 | `server/` | nodejs | socketio |
+| 서버 | `server/` | **NestJS 11** (TS, Node≥20) | socketio (4.8.1, `allowEIO3`=2.x 호환) |
 | 클라이언트 | `client/` | Unity 6000.3.10f1 | — |
-| 봇 | `bot-dotnet8/` | dotnet (.NET 8) | socketio |
+| 봇 | `bot-dotnet8/Baduki_Bot.csproj` | dotnet (net8.0) | socketio |
 
-서버 기동: `cd server && node app.js`
+서버 기동: `cd server && npm run build && node dist/main.js` (또는 `nest start`) — ⚠ 옛 `node app.js` 아님(엔트리=`dist/main.js`, 빌드 선행 필수)
 봇 빌드: `dotnet build bot-dotnet8/Baduki_Bot.csproj`
+테스트: `cd server && npm test` (jest, `*.spec.ts`) · DB: mysql2
 
 ---
 
-## 맞고 (MatGo) — `/mnt/e/new_workspace/boardGames/matgo/` (경로 미검증 2026-07-18 — 해당 머신 세션에서 실측 필요)
+## 맞고 (MatGo) — `E:\workspace\boardgames\matgo\` (WSL: `/mnt/e/workspace/boardgames/matgo/`) — 실측 2026-07-21
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|
-| 서버 | `server/` | nodejs | socketio |
-| 클라이언트 | `client/` | Unity (C#) | — |
-| 봇 | `bot-dotnet8/` | dotnet (.NET 8) | socketio |
+| 서버 | `server/` | **NestJS 11** (TS, Node≥20) | socketio (4.8.1, `allowEIO3`=2.x 호환) |
+| 클라이언트 | `client/` | Unity 6000.3.10f1 | — |
+| 봇 | `bot-dotnet8/MatGo_Bot.csproj` | dotnet (net8.0) | socketio |
 
-봇 빌드: `dotnet build bot-dotnet8/MatGo_Bot.csproj`
+서버 기동: `cd server && npm run build && node dist/main.js` (또는 `nest start`) — ⚠ 옛 `node app.js` 아님(엔트리=`dist/main.js`, 빌드 선행 필수)
+봇 빌드: `dotnet build bot-dotnet8/MatGo_Bot.csproj` · DB: mysql2
+
+> ⚠ **서버 자동감지 함정(2026-07-21 실측)**: `game-verify.sh`는 `package.json`/`app.js`로 `nodejs`를 감지하나, NestJS 서버의 실행 엔트리는 `dist/main.js`(빌드 산출)라 `app.js` 탐침으로는 기동 못 함. qa-config.json에 `stack.serverStart` 오버라이드 또는 빌드 선행 스텝 필요.
 
 ---
 

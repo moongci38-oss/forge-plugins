@@ -1,6 +1,6 @@
 ---
 name: memory-manage
-description: MEMORY.md 관리 — 항목 추가·수정·삭제·GC. forge 프로젝트별 메모리 인덱스 유지보수. 범위 충돌 감지(global > project > session > ephemeral), 90일 미참조 GC + count>30 보조 트리거(advisory), 중복 병합.
+description: MEMORY.md 관리 — 항목 추가/수정/삭제/GC, 프로젝트별 메모리 인덱스 유지. 범위충돌 감지(global>project>session>ephemeral), 90일 미참조 GC, 중복병합.
 context: fork
 model: haiku
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep

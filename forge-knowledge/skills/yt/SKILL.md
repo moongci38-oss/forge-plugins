@@ -1,6 +1,6 @@
 ---
 name: yt
-description: "YouTube 영상을 트랜스크립트·댓글·설명란까지 수집해 비판적 분석·팩트체크·시스템 개선 제안을 생성한다. 사용자가 YouTube URL을 보내거나 영상 분석을 요청할 때 사용한다."
+description: "YouTube 영상을 트랜스크립트·댓글·설명란까지 수집해 비판적 분석·팩트체크·시스템 개선안 생성. URL 전송 또는 영상분석 요청 시 사용."
 argument-hint: <YouTube-URL> [--format summary|timeline|mindmap|full|blog] [--deep]
 allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, mcp__brave-search__brave_web_search
 model: sonnet
@@ -307,21 +307,25 @@ stale 여부 확인: `python3 ~/forge/shared/scripts/yt-analyzer/yt-sync-check.p
 3. 스크립트 출력 표를 **그대로** 완료 보고로 사용. 표 밖에서 "완료" 임의 서술 금지.
 4. exit 2면 "완료" 선언 금지 — 누락 산출물 재생성 후 재검증(exit 0)까지 Step 5(Notion 업로드) 진행 금지.
 
-### Step 4.97: 학습노트 생성 + 텔레그램 전달 (장문 안전)
+### Step 4.97: 학습노트 생성 + 텔레그램 전달 (장문 안전, 영상당 정확히 1회)
 
-daily의 학습자료 제공과 동일한 규약 (2026-07-18 배선):
+daily의 학습자료 제공과 동일한 규약 (2026-07-18 배선). **텔레그램 전송은 영상당 `tg-report-analysis.sh` 정확히 1회 호출이다** — 분석과 학습노트를 별도 메시지로 나눠 보내지 않는다(둘 다 한 호출의 요약 텍스트 + 첨부 인자로 들어간다). "재시도가 안전할지" 판단으로 재호출하지 말 것 — 아래 스크립트가 실패를 자체 감지해 fallback하므로 호출자가 재시도할 필요가 없다.
 
 1. `concept-notes-writer` 에이전트(sonnet) 스폰 — 입력: 이번 분석의 `-analysis.md` 절대경로(복수 영상이면 전부). 출력: 같은 analyses 폴더에 `{date}-{video_id}-{slug}-study-notes.md` (개념 0개면 파일 미생성 — 규약 준수).
-2. 텔레그램 전달 (fail-open — 실패해도 스킬 verdict 불변):
+2. 텔레그램 전달 (fail-open — 실패해도 스킬 verdict 불변). **아래 블록을 통째로 1회만 실행**한다 — TL;DR 추출 실패 시 스크립트 내부에서 폴백하므로 별도 재호출 금지:
    ```bash
+   TLDR_FILE="${CLAUDE_JOB_DIR:-/tmp}/yt-tldr-$(date +%s).md"
+   sed -n '/^## TL;DR/,/^## /p' "{analysis.md}" | head -40 > "$TLDR_FILE"
    bash ~/forge/shared/scripts/tg-report-analysis.sh \
      "🎬 YT 분석 — {title}" \
-     <(sed -n '/^## TL;DR/,/^## /p' "{analysis.md}" | head -40) \
+     "$TLDR_FILE" \
      "{analysis.md}" "{study-notes.md (있으면)}"
+   rm -f "$TLDR_FILE"
    ```
+   - **process substitution(`<(...)`) 사용 금지** — 일부 spawn 환경에서 `[ -f /dev/fd/N ]` 판정이 불안정해 "실패한 것처럼 보여" 모델이 임시파일로 재시도하게 만들고, 그 결과 **동일 리포트가 텔레그램에 2번 올라가는 사고**가 실측됨(2026-07-23). 항상 위처럼 **일반 임시 파일**만 사용한다.
    - 요약 메시지는 `tg_send_long`이 줄 경계 분할 발송 — **4096자 초과여도 잘리지 않는다.**
    - 전체 자료는 문서 첨부(길이 무제한). study-notes 부재 시 자동 skip.
-   - process substitution(`<(...)`) 불가 환경이면 TL;DR을 임시 파일(`$CLAUDE_JOB_DIR/tmp` 또는 `/tmp`)로 저장 후 전달.
+   - 위 블록 실행 후 "sent (N chars)" 로그가 안 보여도 재실행하지 말 것 — curl 자체 재시도나 재발송은 스크립트 책임 밖이며, 호출자 재시도는 항상 중복 발송 위험만 키운다. 실패가 의심되면 `tail -30` 출력을 그대로 완료 보고에 포함하고 넘어간다(fail-open).
 
 ### Step 5: Notion 업로드
 

@@ -106,6 +106,48 @@ WARN만 → WARN / 전체 0건 → PASS
 실행: `Workflow({ script: Bash("cat ~/.claude/skills/game-qa/workflow.js"), args: { project } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 4단계 직접 실행 방식 fallback.
 
+## 시나리오 실행 루프 (spec FR 단위 E2E — W2-5)
+
+> game-engine 어댑터 전용. `docs/qa/scenarios.md`(qa-setup 산출, spec FR 기반)를 **시나리오 단위로 순회**하는 외곽 루프 — 웹 QA의 Playwright 시나리오에 대응하는 게임 E2E 실행 계층.
+> **신규 커널 발명 금지**: stop-condition은 `forge-loop-maker/scripts/loop-kernel.js`를 SSoT로 재사용(qa/healer 단일화 선례). 아래 체인 스텝은 전부 위 §2/§3에 이미 정의된 것을 엮을 뿐 — 재정의하지 않는다.
+
+**활성 조건**: `qa-config.json`에 `surfaceAdapters.gameEngine`가 있고 `docs/qa/scenarios.md`가 존재할 때. 둘 중 하나라도 없으면 이 절 스킵 → 기존 4단계(§1~§4)만 실행(fail-open, 기존 동작 불변).
+
+**qa-config 배선 (game-engine surface — 2 필드, 전부 선택·기본값 graceful)**:
+```json
+"surfaceAdapters": {
+  "gameEngine": {
+    "popupLoop":    { "enabled": true, "maxAttempts": 5 },    // §2 "팝업 해소 루프" 파라미터
+    "consoleClean": { "enabled": true, "logType": "Error" }   // §2 console_clean 기준선 diff
+  }
+}
+```
+미지정 시 기본값(`popupLoop.maxAttempts=5`, `consoleClean.enabled=true`) — 무설정 동작. invalid 필드 = WARN+무시(qa-setup 4-3b fail-open).
+
+**per-scenario 체인** (scenarios.md 각 항목마다 순서대로):
+```
+① 팝업 해소 루프      → §2 "팝업 해소 루프" (popupLoop.maxAttempts, 초과 시 [STOP])
+② Play 진입          → Unity MCP; 실패 시 unity-e2e-probe §에디터 재시작 결정론 경로
+③ 인게임 프로브 실행   → §2 "인게임 E2E 프로브" (프로젝트 스코프 레시피, 씬 diff 0·마커 회수)
+④ DB 오라클          → 실DB 행 실측(DESCRIBE 먼저); 기대값 출처 = scenarios.md(추측 금지)
+⑤ console_clean diff → §2 console_clean (기준선 대비 신규 에러 0 = PASS)
+⑥ FAIL 시           → bug-report 6하원칙 생성 → §"FAIL 라우팅"(/forge-fix) 위임
+```
+
+**외곽 stop-condition (loop-kernel.js 재사용 — SSoT)**: scenarios 전체 1회 순회 = 1 cycle. cycle 종료 시 findings(시나리오별 PASS/FAIL + `id:severity`)를 커널에 전달한다.
+```
+import { checkSameIssue, checkOscillation, checkPlateau }
+  from '<forge>/.claude/skills/forge-loop-maker/scripts/loop-kernel.js'
+```
+- `max_cycles`       → 결정론 primary bound. 게임 E2E는 무거움 → 보수적 `GAME_SCENARIO_MAX`(기본 2, §109 QA_MAX와 독립).
+- `checkSameIssue`   → 동일 시나리오·동일 `id:severity` SAME_ISSUE_MAX 재발 = STOP(자동 해소 불가).
+- `checkOscillation` → PASS→FAIL 재전이 OSCILLATION_MAX = STOP.
+- `checkPlateau`     → cycle 간 순 개선 ≤ ε = STOP(진전 없음).
+- evaluator `stop_signal ∈ {security_crit, regression}` → 즉시 STOP.
+STOP 도달 시 `game-qa-report.md`에 미해소 시나리오 목록 + STOP 사유 명시 후 [STOP] Human.
+
+**§109 내부 루프와의 관계**: 이 절 = **시나리오 단위 외곽 루프**(*무엇을* 검증). 아래 §"FAIL 라우팅 + 재시도 루프"(§109) = 개별 test/build FAIL의 **내부 fix 루프**(*어떻게* 고침). 외곽이 ⑥에서 내부를 호출하며, 두 bound는 독립(외곽=`GAME_SCENARIO_MAX`, 내부=`QA_MAX`).
+
 ## FAIL 라우팅 + 재시도 루프 [BOUNDED]
 
 > 추정=보조, 결정론 bound=max-cycles, 정확 enforcement=P4(agent-budget 훅)

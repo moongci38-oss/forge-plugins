@@ -1,6 +1,6 @@
 {
   "name": "forge-knowledge",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "Forge 지식·리서치 레이어 — 학습(learn)·메모리(memory-manage)·위키(wiki-sync)·RAG 검색 + 외부 리서치(article/yt/site-deep-analyze). forge-tools MCP(ADR-174 unified_search).",
   "author": {
     "name": "forge"

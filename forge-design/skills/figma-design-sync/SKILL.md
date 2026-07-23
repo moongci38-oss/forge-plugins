@@ -1,6 +1,6 @@
 ---
 name: figma-design-sync
-description: Figma file URL을 입력받아 디자인 토큰·메타·스크린샷을 Figma MCP로 fetch하고 CLAUDE-DESIGN-PROMPTS.md + ANALYSIS-REPORT.md를 갱신하여 claude.ai/design 결과물 정합도를 향상시킨다. 트리거 — 사용자가 Figma URL과 함께 "디자인 토큰 추출", "claude.ai/design 정합도 fix", "Figma 동기화", "디자인 시스템 갱신"을 요청하거나 `/figma-design-sync` 슬래시 명령으로 호출할 때. Figma MCP rate limit 도달 시 Codex/Gemini Vision PNG 재분석으로 자동 폴백. 입력은 Figma URL + 대상 doc 경로 + 옵션 brand 정정 룰. 산출물은 CLAUDE-DESIGN-PROMPTS.md 토큰 갱신 + figma-export/ANALYSIS-REPORT.md 실측·diff + figma-export/variables.json 원본 + 변경 보고서. eval_cases on.
+description: "Figma URL로 디자인 토큰·스크린샷을 fetch해 CLAUDE-DESIGN-PROMPTS.md·ANALYSIS-REPORT.md 갱신. 트리거: Figma URL + '디자인 토큰 추출/claude.ai/design 정합도 fix/Figma 동기화/디자인 시스템 갱신', /figma-design-sync. rate limit 시 Codex/Gemini Vision 폴백."
 ---
 
 # Figma Design Sync — claude.ai/design 정합도 향상

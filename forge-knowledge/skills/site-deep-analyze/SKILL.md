@@ -1,6 +1,6 @@
 ---
 name: site-deep-analyze
-description: "사이트 URL을 정밀 분석(DOM 패턴·CSS 토큰·API)해 재구현 가이드를 만든다. 사용자가 특정 사이트의 구조·디자인 분석을 요청할 때 사용한다. 코드 생성까지 원하면 site-clone."
+description: "사이트 URL 정밀분석(DOM패턴·CSS토큰·API)→재구현가이드. 구조/디자인 분석 요청 시 사용. 코드생성까지 원하면 site-clone."
 context: fork
 model: sonnet
 ---
