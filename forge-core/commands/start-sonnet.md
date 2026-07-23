@@ -43,6 +43,7 @@ Sonnet 세션 시작 시 실행.
    - 섹션 부재 시 = **grace**: 차단·GUIDE-STOP 없이 다음 단계로 진행. 1줄 advisory 출력:
      > "`## 핵심정보` 미설정 — `/forge-onboard`로 생성 권고"
    - → `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/check-continuity.sh"` advisory 실행(비차단) — populated/secret 검증 결과 1줄 표시. 스크립트 부재 시 skip(fail-open).
+   - → `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/index-refresh.sh"` 증분 재색인 백그라운드 시작(토큰0·로컬, 비차단). 오래 미실행 PC도 시작 시 자동 최신화. kill-switch `FORGE_AUTO_REINDEX=off`.
 
 3. **오늘 작업 요약 출력**
    - 우선순위 순 구현 태스크 목록

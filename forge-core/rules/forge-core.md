@@ -12,7 +12,11 @@
 
 - forge/ = 시스템 / forge-outputs/ (`${FORGE_OUTPUTS:-$HOME/forge-outputs}/`) = 결과물
 - `forge-outputs/`는 forge/의 **형제 폴더**. CWD 상대경로 사용 금지.
-- **하네스 개선 리포트 = 고정 경로**(사용자 지시 2026-07-12): forge 스킬·에이전트·커맨드·게이트를 쓰다 발견한 결함·개선점 정리 리포트는 **항상** `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/reviews/`에 저장한다. 파일명 = `YYYY-MM-DD-{세션슬러그}-harness-gaps.md`. 프로젝트 repo 안(`docs/` 등)에 두지 않는다 — 하네스 결함은 프로젝트가 아니라 forge 자산이다.
+- **하네스 개선 리포트 = 고정 경로 + local/main 2분류**(사용자 지시 2026-07-12, 경로·분류 갱신 2026-07-22): forge 스킬·에이전트·커맨드·게이트를 쓰다 발견한 결함·개선점 리포트는 **항상** `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines-2/reviews/` 하위에 저장한다. 프로젝트 repo 안(`docs/` 등)에 두지 않는다 — 하네스 결함은 프로젝트가 아니라 forge 자산이다.
+  - **2분류 저장(필수)**: 조치를 실행 위치로 나눠 **각각** 저장한다. 파일명은 양쪽 동일 `YYYY-MM-DD-{세션슬러그}-harness-gaps.md`, 폴더가 구분자다.
+    - `main/` = **메인 PC에서 실행할 것** — forge SSoT(git) 수정 → commit → push. 전체 1회, git으로 전 PC 전파.
+    - `local/` = **해당 PC에서 적용할 것** — env·미러 sync·머신 로컬 설정. PC마다 반복, git 전파 안 됨.
+  - 판정 기준: 조치 결과가 **git으로 전파되면 `main/`**, **그 PC에만 유효하면 `local/`**. 양쪽에 걸치는 결함은 각 파일에 해당 부분만 기술한다.
   - 내용 규약: **실제로 발화한 결함만**(추정·가정 금지) + 발화 사실(증거) + 개선안 + 심각도(CRITICAL/HIGH/MEDIUM/LOW) + 긍정 확인(유지·강화 항목). 기존 파일 형식 참조.
   - **집계 자가대조(Batch 3 증거등급 정직화)**: 헤더·요약의 집계 숫자는 본문 항목표에서 기계 도출(`grep -c` 등)하거나 작성 직후 자가 대조한다 — 목록형 산출물의 헤더 숫자는 **검증 대상**이다(집계 오류 4회 실증).
   - 리포트와 별개로 재발방지 학습은 `~/forge/.claude/learnings.jsonl`에 append(자동 로드 = 즉시 발효). 리포트=근거·상세 / learnings=실행 규칙, 둘 다 필요.

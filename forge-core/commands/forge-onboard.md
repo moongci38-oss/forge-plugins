@@ -24,7 +24,7 @@ forge-onboard 스킬을 실행합니다.
 forge-onboard 스킬의 Phase 0~6을 순서대로 실행:
 
 1. **Phase 1**: forge-sync init → manifest 등록
-2. **Phase 2**: forge-sync sync → 규칙/템플릿 배포
+2. **Phase 2**: `node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync` → 규칙/템플릿 배포
 3. **Phase 3**: 프로젝트 스캐폴딩 (CLAUDE.md, constitution, agent-teams, verify.sh, docs/)
 4. **Phase 4**: forge-workspace.json 연결
 

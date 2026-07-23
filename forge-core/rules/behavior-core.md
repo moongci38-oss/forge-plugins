@@ -24,6 +24,7 @@
 - 요건충족 주장 시: plan/spec 재독 후 FR 항목별 체크리스트 전항목 확인. 기억 기반 "다 됐다" 금지.
 - 적용: 테스트/빌드/린트/버그수정/요건충족/agent완료/커밋·PR 직전 + **다음 Phase 진입·다음 태스크 이동 직전** + 그 paraphrase·함의 전부.
 - test PASS 하위케이스 = `test-proof-rule.md`(AD-161) TEST_PROOF hash 동반.
+- JS/TS 워크트리에서 tsc/build/test 등 검증 명령 실행 전 `ln -s <메인체크아웃>/node_modules ./node_modules` 선행 — 워크트리는 의존성 미프로비저닝 상태라 'tsc/command not found'로 거짓 FAIL/거짓 skip 유발 (harness-gaps 2026-07-23 T-G1).
 
 ### 계획 오류 보정 게이트 (Planning Fallacy Calibration)
 

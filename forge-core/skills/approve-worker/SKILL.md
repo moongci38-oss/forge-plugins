@@ -1,6 +1,6 @@
 ---
 name: approve-worker
-description: "HMAC 기반 MAS worker 승인 토큰 발행 스킬. 사용자 TTY에서 /approve-worker {task_id} {worker} {allowed_tools} {target_paths} 호출 시 HMAC-SHA256 서명 토큰을 ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals/{task_id}-{nonce}.yaml에 저장. mas P0 approval gate 선행 필수. 트리거: /approve-worker, worker 승인, approval token 발행, mas P0 구현 시작 전."
+description: "HMAC 기반 MAS worker 승인 토큰 발행. TTY에서 /approve-worker {task_id} {worker} {allowed_tools} {target_paths} 호출 시 서명토큰 저장. mas P0 approval gate 선행 필수. 트리거: /approve-worker, worker 승인, mas P0 구현 시작 전."
 ---
 
 # /approve-worker

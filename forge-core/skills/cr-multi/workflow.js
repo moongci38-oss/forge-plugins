@@ -654,6 +654,25 @@ const auditEntry = {
     high: (r.issues || []).filter(i => i.severity === 'high').length,
   })),
 }
+// root-cause: P-9 회수 신호 명시 승격 (2026-07-22 보강안 P1) — verify_tier=full 표본이 구조적 0이라
+//   회수율 게이트가 측정 불가였다(1개월간 full 0건). 진짜 회수 = 값비싼 레그(codex/gemini)가
+//   opus(값싼 레그)가 놓친 crit/high를 잡았는가. workers[]에서 per-severity로 결정론 계산.
+//   관측 전용 — mode/verdict 무개입. double(opus 부재)은 cheap_leg=null → 회수 분모 제외.
+const _opus = auditEntry.workers.find(w => w.name === 'opus')
+const _escal = auditEntry.workers.filter(w => w.name !== 'opus')
+if (_opus && _escal.length) {
+  const _ec = Math.max(..._escal.map(w => w.crit)), _eh = Math.max(..._escal.map(w => w.high))
+  const _rc = Math.max(_ec - _opus.crit, 0), _rh = Math.max(_eh - _opus.high, 0)
+  auditEntry.recovery = {
+    cheap_leg: 'opus',
+    cheap_crit: _opus.crit, cheap_high: _opus.high,
+    escalated_crit: _ec, escalated_high: _eh,
+    recovered_crit: _rc, recovered_high: _rh,
+    recovered: _rc > 0 || _rh > 0,
+  }
+} else {
+  auditEntry.recovery = { cheap_leg: null, recovered: null }
+}
 // sanitized 입력 전제: _safe()로 화이트리스트 처리된 값만 포함되므로 r'''...''' 탈출 불가
 // root-cause: P-9 verify-tier advisory (2026-07-10 A안) — cr-multi가 모든 검수의 실제 100%
 //   chokepoint다. tier를 별도 agent로 스폰해 LLM이 값을 중계하게 두면, 제거하려던 "LLM 자발

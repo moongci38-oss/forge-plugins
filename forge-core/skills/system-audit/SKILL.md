@@ -1,6 +1,6 @@
 ---
 name: system-audit
-description: "6축 통합 시스템 감사(Agentic·Context·Harness·Cost·Human-AI + 중복). 전체 AI 시스템 역량 점검을 요청할 때 사용한다. 하네스 슬림화만 원하면 harness-legacy-scan."
+description: "6축 통합 시스템감사(Agentic·Context·Harness·Cost·Human-AI+중복). 전체 AI시스템 역량점검 요청 시. 하네스 슬림화만 원하면 harness-legacy-scan."
 argument-hint: "[target: system|{project-name}]"
 context: fork
 model: opus

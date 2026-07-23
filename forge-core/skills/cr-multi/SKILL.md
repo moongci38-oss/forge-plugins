@@ -1,6 +1,6 @@
 ---
 name: cr-multi
-description: "Multi-worker 검수 스킬 (Codex + Gemini Double / Opus + Codex + Gemini Triple). 단일 Codex 검수 대비 100% 보완 카테고리 커버. 트리거: /cr-multi, /cr-double, /cr-triple, plan/spec 저장 후 자동(CR_MULTI_AUTO=on), plateau 3회 자동 승격."
+description: "Multi-worker 검수(Codex+Gemini Double / Opus+Codex+Gemini Triple). 트리거: /cr-multi, /cr-double, /cr-triple, plan/spec 저장 후 자동, plateau 3회 자동승격."
 ---
 
 # /cr-multi
@@ -35,6 +35,7 @@ Codex + Gemini (Double) 또는 Opus + Codex + Gemini (Triple) 병렬 리뷰 + Tr
 
 - 히트 중 `docs/reviews/` 원문·wiki 노트가 있으면 **과거 지적 요약 3줄 이내**를 각 워커 프롬프트에 "이전 리뷰에서 지적된 패턴(재발 검사 대상)"으로 주입 — 같은 결함의 재발을 리뷰어가 우선 확인.
 - 결과 없음/rag 미가용 = 그대로 진행(fail-open, 비차단). 회상이 리뷰 범위를 좁히는 데 쓰여선 안 됨 — 추가 렌즈일 뿐.
+- 각 워커 프롬프트 상단에 **repo identity 1줄**(repo 이름 + 현재 HEAD SHA, 예: `# review-target: <repo>@<short-sha>`)을 주입해 워커가 어느 레포/커밋을 리뷰 중인지 앵커링 (cross-repo 혼선 방지, harness-gaps 2026-07-23 G-3).
 
 ## 모드
 

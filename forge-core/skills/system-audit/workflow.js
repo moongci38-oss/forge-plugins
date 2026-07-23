@@ -123,7 +123,10 @@ const crMode = _a?.crMode ?? 'degrade'
 // (Infinity when no turn-budget set), NOT per-skill consumption. Guard is only active
 // when caller sets an explicit turn token target (budget.total is set). PRIMARY bound
 // = wave/cycle structure already present; this is a supplementary turn-budget-aware stop.
-const BUDGET_RESERVE = parseInt(process.env.BUDGET_RESERVE || '300000')
+// root-cause: Workflow 샌드박스는 process 전역 미접근(process is not defined) → 기동 즉시 throw.
+//   이전 process.env.BUDGET_RESERVE는 Workflow 경유 실행을 항상 실패시켰다(가드 도입 후 전량 fork 폴백).
+//   → args.budgetReserve 주입 방식으로 교체(미주입 시 기본 300000 동일).
+const BUDGET_RESERVE = parseInt(_a?.budgetReserve || '300000')
 function checkBudget(phase) {
   // Only trip when the user has actually set a turn token target (budget.total is set).
   if (budget.total && budget.remaining() < BUDGET_RESERVE) {

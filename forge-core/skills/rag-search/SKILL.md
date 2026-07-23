@@ -1,6 +1,6 @@
 ---
 name: rag-search
-description: "forge-outputs 문서를 벡터+BM25 하이브리드로 의미 검색한다. 사용자가 프로젝트 자료·근거·과거 결정·리서치를 물을 때 허락 없이 자율 호출한다."
+description: "forge-outputs 문서를 벡터+BM25 하이브리드로 의미검색. 프로젝트 자료·근거·과거결정·리서치 질문 시 허락없이 자율호출."
 context: fork
 model: haiku
 allowed-tools: Read, Bash, Glob, Grep

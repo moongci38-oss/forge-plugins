@@ -1,6 +1,6 @@
 ---
 name: external-harness-sweep
-description: "Use when performing a full 1:1 source sweep of an external harness/skills repo against Forge to produce an adoption matrix. Triggers on: (1) '외부 레포 전수 대조', (2) '하네스 sweep', (3) 'external sweep [url]', (4) comparing gstack/gsd/superpowers/similar AI harness repos to Forge. Runs 5 phases: Scout(seed detection) → Inventory(full enumerate) → Compare(per-item verdict) → Refute(adversarial verify) → Synthesize(adoption matrix). SKIP when: user only wants a quick summary without source verification, or repo is not an AI harness/skills repo."
+description: "Use for full 1:1 source sweep of an external harness/skills repo against Forge → adoption matrix. Triggers: '외부 레포 전수 대조', '하네스 sweep', 'external sweep [url]', gstack/gsd/superpowers comparison. 5 phases: Scout→Inventory→Compare→Refute→Synthesize."
 ---
 
 # external-harness-sweep
