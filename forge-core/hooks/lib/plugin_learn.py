@@ -133,12 +133,19 @@ _SECRET_PATTERNS = [
     re.compile(r"(?m)^[A-Z0-9_]{4,}=\S+$"),                     # .env 라인 형태
 ]
 
+# JWT — 3-세그먼트 형태를 통째로 마스킹한다. 세그먼트가 base64url 이라 아래 일반
+# 후보만으로는 서명부가 살아남는다(cr-final HIGH 실측: `***.***.<서명 원문>`).
+_JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
+
 # 고엔트로피 토큰 (FR-007 3) — 문자셋·길이만으로 자르면 안 된다.
 # 'EEEE…'(900자)처럼 엔트로피가 0인 반복 문자열도 hex 문자셋이라 통째로 마스킹되어
 # 증거가 사라진다(실측). 스펙 문구가 "**고엔트로피** >=32자"인 이유가 이것이다.
+# 반대로 문자셋을 너무 좁히면 실제 토큰이 샌다 — base64url(`_`·`-`)을 빼면 JWT·
+# opaque 토큰이 부분만 마스킹된다(cr-final HIGH). 두 실패를 모두 막는 조합:
+#   넓은 문자셋 후보 + 실제 엔트로피 임계.
 _ENTROPY_CANDIDATES = [
-    (re.compile(r"\b[A-Fa-f0-9]{32,}\b"), 3.0),                 # hex: 최대 4.0 bits/char
-    (re.compile(r"\b[A-Za-z0-9+/]{32,}={0,2}\b"), 3.5),         # base64: 최대 6.0
+    (re.compile(r"\b[A-Fa-f0-9]{32,}\b"), 3.0),                    # hex: 최대 4.0 bits/char
+    (re.compile(r"[A-Za-z0-9+/_-]{32,}={0,2}"), 3.5),              # base64 / base64url: 최대 6.0
 ]
 
 
@@ -155,7 +162,7 @@ def shannon_entropy(s):
 
 def _redact_high_entropy(text):
     """길이·문자셋 조건을 만족하고 **실제로 엔트로피가 높은** 토큰만 마스킹한다."""
-    out = text
+    out = _JWT_RE.sub(_MASK, text)                                 # JWT 는 통째로
     for pat, threshold in _ENTROPY_CANDIDATES:
         out = pat.sub(
             lambda m: _MASK if shannon_entropy(m.group(0)) >= threshold else m.group(0),
@@ -580,6 +587,19 @@ def purge_older_than(days, path=None):
     프롬프트를 거친다). 반환: (남긴 수, 지운 수).
     """
     p = path or STORE_PATH
+    # ⚠️ read → write → replace 사이에 append 가 끼면 그 레코드가 통째로 사라진다
+    #   (cr-final MEDIUM). append 와 **같은 락**을 전 구간 보유한다. 락을 못 잡으면
+    #   지우지 않는다 — 정리 못 하는 것보다 데이터 유실이 비싸다(여기선 fail-closed).
+    lock = _Lock()
+    if not lock.acquire():
+        return len(read_records(p)), 0
+    try:
+        return _purge_locked(p, days)
+    finally:
+        lock.release()
+
+
+def _purge_locked(p, days):
     recs = read_records(p)
     if not recs:
         return 0, 0

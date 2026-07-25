@@ -1,7 +1,15 @@
 ---
 description: 이번 세션의 misfire를 로컬 학습 메모로 캡처 (로컬 전용·전송 없음). 다음 세션 스킬 컨텍스트에 반영됩니다.
-allowed-tools: Read, Grep, Glob, Bash(python3:*)
+allowed-tools: Read, Grep, Glob, Bash(python3 "${CLAUDE_PLUGIN_ROOT}/hooks/lib/plugin_learn.py":*)
 ---
+
+<!-- ⚠️ allowed-tools 를 넓히지 말 것 (cr-final HIGH 2026-07-25).
+     인터프리터를 와일드카드로 열어두면(예: 인터프리터 이름만 쓰고 인자 전체를 `*`로)
+     임의 코드 실행이 되고, 그 순간 FR-006 의 "네트워크 도구 미선언" 주장이 공허해진다.
+     이 커맨드에 필요한 것은 store 헬퍼 호출뿐이므로 그 스크립트 프리픽스로만 허용한다.
+     privacy-scan.sh 의 L3 검사가 이 조건을 기계적으로 확인한다.
+     (여전히 프레임워크 수준 선언이지 세션 전체의 무네트워크 증명은 아니다 — 스펙 §1.1) -->
+
 
 # /forge-learn-sweep
 

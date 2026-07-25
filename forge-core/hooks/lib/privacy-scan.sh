@@ -70,12 +70,19 @@ echo "=== FR-006 L3 tool whitelist check ==="
 CMD="$SELF_DIR/../../commands/forge-learn-sweep.md"
 if [ -f "$CMD" ]; then
   if grep -q '^allowed-tools:' "$CMD"; then
-    if grep '^allowed-tools:' "$CMD" | grep -qiE 'webfetch|websearch|mcp__'; then
+    AT_LINE=$(grep '^allowed-tools:' "$CMD")
+    if echo "$AT_LINE" | grep -qiE 'webfetch|websearch|mcp__'; then
       echo "  ❌ allowed-tools 에 네트워크 도구가 선언됨"
       FOUND=1
+    # 광범위 Bash 허용은 네트워크 도구를 빼도 무의미하다 — `Bash(python3:*)` 하나면
+    # urllib·소켓으로 뭐든 보낼 수 있다(cr-final HIGH). 인터프리터·셸 와일드카드 차단.
+    elif echo "$AT_LINE" | grep -qE 'Bash\((python3?|node|ruby|perl|sh|bash|env|curl|[^)"]*)\s*:\s*\*\)'; then
+      echo "  ❌ allowed-tools 에 광범위 Bash 허용(임의 실행 가능) — 네트워크 미선언 주장이 무효"
+      echo "$AT_LINE" | sed 's/^/      /'
+      FOUND=1
     else
-      echo "  ✅ allowed-tools 선언 존재, 네트워크 도구 미포함"
-      grep '^allowed-tools:' "$CMD" | sed 's/^/      /'
+      echo "  ✅ allowed-tools 선언 존재, 네트워크 도구·광범위 Bash 미포함"
+      echo "$AT_LINE" | sed 's/^/      /'
     fi
   else
     echo "  ❌ allowed-tools 선언 없음 (L3 미충족)"

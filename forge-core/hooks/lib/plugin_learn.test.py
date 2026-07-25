@@ -99,8 +99,28 @@ for raw, label in secrets:
     out, ok = pl.redact(raw)
     check(f"리댁션: {label}", ok and pl._MASK in out and raw.split("=")[-1] not in out,
           f"in={label} out={out[:40]}")
-check("리댁션 실패 필드는 기록되지 않음(fail-closed 경로 존재)",
-      pl._sanitize_field.__doc__ is not None and "미기록" in pl._sanitize_field.__doc__)
+# fail-closed 실증 — docstring 검사는 공허하다(cr-final MEDIUM). 실제로 예외를 주입해
+# 그 필드가 **누락되는지**를 본다.
+_orig_entropy = pl.shannon_entropy
+
+
+def _boom(_s):
+    raise RuntimeError("redaction blew up")
+
+
+pl.shannon_entropy = _boom
+try:
+    val, ok = pl.redact("some text with " + "a1b2c3d4" * 8)
+    check("리댁션 중 예외 → (None, False)", val is None and ok is False, f"{val!r},{ok}")
+    check("_sanitize_field 는 예외 시 None", pl._sanitize_field("x" * 40, 300) is None)
+    rec_fc = pl.make_record("s" * 40, "a" * 40, skill="qa")
+    check("리댁션 실패 필드는 레코드에서 누락(fail-closed)",
+          "summary" not in rec_fc and "apply" not in rec_fc, str(sorted(rec_fc.keys())))
+    check("나머지 필드는 유지(전체 유실 아님)",
+          rec_fc.get("id") and rec_fc.get("project_key"))
+finally:
+    pl.shannon_entropy = _orig_entropy
+check("복원 후 리댁션 정상", pl.redact("hello")[1] is True)
 
 # 고엔트로피 판정 — 문자셋·길이만 보면 엔트로피 0인 반복 문자열까지 마스킹된다(실측 회귀)
 check("엔트로피 0 반복 문자열은 마스킹하지 않음(증거 보존)",
@@ -110,6 +130,21 @@ check("실제 고엔트로피 hex 토큰은 마스킹",
 check("shannon_entropy: 반복 문자열 ~0", pl.shannon_entropy("A" * 64) < 0.01)
 check("shannon_entropy: 균등 분포는 높음", pl.shannon_entropy("0123456789abcdef" * 4) > 3.9)
 check("짧은 토큰은 대상 아님", pl.redact("abc123")[0] == "abc123")
+
+# cr-final HIGH 회귀: base64url(`_`·`-`) 문자셋 누락으로 JWT 서명부·opaque 토큰이 샜다
+_jwt = ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0."
+        "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+out_jwt = pl.redact("token: " + _jwt)[0]
+check("JWT 전체가 마스킹됨(서명부 잔존 없음)",
+      "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk" not in out_jwt, out_jwt[:80])
+check("JWT 헤더 세그먼트도 잔존 없음", "eyJhbGciOiJIUzI1NiIs" not in out_jwt)
+_b64url = "ya29.A0ARrdaM-" + "Xq3Zk9_tR5vB2nL8pW4yH6jK1mN0oP7sQ" * 2
+check("base64url opaque 토큰 마스킹",
+      pl._MASK in pl.redact(_b64url)[0] and _b64url not in pl.redact(_b64url)[0])
+check("일반 문장은 마스킹되지 않음(오탐 방지)",
+      pl.redact("이번 세션에 게이트가 오탐으로 머지를 막았다")[0]
+      == "이번 세션에 게이트가 오탐으로 머지를 막았다")
 r = pl.make_record("토큰 유출 " + "sk-" + "x" * 24, skill="qa")
 check("레코드 저장값에 원문 시크릿 없음", "sk-" + "x" * 24 not in json.dumps(r, ensure_ascii=False))
 
@@ -299,6 +334,38 @@ after = pl.read_records()
 check("오래된 레코드 제거", removed == 1 and kept == 1, f"kept={kept} removed={removed}")
 check("최신 레코드 보존", len(after) == 1 and after[0]["summary"] == "recent")
 check("purge 후 권한 0600", oct(os.stat(pl.STORE_PATH).st_mode & 0o777) == "0o600")
+# cr-final MEDIUM 회귀: purge 가 락 없이 read→replace 하면 동시 append 가 유실된다.
+# 프로덕션은 flock 경로를 쓰므로 **별도 프로세스**가 실제 락을 잡은 상태를 만든다
+# (같은 프로세스에서 mkdir 디렉토리만 만들면 flock 경로엔 아무 영향이 없다 — 실측).
+holder_src = f"""
+import importlib.util, sys, time
+spec = importlib.util.spec_from_file_location("pl", {str(HERE / 'plugin_learn.py')!r})
+pl = importlib.util.module_from_spec(spec); spec.loader.exec_module(pl)
+pl.STORE_DIR = {str(pl.STORE_DIR)!r}
+pl.STORE_PATH = {str(pl.STORE_PATH)!r}
+pl.LOCK_PATH = {str(pl.LOCK_PATH)!r}
+lk = pl._Lock(timeout=5)
+if lk.acquire():
+    print("HELD", flush=True)
+    time.sleep(6)
+"""
+hf = Path(pl.STORE_DIR) / "holder.py"
+hf.write_text(holder_src)
+holder = subprocess.Popen([sys.executable, str(hf)], stdout=subprocess.PIPE, text=True)
+try:
+    ready = holder.stdout.readline().strip()
+    check("별도 프로세스가 락 획득", ready == "HELD", ready)
+    before_lines = len(pl.read_records())
+    os.environ["FORGE_PLUGIN_LEARN_LOCK_TIMEOUT"] = "1"
+    pl.LOCK_TIMEOUT = 1
+    _k, _r = pl.purge_older_than(1, path=pl.STORE_PATH)
+    check("락 점유 중 purge 는 삭제하지 않음(데이터 유실 방지)", _r == 0, f"removed={_r}")
+    check("락 점유 중 purge 후 라인 수 불변", len(pl.read_records()) == before_lines)
+finally:
+    holder.kill()
+    holder.wait()
+    pl.LOCK_TIMEOUT = int(os.environ.pop("FORGE_PLUGIN_LEARN_LOCK_TIMEOUT", "30"))
+    hf.unlink(missing_ok=True)
 check("임시 파일 잔재 없음", not any(p.name.startswith("learnings.jsonl.purge") for p in Path(pl.STORE_DIR).iterdir()))
 
 print("\n=== FR-006 opt-out · first-use 공지 ===")
@@ -326,7 +393,18 @@ res = subprocess.run(["bash", str(scan)], capture_output=True, text=True)
 check("privacy-scan 통과(exit 0)", res.returncode == 0, res.stdout[-400:])
 check("L1 네트워크 매치 0", "❌ MATCH" not in res.stdout)
 check("L2 표준 라이브러리만", "신규 런타임 의존성 0" in res.stdout)
-check("L3 allowed-tools 선언 + 네트워크 도구 미포함", "네트워크 도구 미포함" in res.stdout)
+check("L3 allowed-tools 선언 + 네트워크 도구·광범위 Bash 미포함",
+      "광범위 Bash 미포함" in res.stdout, res.stdout[-300:])
+# cr-final HIGH 회귀: 인터프리터 와일드카드 허용을 privacy-scan L3 가 실제로 잡는가.
+# (문자열을 소스에 그대로 쓰면 스캐너가 이 저장소 파일 자신을 잡으므로 조립해서 만든다.)
+_broad = "Bash(" + "python3" + ":*)"
+at_line = (HERE.parent.parent / "commands" / "forge-learn-sweep.md").read_text() \
+    .split("allowed-tools:")[1].split("\n")[0]
+check("커맨드 allowed-tools 가 헬퍼 스크립트 프리픽스로 좁혀짐",
+      "plugin_learn.py" in at_line, at_line)
+check("인터프리터 와일드카드 미사용", _broad not in at_line, at_line)
+_scan_src = (HERE / "privacy-scan.sh").read_text()
+check("privacy-scan 에 광범위 Bash 검사 존재", "광범위 Bash" in _scan_src)
 
 print("\n=== 훅: 비차단(AD-168) ===")
 hooks_dir = HERE.parent
