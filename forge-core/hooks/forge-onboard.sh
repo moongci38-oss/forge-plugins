@@ -12,11 +12,19 @@
 #
 # ── fail-open (AD-168 / 전역 무블로킹 롤아웃) ────────────────────────────────
 # 종전 `set -euo pipefail` 은 openssl 부재·권한 문제 등에서 훅을 중도 중단시켰다.
-# SessionStart 훅이 사용자 세션 시작을 방해해선 안 되므로, 실패해도 남은 단계를
-# 진행하고 항상 exit 0 한다(초기화 1건 실패 > 세션 블로킹).
+# SessionStart 훅이 사용자 세션 시작을 방해해선 안 된다.
+#
+# ⚠️ `trap 'exit 0' ERR` 만으로는 "남은 단계 계속 진행"이 **되지 않는다** — set -e 가
+#    없어도 ERR 트랩은 실패한 명령에서 발동해 그 자리에서 스크립트를 끝낸다(실측:
+#    `false` 다음 줄이 실행되지 않음). 그래서 트랩은 **최후 방어선**으로만 두고,
+#    각 초기화 단계는 개별적으로 `|| true` 로 감싸 실패해도 다음 단계가 돌게 한다.
+#    (cr-final MEDIUM 2026-07-25 — 종전 주석은 이 점에서 사실과 달랐다.)
+# ⚠️ nounset(`set -u`) 위반은 ERR 트랩이 잡지 못하고 non-zero 로 죽는다. 그래서
+#    CLAUDE_PLUGIN_ROOT 를 먼저 기본값으로 확정한다(미설정 실행 환경 대비).
 set -uo pipefail
 trap 'exit 0' ERR
 
+CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 ORCH_TOKEN_DIR="$HOME/.config/forge"
 ORCH_TOKEN_FILE="$ORCH_TOKEN_DIR/orch-token.key"
 RULES_DST="$HOME/.claude/rules"
@@ -47,15 +55,16 @@ if [ -d "$RULES_SRC" ]; then
     fname="$(basename "$src_file")"
     dst_file="$RULES_DST/$fname"
     if [ ! -f "$dst_file" ]; then
-      mkdir -p "$RULES_DST"
-      cp "$src_file" "$dst_file"
-      echo "[forge-onboard] rules installed: $fname" >&2
+      # `[ ! -f ]` 가드 = 사용자가 고친 rules 를 덮어쓰지 않는다(최초 설치 시에만 복사).
+      if mkdir -p "$RULES_DST" 2>/dev/null && cp "$src_file" "$dst_file" 2>/dev/null; then
+        echo "[forge-onboard] rules installed: $fname" >&2
+      fi
     fi
   done
 fi
 
 # 3. plugin data dir — ensure writable persistent dir exists
-mkdir -p "$PLUGIN_DATA"
+mkdir -p "$PLUGIN_DATA" 2>/dev/null || true
 
 # 4. session management dirs — handover + checkpoints
 SESSION_DIRS=(
@@ -65,19 +74,23 @@ SESSION_DIRS=(
 )
 for dir in "${SESSION_DIRS[@]}"; do
   if [ ! -d "$dir" ]; then
-    mkdir -p "$dir"
-    echo "[forge-onboard] session dir created: $dir" >&2
+    if mkdir -p "$dir" 2>/dev/null; then
+      echo "[forge-onboard] session dir created: $dir" >&2
+    fi
   fi
 done
 
 # 5. handover-manager.sh — install if missing
+# /end-opus·/end-sonnet·/start-opus 가 $HOME/.claude/scripts/handover-manager.sh 를
+# 직접 호출한다 — 이 복사가 없으면 신규 설치에서 세션관리 커맨드가 깨진다
+# (cr-final HIGH 2026-07-25: 종전엔 소스가 미번들이라 이 블록이 통째로 no-op 이었다).
 HM_SRC="${CLAUDE_PLUGIN_ROOT}/hooks/handover-manager.sh"
 HM_DST="$HOME/.claude/scripts/handover-manager.sh"
 if [ -f "$HM_SRC" ] && [ ! -f "$HM_DST" ]; then
-  mkdir -p "$(dirname "$HM_DST")"
-  cp "$HM_SRC" "$HM_DST"
-  chmod +x "$HM_DST"
-  echo "[forge-onboard] handover-manager.sh installed: $HM_DST" >&2
+  if mkdir -p "$(dirname "$HM_DST")" 2>/dev/null && cp "$HM_SRC" "$HM_DST" 2>/dev/null; then
+    chmod +x "$HM_DST" 2>/dev/null || true
+    echo "[forge-onboard] handover-manager.sh installed: $HM_DST" >&2
+  fi
 fi
 
 # 6. bundled skill scripts — self-install if missing (plugin self-containment)
@@ -99,9 +112,9 @@ for i in "${!SKILL_SCRIPT_SRCS[@]}"; do
   src="${SKILL_SCRIPT_SRCS[$i]}"
   dst="${SKILL_SCRIPT_DSTS[$i]}"
   if [ -f "$src" ] && [ ! -f "$dst" ]; then
-    mkdir -p "$(dirname "$dst")"
-    cp "$src" "$dst"
-    echo "[forge-onboard] skill script installed: $dst" >&2
+    if mkdir -p "$(dirname "$dst")" 2>/dev/null && cp "$src" "$dst" 2>/dev/null; then
+      echo "[forge-onboard] skill script installed: $dst" >&2
+    fi
   fi
 done
 
