@@ -67,7 +67,9 @@ fi
 
 echo
 echo "=== FR-006 L3 tool whitelist check ==="
-CMD="$SELF_DIR/../../commands/forge-learn-sweep.md"
+# 검사 대상 경로를 주입 가능하게 둔다 — 고정 경로만 보면 "광범위 허용을 정말 잡는가"를
+# 테스트로 증명할 수 없다(cr-final LOW: 스캐너 자체가 검증 불가였음).
+CMD="${FORGE_LEARN_CMD_PATH:-$SELF_DIR/../../commands/forge-learn-sweep.md}"
 if [ -f "$CMD" ]; then
   if grep -q '^allowed-tools:' "$CMD"; then
     AT_LINE=$(grep '^allowed-tools:' "$CMD")

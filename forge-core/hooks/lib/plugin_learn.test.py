@@ -406,6 +406,26 @@ check("인터프리터 와일드카드 미사용", _broad not in at_line, at_lin
 _scan_src = (HERE / "privacy-scan.sh").read_text()
 check("privacy-scan 에 광범위 Bash 검사 존재", "광범위 Bash" in _scan_src)
 
+# 스캐너가 실제로 광범위 허용을 **차단하는지** end-to-end 로 증명한다.
+# (고정 경로만 보던 종전 구현은 이 증명이 불가능했다 — cr-final LOW)
+_scan_dir = Path(tempfile.mkdtemp(prefix="scan-"))
+_bad = _scan_dir / "bad.md"
+_bad.write_text("---\nallowed-tools: Read, " + _broad + "\n---\n# crafted\n")
+_r_bad = subprocess.run(["bash", str(scan)], capture_output=True, text=True,
+                        env={**os.environ, "FORGE_LEARN_CMD_PATH": str(_bad)})
+check("광범위 인터프리터 허용 → 스캔 FAIL(exit 1)", _r_bad.returncode == 1, _r_bad.stdout[-200:])
+check("FAIL 사유가 광범위 Bash 로 표기", "광범위 Bash 허용" in _r_bad.stdout)
+_good = _scan_dir / "good.md"
+_good.write_text('---\nallowed-tools: Read, Grep, Bash(python3 "x/plugin_learn.py":*)\n---\n')
+_r_good = subprocess.run(["bash", str(scan)], capture_output=True, text=True,
+                         env={**os.environ, "FORGE_LEARN_CMD_PATH": str(_good)})
+check("좁은 프리픽스 허용 → 스캔 PASS(exit 0)", _r_good.returncode == 0, _r_good.stdout[-200:])
+_net = _scan_dir / "net.md"
+_net.write_text("---\nallowed-tools: Read, WebFetch\n---\n")
+_r_net = subprocess.run(["bash", str(scan)], capture_output=True, text=True,
+                        env={**os.environ, "FORGE_LEARN_CMD_PATH": str(_net)})
+check("네트워크 도구 선언 → 스캔 FAIL", _r_net.returncode == 1, _r_net.stdout[-200:])
+
 print("\n=== 훅: 비차단(AD-168) ===")
 hooks_dir = HERE.parent
 inject_hook = hooks_dir / "forge-plugin-learn-inject.sh"
