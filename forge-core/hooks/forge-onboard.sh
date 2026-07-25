@@ -52,7 +52,9 @@ fi
 if [ -d "$RULES_SRC" ]; then
   for src_file in "$RULES_SRC"/*.md; do
     [ -f "$src_file" ] || continue
-    fname="$(basename "$src_file")"
+    # 외부 명령(basename) 대신 파라미터 확장 — 실패할 수 있는 명령치환이 하나라도
+    # 남으면 ERR 트랩이 거기서 스크립트를 끝낸다(cr-final LOW: 6블록 중 유일한 무가드 지점).
+    fname="${src_file##*/}"
     dst_file="$RULES_DST/$fname"
     if [ ! -f "$dst_file" ]; then
       # `[ ! -f ]` 가드 = 사용자가 고친 rules 를 덮어쓰지 않는다(최초 설치 시에만 복사).

@@ -12,7 +12,10 @@
 set -uo pipefail
 
 # mktemp 실패를 흘려보내면 빈 변수로 계속 진행해 **거짓 PASS** 가 난다(실측: 읽기전용
-# /tmp 환경에서 일부 항목이 통과처럼 보고됨 — cr-final MEDIUM). 임시 디렉토리 확보는 치명.
+# /tmp 환경에서 일부 항목이 통과처럼 보고됨 — cr-final MEDIUM).
+# ⚠️ 함수 안의 `exit` 는 `$( )` 서브셸만 죽인다 — 호출측은 FATAL 문자열을 경로로 삼고
+#    계속 간다. 그래서 **호출부마다 `|| exit 2`** 를 붙여야 실제로 치명이 된다
+#    (cr-final 2차 지적 — 1차 수정이 이 지점을 놓쳤다).
 mktmp() {
   local d
   d="$(mktemp -d 2>/dev/null)" || { echo "FATAL: mktemp -d 실패 — 테스트 환경 불가"; exit 2; }
@@ -64,7 +67,7 @@ grep -q "trap 'exit 0' ERR" "$HOOK"; check $? "fail-open trap 존재"
 
 echo
 echo "=== 실제 초기화 동작 (빈 껍데기 회귀) ==="
-FAKE_HOME="$(mktmp)"
+FAKE_HOME="$(mktmp)" || exit 2
 OUT="$(HOME="$FAKE_HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"; RC=$?
 [ "$RC" = "0" ]; check $? "exit 0 (세션 미차단)" "rc=$RC"
 [ -d "$FAKE_HOME/.claude/handover/opus" ]; check $? "세션 디렉토리 생성(handover/opus)"
@@ -83,7 +86,7 @@ AFTER="$(find "$FAKE_HOME" -type f | sort | md5sum)"
 
 echo
 echo "=== 의존성 부재 내성 (openssl 없는 환경) ==="
-FAKE_HOME2="$(mktmp)"; STUB="$(mktmp)"
+FAKE_HOME2="$(mktmp)" || exit 2; STUB="$(mktmp)" || exit 2
 # openssl 만 없는 PATH 를 구성한다(다른 기본 명령은 유지)
 printf '#!/usr/bin/env bash\nexit 127\n' > "$STUB/openssl"; chmod +x "$STUB/openssl"
 OUT2="$(HOME="$FAKE_HOME2" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" PATH="$STUB:$PATH" bash "$HOOK" 2>&1)"; RC2=$?
@@ -108,7 +111,7 @@ check $? "커맨드가 실제로 이 스크립트를 요구함(불필요 복사 
 
 echo
 echo "=== nounset 내성: CLAUDE_PLUGIN_ROOT 미설정 (cr-final MEDIUM 회귀) ==="
-FAKE_HOME3="$(mktmp)"
+FAKE_HOME3="$(mktmp)" || exit 2
 ( unset CLAUDE_PLUGIN_ROOT; HOME="$FAKE_HOME3" bash "$HOOK" >/dev/null 2>&1 )
 check $? "CLAUDE_PLUGIN_ROOT 미설정에도 exit 0(set -u 종료 회귀)"
 [ -d "$FAKE_HOME3/.claude/checkpoints" ]
@@ -117,7 +120,7 @@ check $? "plugin-root 무관 단계는 그대로 수행됨"
 echo
 echo "=== 단계별 계속 진행: 실패해도 후속 단계 수행 (cr-final MEDIUM 회귀) ==="
 # rules 목적지를 파일로 막아 2번 단계를 실패시킨 뒤, 4번(세션 디렉토리)이 도는지 본다.
-FAKE_HOME4="$(mktmp)"
+FAKE_HOME4="$(mktmp)" || exit 2
 mkdir -p "$FAKE_HOME4/.claude"
 : > "$FAKE_HOME4/.claude/rules"          # 디렉토리 자리에 파일 → mkdir 실패 유도
 HOME="$FAKE_HOME4" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" >/dev/null 2>&1
@@ -127,7 +130,7 @@ check $? "앞 단계 실패 후에도 뒤 단계가 실행됨(trap 즉시종료 
 
 echo
 echo "=== 쓰기 불가 HOME 내성 ==="
-RO="$(mktmp)"; chmod 500 "$RO"
+RO="$(mktmp)" || exit 2; chmod 500 "$RO"
 HOME="$RO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" >/dev/null 2>&1
 check $? "쓰기 불가 HOME 에서도 exit 0(세션 미차단)"
 chmod 700 "$RO"
