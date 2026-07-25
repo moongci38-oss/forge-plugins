@@ -23,6 +23,13 @@ PLUGIN_ROOT = os.environ.get(
 )
 
 PLUGINS = ["forge-core", "forge-build", "forge-knowledge", "forge-design", "forge-game"]
+
+# ⚠️ hooks/ 는 의도적으로 여기 없다 — **플러그인 훅의 SSoT 는 이 repo 다**(forge SSoT 가 아님).
+#   forge 에 훅을 만들고 여기로 전파되길 기대하면 영원히 안 온다.
+#   실사고(2026-07-25 발견): 615ba01 이 플러그인 내용을 forge SSoT 에서 조립하도록 바꾸면서
+#   forge 에 원본이 없는 forge-core/hooks/forge-onboard.sh 가 통째로 유실됐고, plugin.json 의
+#   SessionStart 참조만 남아 설치 사용자가 매 세션 존재하지 않는 훅을 실행 시도했다.
+#   회귀 감시: forge-core/hooks/forge-onboard.test.sh 가 매니페스트↔파일 실재를 검사한다.
 SUBDIRS = ["skills", "commands", "agents", "rules"]
 
 RE_FORGE = re.compile(r'~/forge\b')
