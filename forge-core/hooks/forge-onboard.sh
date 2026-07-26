@@ -82,18 +82,10 @@ for dir in "${SESSION_DIRS[@]}"; do
   fi
 done
 
-# 5. handover-manager.sh — install if missing
-# /end-opus·/end-sonnet·/start-opus 가 $HOME/.claude/scripts/handover-manager.sh 를
-# 직접 호출한다 — 이 복사가 없으면 신규 설치에서 세션관리 커맨드가 깨진다
-# (cr-final HIGH 2026-07-25: 종전엔 소스가 미번들이라 이 블록이 통째로 no-op 이었다).
-HM_SRC="${CLAUDE_PLUGIN_ROOT}/hooks/handover-manager.sh"
-HM_DST="$HOME/.claude/scripts/handover-manager.sh"
-if [ -f "$HM_SRC" ] && [ ! -f "$HM_DST" ]; then
-  if mkdir -p "$(dirname "$HM_DST")" 2>/dev/null && cp "$HM_SRC" "$HM_DST" 2>/dev/null; then
-    chmod +x "$HM_DST" 2>/dev/null || true
-    echo "[forge-onboard] handover-manager.sh installed: $HM_DST" >&2
-  fi
-fi
+# 5. (제거 2026-07-26 v0.7.0) handover-manager.sh 설치 블록 삭제
+# — /forge-start·/forge-end 통합(upstream)으로 커맨드의 handover-manager 참조가 0이 됨.
+#   dead bundle 유지는 dangling의 역방향 부채(onboard.test가 적발). 신규 의존
+#   (session-recall.sh 등)은 forge 체크아웃이 소유 — 플러그인 번들 안 함(드리프트 방지).
 
 # 6. bundled skill scripts — self-install if missing (plugin self-containment)
 # commands/skills invoke these via $HOME/.claude/skills/... (Bash tool has no

@@ -97,17 +97,11 @@ check $? "openssl 실패해도 나머지 단계 계속 수행(중도 중단 없�
 check $? "실패한 토큰 파일 잔재 없음"
 
 echo
-echo "=== handover-manager.sh 설치 (cr-final HIGH 회귀) ==="
-# /end-opus·/end-sonnet·/start-opus 가 $HOME/.claude/scripts/handover-manager.sh 를
-# 직접 호출한다 — 번들 소스가 없으면 5번 블록이 no-op 이 되어 신규 설치가 깨진다.
-[ -f "$PLUGIN_ROOT/hooks/handover-manager.sh" ]
-check $? "handover-manager.sh 가 플러그인에 번들됨" "미번들 — 5번 블록이 no-op"
-[ -f "$FAKE_HOME/.claude/scripts/handover-manager.sh" ]
-check $? "설치 시 \$HOME/.claude/scripts 로 복사됨"
-[ -x "$FAKE_HOME/.claude/scripts/handover-manager.sh" ]
-check $? "복사본 실행 권한"
-grep -rq "handover-manager.sh" "$PLUGIN_ROOT/commands/" 2>/dev/null
-check $? "커맨드가 실제로 이 스크립트를 요구함(불필요 복사 아님)"
+echo "=== handover-manager.sh dead-bundle 부재 (v0.7.0 — /forge-end 통합으로 참조 0) ==="
+[ ! -f "$PLUGIN_ROOT/hooks/handover-manager.sh" ]
+check $? "handover-manager.sh 미번들(dead bundle 제거 유지)" "재유입 — 커맨드 참조 0인데 번들 존재"
+! grep -rq "handover-manager.sh" "$PLUGIN_ROOT/commands/" 2>/dev/null
+check $? "커맨드의 handover-manager 참조 0 유지"
 
 echo
 echo "=== nounset 내성: CLAUDE_PLUGIN_ROOT 미설정 (cr-final MEDIUM 회귀) ==="
