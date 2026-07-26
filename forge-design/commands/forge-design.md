@@ -11,6 +11,20 @@ group: plan
 web 또는 game track을 판별해 `/prd` 또는 `/gdd`로 위임합니다.
 기존 `/prd`·`/gdd` 동작은 100% 보존됩니다 — 이 명령은 디스패처일 뿐입니다.
 
+## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
+
+기획서 작성 착수(dispatch) **전에 브레인 조회 1회**를 수행한다. 축적한 wiki·RAG 지식이 기획 중 잠들어 있는 구멍을 막는 스텝이다.
+
+1. 기능 키워드로 `rag-search` 1회 + wiki 조회(`mcp__…__wiki_search` 또는 20-wiki Glob) 1회
+2. **결과가 0건이어도 "조회함 + 0건"을 기록한다** — 브레인을 *안 물어본 것*과 *물어봤는데 없는 것*은 다르다
+3. 기록(1줄):
+   ```bash
+   printf '{"ts":"%s","stage":"forge-design","query":"<키워드>","hits":<n>}\n' "$(date -u +%FT%TZ)" \
+     >> "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/brain-recall.jsonl"
+   ```
+4. 적중 건이 있으면 위임받은 `/prd`·`/gdd`에 "선행 지식" 항목으로 전달한다.
+
+> T3 미연결(강등) 세션이면 조회 결과가 팀과 다를 수 있다 — 세션 시작 배너(`t2-degraded-banner.sh`) 경고를 그대로 신뢰하고, 중요한 근거는 T3 복구 후 재조회한다.
 
 ## Phase 0 — Readiness 판정 (경량 게이트)
 

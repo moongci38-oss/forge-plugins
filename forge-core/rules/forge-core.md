@@ -62,7 +62,7 @@
 ## 병렬 실행 (HIGH)
 
 - 병렬 작업 → **Agent Teams** (기본) | 단순 탐색/검색/단일 파일 → **Subagent** (경량)
-- 모델 tier 판정 축 = **과제 난도**(정본: `model-routing.md §워커 tier = 과제 난도 종속`). 작업유형 축(Lead→Opus 4.8 / 구현·작성→Sonnet 5 / 탐색·검색→Haiku 4.5)은 **기본값일 뿐 상수 아님** — 난도가 높으면 tier를 올린다. 구버전 핀 금지 등 상세: `model-routing.md`
+- 모델 tier 판정 축 = **과제 난도**(정본: `model-routing.md §워커 tier = 과제 난도 종속`). 작업유형 축(Lead→Opus 5 / 구현·작성→Sonnet 5 / 탐색·검색→Haiku 4.5)은 **기본값일 뿐 상수 아님** — 난도가 높으면 tier를 올린다. 구버전 핀 금지 등 상세: `model-routing.md`
 - Worktree: 같은 파일(**git 인덱스도 공유자원** — git write하는 병렬 워커 포함) 병렬 수정 시 `isolation: "worktree"` 또는 git-ops 직렬 큐 사용
 
 ### Agent Teams vs Workflow 선택 기준 (AD-114)
