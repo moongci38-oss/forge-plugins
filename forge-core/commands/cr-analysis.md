@@ -53,6 +53,6 @@ $0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.01~0.03
 ## 관련
 
 - 본명령: `/codex-review --stage analysis`
-- 프롬프트: `~/forge/.claude/prompts/codex-review-analysis.md`
-- 정책: `~/forge/dev/rules/codex-review-policy.md`
+- 프롬프트: `${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-analysis.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`
 - 자매: `/cr-plan` (Spec/Plan, blocking)

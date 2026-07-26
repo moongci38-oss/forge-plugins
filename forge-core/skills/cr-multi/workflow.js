@@ -499,13 +499,33 @@ const workers = mode === 'triple'
 const workerNames = mode === 'triple'
   ? (codexEnabled ? ['opus', 'codex', 'gemini'] : ['opus', 'gemini'])
   : (codexEnabled ? ['codex', 'gemini'] : ['gemini'])
-const results = (await parallel(workers))
+// root-cause: E-4(2026-07-24 실증) — Opus 레그가 {score:50, summary:"test", issues:[]}
+//   같은 무의미 응답을 반환했는데 쿼럼 가드가 없어 combined 에 그대로 합산되고
+//   evidence_tier 는 full 로 표기됐다. 레그 하나가 죽어도 판정이 정상처럼 나온다.
+//   → 유효성 검사를 통과한 레그만 합산에 쓰고, 무효 레그 수를 판정에 남긴다.
+const INVALID_LEG_SCORE_MAX = 60   // 이 이하 점수 + 무근거 = 무효 (매직넘버 상수화)
+const _legValid = (r) => {
+  if (!r || typeof r.score !== 'number') return false
+  const sum = typeof r.summary === 'string' ? r.summary.trim() : ''
+  const nIssues = Array.isArray(r.issues) ? r.issues.length : 0
+  // 휴리스틱 한계 명시: '지적 없는 정상 클린 리뷰'(짧은 요약 + issues 0)를 무효로
+  // 오탐하면 깨끗한 코드일수록 게이트가 안 통과하는 역방향 압력이 생긴다(cr-final 지적).
+  // → 점수 조건을 추가한다. 실제 클린 리뷰는 고득점이고, 관측된 무의미 응답은
+  //   {score:50, summary:"test", issues:[]} 처럼 중간 이하 점수였다.
+  return !(sum.length < 40 && nIssues === 0 && r.score <= INVALID_LEG_SCORE_MAX)
+}
+const _rawResults = (await parallel(workers))
   .map((r, i) => r && { ...r, worker: workerNames[i] })   // filter 前 라벨 — null도 index 유지
   .filter(Boolean)
+const invalidLegs = _rawResults.filter((r) => !_legValid(r))
+if (invalidLegs.length) {
+  log(`[WARN] 무효 레그 ${invalidLegs.length}건 제외: ${invalidLegs.map((r) => `${r.worker}(score=${r.score})`).join(', ')} — 요약<40자 + issues 0건 = 검수 수행 증거 없음`)
+}
+const results = _rawResults.filter(_legValid)
 
 // ── GS-B19: Finding Dedup + Confidence Scoring + Fix-First ordering ──────────
 // root-cause: GS-B19 — cross-worker agreement → confidence score; dedup by (file|line|category); Fix-First sort
-// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ~/forge/shared/scripts/synthesize.py
+// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ${FORGE_ROOT:-$HOME/forge}/shared/scripts/synthesize.py
 //   (review 키 file|line|category — 아래 inline과 동일 계약 / code 키 export|signature + conflict surfacing 추가).
 //   Workflow 샌드박스는 require 불가라 review hot-path는 inline 유지. 비-Workflow fan-out 소비자는 synthesize.py 사용.
 const _sevOrd = { critical: 0, high: 1, medium: 2, low: 3 }
@@ -641,39 +661,66 @@ if (_opus && _escal.length) {
 //   chokepoint다. tier를 별도 agent로 스폰해 LLM이 값을 중계하게 두면, 제거하려던 "LLM 자발
 //   실행" 의존이 그대로 남는다. 기존 audit bash에 접어 넣어 결정론적으로 계산·기록한다.
 //   fail-open: verify-tier.sh 부재/실패 → tier="unknown", append는 그대로 진행.
-await agent(
-  `Bash 실행 (생성 메시지·요약 금지, 실행만).
-VT=$(bash "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-tier.sh" "${_safe(targetPath || 'staged')}" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tier','unknown'))" 2>/dev/null || echo unknown)
-[ "$VT" = "full" ] && [ "${_safe(mode)}" != "triple" ] && echo "[verify-tier] WARN: full tier인데 mode=${_safe(mode)} — cr-triple 권고" >&2
-python3 -c "import json,time,os,sys; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs'))+'/.claude/audit/cr-multi-calls.jsonl'; e=json.loads(sys.argv[2]); e['verify_tier']=sys.argv[1]; e['ts']=time.time(); open(p,'a').write(json.dumps(e)+chr(10))" "$VT" ${_shq(JSON.stringify(auditEntry))}
-true`,
-  { label: 'audit-log', phase: 'Triage', model: 'haiku' }  // root-cause: model 핀 — Opus 상속 비용누수 차단
-)
+// root-cause: 증거발행 재설계 v2 — audit 텔레메트리를 에이전트가 쓰지 않는다.
+//   에이전트에게 판정·점수를 건네 감사 파일에 append 시키는 행위가 안전 분류기에
+//   반복 차단됐고(3실행 연속), 차단된 실행만 로그에서 누락돼 재판정 표본이 생존
+//   편향을 갖게 됐다. 이제 append 는 journal 을 실제로 읽은 주체가 수행한다:
+//   호출 규약은 cr-multi/cr-triple SKILL.md 에 명시. 여기서는 로그만 남긴다.
+log(`[audit] 텔레메트리는 journal 소비 시점에 기록된다(게이트 배선 = 별건 spec 후)`)
 
-// root-cause: AD-90 codex-gate-enforce 호환 — cr-triple이 stage별 증거 JSON 발행해 hook 무수정으로 자동 게이트 충족
+
+// root-cause: 증거발행 재설계 v3 — FR-011 발행(D1-B 승인 2026-07-25).
+//   v2(2026-07-24)는 "에이전트가 게이트 증거를 쓰지 않고, 게이트가 journal.jsonl 을
+//   직접 읽는다"였으나, FR-011 실측 spike로 journal 전제가 거짓임이 확인됐다(스키마
+//   4필드·result=자기보고, base_sha/diff/provenance 부재 → 게이트가 소비 불가).
+//   → D1-B: workflow.js 는 **관측한 raw legs 만** audit 경로에 기록한다(verdict·score
+//     판정·diff/provenance 는 쓰지 않는다). 게이트가 verdict·binding 전부 계산한다.
+//     관측(여기)과 판정(게이트)을 분리해 "손으로 쓴 verdict:PASS = 위조 시그니처"
+//     문제를 제거한다(A/B 실측: verdict write 는 안전 분류기 차단, raw-legs write 는 통과).
+//   D4: expected_legs 등 독립출처 부재 → self-report 수용, diff 독립대조 defer.
+//   핫패스: additive · fail-open · GATE_STAGES + PR 컨텍스트 한정. dormant 불변.
 const GATE_STAGES = ['code', 'test', 'final', 'bugfix']
 if (GATE_STAGES.includes(stage)) {
-  const evidenceObj = {
-    verdict,
-    score: parseFloat(combined.toFixed(1)),
-    issues: dedupedIssues,  // root-cause: GS-B19 — deduped + Fix-First ordered
-    mode, slug, degraded,
-    // root-cause: Batch 3 증거등급 정직화 — additive, 기존 소비자는 무시 가능
-    ...(degraded ? { degradedBanner } : {}),
-    evidence_tier: evidenceTier,  // root-cause: Batch 3(3-2) — full/degraded/unverified
+  // 관측 데이터만 — verdict.py --compute 입력 스키마(legs[].{worker,score,summary,
+  // issue_count,critical,high} + mode + expected_legs)에 맞춘다. 판정/점수결정 없음.
+  const _rawLegs = results.map((r) => ({
+    worker: _safe(r.worker),
+    score: clamp(r.score),
+    summary: typeof r.summary === 'string' ? r.summary : '',
+    issue_count: Array.isArray(r.issues) ? r.issues.length : 0,
+    critical: (r.issues || []).some((i) => i && i.severity === 'critical'),
+    high: (r.issues || []).some((i) => i && i.severity === 'high'),
+  }))
+  // base_sha/diff_sha256/provenance 는 여기서 쓰지 않는다(게이트가 gh/git 으로 계산).
+  const _evPayload = { legs: _rawLegs, mode, expected_legs: expected, stage, run_id: _safe(slug) }
+  const _evJson = JSON.stringify(_evPayload)
+  const _evFile = `${_safe(slug)}-${_safe(stage)}.json`
+  // Workflow 샌드박스는 fs API 불가 → agent Bash python3(P-8 audit 패턴)로 발행.
+  //   JSON 은 argv[1] 로 전달하고 _shq(싱글쿼트) 로 감싼다 — 콘텐츠 보존(한글 요약 포함)
+  //   + 인젝션 안전(heredoc 은 PreToolUse hook 차단이라 회피). PR 컨텍스트 성공 시에만 기록.
+  const _pyEmit =
+    'import sys,os,json\n' +
+    'd=json.loads(sys.argv[1])\n' +
+    "base=os.path.join(os.path.expanduser(os.environ.get('FORGE_OUTPUTS','${FORGE_ROOT:-$HOME/forge}-outputs')),'.claude','audit','cr-evidence',sys.argv[3])\n" +
+    'os.makedirs(base,exist_ok=True)\n' +
+    "json.dump(d,open(os.path.join(base,sys.argv[2]),'w'),ensure_ascii=False)"
+  try {
+    await agent(
+      `gh pr view --json number >/dev/null 2>&1 && ` +
+        `python3 -c ${_shq(_pyEmit)} ${_shq(_evJson)} ${_shq(_evFile)} ${_shq(stage)} && ` +
+        `echo CR_EVIDENCE_EMITTED || echo CR_EVIDENCE_SKIP_NO_PR`,
+      { label: 'cr-evidence-emit', phase: 'Triage' },
+    )
+    log(`[evidence] raw-legs 발행 시도(PR 컨텍스트 한정·fail-open): ` +
+        `cr-evidence/${_safe(stage)}/${_evFile} 유효레그 ${results.length}/${expected}` +
+        (invalidLegs.length ? ` 무효레그 ${invalidLegs.length}` : ''))
+  } catch (e) {
+    // 비-PR·gh 실패·agent 실패 전부 fail-open — 리뷰 정상 반환(게이트 배선은 dormant).
+    log(`[evidence] raw-legs 발행 skip(fail-open): ${e && e.message ? e.message : e}`)
   }
-  await agent(
-    `AD-90 증거 JSON 파일 작성 (codex-gate-enforce.sh 호환).
-1. Bash로 베이스 경로 확인: echo "\${FORGE_OUTPUTS:-$HOME/forge-outputs}"
-2. mkdir -p <베이스>/docs/reviews/${stage}
-3. Write 도구로 파일 생성: <베이스>/docs/reviews/${stage}/${slug}-cr-multi.json
-
-JSON 내용:
-${JSON.stringify(evidenceObj, null, 2)}`,
-    { label: 'evidence-json', phase: 'Triage', model: 'haiku' }  // root-cause: model 핀 — Opus 상속 비용누수 차단
-  )
-  log(`[AD-90] 증거 JSON → docs/reviews/${stage}/${slug}-cr-multi.json verdict=${verdict}`)
 }
+
+
 
 // CI-2 (D-1=A 감산, 2026-07-23, L1): task.md cleanup 제거. presign(ApproveWorker) 제거로
 // task.md가 더는 생성되지 않아 이 cleanup이 매 런 deterministic no-op이었다(vestigial).
@@ -712,27 +759,12 @@ evidence 반드시 구체적 근거(파일명·줄번호·코드 인용). 불확
     log(`[WARN] Completeness critic 실패 (비차단): ${e?.message || e}`)
   }
 
-  // ── HIGH #2 fix: completenessStop → AD-90 증거 JSON 반영 ────────────────
-  // root-cause: evidenceObj는 Triage phase에서 작성 → Completeness phase 전이라 completenessStop 누락.
-  // fix: Completeness 완료 후 동일 파일에 completeness/completenessStop 필드 패치.
-  // 비차단: opt-in 보조 단계 — 파일 미존재/Write 실패 시 WARN만, workflow 전체 reject 방지.
+  // root-cause: 증거발행 재설계 v2 — 증거 JSON 자체가 없어졌으므로 패치 대상도 없다.
+  //   completeness 결과는 log()로 남기고, 게이트는 journal.jsonl 에서 직접 읽는다.
+  //   (에이전트가 게이트 아티팩트를 수정하는 경로를 남기지 않는다.)
   if (GATE_STAGES.includes(stage)) {
     const cStop = (completenessResult?.missing_items?.length || 0) > 0
-    const completenessPayload = completenessResult || { missing_items: [] }
-    try {
-      await agent(
-        `AD-90 증거 JSON에 completeness 필드 패치. 생성 메시지·요약 금지, 파일 업데이트만.
-작업:
-1. Bash: BASE=$(echo "\${FORGE_OUTPUTS:-$HOME/forge-outputs}") && cat "\$BASE/docs/reviews/${_safe(stage)}/${_safe(slug)}-cr-multi.json"
-2. 위 JSON 파싱 후 다음 필드 추가/갱신:
-   "completenessStop": ${cStop}
-   "completeness": ${JSON.stringify(completenessPayload)}
-3. Write 도구로 동일 경로 ("\$BASE/docs/reviews/${_safe(stage)}/${_safe(slug)}-cr-multi.json")에 병합 JSON 저장.`,
-        { label: 'evidence-completeness-patch', phase: 'Completeness', model: 'haiku' }  // root-cause: model 핀 — Opus 상속 비용누수 차단
-      )
-    } catch (e) {
-      log(`[WARN] AD-90 completeness 패치 실패 (비차단): ${e?.message || e}`)
-    }
+    log(`[completeness] stop=${cStop} missing=${completenessResult?.missing_items?.length || 0}`)
   }
 }
 
@@ -802,7 +834,7 @@ if (crRefute && dedupedIssues.length > 0) {
   if (killedFindings.length > 0) {
     await agent(
       `P-8 killed findings 감사 로그 append (생성 메시지 금지).\n` +
-      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
+      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','${FORGE_ROOT:-$HOME/forge}-outputs'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
       { label: 'p8-audit-killed', phase: 'Refute' }
     )
   }

@@ -38,7 +38,7 @@ chmod 600 ~/.config/forge/orch-token.key
 ## Step 3: 토큰 발행
 
 ```bash
-python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
   --task "{task_id}" \
   --worker "{worker}" \
   --tools "{tool1},{tool2}" \
@@ -54,7 +54,7 @@ python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
 ## Step 4: 토큰 검증 (선택)
 
 ```bash
-python3 ~/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
+python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
   --task "{task_id}" \
   --nonce "{nonce_from_output}" \
   --worker "{worker}" \
@@ -65,7 +65,7 @@ python3 ~/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
 
 ```bash
 # hook이 settings.json에 등록되었는지 확인
-grep -q "multiagent-approval-verify" ~/.claude/settings.json && echo "hook 등록됨" || echo "hook 미등록"
+grep -q "multiagent-approval-verify" $HOME/.claude/settings.json && echo "hook 등록됨" || echo "hook 미등록"
 ```
 
 ## Step 6: 토큰 만료 처리
@@ -81,7 +81,7 @@ find ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals -name "*.yaml
 
 ```bash
 # skill 비활성
-mv ~/.claude/skills/approve-worker ~/.claude/skills/_archive/approve-worker-$(date +%Y-%m-%d)
+mv $HOME/.claude/skills/approve-worker $HOME/.claude/skills/_archive/approve-worker-$(date +%Y-%m-%d)
 
 # secret 폐기 (신규 발행 불가)
 shred -u ~/.config/forge/orch-token.key

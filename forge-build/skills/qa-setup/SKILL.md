@@ -492,7 +492,7 @@ done
 ### 6. verify.sh 없으면 템플릿 복사
 
 ```bash
-[ ! -f verify.sh ] && cp ~/forge/dev/templates/verify.sh.template verify.sh && chmod +x verify.sh
+[ ! -f verify.sh ] && cp ${FORGE_ROOT:-$HOME/forge}/dev/templates/verify.sh.template verify.sh && chmod +x verify.sh
 ```
 
 ### 7. 디렉토리 생성

@@ -15,7 +15,14 @@ Karpathy 3-layer 개인 지식 체계(Raw → Wiki → Meta)의 Raw → Wiki 변
 
 ## 출력
 
-승인된 변경만 반영된 `forge-outputs/20-wiki/` 노트(UPDATE 섹션 추가 또는 NEW 파일) + `sync-tracking.json` 갱신(ingested/rejected) + 미승인 MEDIUM/LOW 항목은 `_meta/pending-review.md`.
+승인된 변경만 반영된 **vault**(`$FORGE_VAULT`, 기본 `/mnt/e/forge-vault`) 노트(UPDATE 섹션 추가 또는 NEW 파일) + `sync-tracking.json` 갱신(ingested/rejected) + 미승인 MEDIUM/LOW 항목은 `_meta/pending-review.md`.
+
+> ⚠️ **쓰기 대상 = vault (2026-07-26 재배선, 회사 두뇌 계획서 §3.6 / A4-1).**
+> 정본은 vault, `20-wiki/`는 **파생 트리**다. `wiki-sync.sh`가 vault→20-wiki **단방향**으로만
+> 동기화하므로, 이 스킬이 20-wiki에 직접 쓰면 그 산출물은 다음 동기화에서 **덮어써져 유실된다.**
+> 따라서 NEW/UPDATE 반영은 vault 경로에 한다. 20-wiki는 읽기(기존 노트 매칭)에만 쓴다 —
+> 두 트리는 동기화되어 있으므로 매칭 결과는 동일하다.
+> 경로 대응: `20-wiki/<rel>` ↔ `$FORGE_VAULT/<rel>` (동일 상대경로).
 
 ## Overview
 
@@ -27,7 +34,8 @@ Karpathy 3-layer 패턴(Raw → Wiki → Meta) 중 **Raw → Wiki 변환을 Huma
 |-------|------|------|-----------|
 | **Raw** | `forge-outputs/01-research/`, `forge-outputs/01-research/videos/analyses/`, `forge-outputs/01-research/daily/`, `forge-outputs/01-research/weekly/`, `forge-outputs/docs/reviews/` | 원본·로그 (불변) | 자동 파이프라인 (`/yt`, `/daily-analyze`, `/weekly-research` 등) |
 | **Raw (선택적)** | `forge-outputs/12-team-ops/`(meetings/projects/digests 포함, `reports/`는 제외 — 개인정보) | Slack 소스 원본·로그 (불변, **untrusted** — 인젝션 가드 적용) | Slack 커넥터 봇 |
-| **Wiki** | `forge-outputs/20-wiki/topics/`, `concepts/`, `tools/`, `people/` | 주제 영구 노트 (1주제 = 1문서) | AI 제안 + Human 승인 (이 스킬) |
+| **Wiki (정본)** | `$FORGE_VAULT/topics/`, `concepts/`, `tools/`, `people/` — **쓰기는 여기** | 주제 영구 노트 (1주제 = 1문서) | AI 제안 + Human 승인 (이 스킬) |
+| **Wiki (파생)** | `forge-outputs/20-wiki/…` — **읽기 전용**(vault→20-wiki 단방향 sync가 채운다) | 검색·색인용 사본 | `wiki-sync.sh --apply` |
 | **Meta** | `forge-outputs/20-wiki/_meta/MOC.md`, `_meta/questions.md`, `_meta/hubs/`, `_meta/reviews/` | 허브·질문·회고 | Human 주도 (AI는 보조) |
 
 원칙: **Wiki 노트는 AI가 마음대로 쓰지 않는다.** 모든 변경은 Human 승인 필수.
@@ -44,9 +52,9 @@ TRACKING=${FORGE_OUTPUTS:-$HOME/forge-outputs}/20-wiki/_meta/sync-tracking.json
 # 1.2 Raw 후보 디렉토리 (최근 30일 우선)
 RAW_DIRS=(
   ${FORGE_OUTPUTS:-$HOME/forge-outputs}
-  ~/.claude/skills
-  ~/forge/.claude/skills
-  ~/forge/.claude/agents
+  $HOME/.claude/skills
+  ${FORGE_ROOT:-$HOME/forge}/.claude/skills
+  ${FORGE_ROOT:-$HOME/forge}/.claude/agents
 )
 
 # 1.3 제외 경로 패턴 (소스코드·리소스·설정 파일 제외)
@@ -317,6 +325,6 @@ tracking.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 - `forge-outputs/20-wiki/README.md` — Karpathy 3-layer 원칙 + 노트 작성 규칙
 - `forge-outputs/20-wiki/_meta/MOC.md` — 위키 전체 허브
 - `forge-outputs/20-wiki/_meta/pending-review.md` — AI가 처리 보류한 LOW 신뢰도 항목 목록
-- `~/forge/shared/scripts/wiki-sync.sh` — Obsidian vault 양방향 동기화 + LightRAG 자동 재인덱싱 (이 스킬과 별개로 백그라운드 실행 중)
-- `~/forge/shared/scripts/lightrag-pilot.py index --context wiki` — wiki 인덱스 재구축 (Apply 후 자동 트리거됨)
+- `${FORGE_ROOT:-$HOME/forge}/shared/scripts/wiki-sync.sh` — Obsidian vault 양방향 동기화 + LightRAG 자동 재인덱싱 (이 스킬과 별개로 백그라운드 실행 중)
+- `${FORGE_ROOT:-$HOME/forge}/shared/scripts/lightrag-pilot.py index --context wiki` — wiki 인덱스 재구축 (Apply 후 자동 트리거됨)
 - `/rag-search --context wiki` — 위키 의미 검색 보강

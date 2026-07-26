@@ -59,7 +59,7 @@ P5(`forge-implement`) 미완료 상태 진입 → GUIDE-STOP: "P5 구현 완료 
 - `--app`/`--domains` 매칭 0건 시 조용히 GREEN 종료하지 않고 GUIDE-STOP("매칭 없음. 사용 가능: [목록]") 후 정지한다.
 - 실DB 검증·healer 자동수정은 이 4축과 무관하게 항상 내장 — 별도 플래그 불요.
 - **`--project` 플래그 없음** — 프로젝트 식별은 CWD → forge-workspace.json 매핑(기존 qa 동작) 그대로.
-- qa-config 스키마(app 레지스트리·domains·accounts) → `~/forge/.claude/skills/qa/reference.md §qa-config 스키마`.
+- qa-config 스키마(app 레지스트리·domains·accounts) → `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마`.
 
 ## 전역 캡 (반드시 보존)
 

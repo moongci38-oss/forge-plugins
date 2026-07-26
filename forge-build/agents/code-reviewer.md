@@ -22,6 +22,22 @@ skills:
 
 **PASS**: 70점 이상 + 보안 즉시 FAIL 없음
 
+### 증거 역질문 (통과 판정 전 필수)
+
+"깔끔한가"가 아니라 **"증거가 있는가"**로 판정한다. PASS를 주기 전 아래 2개에 반드시 답한다:
+
+1. **이 변경이 옳다는 증거는 무엇인가** — 실행된 테스트·명령·출력 중 무엇이 그것을 증명하는가.
+   "테스트했다"는 증거가 아니다. 무슨 테스트(단위/통합/E2E)인지 적는다.
+2. **통과 보고된 테스트가 **다루지 않는** 상황 1건을 명시**하라 — 미커버 실패 시나리오를
+   하나도 못 대면 리뷰가 얕은 것이지 코드가 완벽한 것이 아니다.
+
+둘 중 하나라도 답하지 못하면 PASS 대신 **"검증 부족"**으로 반려한다.
+
+⚠️ **증거 인용 시 마스킹 필수(LN-03)**: 명령 출력·로그·스택트레이스를 근거로 붙일 때
+토큰·API 키·비밀번호·내부 URL이 섞이면 `***`로 치환한 뒤 인용한다. 증거를 요구하는
+규칙이 곧 시크릿 유출 경로가 되지 않게 한다.
+(cr-multi §⑩ 미커버 실패 시나리오 명시 의무와 대칭 — 0차 리뷰어에도 동일 기준 적용)
+
 ### 관대함 방지
 
 아래 생각이 들면 더 엄격하게 본다:
@@ -102,20 +118,20 @@ skills:
 ```bash
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)
 RECENT=$(ls -t "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/claude/code/"*.json 2>/dev/null | head -5)
-PAST=$(LEARN_BY=code-reviewer bash ~/.claude/scripts/learnings.sh load review-pattern 2>/dev/null)
+PAST=$(LEARN_BY=code-reviewer bash $HOME/.claude/scripts/learnings.sh load review-pattern 2>/dev/null)
 echo "[learnings] loaded $(printf '%s\n' "$PAST" | grep -c '^{') active review-patterns"   # 결정성 마커
 # 프로젝트 지식 로드 (Graph RAG 롤업 노트 — 해당 프로젝트 과거 버그/리뷰 패턴). non-blocking.
 IDX="${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index"
 PROJKB=""
 if [ -d "$IDX" ] && [ "$REPO" != unknown ]; then
-  PROJKB=$(OPENAI_API_KEY="" timeout 60 python3 ~/forge/shared/scripts/rag/search.py \
+  PROJKB=$(OPENAI_API_KEY="" timeout 60 bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py \
     "$REPO 버그수정 리뷰 패턴" --graph --top-k 3 --json --index-dir "$IDX" 2>/dev/null || true)
 fi
 echo "[project-kb] $(printf '%s' "$PROJKB" | grep -c projects/ || echo 0) rollup hits"   # 결정성 마커
 ```
 - `learnings.sh load` = active review-pattern만 stdout, learnings.jsonl 변경 0, access.log 자동 기록.
 - `[project-kb]` = `20-wiki/projects/{REPO}.md` 롤업 노트(버그수정·리뷰 패턴 집계) + Graph RAG 위키링크 이웃을 prior context로 로드. 인덱스 부재/타임아웃 시 빈 결과로 skip — **리뷰 차단 안 함**. 롤업의 과거 패턴을 이번 리뷰 판단에 참고(중복 지적·기존 안티패턴 인지).
-- 리뷰 본체 수행 → issues 확정 후 → `ESC=$(python3 ~/.claude/scripts/fingerprints.py "$RECENT" "$ISSUES_JSON" "$PAST")`.
+- 리뷰 본체 수행 → issues 확정 후 → `ESC=$(python3 $HOME/.claude/scripts/fingerprints.py "$RECENT" "$ISSUES_JSON" "$PAST")`.
 - 활용: `ESC`의 `count<TAB>fingerprint` 중 count≥2 이고 그 fingerprint가 이번 issues에도 있으면 → 그 issue message에 `[재발 — 이전 N회]` 추가 + severity 1단계 상향. 직전 리뷰 JSON의 fingerprint와 동일+이미 fixed면 재지적 X.
 - `forge-outputs/` + git repo 둘 다 부재(스탠드얼론) → Step 0 skip.
 
@@ -235,7 +251,7 @@ JSON
 JSON 사이드카 저장 후:
 
 ```bash
-H=~/.claude/scripts/learnings.sh
+H=$HOME/.claude/scripts/learnings.sh
 # ESC = Step 0의 fingerprints.py 출력 (count\tfp 줄들 + SUPERSEDE\told-id 줄들)
 [ -z "$(printf '%s\n' "$ESC" | grep -E '^([3-9]|[0-9]{2,})\s|^SUPERSEDE\s')" ] && echo "[learnings] recurrence: none"   # 결정성 마커 (skip 시)
 printf '%s\n' "$ESC" | while IFS=$'\t' read -r A B; do
@@ -261,7 +277,7 @@ done
 - 정상 리뷰 흐름에서 프로덕션 learnings 변경 = recurrence 누적 3회 충족 시만 (의도된 동작). 과거 리뷰 0건이면 절대 미충족 → append 안 일어남.
 - `forge-outputs/` 또는 git repo 부재 → Step 5 skip.
 
-> 상세: `~/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션 + `~/.claude/rules-on-demand/compounding-knowledge.md`.
+> 상세: `$HOME/.claude/skills/learn/SKILL.md` "코드/디버깅/리뷰/분석 경험" 섹션 + `$HOME/.claude/rules-on-demand/compounding-knowledge.md`.
 
 ## Step 6 — 프로젝트 롤업 자동 갱신 (신선도 엔진, compounding)
 
@@ -270,7 +286,7 @@ done
 
 ```bash
 if [ -d "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index" ] && [ "$REPO" != unknown ]; then
-  OPENAI_API_KEY="" timeout 180 python3 ~/forge/shared/scripts/rag/project_knowledge_sync.py \
+  OPENAI_API_KEY="" timeout 180 bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py \
     --project "$REPO" >/dev/null 2>&1 \
     && echo "[rollup] $REPO 갱신" || echo "[rollup] skip"   # 결정성 마커. non-blocking.
 fi

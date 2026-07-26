@@ -49,8 +49,9 @@ const queuePath = `${reportDir}/diet-queue.json`
 const gapsSignal = await agent(
   `최근 harness-gaps 리포트에서 하네스 감사용 신호 추출 (읽기전용).
 
-[Step 1] 최근 리포트 나열 (최신 8개):
-ls -t "${outBase}/11-platform/pipelines/reviews/"*harness-gaps*.md 2>/dev/null | head -8 || echo "NONE"
+[Step 1] 최근 리포트 나열 (최신 8개). 현행 SSoT는 pipelines-2/reviews/{main,local}이고
+pipelines/reviews는 2026-07-22 이전 아카이브다 — 양쪽을 함께 훑어 최신순 8개를 고른다:
+ls -t "${outBase}/11-platform/pipelines-2/reviews/main/"*harness-gaps*.md "${outBase}/11-platform/pipelines-2/reviews/local/"*harness-gaps*.md "${outBase}/11-platform/pipelines/reviews/"*harness-gaps*.md 2>/dev/null | head -8 || echo "NONE"
 
 [Step 2] NONE이면 빈 배열 반환. 있으면 각 파일 Read 후 추출:
 - 결함(G/### 항목): 어떤 하네스 자산(hook/룰/스킬/문서)이 어떤 결함을 냈나 —
@@ -103,22 +104,22 @@ const [
 스킬 수는 반드시 런타임 ls로 카운트할 것 (하드코딩 금지).
 
 [Step 1] Skills:
-ls ~/.claude/skills/ | wc -l
-find ~/.claude/skills -name "SKILL.md" | while read f; do dir=$(dirname "$f"); name=$(basename "$dir"); lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$name $lines $bytes"; done
+ls $HOME/.claude/skills/ | wc -l
+find $HOME/.claude/skills -name "SKILL.md" | while read f; do dir=$(dirname "$f"); name=$(basename "$dir"); lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$name $lines $bytes"; done
 
 [Step 2] Rules:
-find ~/.claude/rules -name "*.md" | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
-find ~/.claude/rules-on-demand -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
+find $HOME/.claude/rules -name "*.md" | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
+find $HOME/.claude/rules-on-demand -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
 
 [Step 3] Hooks:
-find ~/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find $HOME/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 [Step 4] Agents/Commands:
-find ~/forge/.claude/agents -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
-find ~/forge/.claude/commands -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}/.claude/agents -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}/.claude/commands -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 [Step 5] CLAUDE.md cascade:
-find ~/forge-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 결과를 JSON 구조로 반환:
 {
@@ -157,8 +158,8 @@ find ~/forge-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc
     `Forge 전역 컨텍스트 비용 분석. Bash 도구 사용.
 
 [Step 1] cascade audit 스크립트 실행:
-bash ~/.claude/scripts/audit-context-cascade.sh 2>/dev/null || echo "SCRIPT_NOT_FOUND"
-ls ~/.claude/cache/context-audit-*.md 2>/dev/null | sort | tail -1
+bash $HOME/.claude/scripts/audit-context-cascade.sh 2>/dev/null || echo "SCRIPT_NOT_FOUND"
+ls $HOME/.claude/cache/context-audit-*.md 2>/dev/null | sort | tail -1
 
 [Step 2] 최신 캐시 파일 Read (존재 시):
 위 ls 결과의 최신 파일을 Read 도구로 읽어 핵심 수치 추출.
@@ -166,11 +167,11 @@ ls ~/.claude/cache/context-audit-*.md 2>/dev/null | sort | tail -1
 
 [Step 3] 직접 측정 (캐시 없을 때):
 # rules/ 총 라인수
-wc -l ~/.claude/rules/*.md | tail -1
+wc -l $HOME/.claude/rules/*.md | tail -1
 # rules-on-demand/ 파일 수
-ls ~/.claude/rules-on-demand/*.md 2>/dev/null | wc -l
+ls $HOME/.claude/rules-on-demand/*.md 2>/dev/null | wc -l
 # CLAUDE.md cascade 경로별 라인수
-find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\;
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\;
 
 [Step 4] cascade 5종 분류 (분석):
 - per-session (항상 로드): rules/*.md — 전역 항상 적용
@@ -331,7 +332,7 @@ axis 의미 (Matt Pocock, "The Missing Manual: How to Write Great Skills"):
     `Forge rules/CLAUDE.md 중 Claude Code / Codex 제품 기본 기능과 중복되는 지침 탐지.
 
 [Step 1] rules/*.md 전부 Read:
-find ~/.claude/rules -name "*.md" | while read f; do
+find $HOME/.claude/rules -name "*.md" | while read f; do
   echo "=== $f ==="; cat "$f"; echo ""
 done
 
@@ -344,8 +345,8 @@ done
 - 반면 Forge 특화: 경로 규칙/AD-N 번호/특정 스크립트 경로 = 필요한 지침
 
 [Step 3] AGENTS.md / .cursor/rules 확인:
-ls ~/forge-outputs/.cursor/ 2>/dev/null || echo "N/A"
-ls ~/forge/.claude/AGENTS.md 2>/dev/null || echo "N/A"
+ls ${FORGE_ROOT:-$HOME/forge}-outputs/.cursor/ 2>/dev/null || echo "N/A"
+ls ${FORGE_ROOT:-$HOME/forge}/.claude/AGENTS.md 2>/dev/null || echo "N/A"
 — 존재하지 않으면 "N/A — 해당 없음" 명시.
 
 결과:
@@ -396,7 +397,7 @@ ls ~/forge/.claude/AGENTS.md 2>/dev/null || echo "N/A"
 THEATER가 아닌 EFFECTIVE 판정 근거로 사용하라 (실발화 이력 > 정적 코드 추정).
 
 [Step 1] hooks 분석:
-find ~/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do
+find $HOME/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do
   echo "=== $f ==="; head -30 "$f"; echo "..."
 done
 # 판단 기준:
@@ -405,14 +406,14 @@ done
 # - 보안 키워드: injection, redact, secret, permission, override, block
 
 [Step 2] settings.json allowed-tools 분석:
-cat ~/.claude/settings.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps({'permissions': d.get('permissions',{}), 'hooks': list(d.get('hooks',{}).keys())}, indent=2))"
+cat $HOME/.claude/settings.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps({'permissions': d.get('permissions',{}), 'hooks': list(d.get('hooks',{}).keys())}, indent=2))"
 
 [Step 3] MCP 권한 분석:
-cat ~/.claude.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); mcps=d.get('mcpServers',{}); print(json.dumps({k: list(v.keys()) for k,v in mcps.items()}, indent=2))" 2>/dev/null || echo "MCP: 없음"
-cat ~/forge-outputs/.mcp.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" 2>/dev/null || echo "project .mcp.json: 없음"
+cat $HOME/.claude.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); mcps=d.get('mcpServers',{}); print(json.dumps({k: list(v.keys()) for k,v in mcps.items()}, indent=2))" 2>/dev/null || echo "MCP: 없음"
+cat ${FORGE_ROOT:-$HOME/forge}-outputs/.mcp.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" 2>/dev/null || echo "project .mcp.json: 없음"
 
 [Step 4] constraint-drift 룰 참조:
-Read 도구로 ~/.claude/rules-on-demand/constraint-drift-audit.md 읽기 (스킬/스크립트 호출 X — 룰 문서 참조만).
+Read 도구로 $HOME/.claude/rules-on-demand/constraint-drift-audit.md 읽기 (스킬/스크립트 호출 X — 룰 문서 참조만).
 오버라이드율/bypass 횟수 기준값 확인 후 hooks와 비교.
 
 [Step 5] 판정:
@@ -473,7 +474,7 @@ diet_auto=false + confidence=low로 강등하라 (2026-07-17 실증: 이미 수�
 재실측 없이 diet_auto=true로 세탁돼 액추에이터가 멀쩡한 파일을 수정할 뻔했다).
 
 [분석 대상]
-find ~/.claude/rules ~/.claude/rules-on-demand ~/.claude/skills ~/forge/.claude/agents ~/forge/.claude/commands -name "*.md" -o -name "*.sh" 2>/dev/null | head -80
+find $HOME/.claude/rules $HOME/.claude/rules-on-demand $HOME/.claude/skills ${FORGE_ROOT:-$HOME/forge}/.claude/agents ${FORGE_ROOT:-$HOME/forge}/.claude/commands -name "*.md" -o -name "*.sh" 2>/dev/null | head -80
 
 각 주요 자산에 대해 다음 9필드로 판정:
 

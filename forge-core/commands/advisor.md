@@ -50,7 +50,7 @@ export FORGE_ADVISOR_FABLE=advisor   # 이 세션 advisor 조언 = Fable 5 (구�
 
 **파일 입력 있을 때:**
 ```bash
-python3 ~/forge/shared/scripts/advisor-assist.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "{task}" \
   --input {file} \
   --executor claude-sonnet-5 \
@@ -62,7 +62,7 @@ python3 ~/forge/shared/scripts/advisor-assist.py \
 **파일 없이 대화형:**
 입력 내용을 사용자로부터 받아 stdin으로 전달:
 ```bash
-cat <<EOF | python3 ~/forge/shared/scripts/advisor-assist.py --task "{task}"
+cat <<EOF | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py --task "{task}"
 {사용자 제공 내용}
 EOF
 ```
@@ -106,7 +106,7 @@ EOF
 
 **호출 (2경로 — 둘 다 Human 지시 후에만):**
 ```bash
-python3 ~/forge/shared/scripts/advisor-assist.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "{비가역 결정 요지 — 반대근거·실패시나리오 우선}" \
   --input {decision-doc.md} \
   --executor claude-sonnet-5 \
@@ -119,7 +119,7 @@ python3 ~/forge/shared/scripts/advisor-assist.py \
 
 ### advisor 자동 분기 (T4 비가역 한정 — 2026-07-04 추가)
 
-Human 수동 전용 원칙의 **유일한 예외**: forge-fix 파이프라인의 **T4(비가역·최고위험: data migration / DELETE·삭제 / 결제·billing)** advisor 자문에 한해, `"${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh"`가 자동으로 Opus↔Fable5를 분기한다(오케스트레이터가 T4 스폰 직전 호출). 스크립트 파일 자체 위치는 `~/forge/shared/scripts/`(SSoT) 고정 — 커스텀 설치(FORGE_ROOT 오버라이드) 세션에서도 위 변수 패턴으로 절대경로 해석.
+Human 수동 전용 원칙의 **유일한 예외**: forge-fix 파이프라인의 **T4(비가역·최고위험: data migration / DELETE·삭제 / 결제·billing)** advisor 자문에 한해, `"${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh"`가 자동으로 Opus↔Fable5를 분기한다(오케스트레이터가 T4 스폰 직전 호출). 스크립트 파일 자체 위치는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/`(SSoT) 고정 — 커스텀 설치(FORGE_ROOT 오버라이드) 세션에서도 위 변수 패턴으로 절대경로 해석.
 
 - **분기 규칙**: tier=T4 → Fable 후보 / T1·T2·T3 → 항상 Opus.
 - **비용 가드(3중, 하나라도 걸리면 Opus 강등)**:
@@ -143,20 +143,20 @@ Human 수동 전용 원칙의 **유일한 예외**: forge-fix 파이프라인의
 
 ```bash
 # Executor를 Haiku로 (더 저렴)
-python3 ~/forge/shared/scripts/advisor-assist.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "판정" --executor claude-haiku-4-5-20251001 \
   --max-uses 2
 
 # Advisor 호출 횟수 증가 (더 많은 조언)
-python3 ~/forge/shared/scripts/advisor-assist.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "복잡한 전략 결정" --max-uses 5
 
 # JSON 출력
-python3 ~/forge/shared/scripts/advisor-assist.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "검토" --input file.md --format json > result.json
 
 # Dry run (API 호출 없이 요청 payload 확인)
-python3 ~/forge/shared/scripts/advisor-assist.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "test" --dry-run <<< "content"
 ```
 
@@ -165,7 +165,7 @@ python3 ~/forge/shared/scripts/advisor-assist.py \
 | 증상 | 원인 | 해결 |
 |---|---|---|
 | `credit balance is too low` | API 크레딧 부족 | https://console.anthropic.com/settings/billing 충전 |
-| `ANTHROPIC_API_KEY 미설정` | 환경변수 없음 | `source ~/forge/.env` 또는 export 직접 |
+| `ANTHROPIC_API_KEY 미설정` | 환경변수 없음 | `source ${FORGE_ROOT:-$HOME/forge}/.env` 또는 export 직접 |
 | advisor tool 응답 없음 | beta 헤더 누락 | script가 자동 설정하므로 정상 작동 예상 |
 | 과다 비용 | max_uses 설정 과다 | `--max-uses 1~2`로 축소 |
 | Fable 요청했는데 Opus로 응답 | Fable 미출시(~07-07)/usage-credits 미승인 | 자동 폴백 정상 — stderr 폴백 표시 확인, 크레딧이면 충전 |
@@ -177,7 +177,7 @@ python3 ~/forge/shared/scripts/advisor-assist.py \
 ### Step 7 — 최종 전략 조언 (선택, 고가치 과제만)
 
 ```bash
-cat {project}/03-strategy.md | python3 ~/forge/shared/scripts/advisor-assist.py \
+cat {project}/03-strategy.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "평가위원 관점에서 감점 요인 3가지" \
   --executor claude-sonnet-5 \
   --max-uses 2 \
@@ -191,7 +191,7 @@ cat {project}/03-strategy.md | python3 ~/forge/shared/scripts/advisor-assist.py 
 
 if 점수가 58~65점 사이면:
 ```bash
-cat work.md | python3 ~/forge/shared/scripts/advisor-assist.py \
+cat work.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "이 결과물의 PASS/FAIL 재판정" \
   --executor claude-haiku-4-5-20251001 \
   --max-uses 2
@@ -200,7 +200,7 @@ cat work.md | python3 ~/forge/shared/scripts/advisor-assist.py \
 
 ## 관련
 
-- 구현: `~/forge/shared/scripts/advisor-assist.py`
+- 구현: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py`
 - 분석 원본: `forge-outputs/01-research/ai-report/2026-04-10-advisor-strategy-detailed.md`
 - 적용 계획: `forge-outputs/01-research/ai-report/2026-04-10-forge-application-plan.md`
 - API docs: https://docs.claude.com/en/api/messages#advisor

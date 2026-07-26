@@ -9,7 +9,7 @@ group: plan
 
 Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 
-> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `~/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
+> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `$HOME/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
 
 ## 모델 라우팅 (2026-07-04)
 
@@ -19,7 +19,22 @@ Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 | 탐색(기존 spec/ADR 충돌·데이터 스키마 확인) | **Haiku** | `Agent(model:"haiku")` |
 | 고위험 전략 자문(범위/NFR) | **Opus** | `advisor-strategist` |
 
-근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
+근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
+
+## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
+
+Spec 작성 착수 **전에 브레인 조회 1회**를 수행한다. 축적한 wiki·RAG 지식이 개발 중 잠들어 있는 구멍을 막는 스텝이다.
+
+1. 기능 키워드로 `rag-search` 1회 + wiki 조회(`mcp__…__wiki_search` 또는 20-wiki Glob) 1회
+2. **결과가 0건이어도 "조회함 + 0건"을 기록한다** — 브레인을 *안 물어본 것*과 *물어봤는데 없는 것*은 다르다
+3. 기록(1줄):
+   ```bash
+   printf '{"ts":"%s","stage":"forge-spec","query":"<키워드>","hits":<n>}\n' "$(date -u +%FT%TZ)" \
+     >> "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/brain-recall.jsonl"
+   ```
+4. 적중 건이 있으면 Spec 본문 "선행 지식" 항목에 출처 링크로 남긴다.
+
+> T3 미연결(강등) 세션이면 조회 결과가 팀과 다를 수 있다 — 세션 시작 배너(`t2-degraded-banner.sh`) 경고를 그대로 신뢰하고, 중요한 근거는 T3 복구 후 재조회한다.
 
 ## Phase-hard-gate (GS-B20)
 
@@ -39,7 +54,7 @@ Phase-hard-gate 순서:
      - codex 가용 + FAIL 반환 → Spec 재작성 후 재통과 필수 (blocking 유지)
      - codex/MCP 미가용(도구 부재·인증 실패 등) → fail-open + WARN
        ("Codex 미가용 → advisory로 강등, 수동 리뷰 권고") 명시 후 Phase 진행
-       (근거: `~/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
+       (근거: `$HOME/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
      ↓
   4. [STOP] Human 승인
      ↓
@@ -93,6 +108,8 @@ forge-spec 진입 계약(A~H 8요소)으로 입력 스캔(파일경로|인라인
 - 저장: `.specify/specs/YYYY-MM-DD-{slug}.md` (항상 SSoT).
 - **도메인 폴더 연계**: `--plan <dir>`가 도메인 폴더(`_registry.yaml`/`00-도메인개요.md` 존재)면 → `{domain}/spec/YYYY-MM-DD-{slug}.md`에도 미러 저장.
 - **미러 헤더 의무 + §데이터모델 provenance 태그**: 미러 저장·DB 스키마 §데이터모델 작성 시 필수. 실행 시 상세 Read: `rules-on-demand/forge-spec-phases-detail.md §Phase 2 미러 헤더·provenance`.
+> **원칙 — Spec은 1회성 handoff가 아니다**: human request → 기술 탐색 → mockup/explainer → refine → 재구현 → implementation notes 축적 → 필요 시 re-spec으로 이어지는 반복 프로세스다. 구현 중 발견된 기술 제약이 implementation notes로 축적되면 Human 승인 하 재-spec 사이클(`dev-workflow-rules.md` §Spec관리 (B) 배포 후 노후 예외와 연결)로 되먹인다. 단, AI가 승인 없이 자동으로 Spec을 변경하는 것은 여전히 금지 — 재-spec은 항상 Human 승인 게이트를 거친다.
+
 
 **Phase 2.5 — HTML 시각화 옵션 (복잡도 High Spec)**
 아키텍처 다이어그램·UI 옵션·상태 전이 포함 Spec → HTML 병행 제안. 단순 Spec은 Markdown만.

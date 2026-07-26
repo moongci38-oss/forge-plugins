@@ -18,7 +18,7 @@ PR 생성 단독 실행. `/sdd` Phase 5 분리 명령 (AD-46).
 | cr-final(Step 3) | **Opus**+Codex+Gemini | Claude 레그 Sonnet 고정(degrade=Opus+Gemini) |
 | 고위험 결정 advisor(BOUNDARY·scope-drift·봇충돌) | **Opus** | `advisor-strategist` — advisory only |
 
-근거: `~/.claude/rules/model-routing.md`. ⚠️ **forge-pr advisor는 Opus 고정 — Fable 자동분기 없음**(Fable 자동은 forge-fix T4 한정, forge-pr은 Human 수동 전용, `model-routing.md` Fable 카브아웃). Human 명시 요청 시에만 Fable.
+근거: `$HOME/.claude/rules/model-routing.md`. ⚠️ **forge-pr advisor는 Opus 고정 — Fable 자동분기 없음**(Fable 자동은 forge-fix T4 한정, forge-pr은 Human 수동 전용, `model-routing.md` Fable 카브아웃). Human 명시 요청 시에만 Fable.
 
 ## 선적 전 체크리스트 (Pre-ship) — AI-instruction 전용 (기계적 강제 없음)
 
@@ -44,7 +44,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
 감지 시 → 해당 정보 마스킹 후 재생성. STOP 불가.
 
-미충족 항목 → [STOP] 해소 후 진행. override 필요 시 → `~/.claude/rules-on-demand/verification-overrides.md` 참조.
+미충족 항목 → [STOP] 해소 후 진행. override 필요 시 → `$HOME/.claude/rules-on-demand/verification-overrides.md` 참조.
 
 ## 브랜치 완료 시 4-Choice 메뉴
 
@@ -72,6 +72,23 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
 1. **브랜치 diff 확인** — develop ↔ feature 브랜치 변경 내역 요약
 2. **`gh pr create`** — 자동 제목 + body (handover 요약 기반)
+   - **body 5필드 구조 (증거 묶음 원칙)**: handover 요약을 아래 5개 섹션에 매핑해 body를 구성한다 — AI 생성 PR 급증으로 diff 라인 단위 검토가 병목이 되는 추세이며, 리뷰어가 승인하는 대상은 코드 자체가 아니라 "문제-접근-검증-위험"이 갖춰진 증거 묶음이라는 관점을 반영한다. 1인 운영 환경에서는 `/compact` 이후 재개 세션의 recall 문서 역할도 겸한다.
+     ```
+     ## 문제(Problem)
+     {handover의 배경/증상 요약}
+     ## 접근(Approach)
+     {handover의 구현 방향/설계 선택}
+     ## 변경범위(Scope)
+     {변경 파일·모듈 목록, diff --stat 기반}
+     ## 검증(Verification)
+     - 단위: {unit test 결과 요약 또는 "없음"}
+     - 통합: {integration test 결과 요약 또는 "없음"}
+     - E2E: {e2e 결과 요약 또는 "없음"}
+     - 다루지 않은 엣지케이스: {실제 미검증 항목 명시}
+     ## 남은 위험(Remaining Risk)
+     {알려진 한계·후속조치 필요 항목, 없으면 "없음"}
+     ```
+     기존 body 생성 로직(handover 요약 기반)을 대체하지 않고, 요약 텍스트를 위 5필드에 분류해 채우는 additive 매핑으로 적용한다.
 2.5. **`bash .claude/skills/qa/scripts/ci-wait.sh {branch}`** — PR CI 통과 대기 (gh pr checks 폴링). FAIL → `docs/qa/ci-trigger.jsonl` append → **[STOP]** Human 에스컬레이션
 2.7. **VERSION drift 감지 (GS-B11)** — PR 생성 후 머지 전, 머지 대상 브랜치가 PR 생성 시점 이후 새 커밋을 받았는지 확인:
    ```bash
@@ -156,7 +173,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
    **`--cr <on|degrade|off>` 인자** (Codex 비용 통제 게이트):
    ```
-   MODE=$(~/forge/shared/scripts/cr-mode.sh "$CR_ARG")
+   MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "$CR_ARG")
    # 우선순위: --cr 인자 > $FORGE_AUTO_CR 환경변수 > 기본값 on
    case "$MODE" in
      off)     echo "auto cr-final skip (cr=off). 강제: /forge-pr --cr on 또는 수동 /cr-final." ;;
@@ -335,7 +352,7 @@ accepted_by: <Human 이름 또는 AI-instruction>
 at: <YYYY-MM-DD>
 ```
 
-override 처리 → `~/.claude/rules-on-demand/verification-routing.md` §Override 처리 분기 참조.
+override 처리 → `$HOME/.claude/rules-on-demand/verification-routing.md` §Override 처리 분기 참조.
 
 ### 선행 조건
 
@@ -347,7 +364,7 @@ override 처리 → `~/.claude/rules-on-demand/verification-routing.md` §Overri
 
 PR 생성 전 변경 파일 스캔 → BOUNDARY 범주 감지 시 human 승인 필수.
 
-**감지 범주** (상세: `~/forge/BOUNDARY.md`):
+**감지 범주** (상세: `${FORGE_ROOT:-$HOME/forge}/BOUNDARY.md`):
 | 범주 | 감지 패턴 |
 |------|-----------|
 | B1 DB스키마 변경 | `ALTER/CREATE/DROP TABLE`, `migrations/` 신규 파일 |
@@ -368,6 +385,23 @@ BOUNDARY 감지 → WARN 출력 → human 확인 대기 → 승인 후 진행
 - **B1(DB스키마)/B2(마이그레이션)/B4(결제·금융)** = 비가역·최고위험 → `Agent(subagent_type="advisor-strategist", prompt="<BOUNDARY 범주+변경 요약+롤백 현황 500토큰> 비가역 리스크·롤백 전략 조언 요청")` + Human [STOP] 연계(advisor 조언을 승인 요청에 포함).
 - **B3(권한)/B5(scope확대)/B6(의존성)** → `Agent(subagent_type="advisor-strategist", prompt="<BOUNDARY 범주+변경 요약 500토큰> 설계 정합·회귀·대안 조언 요청")`.
 - 모델=**Opus 고정**(Fable 자동분기 없음 — forge-pr은 Human 수동 전용). 중첩 시 [→Lead 위임]. 최종 승인=Human.
+
+**위험도 기반 검수 강도 상향 권고 (B1/B2/B4 한정, AD-168 준수 — hard-block 금지)**: B1(DB스키마)/B2(마이그레이션)/B4(결제·금융) 감지 시, 위 advisor-strategist 자문과 병행해 검수 강도 상향을 **WARN 권고**한다(권고 출력일 뿐 차단 아님).
+
+- ⚠️ **`/codex-review` 단독 호출 경로에 한해** effort medium→high 상향을 권고한다.
+- ⚠️ **`cr-triple --stage final` 경로에는 effort 상향이 무의미하다** — 이 커맨드는 위 Step 3에서 **이미 `--effort high`로 호출**된다(본 문서 §Step 3 참조). 여기에 "medium→high 상향"을 권고하면 아무 것도 바뀌지 않는 공허한 문구가 된다(실측 정정 2026-07-24).
+- 대신 cr-triple 경로의 실효 있는 상향 레버는 **Codex 검수 레그 tier 승격 `--sol`**이다(`gpt-5-mini` → 프런티어). **ChatGPT Plus 정액이라 추가 비용 0** — Fable(종량)과 다르다.
+- 단 `--sol`은 **Human opt-in 규약**이므로 자동 주입하지 않는다. B1/B2/B4 감지 시 아래를 그대로 출력해 사용자 선택을 받는다:
+  ```
+  [BOUNDARY B{N}] 비가역·고위험 변경 감지. 검수 강도 상향을 권고합니다(추가 비용 0):
+    /cr-triple <target> --stage final --sol
+  그대로 진행하려면 기본 호출을 유지합니다.
+  ```
+- ⚠️ 위 두 사실(`cr-triple`이 이미 `--effort high`로 호출됨 / `--sol`이 추가 비용 0)은
+  **외부 커맨드 동작·구독 약관에 종속**된다. 이 절을 근거로 판단하기 전에 §Step 3의
+  실제 호출 라인과 `cr-triple.md §--sol` 문구를 재확인한다 — 상류가 바뀌면 이 문단은
+  조용히 거짓이 된다(2026-07-24 실측 기준).
+- 오탐률·면제율 metrics 축적 후에만 BLOCK 승격을 검토한다 — 현 시점 자동 BLOCK 절대 금지.
 
 감지 명령:
 ```bash

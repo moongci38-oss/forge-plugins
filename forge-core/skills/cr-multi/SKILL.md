@@ -3,17 +3,28 @@ name: cr-multi
 description: "Multi-worker 검수(Codex+Gemini Double / Opus+Codex+Gemini Triple). 트리거: /cr-multi, /cr-double, /cr-triple, plan/spec 저장 후 자동, plateau 3회 자동승격."
 ---
 
-# /cr-multi
+## 게이트 증거 — 관측/판정 분리 (D1-B, 2026-07-25)
 
-Codex + Gemini (Double) 또는 Opus + Codex + Gemini (Triple) 병렬 리뷰 + Triage 합산 verdict.
+워크플로는 **관측한 raw legs 만** 발행한다. **판정(verdict·score)·바인딩(base_sha·
+diff·provenance)은 쓰지 않는다** — 그건 게이트가 계산한다.
 
-> **인자 정본 = `.claude/commands/cr-multi.md`.** 실행(Workflow 스폰)은 이 파일이 하지만,
-> 인자 스펙(`--mode` / `--stage` / `--cr on|degrade|off` / `--no-codex` / `--fable`)은 커맨드가 정본이다.
-> 2026-07-14 실측: 이 스킬에 `--fable`·`--degrade` 설명이 누락돼 있어, 스킬 경로로 들어오면
-> 존재하는 인자를 모르는 상태였다. 인자 추가 시 **양쪽을 함께** 고친다.
->
-> - `--cr degrade` / `--no-codex` → Codex 레그 제외 (Opus + Gemini 2-worker)
-> - `--fable` → **Human 수동 전용.** Claude 레그를 Fable 5로 승격 (Codex·Gemini 불변). 자동 발동 금지.
+```
+${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-evidence/{stage}/{slug}-{stage}.json
+포맷: {legs[{worker,score,summary,issue_count,critical,high}], mode, expected_legs, stage, run_id}
+```
+
+- **왜 판정을 안 쓰나**: 에이전트가 `verdict:PASS` 를 파일로 써넣는 행위가 위조와
+  구분되지 않아 안전 분류기에 반복 차단됐다(실측 3회 연속). raw legs(관측)는 통과한다.
+- **누가 판정하나**: `codex-gate-enforce.sh` 가 `review-evidence-verdict.py --compute` 로
+  verdict 를 재계산하고, base_sha·diff 는 gh/git 에서 자체 취득한다.
+- **발행 조건**: stage ∈ {code,test,bugfix,final} + PR 컨텍스트. 그 외/실패는 fail-open
+  skip(리뷰는 정상 반환).
+- ⚠️ **게이트가 소비하는 증거는 이 경로뿐이다.** `/cr-code`·`/cr-final` 등 `/codex-review`
+  래퍼는 `docs/reviews/` 에 쓰므로 이 게이트를 통과시키지 못한다 — 게이트 stage 충족은
+  `/cr-triple`·`/cr-double`(= cr-multi) 경유로만 된다.
+- 자동 게이트는 기본 off(`CODEX_REVIEW_AUTO_STAGES`, `.env`). 검수 판정은 Workflow
+  반환값(combined/verdict)으로 사람이 읽는다.
+
 
 ## Quick Start
 
@@ -46,13 +57,15 @@ Codex + Gemini (Double) 또는 Opus + Codex + Gemini (Triple) 병렬 리뷰 + Tr
 
 ## 산출물
 
-```
-${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/{stage}/{slug}-cr-multi.json
-```
+1. **Workflow 반환값** — 사람이 읽는 검수 결과(`verdict`/`combined`/`issues[]`/`degraded`/
+   `evidence_tier`). 판정은 여기서 확인한다.
+2. **게이트 raw-legs**(위 §게이트 증거) — 관측 데이터만, PR 컨텍스트 + gate stage 한정.
 
-AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded, evidence_tier}`
+> ⚠️ 구 `docs/reviews/{stage}/{slug}-cr-multi.json`(AD-90 증거 JSON) 발행은 **폐지됐다**
+> (2026-07-24 v2에서 workflow.js의 파일 발행 제거 — 현재 이 경로를 쓰는 코드는 없다).
+> 게이트가 소비하는 증거는 raw-legs 경로뿐이다.
 
-**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값·AD-90 JSON)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
+**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
 
 **`evidence_tier` (증거등급, Batch 3-2)**: 기존 `degraded`·워커 생존 수에서 **순수 파생**되는 필드(신규 판정 로직 아님).
 
@@ -76,7 +89,7 @@ AD-90 증거 JSON 포맷: `{verdict, score, issues[], mode, slug, degraded, evid
 
 cr-multi 실행 후 usage 데이터 기록:
 ```bash
-bash ~/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
+bash $HOME/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
 ```
 usage 필드는 Anthropic SDK response.usage 에서 추출. 미지원 시 0 기본값 사용.
 
@@ -87,7 +100,7 @@ mcp__codex__ codex-critic = verify hook이 read-only sandbox로 무조건 면제
 ```js
 // Workflow 실행 (GitNexus StructuralContext + 3-LLM parallel)
 Workflow({
-  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
@@ -96,10 +109,10 @@ Agent Teams fallback: `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Agent 패턴.
 
 ## 참조
 
-- 명령: `~/forge/.claude/commands/cr-multi.md`
-- 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
-- Triage: `~/forge/shared/scripts/cr-multi-triage.py`
-- Plateau: `~/forge/shared/scripts/cr-multi-plateau-guard.py`
+- 명령: `${FORGE_ROOT:-$HOME/forge}/.claude/commands/cr-multi.md`
+- 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
+- Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
+- Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`
 
 ## Evaluator (Wave 2.5)
 
@@ -110,6 +123,8 @@ Evaluator 역할: 산출물 독립 검증
 모델: claude-haiku-4-5 (경량, 편향 최소화)
 격리: 메인 컨텍스트 오염 방지
 ```
+> **설계배경(이종 모델 검수)**: Codex/Gemini/Haiku 등 이종·경량 모델을 리뷰 레그에 섞는 이유는 self-referential bias(모델이 자기 산출물을 검증할 때 관대해지는 편향) 완화에 있다 — 작성자 모델과 다른 모델이 검토하면 같은 편향을 반복할 확률이 낮아진다. 다만 **동일 모델계열 내 편향(예: 같은 Claude 계열끼리)은 이 구조로 완전히 제거되지 않는다** — 이종 모델 배치는 완화 장치이지 무편향을 보장하는 장치가 아니다.
+
 
 판정 기준:
 - PASS: 모든 핵심 기준 충족, 즉시 사용 가능
@@ -147,3 +162,8 @@ cr-multi를 호출하는 requester(오케스트레이터·Human)가 준수해야
 ⑦ **Critical 이슈 무시 후 진행 금지** — Critical 미수정 = FAIL verdict 자동 발행 (기계 차단). 수동 override 시 Human 승인 필수 (AD-50).
 ⑧ **High severity 이슈 잔존 시 검토 의무** — verdict=WARN 수신 시 high 이슈 목록 확인 후 진입 여부 결정 (자동 차단 없음, 검토 의무 — prose rule).
 ⑨ **유효한 기술 피드백 무비판 동의 금지** — 피드백 내용을 실제로 검토 후 수용/거부 판단.
+
+## 리뷰 워커 출력 요건
+
+⑩ **미커버 실패 시나리오 명시 의무** — 각 리뷰 워커는 통과 보고된 검증이 커버하지 않는 실패 시나리오를 최소 1개 명시한다(해당 사항 없으면 "없음"으로 명시). 검증 커버리지의 사각지대를 리뷰어 스스로 적대적으로 자문하게 해, 통과 판정에 안주하는 것을 방지하기 위함이다.
+

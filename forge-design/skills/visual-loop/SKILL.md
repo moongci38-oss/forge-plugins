@@ -331,7 +331,7 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: 3 viewport Gemini Vision parallel().
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/visual-loop/workflow.js") })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/visual-loop/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

@@ -57,7 +57,7 @@ Write comprehensive implementation plans assuming the engineer has zero context 
      AND a.filePath IN $changeset AND b.filePath IN $changeset AND a.filePath <> b.filePath
    RETURN DISTINCT a.filePath AS src, b.filePath AS dst
    ```
-3. **분해**: `echo '{"graph_synced":true,"changeset":[...],"edges":[[src,dst]...]}' | python3 ~/forge/shared/scripts/decompose.py`
+3. **분해**: `echo '{"graph_synced":true,"changeset":[...],"edges":[[src,dst]...]}' | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/decompose.py`
    → `components`(=병렬 worktree 단위) + `cross_component_edges:0`(머지충돌 0 보장) + `serial_within`(공유심볼 컴포넌트 = 인터페이스 계약 먼저 직렬).
 4. 계획에서 **다른 컴포넌트 Task = 병렬 레인**(P-3 연계), 같은 컴포넌트 = 직렬.
 
@@ -242,7 +242,7 @@ model: sonnet
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Plan→Evaluate (작성 의도 미전달 격리).
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/writing-plans/workflow.js") })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/writing-plans/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

@@ -27,7 +27,7 @@
 
 ⚠️ **한계**: origin 화이트리스트는 탐색 경계(navigation-boundary)를 봉쇄할 뿐, **이미 허용된 페이지 내부에서 주입되는 악성 지시 자체는 막지 못한다**. 인젝션 방어가 아니라 이동 범위 제한이다.
 
-> **MCP 설치 전제(실측 2026-07-01)**: `@playwright/mcp`는 현재 **미설치** — 글로벌 `~/.claude.json` `mcpServers`에 playwright 없음. (`starbeginz-origin`의 `disabledMcpServers` 내 `playwright`는 정의 없는 orphan 항목이라 무의미.) 상황별 MCP 사용이 필요해지면 `claude mcp add playwright -- npx @playwright/mcp@latest`로 **설치**해야 함(단순 toggle 아님). 다중 세션 도구 표면 변경 → Human 결정.
+> **MCP 설치 전제(실측 2026-07-01)**: `@playwright/mcp`는 현재 **미설치** — 글로벌 `$HOME/.claude.json` `mcpServers`에 playwright 없음. (`starbeginz-origin`의 `disabledMcpServers` 내 `playwright`는 정의 없는 orphan 항목이라 무의미.) 상황별 MCP 사용이 필요해지면 `claude mcp add playwright -- npx @playwright/mcp@latest`로 **설치**해야 함(단순 toggle 아님). 다중 세션 도구 표면 변경 → Human 결정.
 
 ## Secret 주입
 로그인·인증 자동화의 비밀값 처리 기준 → [storage-state.md](storage-state.md) "비밀값 주입" 절 참조. 핵심: 코드/저장소 평문 하드코딩 금지, `.env` 참조 또는 secret manager ref로만 주입.

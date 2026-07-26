@@ -1,68 +1,12 @@
 ---
-description: "Sonnet 세션 시작 — 구현 컨텍스트 로드. 트리거: \"세션 시작\", \"구현 시작\", \"start-sonnet\", Opus handover 수신 후 구현 착수 시."
+description: "[DEPRECATED alias] /forge-start로 통합됨 — 세션 시작 회수 + 역할 선언(모델 자동 감지)."
 group: ops
 ---
 
-# /start-sonnet
+# /start-sonnet → `/forge-start`
 
-Sonnet 세션 시작 시 실행.
+**이 커맨드는 `/forge-start`로 통합됐다**(레인 단일화 v1.9). 모델별 시작 커맨드 분기는 폐지 — 역할 선언만 세션 모델로 자동 분기한다.
 
-## 통합 핸드오버 정책 (2026-05-07~)
+→ **`.claude/commands/forge-start.md` 본문 지시를 그대로 실행한다.** (별도 로직 없음.)
 
-**1 세션 = 1 파일.** Opus 통합 handover 후반부에 "Sonnet 액션 아이템" 섹션 포함.
-별도 `from-opus-*` 파일은 폐지 (구버전 호환만 폴백 read).
-
-## 실행 순서
-
-0. **learnings 갱신 체크 (compounding 팀 공유)**
-   ```bash
-   git -C "$(pwd)" fetch --quiet 2>/dev/null
-   BEHIND=$(git -C "$(pwd)" rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
-   [ "${BEHIND:-0}" -gt 0 ] && echo "⚠️ origin이 $BEHIND 커밋 앞섬 — learnings.jsonl 등 최신 위해 \`git pull\` 권고 (강제 X)"
-   ```
-
-1. **curated handover 읽기 (우선순위 순)**
-   - `05-handoff/` 최신 파일 read (lumir-01 등 표준 프로젝트)
-   - 없으면 `.claude/handover/sonnet/` 최신 파일 read
-   - 없으면 `.claude/handover/opus/` 최신 파일 read
-   - **마지막 폴백**: `.claude/handover/` 루트 — 단, `*-auto.md` 패턴 파일 제외
-   - 구버전 폴백: `.claude/handover/sonnet/from-opus-*` 존재 시 read
-   - 어디도 없으면 사용자에게 알리고 대기
-
-2. **프로젝트 메모리 읽기**
-   - `.claude/MEMORY.md` (있으면)
-   - `learnings.jsonl` — **bounded 로드 (P4-a)**:
-     - `status: "active"` 항목 + date 내림차순 최근 20건 (중복 제거) 만 로드.
-     - 전량 로드: `--full-learnings` 명시 시만.
-     - 레거시(status 필드 없음) 항목 = 최근 N건 기준에만 포함(status 필터 미적용).
-     - `.claude/learnings.md` 존재 시도 동일 bounded 정책 적용.
-
-2.5. **프로젝트 VITALS 로드 (read-only)**
-   - 프로젝트 루트 `CLAUDE.md`의 `## 핵심정보` 섹션을 read-only 로드.
-   - ⚠️ **변이 절대 금지**: consumed 마킹·INDEX 수정 등 어떤 파일도 변경하지 않는다 (C2 TOCTOU 방지).
-   - 섹션 부재 시 = **grace**: 차단·GUIDE-STOP 없이 다음 단계로 진행. 1줄 advisory 출력:
-     > "`## 핵심정보` 미설정 — `/forge-onboard`로 생성 권고"
-   - → `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/check-continuity.sh"` advisory 실행(비차단) — populated/secret 검증 결과 1줄 표시. 스크립트 부재 시 skip(fail-open).
-   - → `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/index-refresh.sh"` 증분 재색인 백그라운드 시작(토큰0·로컬, 비차단). 오래 미실행 PC도 시작 시 자동 최신화. kill-switch `FORGE_AUTO_REINDEX=off`.
-
-3. **오늘 작업 요약 출력**
-   - 우선순위 순 구현 태스크 목록
-   - 블로커 있으면 먼저 명시
-
-4. **역할 선언**
-   > 이 세션 역할: 구현 실행
-   > 설계 판단 필요한 사항 발생 시 → 즉시 사용자에게 보고 (독단 결정 금지)
-   > 세션 종료 전 handover 업데이트 필수
-
-## Agent View 활용
-
-`claude agent` 로 멀티에이전트 작업 시 3상태 확인:
-- **Needs Input** — 에이전트 대기 중, 즉시 응답 필요
-- **Working** — 진행 중, Peek으로 중간 결과 확인 가능
-- **Completed** — 완료, Inline Reply로 다음 지시
-
-Attach 시 AI가 해당 에이전트 컨텍스트를 자동 브리핑 — 긴 subagent 결과 요약 없이 이어받기 가능.
-
-## 세션 종료 시
-
-`/end-sonnet` 실행
+alias 1사이클 유지 후 제거 예정.

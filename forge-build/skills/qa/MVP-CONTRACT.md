@@ -21,8 +21,8 @@
 
 ## Cross-reference
 
-- `~/forge/dev/scripts/forge-sync.mjs` HOOKS_ALLOWLIST: 11종 (10 gate + 1 helper)
-- `~/.claude/settings.json` PreToolUse: H9(Edit|Write) / H10(Write) / helper(Read)
+- `${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs` HOOKS_ALLOWLIST: 11종 (10 gate + 1 helper)
+- `$HOME/.claude/settings.json` PreToolUse: H9(Edit|Write) / H10(Write) / helper(Read)
 - `_ad97-pending/`: H4/H5/H8/H11~H25/H29 — AD-97 진입 전 발동 X
 
 ## bug-fix-plan.md 필수 필드 (H10 검증)

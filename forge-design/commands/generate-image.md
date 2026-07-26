@@ -1,7 +1,7 @@
 ---
 description: 이미지 생성 — gpt-image-1 primary, Gemini 폴백.
 allowed-tools: Bash, Read, Write, mcp__plugin_forge-core_gemini__generate_image
-argument-hint: "<mode: generate|edit> <prompt or image-path> [--aspect 16:9|1:1|9:16] [--quality low|medium|high] [--output path]"
+argument-hint: "<mode: generate|edit> <prompt or image-path> [--aspect 16:9|1:1|9:16] [--quality low|medium|high] [--output path] [--brand-guide path]"
 model: sonnet
 group: ops
 ---
@@ -43,14 +43,15 @@ gpt-image-1 실패 → Gemini 폴백
 **인자 파싱:**
 - 첫 번째 인자: 프롬프트 텍스트
 - `--aspect`: `16:9` (히어로/배너), `1:1` (정사각), `9:16` (모바일)
+- `--model`: `gpt-image-1`(기본, 비파괴) / `gpt-image-2`(2026-04 플래그십 — 2K·추론 강화, `generate-image.py` 코드 주석 근거)
 - `--quality`: `low` / `medium`(기본) / `high`
-- `--output`: 저장 경로 (기본: `05-design/images/`)
+- `--output`: 저장 경로 (기본: `05-design/images/`)- `--brand-guide`: 브랜드 가이드 파일 절대경로(선택) — 프롬프트에 접두 병합. allowlist(FORGE_OUTPUTS/cwd)·symlink거부·100KB 상한·시크릿 패턴 스캔 fail-closed(위반 시 거부)
 
 **예시:**
 ```
 /generate-image generate "포트폴리오 히어로 이미지, 미니멀 디자인, 파란 그라데이션" --aspect 16:9
 /generate-image generate "AlbaNow 프로젝트 쇼케이스 썸네일" --aspect 1:1
-/generate-image generate "마케팅 캠페인 배너, 모던 SaaS 스타일" --aspect 16:9 --output 03-marketing/assets/
+/generate-image generate "마케팅 캠페인 배너, 모던 SaaS 스타일" --aspect 16:9 --output 03-marketing/assets//generate-image generate "포트폴리오 히어로 이미지" --aspect 16:9 --brand-guide 05-design/brand-guide.md
 ```
 
 ### `edit` — 기존 이미지 편집

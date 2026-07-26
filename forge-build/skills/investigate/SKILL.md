@@ -18,7 +18,7 @@ model: sonnet
 ## Workflow 통합 (계획서 P2-7)
 RAG 선검색 → 조사 → 분석 → 가설 검증 컨텍스트 격리. Stage 4+5(재현+수정)는 human gate 후 healer/forge-pge 위임.
 패턴: RAG(Explore) → Investigate(소스+gitnexus) → Analyze(가설 2개+) → Verify → [STOP] human gate.
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })`
 skipVerify=true → Stage 3 skip, 가설 목록만 반환. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 직접 실행 fallback.
 
 ## 핵심 철칙
@@ -52,6 +52,15 @@ skipVerify=true → Stage 3 skip, 가설 목록만 반환. `CLAUDE_CODE_DISABLE_
    - **커밋 없음**: "소스 변경 없음 — 기존 해결책 유효" → 제시 후 Human 확인
    - **커밋 N개**: "관련 소스 N개 커밋 변경 — 기존 해결책 참고만, 재조사 권장" → Stage 1 진행
 3. 없음 → "기존 케이스 없음" 출력 후 Stage 1 진행
+
+**Brain recall 기록 의무 (회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)** — Stage 0은 RAG뿐 아니라 **wiki 조회 1회**를 포함하며(`wiki_search` 또는 20-wiki Glob), **적중 0건이어도 "조회함 + 0건"을 기록**한다. 브레인을 *안 물어본 것*과 *물어봤는데 없는 것*은 다르다.
+
+```bash
+printf '{"ts":"%s","stage":"investigate","query":"<키워드>","hits":<n>}\n' "$(date -u +%FT%TZ)" \
+  >> "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/brain-recall.jsonl"
+```
+
+> T3 미연결(강등) 세션이면 조회 결과가 팀과 다를 수 있다 — 세션 시작 배너(`t2-degraded-banner.sh`) 경고를 신뢰하고, 근거로 쓸 항목은 T3 복구 후 재조회한다.
 
 ## 재현 루프 구축 (Stage 1 선행 reference)
 
@@ -140,7 +149,7 @@ Stage 2(분석) 및 Stage 3(가설 검증) 진행 시, 4가지 추론 모델(bin
 **과거 버그 자동 검색 (필수)**: Stage 1 시작 시 두 채널로 유사 버그 확인.
 ```bash
 # (1) learnings.jsonl 의 bug-fix-pattern (compounding — global + project, access.log 자동 기록)
-LEARN_BY=investigate bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
+LEARN_BY=investigate bash $HOME/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
 # (2) rag-search (보완 — forge-outputs/01-research/bugs/ 본문 검색)
 rag-search("{project} {증상 키워드}")
 ```
@@ -404,7 +413,7 @@ Stage 5 수정 완료 후 **반드시** bug log를 forge-outputs에 저장한다
 **+ learnings.jsonl 1줄 append (compounding — 필수)**: bug log MD 저장 후, 그 요약을 learnings에도 기록한다 (다음 세션·동료가 `learnings.sh load bug-fix-pattern`으로 자동 참조). 헬퍼가 sanitize(스택트레이스 full/토큰 차단)·collision-id·validate 처리:
 
 ```bash
-bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
+bash $HOME/.claude/scripts/learnings.sh append --category bug-fix-pattern \
   --summary "<증상 1줄>" \
   --trigger "<재현 조건 1줄>" \
   --apply "<근본 원인 + 수정 패턴 1줄>" \
@@ -417,7 +426,7 @@ bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
 ```bash
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)
 [ -d "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index" ] && [ "$REPO" != unknown ] && \
-  OPENAI_API_KEY="" timeout 180 python3 ~/forge/shared/scripts/rag/project_knowledge_sync.py --project "$REPO" >/dev/null 2>&1 || true
+  OPENAI_API_KEY="" timeout 180 bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" >/dev/null 2>&1 || true
 ```
 
 ### Stage 7: Codex bugfix 적대적 리뷰 (Plan v2-C1, 자동, 권고)
