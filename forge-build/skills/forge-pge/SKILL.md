@@ -469,7 +469,7 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
         Evaluator FAIL 피드백 = 접근방식 전환 입력. 재진입 시 기록된 id의 이전 접근방식 명시적 제외.
 ```
 
-**Evaluator 최종 FAIL 시 — pge-failure 후보 기록 (compounding)**: 3사이클 후에도 FAIL 잔존하면 (= 이 접근 방식이 막혔다는 신호), 그 실패 패턴을 종료 핸드오버에 `pge-failure 후보:` 1줄로 기록 (`current-analysis.md "## 이전 시도 실패 이력"` 섹션 + handover 모두). `/end-sonnet` 또는 `/end-opus`가 그 후보를 `learnings.sh append --category pge-failure --summary "<무엇을 하려다> <왜 막혔나>" --apply "<향후 PGE에서 이 접근 회피 — 대안은>" --evidence "<PGE 보고서 경로 or 사이클 요약>"`로 learnings에 반영. (end-* 가 이미 learnings append 수행하므로 후보 큐만 넘기면 됨.)
+**Evaluator 최종 FAIL 시 — pge-failure 후보 기록 (compounding)**: 3사이클 후에도 FAIL 잔존하면 (= 이 접근 방식이 막혔다는 신호), 그 실패 패턴을 종료 핸드오버에 `pge-failure 후보:` 1줄로 기록 (`current-analysis.md "## 이전 시도 실패 이력"` 섹션 + handover 모두). `/forge-end`가 그 후보를 `learnings.sh append --category pge-failure --summary "<무엇을 하려다> <왜 막혔나>" --apply "<향후 PGE에서 이 접근 회피 — 대안은>" --evidence "<PGE 보고서 경로 or 사이클 요약>"`로 learnings에 반영. (`/forge-end` 가 이미 learnings append 수행하므로 후보 큐만 넘기면 됨.)
 
 ### Phase 6: 사후 Spec 발행 (`.specify/` 프로젝트 한정, WARN-first)
 

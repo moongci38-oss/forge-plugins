@@ -141,5 +141,5 @@ CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '
 
 ## 경계
 
-`/end-opus`·`/end-sonnet`은 이 커맨드의 alias(1사이클 유지 후 제거).
+`/end-opus`·`/end-sonnet`은 **2026-08-01 삭제됐다**(alias 아님 — 호출해도 존재하지 않는다). 이 커맨드가 유일한 세션 종료 경로다.
 관련 없는 새 작업으로 전환할 때는 `/forge-end` → `/clear` → `/forge-start`가 정석이다.

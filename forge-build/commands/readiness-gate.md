@@ -351,8 +351,8 @@ resume 모드 진입 시 아래 블록을 **반드시** 사용자에게 출력 �
 
 | 이벤트 | 행동 |
 |--------|------|
-| 세션 중간 종료 | `/checkpoint` 실행 + `_STATUS.md` 현재 stage/round/completed_steps 기록 |
-| 마일스톤 완료 | `/end-sonnet` 또는 `/end-opus` 실행 + `_STATUS.md` 최종 stage 기록 |
+| 세션 중간 종료 | `/forge-checkpoint` 실행 + `_STATUS.md` 현재 stage/round/completed_steps 기록 |
+| 마일스톤 완료 | `/forge-end` 실행 + `_STATUS.md` 최종 stage 기록 |
 | 재진입 | `_STATUS.md` read(규약 1) → handover 문서 read → resume 판정(규약 2) 순 |
 
 handover 문서 경로: `${FORGE_ROOT:-$HOME/forge}-outputs/.claude/handover/{sonnet|opus}/` (기존 경로 재사용, 신규 경로 신설 금지).

@@ -112,4 +112,4 @@ git fetch --quiet 2>/dev/null; B=$(git rev-list --count HEAD..@{u} 2>/dev/null |
 | 세션 **완전 종료** | `/forge-end` |
 | 관련 없는 새 작업으로 전환 | `/forge-end` → `/clear` → `/forge-start` |
 
-`/start-opus`·`/start-sonnet`은 이 커맨드의 alias(1사이클 유지 후 제거).
+`/start-opus`·`/start-sonnet`은 **2026-08-01 삭제됐다**(alias 아님 — 호출해도 존재하지 않는다). 이 커맨드가 유일한 세션 시작 경로다.

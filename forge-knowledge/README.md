@@ -148,7 +148,7 @@ Wiki 레이어 (forge-outputs/20-wiki/)
        ↓
 /learn              → learnings.jsonl (세션 간 컴파운딩)
                             ↓
-                    다음 세션에서 /start-sonnet이 자동 참조
+                    다음 세션에서 /forge-start가 자동 참조
 
 리서치 산출물 (01-research/, videos/ 등)
        ↓

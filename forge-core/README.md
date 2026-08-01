@@ -63,14 +63,9 @@ claude plugin install forge-core
 | 스킬 | 설명 | 트리거 |
 |------|------|--------|
 | `approve-worker` | HMAC 기반 MAS worker 승인 토큰 발행 | `/approve-worker` |
-| `checkpoint` | Mid-session 컨텍스트 체크포인트 저장 | `/checkpoint`, 토큰 70%+ |
 | `cr-multi` | Multi-LLM 병렬 코드 검수 오케스트레이터 | `/cr-multi`, `/cr-double`, `/cr-triple` |
-| `end-opus` | Opus 전략 세션 종료 + handover 작성 | `/end-opus` |
-| `end-sonnet` | Sonnet 구현 세션 종료 + handover 작성 | `/end-sonnet` |
 | `forge-loop-maker` | Generic goal-feedback refinement loop scaffold | 반복 개선 태스크 |
 | `rag-search` | forge-outputs 벡터+BM25 하이브리드 의미 검색 | `/rag-search` |
-| `start-opus` | Opus 전략 세션 시작 + 컨텍스트 로드 | `/start-opus` |
-| `start-sonnet` | Sonnet 구현 세션 시작 + 컨텍스트 로드 | `/start-sonnet` |
 | `harness-legacy-scan` | 레거시 하네스 패턴·중복·과대 전역컨텍스트 읽기전용 감사 | `/harness-legacy-scan` |
 | `harness-diet` | harness-legacy-scan low-risk 항목 정리 적용 | `/harness-diet` |
 | `external-harness-sweep` | 외부 하네스 레포(gstack/gsd/superpowers/gbrain) 1:1 sweep | `/external-harness-sweep` |
@@ -95,17 +90,17 @@ HMAC-SHA256 서명 토큰을 발행하여 멀티에이전트 시스템(MAS)의 w
 - MAS P0 approval gate에서 필수 선행 단계
 - 사용자 TTY에서 직접 실행 (자동화 금지)
 
-### checkpoint
+### forge-checkpoint
 
 컨텍스트 토큰이 70~90%에 도달하거나 `/compact` 전에 현재 세션 상태를 스냅샷으로 저장합니다.
 
 ```
-/checkpoint
+/forge-checkpoint
 ```
 
 저장 내용: 진행 중 태스크, 완료 목록, 다음 스텝, 블로커, 열린 파일
 
-저장 경로: `$HOME/.claude/checkpoints/YYYY-MM-DD-HH-MM.md`
+저장 경로: `$FORGE_OUTPUTS/.claude/checkpoints/YYYY-MM-DD-HHMM.md`
 
 `/compact` 후 '계속' 또는 'resume' 입력 시 체크포인트 자동 복원.
 
@@ -225,23 +220,21 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 
 | 커맨드 | 설명 |
 |--------|------|
-| `/start-sonnet` | Sonnet 구현 세션 시작 — handover 읽기 + 태스크 목록 출력 |
-| `/end-sonnet` | Sonnet 세션 종료 — handover 작성 + learnings 기록 |
-| `/start-opus` | Opus 전략 세션 시작 — handover 읽기 + 전략 큐 요약 |
-| `/end-opus` | Opus 세션 종료 — ADR 인수인계 + 장기기억 업데이트 |
-| `/checkpoint` | Mid-session 체크포인트 저장 (/compact 전 사용) |
+| `/forge-start` | 세션 시작 — handover 읽기 + 태스크 목록 출력 (모델 자동 감지) |
+| `/forge-end` | 세션 종료 — handover 작성 + learnings 기록 |
+| `/forge-checkpoint` | Mid-session 체크포인트 저장 (/compact 전 사용) |
 | `/forge-resume` | 마지막 체크포인트에서 세션 재개 |
 
 **세션 흐름**:
 ```
-Opus 전략 세션
-  → /end-opus (ADR + handover 저장)
+전략 세션
+  → /forge-end (ADR + handover 저장)
 
-새 Sonnet 세션
-  → /start-sonnet (handover 로드)
+새 세션
+  → /forge-start (handover 로드, 모델 자동 감지)
   → 구현 작업
-  → (토큰 70%+) /checkpoint → /compact → /forge-resume
-  → /end-sonnet (handover + learnings 저장)
+  → (토큰 70%+) /forge-checkpoint → /compact → /forge-resume
+  → /forge-end (handover + learnings 저장)
 ```
 
 ### 하네스 관리 커맨드 (v0.6.0 흡수)
@@ -335,7 +328,7 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 claude plugin install forge-core
 
 # 세션 시작
-/start-sonnet
+/forge-start
 
 # 코드 검수
 /cr-double src/auth/login.ts
@@ -344,10 +337,10 @@ claude plugin install forge-core
 /rag-search 인증 토큰 만료 이슈
 
 # 체크포인트 (토큰 절약)
-/checkpoint
+/forge-checkpoint
 
 # 세션 종료
-/end-sonnet
+/forge-end
 ```
 
 ---
@@ -400,7 +393,7 @@ forge-core/
 - `advisor-strategist` + `axis-agentic`/`axis-context`/`axis-cost`/`axis-harness`/`axis-human-ai` 에이전트 6종 번들 추가
 
 ### v0.2.0 (2026-06-23)
-- 세션 관리 5종 추가: start/end-sonnet, start/end-opus, checkpoint
+- 세션 관리 5종 추가: start/end-sonnet, start/end-opus, checkpoint (→ 2026-08-01 `/forge-start`·`/forge-end`·`/forge-checkpoint` 로 통합·삭제)
 - `handover-manager.sh` 번들 (flock 기반 원자적 쓰기)
 - forge-loop 스킬 추가 (Generic refinement loop)
 

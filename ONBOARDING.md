@@ -348,11 +348,11 @@ Forge는 멀티세션 환경입니다. 세션 전환 시 handover로 컨텍스�
 
 | 커맨드 | 시점 | 역할 |
 |--------|------|------|
-| `/start-sonnet` | 구현 세션 시작 | 직전 handover 읽기 + 오늘 작업 목록 출력 |
-| `/checkpoint` | 작업 중간 (토큰 70~90%) | 현재 상태 스냅샷 저장 → /compact 후 맥락 복원 |
-| `/end-sonnet` | 구현 세션 종료 | handover 작성 + learnings 추출 + memory 업데이트 |
-| `/start-opus` | 전략 세션 시작 | Sonnet handover 읽기 + 전략 컨텍스트 로드 |
-| `/end-opus` | 전략 세션 종료 | ADR 인수인계 + 장기기억 업데이트 |
+| `/forge-start` | 세션 시작 | 직전 handover 읽기 + 오늘 작업 목록 출력 (모델 자동 감지) |
+| `/forge-checkpoint` | 작업 중간 (토큰 70~90%) | 현재 상태 스냅샷 저장 → /compact 후 맥락 복원 |
+| `/forge-end` | 세션 종료 | handover 작성 + learnings 추출 + memory 업데이트 |
+
+> 모델별 분기(`/start-opus`·`/end-sonnet` 등)는 2026-08-01 삭제됐다 — 위 3개가 전부다.
 
 **핸드오버 경로**: `{프로젝트}/.claude/handover/sonnet/{날짜}-{slug}.md`
 
@@ -408,4 +408,4 @@ Claude Code 대화에서:
 | Notion MCP 인증 루프 | 워크스페이스 권한 없음 | 관리자에게 권한 요청 |
 | gitnexus MCP 없음 | setup 미실행 | `gitnexus setup` |
 | forge-knowledge rag-search 오류 | FORGE_DB_URL 미설정 | FAISS 모드 자동 폴백 (정상) |
-| `/start-sonnet` handover 없음 | 첫 세션 | 경고 없이 빈 컨텍스트로 시작 (정상) |
+| `/forge-start` handover 없음 | 첫 세션 | 경고 없이 빈 컨텍스트로 시작 (정상) |
