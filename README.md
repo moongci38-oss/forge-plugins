@@ -235,13 +235,12 @@ cd ~/forge-plugins-repo && git pull
 
 | 커맨드 | 사용법 | 설명 |
 |--------|--------|------|
-| `/start-sonnet` | `/start-sonnet` | Sonnet 구현 세션 시작 — handover 읽기·컨텍스트 로드 |
-| `/end-sonnet` | `/end-sonnet` | Sonnet 세션 종료 — handover 작성 + learnings 추가 |
-| `/start-opus` | `/start-opus` | Opus 전략 세션 시작 |
-| `/end-opus` | `/end-opus` | Opus 세션 종료 — ADR 인수인계 + 장기기억 업데이트 |
-| `/checkpoint` | `/checkpoint` | Mid-session 체크포인트 — /compact 전 상태 스냅샷 저장 |
+| `/forge-start` | `/forge-start` | 세션 시작 — 모델 자동 감지 + handover·체크포인트 회수 |
+| `/forge-end` | `/forge-end` | 세션 종료 — handover 작성 + learnings 추가 |
+| `/forge-checkpoint` | `/forge-checkpoint` | Mid-session 체크포인트 — /compact 전 상태 스냅샷 저장 |
 
-> **세션 흐름**: Opus(전략) → `/end-opus` → Sonnet 세션에서 `/start-sonnet` → 구현 → `/end-sonnet` → 다음 세션
+> **세션 흐름**: `/forge-start` → 작업 → (토큰 70~90%면 `/forge-checkpoint` → `/compact` → 계속) → `/forge-end`
+> 모델별 분기(`/start-opus`·`/end-sonnet` 등)는 2026-08-01 삭제됐다 — 단일 레인이고 모델은 자동 감지된다.
 
 ### forge-core — 하네스 관리 (v0.6.0 흡수)
 
@@ -361,8 +360,8 @@ cd ~/forge-plugins-repo && git pull
 /forge-implement
 
 # 세션 시작/종료
-/start-sonnet
-/end-sonnet
+/forge-start
+/forge-end
 
 # 지식 검색
 /rag-search ADR-174 통합 두뇌 설계 근거
