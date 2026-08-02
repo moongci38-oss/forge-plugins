@@ -32,6 +32,18 @@ PLUGINS = ["forge-core", "forge-build", "forge-knowledge", "forge-design", "forg
 #   회귀 감시: forge-core/hooks/forge-onboard.test.sh 가 매니페스트↔파일 실재를 검사한다.
 SUBDIRS = ["skills", "commands", "agents", "rules"]
 
+# 카테고리별 forge 소스 디렉터리 — 기본은 FORGE_ROOT(=~/forge/.claude) 하위 동명 폴더.
+# ⚠️ rules 는 예외다: 2026-07-27 A1-5 리팩터로 `~/forge/.claude/rules/` 가
+#   `~/forge/dev/global-rules/` 로 **이전**됐다. 그런데 이 스크립트는 계속 옛 경로를 봤고,
+#   `os.path.isdir()` 이 False 라 `continue` 로 조용히 건너뛰었다 — 에러도 drift 리포트도
+#   없이 rules 동기화가 0건으로 죽어 있었다(2026-08-02 전파 감사에서 발견, 6일간 방치).
+#   플러그인 사용자는 그동안 룰 업데이트를 한 건도 받지 못했다.
+# 폐기조건: forge 가 rules 를 다시 .claude/ 하위로 되돌리면 이 예외 매핑을 지운다.
+SUBDIR_SRC = {
+    "rules": os.path.join(os.environ.get("FORGE_ROOT", os.path.join(_HOME, "forge")),
+                          "dev", "global-rules"),
+}
+
 RE_FORGE = re.compile(r'~/forge\b')
 RE_CLAUDE = re.compile(r'~/\.claude\b')
 DRIVE_MARK = re.compile(r'\b[A-Z]:[\\/~]')  # Windows drive-letter prose table lines
@@ -54,8 +66,14 @@ def iter_pairs():
     for plugin in PLUGINS:
         for sub in SUBDIRS:
             plug_dir = os.path.join(PLUGIN_ROOT, plugin, sub)
-            forge_dir = os.path.join(FORGE_ROOT, sub)
-            if not os.path.isdir(plug_dir) or not os.path.isdir(forge_dir):
+            forge_dir = SUBDIR_SRC.get(sub, os.path.join(FORGE_ROOT, sub))
+            if not os.path.isdir(plug_dir):
+                continue
+            if not os.path.isdir(forge_dir):
+                # 소스 디렉터리 부재를 조용히 넘기면 카테고리 전체가 침묵 스킵된다
+                # (2026-07-27~08-02 rules 6일 사망의 정확한 원인). 반드시 보이게 한다.
+                print(f"[sync-from-forge] WARN: forge 소스 없음 — {sub}: {forge_dir} "
+                      f"(이 카테고리는 동기화되지 않는다)", file=sys.stderr)
                 continue
             for root, _, files in os.walk(plug_dir):
                 for fn in files:
