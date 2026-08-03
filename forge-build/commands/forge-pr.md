@@ -1,5 +1,5 @@
 ---
-description: PR 생성 + 3-LLM(cr-triple) 적대적 리뷰 + 머지 (옛 /sdd Phase 5)
+description: PR 생성 + 3-LLM(cr-triple) 적대적 리뷰 + 머지 준비 완료 + 사람 실행(auto mode 기본) (옛 /sdd Phase 5)
 argument-hint: "[--cr <on|degrade|off>] [--no-cr-final] [--auto-merge]"
 group: deploy
 model: sonnet
@@ -89,13 +89,28 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
      {알려진 한계·후속조치 필요 항목, 없으면 "없음"}
      ```
      기존 body 생성 로직(handover 요약 기반)을 대체하지 않고, 요약 텍스트를 위 5필드에 분류해 채우는 additive 매핑으로 적용한다.
+2.1. **PR 본문 갱신 검증 (pr120 G5)** — `gh pr create`로 만든 body가 실제로 위 5필드를 담고 있는지 확인 없이 다음 단계로 넘어가면, 구버전(누락) 본문이 그대로 머지될 수 있다. body 작성 직후 반드시 실측한다:
+   ```bash
+   gh pr view <PR-number> --json body -q .body
+   ```
+   출력에서 `## 문제`/`## 접근`/`## 변경범위`/`## 검증`/`## 남은 위험` 5개 섹션 헤더가 전부 존재하는지 확인한다. 하나라도 누락되면 body를 재구성해 갱신한다 — **`gh pr edit`는 사용하지 않는다**(Projects classic deprecation으로 인해 일부 환경에서 non-zero exit + 본문 무반영이 확인됨, pr120 G5). 갱신은 아래 방식을 사용한다:
+   ```bash
+   gh api -X PATCH "repos/{owner}/{repo}/pulls/{PR-number}" -F body=@body.md
+   ```
+   갱신 후 `gh pr view --json body`로 재확인해 5필드 반영을 재실측한다.
 2.5. **`bash .claude/skills/qa/scripts/ci-wait.sh {branch}`** — PR CI 통과 대기 (gh pr checks 폴링). FAIL → `docs/qa/ci-trigger.jsonl` append → **[STOP]** Human 에스컬레이션
 2.7. **VERSION drift 감지 (GS-B11)** — PR 생성 후 머지 전, 머지 대상 브랜치가 PR 생성 시점 이후 새 커밋을 받았는지 확인:
    ```bash
+   # ⚠️ `--json baseRefSha` 는 gh 에 없는 필드였다(2026-07-31 실측: `Unknown JSON field`).
+   #    빈 문자열이 되면서 비교가 **항상** 불일치 → 드리프트 여부와 무관하게 WARN 이 상시
+   #    발화했다. 상시 경고는 경고가 아니다(alarm fatigue) — 드리프트 감지가 사실상 없었다.
+   #    또 `baseRefOid` 로 이름만 고치면 의미가 달라진다(그건 '지금의 base' 이지 '분기 시점' 이
+   #    아니다). GS-B11 이 물어야 할 것은 "분기 이후 base 가 움직였나" 이므로 merge-base 로 본다.
    BASE=$(gh pr view --json baseRefName -q .baseRefName)
-   PR_SHA=$(gh pr view --json baseRefSha -q .baseRefSha)
-   CURRENT_SHA=$(git rev-parse origin/$BASE)
-   [ "$PR_SHA" = "$CURRENT_SHA" ] || echo "WARN: 머지 대상($BASE)이 PR 생성 후 변경됨 — rebase 검토"
+   git fetch -q origin "$BASE"
+   BASE_SHA=$(git rev-parse "origin/$BASE")
+   MERGE_BASE=$(git merge-base "origin/$BASE" HEAD)
+   [ "$BASE_SHA" = "$MERGE_BASE" ] || echo "WARN: 머지 대상($BASE)이 분기 이후 전진함 (분기점 ${MERGE_BASE:0:7} ≠ base ${BASE_SHA:0:7}) — rebase 검토"
    ```
    - 드리프트 감지 시: `git fetch && git rebase origin/$BASE` 권고 후 Human 확인 → 재CI
    - 드리프트 없음: 그대로 Step 3 진행
@@ -122,6 +137,13 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
    fi
    ```
    - 셋 중 하나라도 실패 시 `gh pr merge`를 호출하지 않는다 — 잘못된 저장소·구버전 SHA 머지(cross-OS 워크트리·stale 로컬 클론 사고) 방지가 목적.
+
+   **REVIEWED_SHA 갈음 조건 (재검수 생략 인정, a1a-forge-pr #2, 2026-07-31)**: 위 (3) 검사는 `REVIEWED_SHA != PR_HEAD_SHA`면 무조건 [STOP]한다 — 그러나 리뷰 지적사항 반영을 위한 소규모 후속 커밋까지 매번 cr-triple 풀 재검수를 강제하면 정상 경로가 항상 막힌다. 다음 4조건을 **전부** 충족하고 **Human이 명시 승인**한 경우에 한해 재검수를 갈음하고 `REVIEWED_SHA`를 `PR_HEAD_SHA`로 갱신할 수 있다:
+   1. 빌드 PASS (프로젝트 빌드 명령 fresh 재실행)
+   2. 단위/통합 테스트 재실행 PASS (TEST_PROOF hash 동반)
+   3. 게이트 스모크 PASS (해당 프로젝트 QA 게이트 최소 스모크 1회)
+   4. `git diff REVIEWED_SHA..HEAD --stat` 결과가 **cr-triple 지적 반영 범위 내**로 한정됨(신규 기능·범위 확대 없음 — 벗어나면 갈음 불가, 풀 재검수 필수)
+   갈음 승인 기록: `[REVIEWED_SHA 갈음] 사유: {지적 반영 요약} / 승인자: {human} / 일시: {date}`. AI 자율 갈음 판정 금지 — Human 승인 없으면 기존대로 [STOP].
 2.8. **머지·배포 실패 시 서버 상태 보존 (GS-B11)**
    머지 또는 배포 단계에서 실패 발생 시, 서비스를 불안정한 반-머지 상태로 방치하지 않는다:
    - **즉시 중단**: 실패 감지 즉시 이후 배포 단계 중단 (`set -e` 또는 `|| exit 1`)
@@ -154,6 +176,12 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
   종료 oracle: unresolved == 0 (self-resolved won't-fix는 audit 통과분만 카운트)
   ```
 
+  **Gemini sunset 감지 시 oracle 소실 명시 (portfolio-nextjs-deploy M-3, 2026-07-31)**: 채널A는 Gemini 공식 리뷰(reviewThreads)가 실제로 달렸다는 전제 위에서만 BLOCK oracle로 기능한다. `gh api graphql reviewThreads` 결과가 0건이면서 동시에 API 응답이나 CI 로그에 `sunset`(모델 지원종료) 문자열이 감지되면, 이는 "리뷰할 게 없어 unresolved=0"이 아니라 **Gemini 리뷰 자체가 발화하지 못한 침묵 clean**이다. 이 경우 unresolved==0을 종료 oracle로 승인하지 말고 다음을 명시 출력한다:
+  ```
+  [WARN] Gemini 공식 리뷰 0건 + sunset 감지 — 채널A oracle 소실. unresolved=0이 리뷰 통과를 의미하지 않는다.
+  ```
+  이 경우 채널A를 BLOCK oracle로 취급하지 않고, Step 3(cr-triple)의 Gemini 레그 결과 또는 human-audit로 대체한다. 무력화된 oracle을 통과로 오인해 조용히 머지 진행하는 것을 방지하는 것이 목적.
+
   **채널B — Claude 이슈코멘트 (`<!-- claude-code-review -->`)** → WARN(advisory):
   ```
   1. gh api repos/{o}/{r}/issues/{N}/comments | filter github-actions[bot] + "<!-- claude-code-review -->"
@@ -184,9 +212,14 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
    - **on** (기본): 풀 cr-triple (Opus+Codex+Gemini)
    - **degrade**: Codex 레그 제외 (Opus+Gemini만) — Codex 비용/응답지연 회피 시
    - **off**: cr-final 자동 호출 생략 — 긴급 머지 or `--no-cr-final` 대체
-   - PASS/WARN → 머지 (`--auto-merge` 시 자동 / 기본 Human 확인)
+   - PASS/WARN → **develop 자동 머지(기본)**. 승인 요청 없이 `gh pr merge --squash --delete-branch`를 실행한다 — 커맨드 계약이 "develop 머지까지 자동"이다. 실제로 권한 분류기에 차단됐을 때만 §(d) 폴백으로 내려간다(차단을 *예상*해 미리 멈추는 것 금지). `--auto-merge` 플래그는 이 기본 동작의 명시 표기일 뿐 no-op.
    - FAIL → [STOP] Human 에스컬레이션
+   - **INVALID_INPUT → 머지도 [STOP]도 아니다. 검수가 아예 수행되지 않은 것이다** (2026-07-29 신설):
+     대상을 읽지 못한 경우로 `score:null`·`inputRejected:true`가 함께 온다. 품질 판정으로 읽지 말고
+     `issues[].code`(`too_large`/`not_found`/`content_mismatch`)에 따라 입력을 고쳐 **재호출**한다
+     (대개 대상 분할). 재호출 없이 머지 진행 금지 — 그 PR은 아직 검수되지 않았다.
    - `/cr-final`은 수동 단독 호출용으로 유지
+   - **Codex 무응답·타임아웃 시 런타임 자동 degrade** (Human 게이트 없음, 2026-07-31 backfill P1-4, `portfolio-nextjs-deploy M-2`): 위 `--cr` 인자·`$FORGE_AUTO_CR`는 **호출 전** on/degrade/off 의도 선택이다 — Codex 레그가 실제로 호출된 *이후* 무응답·타임아웃·에러로 죽는 경우는 그와 별개 경로다. `cr-multi/workflow.js`의 `noThrow(wCodex,'codex')`가 그 실패를 흡수하고, 생존 워커 수(`results.length`)가 기대치(`expected`)에 못 미치면 사람 확인을 거치지 않고 `degraded=true` + `evidence_tier='degraded'`로 자동 전환해(가중합산 대신 균등평균) 판정을 계속 진행한다 — Codex MCP가 죽었다고 파이프라인이 멈추거나 [STOP]하지 않는다. 이 전환 사실은 `degradedBanner` 콘솔 로그와 결과 payload의 `evidence_tier`/`degradedBanner` 필드로 남고, PR 본문(§PR 바디 5필드 구조 검증 섹션)에도 그대로 인용해 은폐 없이 노출한다.
 4. **`--no-cr-final`** — Step 3 완전 생략 (긴급 머지 시만, `--cr off`와 동일 효과)
 
 ## 스택 PR 비권장 + 복구 런북 (2026-07-12 실발화, Batch 4-2)
@@ -240,20 +273,54 @@ CURRENT=$(git rev-parse --abbrev-ref HEAD)
 
 ### (d) 자동 머지 차단 시 — 사람 실행 명령 블록 제공
 
-"develop 자동 머지"는 커맨드 계약이지만, **권한 분류기가 AI 자체 작성 PR의 무인 머지를 차단할 수 있다**(정상 안전장치 — 이 커맨드가 우회하지 않는다). 차단 감지 시 다음 형식으로 **복사-실행 가능한 명령 블록 + 사전 상태 가드**를 함께 출력하고 Human 실행을 요청한다:
+**이 절은 폴백이지 기본 경로가 아니다.** 기본은 §Step 3 그대로 **develop 자동 머지**다 — 먼저 `gh pr merge`를 실제로 시도하고, **거부 응답을 실제로 받았을 때만** 아래로 내려온다. 차단을 예상해 시도 없이 명령 블록만 출력하고 멈추는 것은 계약 위반이다(2026-08-01 실발화: CI PASS·검수완료·unresolved 0 상태에서 시도조차 없이 승인 대기해 파이프라인이 정지했다).
+
+권한 분류기가 AI 자체 작성 PR의 무인 머지를 차단할 수는 있다(정상 안전장치 — 이 커맨드가 우회하지 않는다). 무인 자동 머지를 원하면 `gh pr merge` 권한을 사전등록(allowlist)해 분류기 차단 자체를 없애는 옵션도 있다 — Human이 리스크를 감수하고 명시 설정한 경우에 한한다. 실제 차단 감지 시 다음 형식으로 **복사-실행 가능한 명령 블록 + 사전 상태 가드**를 함께 출력하고 Human 실행을 요청한다.
+
+**1순위 — 웹 머지 (PR 페이지 버튼)**: Windows/WSL 경로 혼선·`gh` CLI 미설치·인증 만료 등 로컬 환경 문제와 완전히 독립적이므로 항상 먼저 권한다. PR 페이지(`gh pr view --web` 또는 URL 직접 접속)에서 "Merge pull request" 버튼을 누르는 것으로 충분하다.
+
+**2순위 — CLI 머지** (웹 접근이 불가한 환경 한정, portfolio-nextjs-deploy M-1): Windows 세션에서 `gh`/`git`을 직접 실행하면 WSL 레포 경로·인증 컨텍스트가 어긋날 수 있으므로 반드시 `wsl -e bash -lc`로 래핑하고, 대상 저장소를 `-R <owner>/<repo>`로 고정한다(현재 디렉터리·기본 remote 추정에 의존하지 않는다):
 
 ```
 [AUTO-MERGE BLOCKED] 권한 분류기가 무인 머지를 차단했습니다. 아래 순서대로 직접 실행해주세요:
 
+# 0. 웹 머지가 먼저입니다 — PR 페이지에서 "Merge pull request" 버튼으로 충분합니다.
+#    CLI가 꼭 필요한 경우에만 아래를 사용하세요.
+
 # 사전 상태 확인 (브랜치·CI 상태)
-git rev-parse --abbrev-ref HEAD   # 기대: <branch-name>
-gh pr checks <PR-number>          # 기대: 전체 PASS
+wsl -e bash -lc 'git rev-parse --abbrev-ref HEAD'   # 기대: <branch-name>
+wsl -e bash -lc 'gh pr checks <PR-number> -R <owner>/<repo>'          # 기대: 전체 PASS
 
 # 머지 실행
-gh pr merge <PR-number> --squash --delete-branch
+wsl -e bash -lc 'gh pr merge <PR-number> -R <owner>/<repo> --squash --delete-branch'
 ```
 
 이 안내는 [STOP] Human 에스컬레이션과 동일 취급 — AI가 대신 재시도(권한 우회 시도)하지 않는다.
+
+<!-- D-2 (2026-07-29) -->
+## 타 세션 미커밋 파일로 ff/pull이 막혔을 때
+
+`git pull`/ff 머지가 **다른 세션이 메인 체크아웃에 남긴 미커밋 변경**(예: `settings.json`)에 막힐 수 있다. 그 변경을 임의로 커밋·삭제하지 않는다 — 소유자가 다른 세션이다. **유일하게 태그된 stash**로 격리 후 복원한다:
+
+```bash
+# 1. 유니크 태그로 stash (미추적 파일 포함 -u)
+git stash push -u -m "forge-pr-ff-recover-$(date +%s)"
+
+# 2. 방금 만든 stash의 SHA를 태그로 확정 (스택 최상단 가정 금지 — 병렬 세션이 공유)
+git stash list --format='%H %gs' | grep "forge-pr-ff-recover-"
+
+# 3. pull/ff 진행
+git pull --ff-only
+
+# 4. 원소유 세션에게 복원 위임 또는 동일 세션이면 apply (pop 금지)
+git stash apply <sha-from-step-2>
+
+# 5. 복원 확인 후 태그로 재검색해 drop (인덱스 번호 금지 — 스택이 그새 바뀔 수 있음)
+git stash list --format='%H %gs' | grep "forge-pr-ff-recover-"
+git stash drop <sha-from-step-2>
+```
+
+**금지**: `git stash pop` 단독 사용 금지(스택이 워크트리·세션 간 공유되어 엉뚱한 stash를 pop할 수 있다) · 다른 세션의 변경을 대신 커밋 금지(소유권 침해) · stash 인덱스(`stash@{0}`)로 지칭 금지(SHA/태그로만 — 인덱스는 병렬 push에 밀려난다).
 
 ## Post-Merge 테스트 재검증 (머지 완료 후 필수)
 

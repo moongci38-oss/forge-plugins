@@ -1,6 +1,7 @@
 ---
 name: harness-diet
 description: "harness-legacy-scan 리포트의 low-risk 항목만 적용: CLAUDE.md 축소/절차→Skill 이동/긴 SKILL.md 분할/description 좁힘/삭제후보 archive. 트리거: /harness-diet"
+disable-model-invocation: true
 model: sonnet
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: "[--dry-run] [--queue <path-to-diet-queue.json>]"
@@ -109,7 +110,7 @@ harness-diet 호출 시 `--profile` 인자로 적용 스킬 표면을 지정한�
 **profile별 핵심/확장/전체 설치 구분**:
 | 프로파일 | alias | 포함 스킬 | 목표 수 | 적합 세션 |
 |---------|-------|----------|--------|---------|
-| 핵심 | `core` | forge-implement · forge-fix · qa · forge-pr · spec-write · forge-pge · checkpoint · end-sonnet | ~8 | 집중 구현 |
+| 핵심 | `core` | forge-implement · forge-fix · qa · forge-pr · spec-write · forge-pge · forge-checkpoint · forge-end | ~8 | 집중 구현 |
 | 확장 | `standard` | 핵심 + cr-* · investigate · harness-diet · healer · doc-writer | ~16 | 일반 개발 |
 | 전체 | `full` | `$HOME/.claude/skills/` 전체 | 현재 78+ | 기본값 |
 

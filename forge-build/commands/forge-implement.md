@@ -25,7 +25,12 @@ Check 5.x(5/5.5/5.6/5.7/**5.8**/5.9 — pipeline.md §Phase 5 참조) 생략 금
 | 리뷰 판정(Check 5.7-X cr-triple) | **Opus**+Codex+Gemini | Claude 레그 Sonnet 고정 |
 | Check 5.8 qa 엔진 | qa 자체 라우팅 | Sonnet 오케스트레이터 + Haiku 탐색 + Vision Sonnet |
 
-근거: `$HOME/.claude/rules/model-routing.md`(구현=claude-sonnet-5 / 결정·리뷰=claude-opus-4-8 / 탐색=claude-haiku-4-5). 구버전 핀(sonnet-4-6·opus-4-7·opus-4-6) 금지.
+근거: `$HOME/.claude/rules/model-routing.md`(구현=claude-sonnet-5 / 결정·리뷰=claude-opus-5 / 탐색=claude-haiku-4-5). 구버전 핀(sonnet-4-6·opus-4-8·opus-4-7·opus-4-6) 금지.
+
+<!-- root-cause: 이 줄이 상시 로드되는 model-routing.md 를 오인용해 `claude-opus-4-8` 이라 적고
+     같은 줄에서 '구버전 핀 금지'를 선언하는 자기모순 상태였다(2026-08-03 전수조사 commands/CMD-03).
+     정본 = dev/global-rules/model-routing.md §세션 운영 모델 "결정·리뷰=claude-opus-5". -->
+
 
 ## Red Flags (무시 금지 — 자기합리화 차단)
 | 이런 생각이 들면 | 강제 행동 |

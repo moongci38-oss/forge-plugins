@@ -50,4 +50,7 @@ ASSETS_ROOT/GraphicResource/AI_Generated/
 
 ## 자동 평가 (eval-rubric 통합)
 
-본 스킬 이미지 생성 완료 후 quality-check.py 자동 평가 → eval_cases.jsonl 누적.
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
+
+- **target**: 생성 이미지 경로(`AI_Generated/{Category}/`)
+- **case_id**: `EC-image-orchestrate-{N}`

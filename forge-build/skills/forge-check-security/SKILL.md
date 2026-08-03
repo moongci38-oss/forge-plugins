@@ -104,33 +104,26 @@ HIGH N건 → WARN/없음
 - WARN → Phase 4 PR 본문에 HIGH 항목 목록 추가, Human 확인 후 머지
 - PASS → Phase 1 계속 진행
 
-## 자동 평가 (eval-rubric 통합)
+## Evaluator (독립 검증 — 실제 호출)
 
-호출 시점: docs/qa/security-report.md 생성 직후
+<!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 원래 있던 "자동 평가(eval-rubric 통합)"·"Evaluator (Wave 2.5)" 두 절은 8개 SKILL.md에 동일 문구로 복제된 산문이었고 "자동 누적"이라 썼지만 실행하는 hook/Agent() 호출이 0건이었다(재현: `grep -rn "eval-rubric\|eval_cases" .claude/hooks .claude/settings.json` → 무관 hit뿐). forge-check-security는 보안 판정(FAIL/PASS 오판 시 취약점 누락으로 직결)이라 독립 검증 가치가 크므로 이 스킬만 실제 Agent() 호출로 승격했다(나머지 6개는 제거만 — asset-extract/SKILL.md 등 참조). -->
 
-절차:
-1. /eval-rubric --target docs/qa/security-report.md
-2. verdict + 4축 점수 수신
-3. eval_cases.jsonl append — case_id: EC-forge-check-security-{N}
+`docs/qa/security-report.md` 생성 직후, 독립 Evaluator subagent로 판정의 구조적 완결성을 확인한다:
 
-자동 비활성: EVAL_RUBRIC_AUTO=off
-
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="haiku",  # 탐색·기계적 검증 tier — model-routing.md §워커 tier
+  prompt=f"""아래 보안 리포트 하나만 읽고 PASS/WARN/FAIL 중 하나와 근거 1줄만 답하라.
+파일: {report_path}
+PASS: 15-phase 항목 전부 결과 기재(PASS/FAIL/N-A 중 하나) + CRITICAL/HIGH 발견 시 근거·재현경로 존재
+WARN: 일부 phase 결과 누락 또는 N/A 처리에 근거 부족
+FAIL: 파일 부재 / phase 결과 대부분 누락 / CRITICAL 발견인데 근거 없음
+"""
+)
 ```
 
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.
+판정 결과를 `$HOME/.claude/skills/forge-check-security/eval_cases.jsonl`에 `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL", "note":"..."}` 형태로 이어서 기록한다(자동 훅 없음 — 이 스텝에서 직접 append). 통합 패턴 정본 → `eval-rubric/references/skill-integration.md`.
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() S1~S7 7종 보안 스캔 → 집계.

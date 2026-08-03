@@ -134,11 +134,11 @@ if (evalResult?.evalVerdict === 'FAIL') {
   if (retryVerdict?.verdict === 'INCONCLUSIVE') {
     // root-cause: cr-final MERGE-BLOCK PR#99 — INCONCLUSIVE = 헬스 미검증(PASS 아님). 자동 진행 금지, halt.
     log('canary INCONCLUSIVE — 헬스 미검증: healthCheckUrl/인프라/네트워크 확인 후 재판정 필요. 자동 진행 중단')
-    log('[STOP] canary INCONCLUSIVE — Phase 11 자동 진행 금지, Human 재판정 필요')
+    log('[STOP] canary INCONCLUSIVE — platform층(Release) 자동 진행 금지, Human 재판정 필요')
     return { verdict: 'INCONCLUSIVE', halt: true, rollbackRecommended: false, summary: retryVerdict?.summary, metrics }
   }
   if (retryVerdict?.verdict === 'WARN') log('canary WARN — 모니터링 지속 권장')
-  else log('배포 안정. Phase 11 진행 가능.')
+  else log('배포 안정. platform층(Release) 진행 가능.')
   return { verdict: retryVerdict?.verdict, summary: retryVerdict?.summary, rollbackRecommended: retryVerdict?.rollbackRecommended ?? false, metrics }
 }
 
@@ -151,12 +151,12 @@ if (verdict?.verdict === 'FAIL') {
 } else if (verdict?.verdict === 'INCONCLUSIVE') {
   // root-cause: cr-final MERGE-BLOCK PR#99 — INCONCLUSIVE = 헬스 미검증(PASS 아님). 자동 진행 금지, halt.
   log('canary INCONCLUSIVE — 헬스 미검증: healthCheckUrl/인프라/네트워크 확인 후 재판정 필요. 자동 진행 중단')
-  log('[STOP] canary INCONCLUSIVE — Phase 11 자동 진행 금지, Human 재판정 필요')
+  log('[STOP] canary INCONCLUSIVE — platform층(Release) 자동 진행 금지, Human 재판정 필요')
   return { verdict: 'INCONCLUSIVE', halt: true, rollbackRecommended: false, summary: verdict?.summary, metrics }
 } else if (verdict?.verdict === 'WARN') {
   log('canary WARN — 모니터링 지속 권장')
 } else {
-  log('배포 안정. Phase 11 진행 가능.')
+  log('배포 안정. platform층(Release) 진행 가능.')
 }
 
 return { verdict: verdict?.verdict, summary: verdict?.summary, rollbackRecommended: verdict?.rollbackRecommended ?? false, metrics }

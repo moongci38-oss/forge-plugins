@@ -45,6 +45,19 @@ model: sonnet
 
 $ARGUMENTS
 
+## 출력 형식 (Artifact)
+
+모든 분석 리포트는 **Artifact XML 형식만**으로 stdout에 출력합니다. 파일 저장 불필요.
+
+```xml
+<artifact type="markdown" id="yt-{video_id}" title="{영상 제목}">
+{분석 내용 마크다운}
+</artifact>
+```
+
+- `report-formatter.mjs`의 `formatAsArtifact(title, content, 'markdown', id, true)` 사용
+- `stripFirstHeading: true` 옵션으로 첫 # 제목 자동 제거
+
 ## 수행 절차
 
 ### Step 1: 트랜스크립트 + 확장 데이터 추출
@@ -60,6 +73,13 @@ python3 shared/scripts/yt-analyzer/yt-analyzer.py $ARGUMENTS
 JSON 파일을 읽고 아래 신규 필드를 확인합니다:
 - `comments`: 상위 댓글 목록 (API 키 없으면 빈 배열)
 - `description_links`: 설명란 외부 링크 목록
+
+**보존소스 fidelity 규칙 (P3-22)**: 분석 워커에는 위 보존소스 **4종을 전량 공급**한다 —
+`full_text` · `timestamped_text` · `comments` · `description_links`.
+일부만 주면 워커는 없는 축을 '해당 없음'으로 단정하는데, 실제로는 **공급되지 않아 모를 뿐**이다.
+부득이 부분 공급할 때는 브리프에 부재 축을 **'검수범위 외(미공급)'** 로 명시하고,
+그 축에 대한 판단을 산출물에 쓰지 못하게 한다. 빈 배열(예: API 키 없어 comments=[])과
+미공급은 **다른 상태**다 — 빈 배열은 '없음'이지만 미공급은 '모름'이다.
 - `tags`: 영상 태그 목록
 - `description`: 설명란 전체 텍스트
 
@@ -417,39 +437,12 @@ daily의 학습자료 제공과 동일한 규약 (2026-07-18 배선). **텔레�
 
 ## 자동 평가 (eval-rubric 통합)
 
-본 스킬 결과 산출 후 자동으로 `eval-rubric` 호출 → 4축 Rubric 채점 (clarity/consistency/completeness/safety) → `eval_cases.jsonl` 누적.
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-> **codex-review vs eval-rubric**: Step 4.7의 `codex-review`는 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점 (clarity/consistency/completeness/safety). 둘 다 발화 — 영역이 다름.
+- **target**: analysis md (`01-research/videos/analyses/{date}-{slug}-analysis.md`) 저장 직후
+- **case_id**: `EC-yt-{N}` · **eval_cases**: `$HOME/.claude/skills/yt/eval_cases.jsonl`
 
-### 호출 시점
-- analysis md (`01-research/videos/analyses/{date}-{slug}-analysis.md`) 저장 직후
-
-### 절차
-1. 스킬 산출물 저장 후 다음 호출:
-   ```
-   /eval-rubric --target {analysis md 경로}
-   ```
-2. eval-rubric의 verdict (PASS/WARN/FAIL) + 4축 점수 + rationale 수신
-3. `eval_cases.jsonl` append:
-   - 위치: `$HOME/.claude/skills/yt/eval_cases.jsonl`
-   - case_id: `EC-yt-{N}` (auto-increment)
-   - split: holdout 결정 (`hash(case_id) % 100 < 20` → holdout, 그 외 sample)
-   - dedupe key: `sha256(skill+input.context+input.args)` 충돌 시 observed_count++
-
-### 자동 비활성 조건
-- 환경변수 `EVAL_RUBRIC_AUTO=off` 설정 시 스킵
-- 본 스킬 frontmatter에 `eval_cases: off` 명시 시 스킵
-
-### 통합 효과
-- FAIL 케이스 자동 누적 → 회귀 평가 데이터셋 구축
-- WARN 시 사용자 알림 (자동 차단 X — 본 스킬 verdict 우선)
-- 분기별 Harness GC 사이클의 Quality Audit 입력으로 활용
-
-### 보안 / 데이터 보호
-- eval-rubric의 입력 redaction 정책 자동 적용
-- 산출물에 secret/PII 의심 시 → STOP fail-safe
-
-> 출처: 하네스 백과사전 제5장, eval_cases.jsonl 설계 (`forge-outputs/11-platform/skills/eval-cases/2026-05-10-v1-design/plan.md`)
+> **codex-review vs eval-rubric**: Step 4.7의 `codex-review`는 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점. 둘 다 발화 — 영역이 다름(아래 §호출 순서 합성 룰 참조).
 
 ---
 

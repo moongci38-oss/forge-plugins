@@ -382,20 +382,3 @@ playwright-cli mouseup
 ```
 
 좌표 클릭은 **화면 크기 변경 시 깨짐** — 가능한 한 `resize` 후 동일 크기 보장 후 사용.
-
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
-```
-
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.

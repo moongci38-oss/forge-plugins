@@ -5,6 +5,7 @@ description: |
   배경은 nanobanana edit_image(AI inpainting), 버튼/컴포넌트는 /clip 템플릿 매칭으로
   bbox를 찾고 SAM2로 pixel-accurate 세그멘테이션하여 투명 배경 PNG로 추출.
   트리거: 배경 뽑아줘, 버튼 추출해줘, 컴포넌트 분리해줘, 전부 다 추출해줘, 이미지 경로와 함께 추출 요청 시.
+disable-model-invocation: true
 ---
 
 # Asset Extract
@@ -124,19 +125,4 @@ resolution : 2K
 - SAM2 IoU < 0.8 → 세그멘테이션 품질 경고, bbox 재조정 시도
 - SAM2 미설치 → 설치 안내 출력
 
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
-```
-
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.
+<!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 여기 있던 "Evaluator (Wave 2.5)" 절은 8개 SKILL.md에 동일 문구로 복제된 산문이며 실제 Agent()/hook 배선이 0건이었다(role/model/isolation을 설명만 하고 아무것도 실행하지 않음). 독립 검증이 실제로 가치 있는 codex-review·forge-check-security만 실제 Agent() 호출로 승격했고, 나머지는 제거만 했다 — 자세한 판단 근거는 codex-review/SKILL.md의 동일 root-cause 주석 참조. -->

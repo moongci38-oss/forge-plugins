@@ -39,7 +39,7 @@ group: ops
 | phase4_complete | P5 (Implement+Verify) 진입 |
 | phase5_complete | P6 QA 진입 |
 | phase6_complete | P7 (Merge) 진입 |
-| phase7_complete | platform 층 진입 — `/forge-release` |
+| phase7_complete | platform 층 진입 — `/forge-deploy prod` <!-- root-cause(commands/CMD-04, 2026-08-03): forge-release.md는 DEPRECATED 래퍼, 정본은 /forge-deploy prod --> |
 | session_complete | 완료 |
 
 > 구 session-state.mjs 호환 (phase6/7/8/9/10/11 식별자 → P4~P7 label로 재해석):

@@ -83,7 +83,9 @@ python3 $HOME/.claude/skills/figma-design-sync/scripts/parse_figma_url.py "<URL>
 - "Upgrade your seat or plan"
 - HTTP 429
 
-**상세 폴백 흐름** = `references/fallback-vision.md` 참조.
+**폴백 흐름 정본 = 아래 3 옵션.** (2026-08-03 전수조사 skills-3/S67-02 형제 사례: 여기 있던
+references/fallback-vision.md 위임은 존재한 적 없는 파일을 가리켰다 —
+`ls .claude/skills/figma-design-sync/` → SKILL.md·workflow.js 뿐, 2026-08-03 관측.)
 
 3 옵션 (사용자 선택):
 - A. 기존 `figma-export/images/` PNG → Codex Vision 재분석 (즉시)
@@ -94,7 +96,7 @@ python3 $HOME/.claude/skills/figma-design-sync/scripts/parse_figma_url.py "<URL>
 
 Figma variables → 표준 토큰 변환.
 
-**상세 매핑 규칙** = `references/token-mapping.md` 참조.
+**매핑 규칙 정본 = 아래 카테고리 표.** (같은 사례 — references/token-mapping.md 부재.)
 
 핵심 카테고리:
 - 컬러 (Primary / Surface / Text / State / Tier)
@@ -206,35 +208,14 @@ mkdir -p "$TARGET"
 
 - `$HOME/.claude/rules-on-demand/claude-design-workflow.md` — claude.ai/design 사용 가이드
 - 현 산출물 예시: `starbeginz-origin/docs/plans/operations-tool/CLAUDE-DESIGN-PROMPTS.md`
-- `references/fallback-vision.md` — rate limit 폴백 흐름
-- `references/token-mapping.md` — Figma → CSS/Tailwind 토큰 매핑
+- references/fallback-vision.md — rate limit 폴백 흐름
+- references/token-mapping.md — Figma → CSS/Tailwind 토큰 매핑
 
 ## 자동 평가 (eval-rubric 통합)
 
-본 스킬 결과 산출 후 자동으로 `eval-rubric` 호출 → 4축 Rubric 채점 → `eval_cases.jsonl` 누적.
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-### 호출 시점
-
-- `CLAUDE-DESIGN-PROMPTS.md` 갱신 완료 후
-- `ANALYSIS-REPORT.md` 갱신 완료 후
-
-### 절차
-
-1. 갱신 후: `/eval-rubric --target {갱신 doc 경로}`
-2. verdict + 4축 점수 + rationale 수신
-3. eval_cases.jsonl append (helper: `$HOME/.claude/scripts/eval-cases-append.py`)
-   - case_id: EC-figma-design-sync-{N}
-   - split: hash 결정적
-   - dedupe: sha256(skill+input)
-
-### 자동 비활성
-
-- `EVAL_RUBRIC_AUTO=off`
-- 단순 single-file 변경 시 skip 가능
-
-### 보안
-
-- redaction 정책 자동 적용
-- Figma file URL = public read scope (secret X)
+- **target**: `CLAUDE-DESIGN-PROMPTS.md` 또는 `ANALYSIS-REPORT.md` 갱신 완료 직후
+- **case_id**: `EC-figma-design-sync-{N}`
 
 > 출처: AD-19 (eval-rubric 시스템 통합)

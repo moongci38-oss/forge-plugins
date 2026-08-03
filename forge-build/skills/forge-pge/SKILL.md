@@ -550,38 +550,10 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 
 ## 자동 평가 (eval-rubric 통합)
 
-본 스킬 결과 산출 후 자동으로 `eval-rubric` 호출 → 4축 Rubric 채점 (clarity/consistency/completeness/safety) → `eval_cases.jsonl` 누적.
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-### 호출 시점
-- 본 스킬 핵심 산출물 저장 직후 — Evaluator subagent 결과 (PGE Phase 4 종료)
-
-### 절차
-1. 스킬 산출물 저장 후 다음 호출:
-   ```
-   /eval-rubric --target {산출물 경로}
-   ```
-2. eval-rubric의 verdict (PASS/WARN/FAIL) + 4축 점수 + rationale 수신
-3. `eval_cases.jsonl` append:
-   - 위치: `$HOME/.claude/skills/forge-pge/eval_cases.jsonl`
-   - case_id: `EC-forge-pge-{N}` (auto-increment)
-   - split: holdout 결정 (`hash(case_id) % 100 < 20` → holdout, 그 외 sample)
-   - dedupe key: `sha256(skill+input.context+input.args)` 충돌 시 observed_count++
-
-### 자동 비활성 조건
-- 환경변수 `EVAL_RUBRIC_AUTO=off` 설정 시 스킵
-- 본 스킬 frontmatter에 `eval_cases: off` 명시 시 스킵 (특수 케이스)
-
-### 통합 효과
-- FAIL 케이스 자동 누적 → 회귀 평가 데이터셋 구축
-- WARN 시 사용자 알림 (자동 차단 X — 본 스킬 verdict 우선)
-- 분기별 Harness GC 사이클의 Quality Audit 입력으로 활용
-
-### 보안 / 데이터 보호
-- eval-rubric의 입력 redaction 정책 자동 적용 (`$HOME/.claude/skills/eval-rubric/SKILL.md` "보안 정책" 참조)
-- 산출물에 secret/PII 의심 시 → eval-rubric STOP fail-safe 발화 → 본 스킬도 STOP
-
-> 출처: 하네스 백과사전 제5장 평가 하네스, eval_cases.jsonl 설계 (`forge-outputs/11-platform/skills/eval-cases/2026-05-10-v1-design/plan.md`)
-> 실패 시 [[pev-self-correction]] 적용
+- **target**: {산출물 경로} — Evaluator subagent 결과(PGE Phase 4 종료) 직후
+- **case_id**: `EC-forge-pge-{N}` · **eval_cases**: `$HOME/.claude/skills/forge-pge/eval_cases.jsonl`
 
 ## Workflow 통합 (계획서 P1)
 

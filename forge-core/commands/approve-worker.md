@@ -5,6 +5,8 @@ group: mas
 
 # /approve-worker
 
+> **정본(로직 SSoT) = `scripts/approve-worker-sign.py`·`approve-worker-verify.py`.** 이 문서와 나머지 한쪽(command↔skill)은 동일 스크립트를 부르는 호출부다 — 로직 변경은 스크립트에서 하고 두 문서는 동기 유지한다(harness #2 2026-07-30, 파괴적 통합 대신 정본 명시).
+
 ## 사용법
 
 ```
@@ -31,9 +33,19 @@ mkdir -p ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals
 
 ```bash
 mkdir -p ~/.config/forge
-python3 -c "import secrets; open(os.path.expanduser('~/.config/forge/orch-token.key'),'wb').write(secrets.token_bytes(32))"
-chmod 600 ~/.config/forge/orch-token.key
+# 이미 있으면 절대 덮어쓰지 않는다 — 덮어쓰면 발행된 토큰이 전부 무효가 된다.
+if [ ! -f ~/.config/forge/orch-token.key ]; then
+  python3 -c "import secrets,sys; open(sys.argv[1],'wb').write(secrets.token_bytes(32))" ~/.config/forge/orch-token.key
+  chmod 600 ~/.config/forge/orch-token.key
+  echo "[OK] orch-token.key 생성"
+else
+  echo "[SKIP] orch-token.key 이미 존재 — 재생성하지 않음"
+fi
 ```
+
+> 이전 판은 `python3 -c "import secrets; open(os.path.expanduser(...))"` 로 **`os` 를 임포트하지 않은 채 사용**해
+> 항상 `NameError` 로 실패했다(2026-08-03 전수조사 commands/CMD-02). 즉 MAS 승인 게이트의
+> 시크릿 부트스트랩이 한 번도 성공한 적이 없다. 경로는 셸이 `~` 를 확장해 `sys.argv` 로 넘긴다.
 
 ## Step 3: 토큰 발행
 

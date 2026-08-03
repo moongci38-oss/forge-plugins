@@ -161,20 +161,3 @@ bash $HOME/.claude/scripts/learnings.sh append \
 
 > `fluency_dimension`이 없는 기존 엔트리 = 그대로 유지.  
 > learn-gc-weekly.sh가 주간 4D 분포 통계 제공 (어느 차원 학습 부족인지 식별).
-
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
-```
-
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.

@@ -100,9 +100,9 @@ bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py "{검�
 - `RAG_RELEVANCE_THRESHOLD`: 관련성 임계값 (기본 0.10). 이 점수 미달 청크는 `[low-relevance]` 섹션으로 분리됨 — 결과가 없어지지 않고 라벨로 표시. Graph 이웃(고정 score=0.5)은 항상 통과.
   ```bash
   # 임계값 높이기 — 엄격 필터
-  RAG_RELEVANCE_THRESHOLD=0.20 python3 search.py "검색어"
+  RAG_RELEVANCE_THRESHOLD=0.20 rag-exec.sh search.py "검색어"
   # 임계값 낮추기 — 느슨한 필터 (결과 부족 시)
-  RAG_RELEVANCE_THRESHOLD=0.05 python3 search.py "검색어"
+  RAG_RELEVANCE_THRESHOLD=0.05 rag-exec.sh search.py "검색어"
   ```
 
 JSON 출력 시 각 결과에 `"relevance": "pass"` 또는 `"relevance": "low-relevance"` 필드 포함.
@@ -118,7 +118,7 @@ JSON 출력 시 각 결과에 `"relevance": "pass"` 또는 `"relevance": "low-re
 **Relevance-gate 라벨 해석**:
 - 일반 결과: threshold 이상 → 그대로 사용
 - `[low-relevance]` 섹션: 점수 threshold 미달 → 참고 가능하지만 낮은 신뢰도 명시 필수. 근거 인용 시 `[low-relevance]` 라벨 함께 표기.
-- 결과가 적으면 threshold 낮추기: `RAG_RELEVANCE_THRESHOLD=0.05 python3 search.py ...`
+- 결과가 적으면 threshold 낮추기: `RAG_RELEVANCE_THRESHOLD=0.05 rag-exec.sh search.py ...`
 
 ## Graph RAG (Obsidian 위키링크 관계 검색)
 

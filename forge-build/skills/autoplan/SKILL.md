@@ -122,7 +122,7 @@ model: sonnet
 - 참고 사이트: [URL] — (어떤 스타일/요소를 참고할지 한 줄 설명)
 - 참고 사이트: [URL] — ...
 ```
-→ Phase 8 구현 시 이 URL을 Claude Design(claude.ai/design)에 전달하여 화면 생성
+→ P5 구현 시 이 URL을 Claude Design(claude.ai/design)에 전달하여 화면 생성
 
 **출력**: `.claude/state/AUTOPLAN_DESIGN.md`
 - 7차원 채점표 + 합산 + [PASS]/[WARN]/[FAIL]

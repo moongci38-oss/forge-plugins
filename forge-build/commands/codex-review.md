@@ -6,6 +6,8 @@ group: verify
 
 # /codex-review
 
+> **인터페이스 구분(harness #3 2026-07-30)**: 이 문서 = **수동 슬래시 인터페이스**(`/codex-review --stage ...`). 자동/파이프라인(P3~P7 자동 호출)은 `skills/codex-review/SKILL.md`. 의도적 이중 인터페이스 — 한쪽 삭제 금지, 로직 변경 시 양쪽 동기.
+
 Claude 자체 리뷰(1차)의 **동일 모델 맹점**을 보완하기 위해 OpenAI Codex로 **2차 게이트 리뷰**를 호출한다. SDD·PGE·Forge Dev 모든 단계에서 사용 가능. 단계별 정책(차단/권고)은 `--stage`로 분기.
 
 **원칙**:
@@ -81,13 +83,35 @@ case "$STAGE" in
     INPUT=$(cat "$TARGET")
     ;;
   code|final)
-    # PR 번호면 gh pr diff, 파일이면 git diff
+    # ── 범위 산정 규약 (필수) ────────────────────────────────────────────
+    # 멀티세션이 기본이다 — 검수가 도는 동안에도 다른 세션이 develop 에 커밋한다.
+    # `git diff develop` / `develop..HEAD` 는 **내 변경이 아닌 타 세션 커밋까지** 끌어와
+    # 검수자가 "범위 오염 / 무관한 파일 포함"으로 오판한다(2026-07 PR #121·#122 에서
+    # 2라운드 연속 발생, 회수 비용 = 검수 2회). 항상 merge-base 를 기준으로 내 변경만 자른다.
+    BASE="${REVIEW_BASE:-develop}"
+    BASE_DRIFT_NOTE=""
     if [[ "$TARGET" =~ ^PR-([0-9]+)$ ]]; then
-      INPUT=$(gh pr diff "${BASH_REMATCH[1]}")
-    elif [[ -f "$TARGET" ]]; then
-      INPUT=$(git diff develop -- "$TARGET")
+      INPUT=$(gh pr diff "${BASH_REMATCH[1]}")   # gh 는 이미 merge-base 기준이라 안전
     else
-      INPUT=$(git diff develop)
+      # merge-base 실패(base 미존재·shallow clone·공통 조상 부재)는 **fail-closed** 다.
+      # 여기서 빈 MB 로 진행하면 INPUT 이 비어도 검수는 그대로 돌아 "지적 없음 → PASS" 가
+      # 나온다. 범위를 못 정하면 검수를 하지 않는 것이 맞다.
+      if ! MB=$(git merge-base "$BASE" HEAD 2>/dev/null) || [[ -z "$MB" ]]; then
+        echo "[codex-review] merge-base($BASE, HEAD) 실패 — 검수 범위를 정할 수 없어 중단." >&2
+        echo "  base 를 바꾸려면 REVIEW_BASE=<ref> 로 지정하라(shallow clone 이면 git fetch --unshallow)." >&2
+        exit 1
+      fi
+      if [[ -f "$TARGET" ]]; then
+        INPUT=$(git diff "$MB" HEAD -- "$TARGET")
+      else
+        INPUT=$(git diff "$MB" HEAD)
+      fi
+      # base drift 는 숨기지 않고 **사실만 분리 고지**한다. 검수자가 "왜 이 커밋이 섞였나"를
+      # 결함으로 오판하지 않게 하는 것이 목적이며, 이 커밋들은 검수 대상이 아니다.
+      DRIFT=$(git rev-list --count "$MB".."$BASE" 2>/dev/null || echo 0)
+      if [[ "${DRIFT:-0}" -gt 0 ]]; then
+        BASE_DRIFT_NOTE="base drift: \`$BASE\` 가 merge-base 이후 ${DRIFT}커밋 앞서 있다. 그 커밋들은 이 변경의 일부가 아니며 위 diff 에 포함돼 있지 않다 — 결함으로 보고하지 말 것."
+      fi
     fi
     ;;
 esac
@@ -165,7 +189,9 @@ PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${STAGE}.md
 [[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
 
 # 호출 (stdin = prompt + target)
-( cat "$PROMPT_FILE"; echo; echo "---"; echo "## TARGET"; echo "$INPUT" ) | \
+( cat "$PROMPT_FILE"; echo; echo "---"
+  [[ -n "${BASE_DRIFT_NOTE:-}" ]] && { echo "## 범위 고지"; echo "$BASE_DRIFT_NOTE"; echo; }
+  echo "## TARGET"; echo "$INPUT" ) | \
   codex exec \
     --model "$MODEL" \
     -c model_reasoning_effort="\"$EFFORT_LEVEL\"" \

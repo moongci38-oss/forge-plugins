@@ -2,6 +2,7 @@
 description: "[DEPRECATED] /spec-write + /forge-implement + /qa + /forge-pr 순차 호출 안내"
 argument-hint: "<기능 설명> [--spec <path>] [--plan <dir>] [--bulk <path>]"
 group: implement
+disable-model-invocation: true
 ---
 
 # /sdd (Deprecated)

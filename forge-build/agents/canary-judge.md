@@ -97,7 +97,7 @@ Yellow만 → WARN
 
 ### recommendation 값 규칙
 
-- **PASS**: `"배포 안정. Phase 11 진행 가능."`
+- **PASS**: `"배포 안정. platform층(Release) 진행 가능."`
 - **WARN**: `"지표 경계 감지. 모니터링 지속 후 재판정 권장."`
 - **FAIL**: `"롤백 권고. /forge-rollback 명령으로 즉시 롤백하세요."`
 - **INCONCLUSIVE**: `"헬스 미측정. healthCheckUrl/인프라/네트워크 확인 후 재판정 필요."`

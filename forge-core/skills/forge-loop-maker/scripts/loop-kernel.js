@@ -122,10 +122,16 @@ export function checkOscillation(findings, resolvedFindings, oscillationHits, pr
 // Returns { tripped: bool, netGain?: number }
 // Root-cause GC5: net score over window (not per-pair abs-delta).
 export function checkPlateau(scores) {
-  if (scores.length < PLATEAU_CONSECUTIVE + 1) return { tripped: false }
+  // root-cause: E-4 분모 명시(P3-20) — 지표는 분자만으로 해석할 수 없다. "net gain 2" 는
+  //   3사이클 창인지 10사이클 창인지, 임계 ε 가 얼마인지에 따라 의미가 정반대다.
+  //   호출부가 "netGain over windowCycles (ε=…) / totalCycles" 형태로 보고할 수 있도록
+  //   분모(창 크기·전체 사이클 수·임계)를 **tripped 여부와 무관하게 항상** 함께 반환한다.
+  const denom = { windowCycles: 0, totalCycles: scores.length, epsilon: PLATEAU_EPSILON }
+  if (scores.length < PLATEAU_CONSECUTIVE + 1) return { tripped: false, ...denom }
   const window = scores.slice(-(PLATEAU_CONSECUTIVE + 1))
   const netGain = Math.max(...window) - window[0]
+  const base = { ...denom, windowCycles: window.length, netGain }
   return netGain <= PLATEAU_EPSILON
-    ? { tripped: true, netGain }
-    : { tripped: false }
+    ? { tripped: true, ...base }
+    : { tripped: false, ...base }
 }

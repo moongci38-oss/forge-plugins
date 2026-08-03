@@ -174,13 +174,13 @@ phase('Inventory')
 const [legacyInv, srcInv] = await parallel([
   () => agent(
     `Phase 0 legacy 인벤토리. legacy-path="${legacyPath}" stack="${stack}" scope="${scope}". ` +
-    `파일 목록+엔트리포인트+이벤트+도메인 추출. migration-audit/references/stack-mappings.md 참조. ` +
+    `파일 목록+엔트리포인트+이벤트+도메인 추출. SKILL.md "스택별 엔트리포인트 매핑" 표 참조(대조 키 = 이벤트명·라우트 경로). ` +
     `side="legacy". blockers 있으면 열거. buildScriptExists 확인.`,
     { label: 'phase-0:legacy-inv', phase: 'Inventory', schema: INVENTORY_SCHEMA, agentType: 'Explore' }
   ),
   () => agent(
     `Phase 0 src 인벤토리. migrated-path="${migratedPath}" stack="${stack}" scope="${scope}". ` +
-    `파일 목록+엔트리포인트+이벤트+도메인 추출. migration-audit/references/stack-mappings.md 참조. ` +
+    `파일 목록+엔트리포인트+이벤트+도메인 추출. SKILL.md "스택별 엔트리포인트 매핑" 표 참조(대조 키 = 이벤트명·라우트 경로). ` +
     `side="src". blockers 있으면 열거. buildScriptExists 확인.`,
     { label: 'phase-0:src-inv', phase: 'Inventory', schema: INVENTORY_SCHEMA, agentType: 'Explore' }
   ),

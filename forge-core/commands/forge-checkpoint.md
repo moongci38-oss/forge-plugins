@@ -40,6 +40,32 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect
 
 **백그라운드 워커 생존 절은 checkpoint에서 특히 중요하다** — compact가 대화 이력을 압축하면 워커 로스터(누가 무엇을 하고 있었는지)가 소실돼 재스폰이 불가능해진다(2026-07-26 워커 6기 유실 실사고). 워커 1기당 **브리프 영속 경로 + 생존 실측(`recent_changes`·`last_change` 수치) + 재개 1줄**을 적는다. "실행 중" 텍스트 단정 금지. `WORKER_BRIEF_PERSISTED`가 `yes`가 아닌 활성 워커가 있으면 **영속화 후에만 저장**(미영속 = 게이트 FAIL).
 
+#### 세션 버스 워커 로스터 (dormant — live 프로세스 아님, 읽기 전용 대조)
+
+위 로스터와 **별도로** 버스 레지스트리를 읽기 전용으로 대조한다(파일 변이 금지 계약 준수 — 조회만):
+
+```bash
+RECALL_OUT="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" "$(pwd)" 2>&1)"; RECALL_RC=$?
+if [ "$RECALL_RC" -ne 0 ]; then
+  echo "BUS_WORKER_ERROR: session-recall.sh 실행 실패(exit $RECALL_RC) — 0건과 구분, 원인 확인 후 재시도"
+else
+  echo "$RECALL_OUT" | grep -E '^BUS_WORKER' || echo "BUS_WORKER_ERROR: 스크립트는 성공했으나 BUS_WORKER 라인이 전혀 없음(비정상 — 0건과 다름, 스크립트 버그 의심)"
+fi
+```
+
+**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)다. 세션 버스 워커(`--resume` 방식)는 `$HOME/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이며, 15분+ 무변화 사망 판정 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태).
+
+`## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. "인계 지시"는 AI가 판단(다음 세션이 이 워커에 시킬 일 1줄, 없으면 `-`):
+
+```markdown
+### 세션 버스 워커 (dormant — live 프로세스 아님)
+| name | sid8 | cwd | 최종응답 | 인계 지시 |
+|---|---|---|---|---|
+| {name} | {sid8} | {cwd} | {age}분 전 | {인계 지시 또는 -} |
+```
+
+워커 0기(`BUS_WORKER_COUNT=0`)면 표 대신 **`없음`** 명시(침묵 금지).
+
 > checkpoint는 순수 snapshot이라 여기서 learnings를 **append하지 않는다** — 미기록 misfire는 `## learnings 미기록 misfire` 절에 적어 compact 유실을 막고, 재개 세션 또는 `/forge-end`가 append한다.
 
 ### 2. 착지 경로 (계약 ⑤)
@@ -97,6 +123,14 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify 
 
 `VERIFY=FAIL`이면 지목된 절을 보완 후 재실행. PASS 전에 `/compact` 안내 금지.
 
+#### INDEX 갱신 (F9 — 기계 생성, 수동 편집 금지)
+
+체크포인트는 `HANDOVER_DIR`이 아니라 `CHECKPOINT_DIR`에 저장되지만, handover INDEX 드리프트 방지를 위해 같은 세션이 handover 레인에 쓴 적이 있다면 함께 갱신한다:
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-index-dir "$HANDOVER_DIR" || true
+```
+
 ### 5. 안내 출력
 
 ```
@@ -126,6 +160,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify 
 
 - [ ] 3분법 판정 (계속 쓴다 = checkpoint가 맞나)
 - [ ] `session-record-audit.sh collect` → 8 수집원 실측
+- [ ] 세션 버스 워커 로스터 대조 실행 (0기/실행실패도 각각 명시 — 침묵 금지)
 - [ ] 착지 = `$FORGE_OUTPUTS/.claude/checkpoints` (워크트리여도 동일)
 - [ ] frontmatter 5필드 + 8절 작성 ("없음" 명기)
 - [ ] 백그라운드 워커: 브리프 영속 경로 + 생존 실측 수치 + 재개 1줄 (미영속이면 영속화 후 저장)

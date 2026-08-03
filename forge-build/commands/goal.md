@@ -1,6 +1,7 @@
 ---
 description: "[DEPRECATED alias] /forge-fix --loop 로 흡수됨 — 자율 PEV 루프 (AD-93 §갭 9, 버그수정 파이프라인 통합 plan v1.1 §5-8/D6)"
 group: qa
+disable-model-invocation: true
 ---
 
 # /goal — DEPRECATED alias → `/forge-fix --loop`

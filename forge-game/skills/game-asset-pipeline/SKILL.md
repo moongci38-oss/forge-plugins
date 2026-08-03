@@ -1,6 +1,7 @@
 ---
 name: game-asset-pipeline
 description: "GodBlade 게임 에셋 5개 카테고리 워크플로를 오케스트레이션한다. 게임 에셋을 카테고리 단위로 일괄 생산할 때 사용한다."
+disable-model-invocation: true
 ---
 
 # game-asset-pipeline

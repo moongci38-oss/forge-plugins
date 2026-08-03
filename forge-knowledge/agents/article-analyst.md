@@ -82,7 +82,7 @@ model: sonnet
 
 "관련성" 섹션 작성 시 아래 맥락 참고:
 
-- **Forge 워크스페이스**: 3-파이프라인 — 기획(S1~S5, S3.5 Fun Gate 등) + 개발(Phase 1~12, Check 3.5~3.8 등) + 정부과제(GR-1~6)
+- **Forge 워크스페이스**: 3-파이프라인 — 기획(S1~S5, S3.5 Fun Gate 등) + 개발(P4–P7 + platform층, Check 3.5~3.8 등) + 정부과제(GR-1~6)
 - **개발 도구**: Claude Code + Skills/Agents/Hooks/MCP, Subagent 병렬, Git worktree
 - **프론트엔드**: Next.js + Framer Motion + Lenis, Playwright E2E
 - **백엔드**: NestJS + TypeORM + PostgreSQL

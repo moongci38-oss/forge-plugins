@@ -15,7 +15,7 @@ Karpathy 3-layer 개인 지식 체계(Raw → Wiki → Meta)의 Raw → Wiki 변
 
 ## 출력
 
-승인된 변경만 반영된 **vault**(`$FORGE_VAULT`, 기본 `/mnt/e/forge-vault`) 노트(UPDATE 섹션 추가 또는 NEW 파일) + `sync-tracking.json` 갱신(ingested/rejected) + 미승인 MEDIUM/LOW 항목은 `_meta/pending-review.md`.
+승인된 변경만 반영된 **vault**(논리 이름 `FORGE_VAULT` — 물리 경로는 `bin/forge-path FORGE_VAULT` 로만 해석. 머신마다 다르므로 여기 적지 않는다) 노트(UPDATE 섹션 추가 또는 NEW 파일) + `sync-tracking.json` 갱신(ingested/rejected) + 미승인 MEDIUM/LOW 항목은 `_meta/pending-review.md`.
 
 > ⚠️ **쓰기 대상 = vault (2026-07-26 재배선, 회사 두뇌 계획서 §3.6 / A4-1).**
 > 정본은 vault, `20-wiki/`는 **파생 트리**다. `wiki-sync.sh`가 vault→20-wiki **단방향**으로만
@@ -297,7 +297,7 @@ tracking.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 
    - ⚠️ **`git add -A` 금지**(2026-07-20 cr-final CRITICAL). 과거 이 단계는 `git add -A -- . ':!20-wiki'`였는데, 이는 `forge-outputs-autosync.sh`가 보유한 **화이트리스트·제외패턴(`06-finance/` `07-legal/` `08-admin/` `10-operations/recruitment/` `.claude/logs/`)·시크릿 9종 스캔을 전부 우회**하는 별도 커밋 경로였다. daily/weekly 파이프라인이 `--auto`를 자동 호출하게 되면서, 민감 경로가 워킹트리에 dirty 상태이기만 하면 무조건 스테이징·push되는 구조가 됐다.
    - autosync 스크립트가 화이트리스트·제외·시크릿 스캔·커밋·push를 모두 담당한다. **공유 트리에 대한 git 쓰기 경로는 이 하나로 유지한다**(경로가 둘이면 한쪽 가드가 반드시 우회된다).
-   - ⚠️ `20-wiki/`는 forge-outputs에서 ignore된 별도 vault(forge-vault, `.gitignore:35`) — 절대 `git add -f`/명시적 add 금지. vault 커밋은 `wiki-sync.sh`가 `/mnt/e/forge-vault`로 별도 처리한다.
+   - ⚠️ `20-wiki/`는 forge-outputs에서 ignore된 별도 vault(forge-vault, `.gitignore:35`) — 절대 `git add -f`/명시적 add 금지. vault 커밋은 `wiki-sync.sh`가 `FORGE_VAULT`(논리 이름) 경로로 별도 처리한다.
 
 ## 트래킹 파일 스키마
 

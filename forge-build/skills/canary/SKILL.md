@@ -56,7 +56,7 @@ P7-DI PASS → canaryEnabled 시 자동 실행
    - 에이전트가 PASS / WARN / FAIL verdict와 JSON 결과 반환
    - **FAIL** 판정 시: "롤백 권고 — `/forge-rollback` 명령으로 즉시 롤백하세요." 자동 출력
    - **WARN** 판정 시: 경고 내용과 함께 모니터링 지속 권장 메시지 출력
-   - **PASS** 판정 시: "배포 안정. Phase 11 진행 가능." 출력
+   - **PASS** 판정 시: "배포 안정. platform층(Release) 진행 가능." 출력
 5. 리포트 생성 → `docs/canary/YYYY-MM-DD-canary-report.md` 저장
 
 ## 설정 (release-config.json)
@@ -78,7 +78,7 @@ P7-DI PASS → canaryEnabled 시 자동 실행
 
 - `canaryEnabled: false` 또는 미설정
 - `healthCheckUrl` 미설정
-- 서버 인프라 미구축 (Phase 11/12 미도달)
+- 서버 인프라 미구축 (platform층 Release/Production 미도달)
 
 ## 산출물
 

@@ -23,7 +23,7 @@ const EVAL_SCHEMA = {
   type: 'object',
   properties: {
     verdict: { type: 'string', enum: ['PASS', 'WARN', 'FAIL'] },
-    score: { type: 'number' },
+    score: { type: 'number', minimum: 0, maximum: 100 },
     gaps: { type: 'array', items: { type: 'string' } },
   },
   required: ['verdict', 'score'],
@@ -47,10 +47,10 @@ phase('Evaluate')
 const evaluation = await agent(
   `계획서 결과물만 독립 검증. 원본 요구사항·작성 의도 없음 — 계획 자체 완결성만 평가. ` +
   `title: ${plan?.title}. steps: ${JSON.stringify(plan?.steps)}. verify: ${JSON.stringify(plan?.verify)}. ` +
-  `각 step이 실행 가능한가, verify가 측정 가능한가, 누락 gap이 있는가. verdict + score + gaps.`,
+  `각 step이 실행 가능한가, verify가 측정 가능한가, 누락 gap이 있는가. verdict + score(0-100 정수) + gaps.`,
   { label: 'evaluate', phase: 'Evaluate', schema: EVAL_SCHEMA }
 )
-log(`Evaluate: ${evaluation?.verdict} score=${evaluation?.score}`)
+log(`Evaluate: ${evaluation?.verdict} score=${evaluation?.score}/100`)
 
 return {
   verdict: evaluation?.verdict,

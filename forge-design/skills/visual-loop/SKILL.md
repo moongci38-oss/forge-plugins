@@ -71,6 +71,14 @@ node "${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs"
 
 **폴백**: 캡처 헬퍼가 exit 3(`PLAYWRIGHT_UNAVAILABLE`) 반환 시 `/playwright-cli` 스킬로 스크린샷만 폴백 캡처 — 이 경우 aria.json이 없으므로 Step 2.5(기능축)는 skip하고 Step 3(Vision)만으로 진행.
 
+**시각 검증 폴백 3단** (위 대체 캡처마저 실패했을 때 — 백로그 P3-25):
+1. **재시도 2회** — 타임아웃·일시적 렌더 실패는 대부분 여기서 해소된다(조건 대기로, 임의 sleep 금지).
+2. **정적 확인으로 대체** — DOM 스냅샷·단위테스트·정적 분석으로 대체하고 리포트에 **대체 수단을 명시**.
+3. **미확인 명시** — 2번도 불가면 리포트 `## 요약` 에 `시각 검증 미확인(unverified)` 을 그대로 적는다.
+   ⚠️ 미확인은 PASS 가 아니고 FAIL 도 아니다. 측정하지 못한 것을 어느 쪽으로도 집계하지 않는다.
+   폴백 단계를 건너뛰고 미확인을 GREEN 으로 보고하는 것은 금지 — 정본은
+   `dev/global-rules/dev-workflow-rules.md §시각 검증 폴백 3단`.
+
 에이전트 브라우저 실행 보안 경계(staging 격리·run-code 감사·시크릿 마스킹·DOM=untrusted): `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/agent-browser-security.md` 준수.
 
 ### Step 2.5 — 기능축 판정 (a11y-tree, 결정론 — 신규)

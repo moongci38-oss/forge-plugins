@@ -1,6 +1,7 @@
 ---
 name: external-harness-sweep
 description: "Use for full 1:1 source sweep of an external harness/skills repo against Forge → adoption matrix. Triggers: '외부 레포 전수 대조', '하네스 sweep', 'external sweep [url]', gstack/gsd/superpowers comparison. 5 phases: Scout→Inventory→Compare→Refute→Synthesize."
+disable-model-invocation: true
 ---
 
 # external-harness-sweep

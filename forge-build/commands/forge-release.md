@@ -2,6 +2,7 @@
 description: "[DEPRECATED] → /forge-deploy prod 사용. staging → main 프로덕션 릴리스 위임 래퍼"
 model: sonnet
 group: deploy
+disable-model-invocation: true
 ---
 
 # /forge-release — [DEPRECATED 위임 래퍼]

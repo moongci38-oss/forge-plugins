@@ -118,6 +118,71 @@ if (autoItems.length === 0) {
   // Report Phase로 바로 이동
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 1.5: 적용 직전 참조 재실측 (harness-diet-gate-harness-gaps.md G-1/KEEP, 2026-08-03)
+// root-cause: diet-queue.json CF-03("참조 0건/고아")이 실제로는 refs>0인 살아있는 자산이었다.
+//   scan 시점 grep 범위 누락이 원인이었고(이 스킬 쪽에서는 고칠 수 없음), 이번엔 사람이 적용 직전
+//   재실측해서 우연히 막았다. 그 지시는 scan-report.md 산문에만 있고 actuator 코드에는 없었다
+//   (사람 기억 의존 = 다음번엔 안 막힐 구조). "참조 0건/고아" 근거로 diet_auto=true가 된 항목만
+//   골라 SSoT 전체($FORGE_ROOT/.claude+dev+shared+docs)를 재grep하고, refs>0이면 자동적용에서 뺀다.
+// ─────────────────────────────────────────────────────────────────────────────
+const orphanClaimItems = autoItems.filter(i =>
+  /참조\s*0건|고아|refs\s*=\s*0|orphan/i.test(`${i.reason || ''} ${i.evidence || ''}`)
+)
+
+if (orphanClaimItems.length > 0) {
+  const recheck = await agent(
+    `적용 직전 참조 재실측 (G-1 재발방지 — harness-diet-gate-harness-gaps.md 2026-08-03).
+아래 각 항목은 diet-queue.json에서 "참조 0건/고아"를 근거로 자동적용(diet_auto=true) 판정을 받았다.
+scan 시점 grep 범위가 SSoT 뿌리 중 일부만 훑었을 가능성이 있으므로(forge/.claude/ 와 forge/dev/ 는
+별개 뿌리이며 미러에서는 병합돼 구분 불가) 여기서 다시 실측한다.
+
+항목: ${JSON.stringify(orphanClaimItems.map(i => ({ id: i.id, path: i.path })))}
+
+각 항목 id별로:
+1. path에서 검색어(파일명 stem)를 정한다.
+2. 반드시 4개 디렉터리 전부를 대상으로 grep 실행 (자기 자신 경로는 결과에서 제외):
+   grep -rl "<검색어>" "\${FORGE_ROOT:-$HOME/forge}/.claude" "\${FORGE_ROOT:-$HOME/forge}/dev" \\
+     "\${FORGE_ROOT:-$HOME/forge}/shared" "\${FORGE_ROOT:-$HOME/forge}/docs" 2>/dev/null
+3. 매칭 파일 수를 refs로 기록. evidence에는 실제 실행한 grep 명령 원문을 남긴다.
+
+결과: {"results":[{"id":"str","refs":N,"evidence":"str(grep 명령 원문)"}]}`,
+    {
+      label: 'pre-apply-recheck', phase: 'Prepare',
+      schema: {
+        type: 'object',
+        properties: {
+          results: { type: 'array', items: { type: 'object', properties: { id:{type:'string'}, refs:{type:'number'}, evidence:{type:'string'} }, required:['id','refs'] } },
+        },
+        required: ['results'],
+      },
+    }
+  ).catch(e => { log(`[WARN] pre-apply 재실측 실패 — 안전 쪽(수동 승인)으로 강등: ${e?.message || e}`); return null })
+
+  // fail-closed: 재실측 자체가 실패하면 해당 항목은 refs 불명 취급 → 자동적용에서 제외(수동 승인)
+  const refsById = new Map((recheck?.results || []).map(r => [r.id, r]))
+  const excluded = orphanClaimItems.filter(i => !recheck || (refsById.get(i.id)?.refs ?? 1) > 0)
+
+  if (excluded.length > 0) {
+    const excludedIds = new Set(excluded.map(i => i.id))
+    for (let idx = autoItems.length - 1; idx >= 0; idx--) {
+      if (excludedIds.has(autoItems[idx].id)) {
+        const r = refsById.get(autoItems[idx].id)
+        humanRequired.push({
+          ...autoItems[idx],
+          diet_auto: false,
+          confidence: 'low',
+          reason: `${autoItems[idx].reason} [Pre-apply 재실측: ${recheck ? `refs=${r?.refs ?? '불명'}>0` : '재실측 실패'} — G-1 재발방지로 자동적용 제외]`,
+        })
+        autoItems.splice(idx, 1)
+      }
+    }
+    log(`[PreApply-Recheck] 자동적용 제외 ${excluded.length}건: ${[...excludedIds].join(', ')} → auto=${autoItems.length} human_required=${humanRequired.length}`)
+  } else {
+    log(`[PreApply-Recheck] ${orphanClaimItems.length}건 재검증 통과 (refs=0 확인) — 자동적용 유지`)
+  }
+}
+
 // Before 상태 측정
 const beforeState = await agent(
   `Before 상태 측정. Bash 도구:

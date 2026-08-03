@@ -179,6 +179,11 @@ bash <env>.script [--dry-run] [--step=<name>] [--rollback [<ts>]]
 gh workflow run <env>.workflow --ref <branches.source>
 ```
 - exit 0 → 성공. 헬스체크(`healthcheck` 선언 시) 결과 보고.
+  - ⚠️ **`healthcheck` 미선언이면 결과 보고에 `헬스 미측정(unmeasured)` 을 반드시 명시한다.**
+    종전에는 미선언 시 아무 흔적 없이 넘어가 **헬스 증거 0 인 배포가 '성공'과 구분되지 않았다.**
+    "측정했고 정상"과 "측정 자체를 안 함"은 다른 상태다 — 후자를 성공으로 집계하지 않는다.
+    (canary 스킬이 `INCONCLUSIVE` 로, `qa-post-merge-canary.sh` 가 `exit 3` 으로 쓰는 것과 같은 사상.)
+    미측정은 배포 실패가 아니므로 [STOP] 하지 않는다 — **보고에 남기고 진행**한다.
 - exit ≠ 0 → [STOP] Human 에스컬레이션 — 에러 출력 + 롤백 경로(`--rollback` 지원 시 명시).
 - 시크릿 규약: 배포 스크립트 자격증명은 프로젝트 `.env` 참조만 — 값 출력 금지.
 

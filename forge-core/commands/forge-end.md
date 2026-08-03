@@ -40,9 +40,13 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect
 | 미커밋 변경 | `UNCOMMITTED_COUNT`/`UNCOMMITTED_FILE` | `## 미커밋 변경` |
 | 열린 PR·브랜치 | `OPEN_PR_COUNT`·`BRANCH`·`UNPUSHED_COMMITS` | `## 열린 PR·브랜치` |
 | 진행 중 백그라운드 작업 | 세션 이력(도구 호출) | `## 진행 중 백그라운드 작업` |
-| learnings 미기록 misfire | `LEARNINGS_LAST` + 세션 misfire 회고 | `## learnings 미기록 misfire` |
+| learnings 미기록 misfire | `LEARNINGS_LAST`·`LEARNINGS_PARSE_BAD` + 세션 misfire 회고 | `## learnings 미기록 misfire` |
 | 사용자 지시 미이행 | 세션 이력(사용자 발화) | `## 사용자 지시 미이행` |
 | **백그라운드 워커 생존** | `WORKER_BRIEF*`·`WORKER_WORKTREE*`·`RECENT_CHANGES_CWD` | `## 백그라운드 워커 생존` |
+
+**[STOP] 해소 판정 + 마커 정리** — `STOP_PENDING*`는 마커를 **탐지만 하고 정리하지 않아**, 이미 해결된 게이트가 다음 세션까지 "대기 중"으로 남는다(누적되면 어느 것이 진짜 대기인지 구분 불가). 종료 시 각 마커에 대해 **STOP 해소** 여부를 판정한다 — 그 승인이 이뤄졌거나 해당 작업이 완료·기각됐으면 원 문서의 마커를 제거하거나 `[STOP-RESOLVED: {날짜} {사유}]`로 치환하고, handover `## 승인 대기([STOP])` 절에는 **미해소분만** 남긴다. 판정 근거 없이 지우지 않는다 — 애매하면 미해소로 둔다.
+
+**learnings 무결성 WARN (P0-4)** — `LEARNINGS_PARSE_BAD`가 `0`이 아니면(깨진 줄 존재, 또는 `?` = 검사 불가) 완료 보고에 **WARN 1줄**을 남긴다: `learnings 무결성 WARN: 파싱 불가 {LEARNINGS_PARSE_BAD}줄 (line {LEARNINGS_PARSE_BAD_LINES})`. 깨진 줄은 회상(learnings 검색·자동 로드)에서 **조용히 유실**되므로, 5절의 misfire append 전에 확인한다. **WARN이지 게이트 FAIL이 아니다** — 종료를 막지 않는다.
 
 #### 백그라운드 워커 생존 절 규약 (2026-07-26 실사고 — compact 후 워커 6기 유실)
 
@@ -59,6 +63,32 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect
 - 워커가 없으면 `없음`.
 
 **(c) "없음"도 명시 기록** — 해당 없으면 그 절에 `없음`이라고 적는다. 침묵(안 봄)과 없음(봤는데 없음)은 다르다. 절을 통째로 빼면 게이트 FAIL이다.
+
+#### 세션 버스 워커 로스터 규약 (dormant — live 프로세스 아님)
+
+버스 레지스트리 대조 스텝(위 (a)~(c) 로스터와 **별도로** 실행):
+
+```bash
+RECALL_OUT="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" "$(pwd)" 2>&1)"; RECALL_RC=$?
+if [ "$RECALL_RC" -ne 0 ]; then
+  echo "BUS_WORKER_ERROR: session-recall.sh 실행 실패(exit $RECALL_RC) — 0건과 구분, 원인 확인 후 재시도"
+else
+  echo "$RECALL_OUT" | grep -E '^BUS_WORKER' || echo "BUS_WORKER_ERROR: 스크립트는 성공했으나 BUS_WORKER 라인이 전혀 없음(비정상 — 0건과 다름, 스크립트 버그 의심)"
+fi
+```
+
+**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)를 가리킨다. 세션 버스 워커(`--resume` 방식)는 `$HOME/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이다. 위 (c)의 "15분+ 무변화 & 핑 무응답 = 사망 판정" 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태이지 사망 신호가 아니다).
+
+`## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. `BUS_WORKER_N=name|sid8|cwd|age|dormant`를 그대로 옮기고, "인계 지시"는 AI가 판단해 채운다(다음 세션이 이 워커에 무엇을 시켜야 하는지 1줄, 없으면 `-`):
+
+```markdown
+### 세션 버스 워커 (dormant — live 프로세스 아님)
+| name | sid8 | cwd | 최종응답 | 인계 지시 |
+|---|---|---|---|---|
+| {name} | {sid8} | {cwd} | {age}분 전 | {인계 지시 또는 -} |
+```
+
+워커 0기(`BUS_WORKER_COUNT=0`)면 표 대신 **`없음`** 이라고 명시한다(침묵 금지 — 안 봄과 봤는데 없음을 구분).
 
 ### 3. handover 작성
 
@@ -95,12 +125,18 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify 
 - `VERIFY=PASS` → 통과. 완료 보고에 `기록 무누락 게이트 PASS (8/8절)` 1줄 포함.
 - `VERIFY=FAIL` → `SECTION_MISSING`/`SECTION_EMPTY`로 지목된 절을 **보완한 뒤 재실행**. PASS 전에는 세션 종료 선언 금지.
 
+#### INDEX 갱신 (F9 — 기계 생성, 수동 편집 금지)
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-index-dir "$HANDOVER_DIR" || true
+```
+
 ### 5. learnings·misfire 반영
 
 이번 세션 misfire(재작업·오추정·스킬 오작동·검수 지적·게이트 오탐)가 있었는데 learnings에 없으면 **지금 append**한다:
 
 ```bash
-bash $HOME/.claude/scripts/learnings.sh append --category <process|decision|pge-failure|user-directive> \
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/learnings.sh" append --category <process|decision|pge-failure|user-directive> \
   --summary "<무엇을 하려다 왜 막혔나 1줄>" --apply "<다음에 이렇게>" \
   --evidence "session:{slug} | commit:{hash}"
 ```
@@ -134,7 +170,9 @@ CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '
 - [ ] `session-record-audit.sh collect` 실행 → 8 수집원 실측
 - [ ] frontmatter 5필드(`date·time·model·slug·status·project`) 기입
 - [ ] 8절 + 서술형 필수 절 작성 ("없음"도 명기) — 백그라운드 워커 절은 생존 실측 수치·브리프 경로·재개 1줄 포함
+- [ ] 세션 버스 워커 로스터 대조 실행 (0기/실행실패도 각각 명시 — 침묵 금지)
 - [ ] `session-record-audit.sh verify` **PASS** (FAIL이면 종료 선언 금지)
+- [ ] `handover-manager.sh refresh-index-dir` 실행 (INDEX 기계 갱신, 수동 편집 금지)
 - [ ] learnings misfire 반영 (해당 시)
 - [ ] 팀 공유 동기화 (advisory)
 - [ ] 미소비 체크포인트 `.consumed` 표시

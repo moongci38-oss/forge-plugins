@@ -38,11 +38,6 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 > **단 기존 Forge P2/P3 산출물의 delta 검증·보강(M5)은 유효**(범위 내) — M5 검증·보강 모드(Step 1-M5)가 이 경로를 처리한다.
 > 즉: "기존 Forge 산출물 보강 = in-scope / 임의 legacy retrofit = out-of-scope"
 
-## 전제조건
-
-- `PIPELINE-IRON-1`: P2 기획서(`s3-prd.md` 또는 `s3-gdd.md`) + `s3-style-guide.md` + `s3-mockup/` 없이는 진입 금지 — 기획서 absent 시 GUIDE-STOP, 형식 불일치는 ADAPT 자동보완
-- 산출물 경로 `{project-root}` = `forge-outputs/02-product/{project-slug}/` (`folderMap.product` 해석 결과)
-
 ## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
 
 기획 패키지 작성 착수 **전에 브레인 조회 1회**를 수행한다. 축적한 wiki·RAG 지식이 기획 중 잠들어 있는 구멍을 막는 스텝이다.
@@ -57,6 +52,11 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 4. 적중 건이 있으면 기획 패키지 본문 "선행 지식" 항목에 출처 링크로 남긴다.
 
 > T3 미연결(강등) 세션이면 조회 결과가 팀과 다를 수 있다 — 세션 시작 배너(`t2-degraded-banner.sh`) 경고를 그대로 신뢰하고, 중요한 근거는 T3 복구 후 재조회한다.
+
+## 전제조건
+
+- `PIPELINE-IRON-1`: P2 기획서(`s3-prd.md` 또는 `s3-gdd.md`) + `s3-style-guide.md` + `s3-mockup/` 없이는 진입 금지 — 기획서 absent 시 GUIDE-STOP, 형식 불일치는 ADAPT 자동보완
+- 산출물 경로 `{project-root}` = `forge-outputs/02-product/{project-slug}/` (`folderMap.product` 해석 결과)
 
 ## Phase 0 — Readiness 판정 (요건 기반 3-way 게이트)
 
