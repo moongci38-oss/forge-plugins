@@ -790,7 +790,7 @@ const results = _rawResults.filter(_legValid)
 
 // ── GS-B19: Finding Dedup + Confidence Scoring + Fix-First ordering ──────────
 // root-cause: GS-B19 — cross-worker agreement → confidence score; dedup by (file|line|category); Fix-First sort
-// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ${FORGE_ROOT:-$HOME/forge}/shared/scripts/synthesize.py
+// P-2 NOTE: 범용 dedup/상충 표면화 SSoT = ~/forge/shared/scripts/synthesize.py
 //   (review 키 file|line|category — 아래 inline과 동일 계약 / code 키 export|signature + conflict surfacing 추가).
 //   Workflow 샌드박스는 require 불가라 review hot-path는 inline 유지. 비-Workflow fan-out 소비자는 synthesize.py 사용.
 const _sevOrd = { critical: 0, high: 1, medium: 2, low: 3 }
@@ -981,7 +981,7 @@ if (GATE_STAGES.includes(stage)) {
     //   않는다 = 계약 SSoT 는 _evPayload 스키마 하나뿐(역변조 시 게이트가 WARN).
     //   argv[4] 부재/빈값은 fail-open — 빈 문자열이면 게이트가 미바인딩 WARN 을 낸다.
     "if 'head_sha' in d: d['head_sha']=(sys.argv[4] if len(sys.argv)>4 else '')\n" +
-    "base=os.path.join(os.path.expanduser(os.environ.get('FORGE_OUTPUTS','${FORGE_ROOT:-$HOME/forge}-outputs')),'.claude','audit','cr-evidence',sys.argv[3])\n" +
+    "base=os.path.join(os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs')),'.claude','audit','cr-evidence',sys.argv[3])\n" +
     'os.makedirs(base,exist_ok=True)\n' +
     "json.dump(d,open(os.path.join(base,sys.argv[2]),'w'),ensure_ascii=False)"
   try {
@@ -1116,7 +1116,7 @@ if (crRefute && dedupedIssues.length > 0) {
   if (killedFindings.length > 0) {
     await agent(
       `P-8 killed findings 감사 로그 append (생성 메시지 금지).\n` +
-      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','${FORGE_ROOT:-$HOME/forge}-outputs'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
+      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
       { label: 'p8-audit-killed', phase: 'Refute' }
     )
   }

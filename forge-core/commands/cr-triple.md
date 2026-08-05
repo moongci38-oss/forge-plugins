@@ -36,11 +36,11 @@ group: review
 // --fable 파싱: FABLE = args에 '--fable' 있으면 true (Human 수동 전용 — Claude 레그 Fable 5 승격)
 // --sol/--terra/--luna 파싱 (Codex 검수 레그 tier 승격, model-registry SSoT):
 //   CODEX_TIER = --sol→'max' · --terra→'high' · --luna→'low' · (없으면 미설정)
-//   CODEX_MODEL = CODEX_TIER 설정 시 Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:$CODEX_TIER`) 결과, 없으면 null
+//   CODEX_MODEL = CODEX_TIER 설정 시 Bash(`~/forge/shared/scripts/model-registry-resolve.sh codex:$CODEX_TIER`) 결과, 없으면 null
 //     → registry가 버전무관 해석(codex:max→gpt-5.6-sol 등). resolve 실패 시 null(기본 gpt-5-mini 유지, fail-open).
 // 외부 토큰 선발행 후 Workflow 실행 (cr-multi workflow.js 위임)
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'triple', stage: STAGE, crMode: CR_MODE, fable: FABLE, codexModel: CODEX_MODEL }
 })
 ```

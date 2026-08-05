@@ -37,7 +37,7 @@ disable-model-invocation: true
 
 > 2026-08-03 전수조사(skills-3/S67-02)에서 이 자리에 있던 references/stack-mappings.md ·
 > references/subagents.md 포인터가 **존재한 적 없는 파일**을 가리키고 있었다
-> (`find ${FORGE_ROOT:-$HOME/forge} ${FORGE_ROOT:-$HOME/forge}-outputs $HOME/.claude -name 'stack-mappings.md'` → 0건, 2026-08-03 관측).
+> (`find ~/forge ~/forge-outputs ~/.claude -name 'stack-mappings.md'` → 0건, 2026-08-03 관측).
 > workflow.js 의 Phase 0 프롬프트도 같은 경로를 참조해 Explore 워커가 없는 파일을 찾다
 > 조용히 자기 판단으로 대체하고 있었다. 위임을 접고 본문에 인라인한다.
 
@@ -127,7 +127,7 @@ src 인라인 주석(`legacy:.../g-N:...`) + bug_report + learnings 교차수집
 
 `--cr=on` (기본): codex-critic(`agentType:'codex-critic'`) 스폰 — 외부 토큰 선발행 전제.
 `--cr=degrade` | `--cr=off`: codex-critic 스폰 생략. Phase 2 findings를 WARN verdict로 그대로 통과. 비용 절감 또는 Codex 불가 환경용.
-crMode 해석은 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
+crMode 해석은 `~/forge/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
 
 Claude 1차 finding → `/cr-multi --mode triple`:
 
@@ -232,8 +232,8 @@ Golden tests: `<migrated-path>/test/migration-golden.*` (영구 편입)
 ## Workflow 통합 (계획서 P2-3)
 Phase 7 PEV 루프 = while() 자동화 (사이클 캡 6 + plateau 2연속 감지 중단).
 패턴: Phase 0 parallel(legacy/src 인벤토리) → Phase 2 pipeline(도메인별 병렬 대조) → Phase 5 [STOP] M1 게이트 → Phase 7 while(CRITICAL>0 && cycles<6).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix, crMode } })`
-`crMode` 값은 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 출력을 caller가 읽어 전달 (`on`|`degrade`|`off`, 기본 `on`).
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix, crMode } })`
+`crMode` 값은 `~/forge/shared/scripts/cr-mode.sh` 출력을 caller가 읽어 전달 (`on`|`degrade`|`off`, 기본 `on`).
 fix='off'(기본) → Phase 5에서 PENDING_APPROVAL 반환. fix='auto' → Phase 6+7 자동 실행.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 7 Phase 수동 실행 방식 fallback.
 

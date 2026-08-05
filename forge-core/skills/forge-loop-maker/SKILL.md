@@ -137,10 +137,10 @@ Phase 4: Blueprint → [STOP] 승인 → scaffold
 
 | 분류 | 경로 | 템플릿 |
 |------|------|-------|
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(패턴 본문) |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(패턴 본문) |
 | Changing | `{PROJECT_CWD}/loops/{LOOP_NAME}/STATE.md` | `templates/STATE.md.tmpl` |
 
 **⚠️ workflow.js는 골격 1개 + 패턴 본문 4개 조합이다.** `--pattern`이 본문 템플릿을 고른다 — 골격만 고치면 특정 패턴의 판정 방식은 바뀌지 않는다. 패턴별 종료 판정:
@@ -177,7 +177,7 @@ scaffold 완료 후 파일 트리 출력.
 
 ## forge-sync 필수
 
-`${FORGE_ROOT:-$HOME/forge}` SSoT → `$HOME/.claude/` 미러. scaffold 후 반드시:
+`~/forge` SSoT → `~/.claude/` 미러. scaffold 후 반드시:
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
+node ~/forge/dev/scripts/forge-sync.mjs sync
 ```

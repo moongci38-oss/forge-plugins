@@ -183,4 +183,4 @@ PR 생성 전(P7 진입 직전) 또는 릴리즈 전 최종 점검에 사용된�
 산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
 - **target**: 종합 체크리스트 (`docs/reviews/inspection/{date}-{feature}.md`)
-- **case_id**: `EC-inspection-checklist-{N}` · **eval_cases**: `$HOME/.claude/skills/inspection-checklist/eval_cases.jsonl`
+- **case_id**: `EC-inspection-checklist-{N}` · **eval_cases**: `~/.claude/skills/inspection-checklist/eval_cases.jsonl`

@@ -172,7 +172,7 @@ Stage ① 조사 진입 시 아래 판별 표로 버그 클래스를 먼저 특�
 surface=ui 버그의 RED(①)와 GREEN(④) 각각에서 인간이 F12로 보는 브라우저 개발자도구 전체 + 서버/프론트 로그를 전수 캡처한다. 착수 시 이미 활성화된 `LOG_HTTP=1 LOG_SOCKET=1 LOG_DB=1`(Stage ① 첫 bullet) 계측 위에, **자체 playwright Node 스크립트(헬퍼, MCP·CLI 바이너리 아님) 1회 실행**으로 아래 항목을 전수 캡처·저장한다:
 
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
+node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
   --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-{red|green} --phase {red|green} \
   [--actions <인터랙션 시퀀스 json경로>]
 ```
@@ -257,5 +257,5 @@ iteration-cap 초과 = cr-multi plateau 규칙 적용 (4 옵션: A추가R/B over
 
 ## forge-sync 배포 대상
 
-이 커맨드는 `forge-sync` 실행 시 `$HOME/.claude/commands/forge-fix.md`에 자동 배포된다.
+이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-fix.md`에 자동 배포된다.
 > 실패 시 [[pev-self-correction]] 적용

@@ -26,5 +26,5 @@
 
 | 파일 쌍 | 주제 | 권고 |
 |--------|------|------|
-| memory-schema.md + memory-lifecycle.md | 메모리 관리 | 검토 후 통합 가능 |
+| ~~memory-schema.md + memory-lifecycle.md~~ | 메모리 관리 | **통합 완료(2026-08-04)** — lifecycle → schema §생명주기 |
 | plan-*.md (3개) | 계획 관련 | 계층 정리 |

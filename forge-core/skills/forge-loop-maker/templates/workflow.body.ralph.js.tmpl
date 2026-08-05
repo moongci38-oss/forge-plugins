@@ -1,0 +1,93 @@
+// ── Ralph — crude baseline (동일 프롬프트 반복) ───────────────────────────────
+//
+// 이 패턴의 정체성은 **매 사이클 완전히 같은 프롬프트를 다시 던진다**는 것이다.
+//   plan 없음 · 이전 사이클 피드백 주입 없음 · 점수 없음.
+//   교육용/baseline 비교용이다. 실전 루프는 pev 나 evaluator-optimizer 를 쓸 것.
+//
+// S1(검증자 분리): 종료 판정은 verifyCmd(외부 프로그램 exit code)만 한다.
+//   verifyCmd 가 없으면 **성공을 선언하지 않는다** — max_cycles 로만 멈춘다(fail-closed).
+//   에이전트 자기신고 "다 됐습니다"를 성공으로 치지 않는다.
+
+const verifyCmd = _a?.verifyCmd || {{VERIFY_CMD_JS}}
+const prompt    = _a?.prompt || `GOAL: ${goal}
+
+목표를 향해 **한 걸음** 진행하고, 한 일을 보고하십시오.
+설명만 하지 말고 실제로 변경하십시오.`
+
+successPrefix = 'verify_pass'
+
+const RALPH_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    summary:      { type: 'string' },
+    self_claimed: { type: 'boolean' },   // 에이전트 자기신고 — 판정에 쓰지 않는다(기록용)
+  },
+  required: ['summary'],
+}
+
+if (!verifyCmd) {
+  log('[WARN] verifyCmd 미설정 — Ralph 는 성공을 선언하지 않고 max_cycles 까지만 돕니다 (S1: 자기신고 성공 금지).')
+} else {
+  const pre = await sh(verifyCmd, 'verify-init', 'Init')
+  log(`[Init] verify exit=${pre.exit_code} :: ${(pre.stdout || '').split('\n')[0]}`)
+  if (pre.exit_code === 0) {
+    stopReason = 'verify_pass (SUCCESS — 착수 시점에 이미 충족)'
+    log(`[STOP] ${stopReason}`)
+  }
+}
+
+let lastExit    = null
+let lastSummary = ''
+let repeatCount = {}   // same_issue — 동일 요약 반복(진전 없음) 추적
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
+phase('Loop')
+
+while (!stopReason && cycleCount < maxCycles) {
+  // §1-c budget_advisory
+  if (budget && budget.total && budget.remaining && budget.remaining() < BUDGET_RESERVE) {
+    stopReason = `budget_advisory (remaining=${budget.remaining()} < ${BUDGET_RESERVE})`
+    log(`[STOP] ${stopReason}`); break
+  }
+
+  cycleCount++
+  const ph = `Loop/c${cycleCount}`
+  log(`\n── Cycle ${cycleCount}/${maxCycles} ──────────────`)
+
+  // 매 사이클 **동일한** 프롬프트. history 를 주입하지 않는다 — 이것이 Ralph 다.
+  let r
+  try {
+    r = await agent(prompt, { label: `ralph-c${cycleCount}`, phase: ph, schema: RALPH_SCHEMA })
+  } catch (e) {
+    log(`[WARN] Ralph agent failed c${cycleCount}: ${e?.message || e}`)
+    stopReason = `executor_error_c${cycleCount}`; break
+  }
+
+  lastSummary = r?.summary || ''
+  log(`[Ralph] c=${cycleCount} :: ${lastSummary.slice(0, 140)}`)
+
+  // 검증 — 외부 프로그램만 성공을 선언할 수 있다.
+  if (verifyCmd) {
+    const v = await sh(verifyCmd, `verify-c${cycleCount}`, ph)
+    lastExit = v.exit_code
+    log(`[Verify] c=${cycleCount} exit=${lastExit} :: ${(v.stdout || '').split('\n')[0]}`)
+    history.push({ cycle: cycleCount, summary: lastSummary.slice(0, 120), verify_exit: lastExit })
+    if (lastExit === 0) { stopReason = 'verify_pass (SUCCESS)'; log(`[STOP] ${stopReason}`); break }
+    if (lastExit === 2) { stopReason = 'manual_verify (G2 — 사람 판정 필요)'; log(`[STOP] ${stopReason}`); break }
+  } else {
+    history.push({ cycle: cycleCount, summary: lastSummary.slice(0, 120), verify_exit: null })
+  }
+
+  // §1-f same_issue — 같은 요약이 반복되면 진전이 없는 것으로 본다
+  const sig = lastSummary.slice(0, 120)
+  repeatCount[sig] = (repeatCount[sig] || 0) + 1
+  if (repeatCount[sig] >= SAME_ISSUE_MAX) {
+    stopReason = `same_issue (동일 요약 x${repeatCount[sig]})`
+    log(`[STOP] ${stopReason}`); break
+  }
+}
+
+resultLine    = verifyCmd
+  ? `verify_exit: ${lastExit === null ? 'N/A' : lastExit} (0=pass, 2=manual, else=fail)`
+  : 'verify: (없음 — 성공 판정 불가)'
+finalArtifact = `마지막 사이클 요약: ${lastSummary || '(none)'}\nverifier: ${verifyCmd || '(none)'}`

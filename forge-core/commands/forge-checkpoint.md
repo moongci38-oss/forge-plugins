@@ -21,6 +21,8 @@ group: ops
 - **compact 없이 checkpoint만 반복 호출**되면 안내 1줄: `"/compact를 잊으셨습니다 — checkpoint의 짝은 compact입니다."`
 - 이 커맨드는 **순수 state snapshot**이다. 코드 수정·파일 생성(체크포인트 파일 제외)·명령 실행 금지.
 
+> 연속성 계약 ①~⑦ 전문 · 경로 SSoT · checkpoint 형식 → `rules-on-demand/handover-canon.md`
+
 ## 실행
 
 ### 0. 세션 건강도 1줄
@@ -53,7 +55,7 @@ else
 fi
 ```
 
-**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)다. 세션 버스 워커(`--resume` 방식)는 `$HOME/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이며, 15분+ 무변화 사망 판정 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태).
+**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)다. 세션 버스 워커(`--resume` 방식)는 `~/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이며, 15분+ 무변화 사망 판정 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태).
 
 `## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. "인계 지시"는 AI가 판단(다음 세션이 이 워커에 시킬 일 1줄, 없으면 `-`):
 

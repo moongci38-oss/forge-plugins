@@ -26,11 +26,11 @@ ls release-config.json 2>/dev/null && echo "redeploy=on" || echo "redeploy=off (
 
 | 레포 | rollback.yml | release-config.json | 판정 |
 |---|:--:|:--:|---|
-| `${FORGE_ROOT:-$HOME/forge}` (하네스) | 없음 | 없음 | **해당 없음** — 프로덕션 배포 자체가 없다(`.github/workflows/`에 production-deploy 부재). 롤백할 대상이 없으므로 부재가 정상이다. |
+| `~/forge` (하네스) | 없음 | 없음 | **해당 없음** — 프로덕션 배포 자체가 없다(`.github/workflows/`에 production-deploy 부재). 롤백할 대상이 없으므로 부재가 정상이다. |
 | `portfolio-project` (제품) | **있음** | 없음 | **가동** — 단 L2 재배포 스텝은 skip(코드 revert까지만). |
 
 > ⚠️ 2026-08-03 이전 이 문서는 "이 커맨드는 미가동"이라고 **전역 단정**했다. 그 판정은
-> `${FORGE_ROOT:-$HOME/forge}`에서 `ls .github/workflows/`를 실행한 결과를 일반화한 것인데, forge는 애초에
+> `~/forge`에서 `ls .github/workflows/`를 실행한 결과를 일반화한 것인데, forge는 애초에
 > 프로덕션 배포가 없는 하네스 레포라 롤백 대상이 아니다. 정작 롤백이 필요한 제품 레포
 > (`portfolio-project`)에는 rollback.yml이 **배선돼 있었다**. 즉 그 단정은 장애 시점에
 > "이 커맨드는 죽었다"고 오인하게 만드는 **거짓 음성**이었다 — 부재 주장은 측정 명령과

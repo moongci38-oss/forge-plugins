@@ -49,14 +49,14 @@ forge-outputs/ 문서에서 벡터(의미) + BM25(키워드) 하이브리드 검
 ls {target_dir}/.rag-index/meta.json
 
 # 없으면 빌드
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py {target_dir}
+bash ~/forge/shared/scripts/rag/rag-exec.sh index.py {target_dir}
 ```
 
 인덱스 위치:
 - **전체**: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index/` (통합 인덱스 — 기본)
 - **정부과제**: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants/.rag-index/` (과제 전용)
 
-다른 폴더: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/`
+다른 폴더: `bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/`
 
 **커버리지 항상 보고 (meta.json 존재 확인만으로 끝내지 않는다)**: 검색 결과 반환 시 `meta.json`의 `file_count`(색인 문서수)·`built_at`(최종 인덱싱 시각)을 함께 명시한다.
 ```bash
@@ -69,7 +69,7 @@ python3 -c "import json; m=json.load(open('{target_dir}/.rag-index/meta.json'));
 **KnowledgeStore 경유 (AD-173 T2, 권장)** — 소비자가 엔진 무관하게 검색:
 ```python
 # python 코드에서 직접 호출
-import sys; sys.path.insert(0, os.path.expanduser('${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag'))
+import sys; sys.path.insert(0, os.path.expanduser('~/forge/shared/scripts/rag'))
 from knowledge_store import KnowledgeStore
 ks = KnowledgeStore.from_config()
 results = ks.search("{검색어}", top_k=5, mode="hybrid")
@@ -80,10 +80,10 @@ results = ks.search("{검색어}", top_k=5, mode="hybrid")
 **CLI 직접 호출 (롤백/디버그용)**:
 ```bash
 # 전체 forge-outputs 검색 (기본)
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --top-k {N} --mode {hybrid|vector|bm25} --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index
+bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --top-k {N} --mode {hybrid|vector|bm25} --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index
 
 # 정부과제만 검색
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants/.rag-index
+bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants/.rag-index
 ```
 
 파라미터:
@@ -135,10 +135,10 @@ Obsidian vault(forge-outputs, `.obsidian` 루트)의 `[[wikilink]]` 관계를 �
 
 ```bash
 # 20-wiki 위키링크 → obsidian_graph.json 구축 (vault-local 인덱스)
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh graph_builder.py --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index
+bash ~/forge/shared/scripts/rag/rag-exec.sh graph_builder.py --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index
 
 # 양쪽 인덱스(workspace + vault-local) 동시 갱신
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh graph_builder.py --both
+bash ~/forge/shared/scripts/rag/rag-exec.sh graph_builder.py --both
 ```
 
 - 노드 = .md 파일 (slug 키), 엣지 = `[[wikilink]]` (정/역방향)
@@ -149,10 +149,10 @@ bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh graph_builder.py 
 
 ```bash
 # Graph RAG — 시맨틱 시드 + 위키링크 이웃 확장
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py "에이전트 패턴" --graph --top-k 5 --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index
+bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "에이전트 패턴" --graph --top-k 5 --index-dir ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index
 
 # 2홉 체인 (A→B→C)
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py "하네스 설계" --graph --graph-hops 2
+bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "하네스 설계" --graph --graph-hops 2
 ```
 
 > 그래프 이웃은 점수 0.5로 결과에 추가 (시맨틱 결과보다 낮게 랭크). `graph_neighbor: true` 메타로 구분.
@@ -164,10 +164,10 @@ bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py "하네
 
 ```bash
 # 최초 빌드
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants
+bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants
 
 # 문서 추가/변경 후 재빌드
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants --rebuild
+bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants --rebuild
 ```
 
 ### 인덱스 정보
@@ -180,10 +180,10 @@ cat ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants/.rag-index/meta.json
 
 ```bash
 # 리서치 폴더
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research
+bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research
 
 # 전체 forge-outputs
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}
+bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}
 ```
 
 ## 기술 구성
@@ -203,7 +203,7 @@ bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_
 ## 환경 요구사항
 
 - Python 3.10+
-- 패키지: `pip install -r ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/requirements.txt`
+- 패키지: `pip install -r ~/forge/shared/scripts/rag/requirements.txt`
 - 추가: `pip install llama-index-embeddings-huggingface sentence-transformers docx2txt`
 - (선택) OPENAI_API_KEY — 있으면 text-embedding-3-small 사용, 없으면 로컬 모델
 
@@ -214,5 +214,5 @@ bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_
 3. 인덱스가 없으면 빌드를 제안하되, 사용자 확인 없이 자동 빌드하지 않는다 (시간 소요)
 4. 문서가 변경되어 인덱스가 오래됐으면 `--rebuild` 제안
 5. reasoning_context 있으면 쿼리 앞에 `[컨텍스트]` 형식으로 포함 — 검색 정확도 향상
-6. **Relevance-gate (deep-research mechanism c)**: 검색 결과에 `[low-relevance]` 섹션이 있으면 해당 청크를 근거로 직접 인용 금지. 반드시 `[low-relevance]` 라벨을 함께 명시한다. ref: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` #4 (관련성 검증 의무)
+6. **Relevance-gate (deep-research mechanism c)**: 검색 결과에 `[low-relevance]` 섹션이 있으면 해당 청크를 근거로 직접 인용 금지. 반드시 `[low-relevance]` 라벨을 함께 명시한다. ref: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 (관련성 검증 의무)
 7. 모든 검색 결과는 파일 경로 + 점수 + relevance 판정(`pass`/`low-relevance`)을 함께 출력한다

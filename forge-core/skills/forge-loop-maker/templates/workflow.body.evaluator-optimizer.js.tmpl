@@ -1,0 +1,201 @@
+// ── Evaluator–optimizer — LLM 루브릭 평가자 기반 ─────────────────────────────
+//
+// 이 패턴의 판정은 **독립 평가자 에이전트의 0~100 점 + rubric_all_pass** 다.
+// 기계 판정 가능한 predicate 가 있으면 이 패턴이 아니라 --pattern pev 를 써야 한다
+// (점수 평가는 판정이 주관적일 때만 정당하다).
+//
+// S1(검증자 분리): 평가자는 "어떻게 만들어졌는지 모른다"는 프롬프트 격리로 실행자와 분리된다.
+
+const EVAL_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    score:           { type: 'number' },
+    rubric_all_pass: { type: 'boolean' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          id:       { type: 'string' },
+          severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low'] },
+          axis:     { type: 'string' },
+          detail:   { type: 'string' },
+          passed:   { type: 'boolean' },
+        },
+        required: ['id', 'severity', 'passed', 'detail'],
+      },
+    },
+    rationale:   { type: 'string' },
+    stop_signal: { type: 'string', enum: ['none', 'security_crit', 'regression'] },
+  },
+  required: ['score', 'rubric_all_pass', 'findings', 'rationale', 'stop_signal'],
+}
+
+const EXECUTOR_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    output:  { type: 'string' },
+    summary: { type: 'string' },
+  },
+  required: ['output'],
+}
+
+const feedbackSource = _a?.feedbackSource || ''
+const executor       = _a?.executor       || ''
+const evaluator      = _a?.evaluator      || 'eval-rubric'
+const tokenCap       = _a?.tokenCap       || null
+
+if (!executor) throw new Error('[{{LOOP_NAME}}] arg `executor` is required')
+
+successPrefix = 'rubric_all_pass'
+
+let lastOutput       = feedbackSource
+let scores           = []
+let lastScore        = null
+let issueCounts      = {}     // same_issue (kernel §3c)
+let resolvedFindings = {}     // oscillation tracking (kernel §3d)
+let oscillationHits  = {}
+let priorPassedIds   = null   // Set<string> | null
+
+log(`[Init] executor=${executor} evaluator=${evaluator} feedbackSource="${feedbackSource}" tokenCap=${tokenCap || '(none)'}`)
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
+phase('Loop')
+
+while (cycleCount < maxCycles) {
+  // §1-c budget_advisory (turn-budget aware)
+  if (budget && budget.total && budget.remaining && budget.remaining() < BUDGET_RESERVE) {
+    stopReason = `budget_advisory (remaining=${budget.remaining()} < ${BUDGET_RESERVE})`
+    log(`[STOP] ${stopReason}`)
+    break
+  }
+
+  cycleCount++
+  log(`\n── Cycle ${cycleCount}/${maxCycles} ──────────────`)
+
+  // ── Executor (kernel §4) ──────────────────────────────────────────────────
+  const historyNote = history.length > 0
+    ? `\nPrevious: ${history.map(h => `c${h.cycle} score=${h.score}`).join('; ')}\nLast feedback: ${history[history.length-1]?.rationale || '(none)'}`
+    : ''
+  const tokenHint = tokenCap ? `\n[Advisory: aim for <${tokenCap} tokens]` : ''
+
+  let executorResult
+  try {
+    executorResult = await agent(
+      `You are the executor. Produce a REAL improved output — do NOT just explain what you would change.
+
+GOAL: ${goal}
+CURRENT ARTIFACT: ${lastOutput}
+${historyNote}${tokenHint}
+Executor: ${executor}
+
+Return: { "output": "<full updated artifact or path>", "summary": "<key changes>" }`,
+      { label: `executor-c${cycleCount}`, phase: `Loop/c${cycleCount}`, schema: EXECUTOR_SCHEMA }
+    )
+  } catch (e) {
+    log(`[WARN] Executor failed c${cycleCount}: ${e?.message || e}`)
+    stopReason = `executor_error_c${cycleCount}`
+    break
+  }
+
+  const currentOutput = executorResult?.output || lastOutput
+  log(`[Executor] c=${cycleCount} summary="${(executorResult?.summary||'').slice(0,120)}"`)
+
+  // ── Evaluator (kernel §5 — prompt-enforced separation) ───────────────────
+  let evalResult
+  try {
+    evalResult = await agent(
+      `You are an independent evaluator. NO knowledge of how the output was produced.
+Evaluate ONLY based on rubric + artifact.
+
+GOAL / DONE-CRITERIA: ${goal}
+ARTIFACT: ${currentOutput}
+Evaluator: ${evaluator}
+
+Score each criterion (0-2 per axis), compute 0-100 aggregate.
+Stable finding id: {axis}:{criterion_slug}.
+rubric_all_pass=true ONLY if ALL criteria met.
+stop_signal: "security_crit" | "regression" | "none"
+Return structured JSON.`,
+      { label: `evaluator-c${cycleCount}`, phase: `Loop/c${cycleCount}`, schema: EVAL_SCHEMA }
+    )
+  } catch (e) {
+    log(`[WARN] Evaluator failed c${cycleCount}: ${e?.message || e}`)
+    stopReason = `evaluator_error_c${cycleCount}`
+    break
+  }
+
+  const score      = evalResult?.score ?? 0
+  const allPass    = evalResult?.rubric_all_pass ?? false
+  const findings   = evalResult?.findings || []
+  const rationale  = evalResult?.rationale || ''
+  const stopSignal = evalResult?.stop_signal || 'none'
+  log(`[Evaluator] c=${cycleCount} score=${score} allPass=${allPass} findings=${findings.length} stop=${stopSignal}`)
+
+  // GC2: lastScore 즉시 캡처 (scores[] push 전)
+  lastScore   = score
+  lastOutput  = currentOutput
+  history.push({ cycle: cycleCount, score, issues_count: findings.filter(f => !f.passed).length, rationale })
+
+  // ── Stop-condition checks (kernel §1) ─────────────────────────────────────
+
+  // §1-a rubric_all_pass
+  if (allPass) { stopReason = 'rubric_all_pass (SUCCESS)'; log(`[STOP] ${stopReason}`); break }
+
+  // §1-d security_crit / §1-e regression
+  if (stopSignal === 'security_crit') { stopReason = 'security_crit'; log(`[STOP] ${stopReason}`); break }
+  if (stopSignal === 'regression')    { stopReason = 'regression';    log(`[STOP] ${stopReason}`); break }
+
+  // §1-f same_issue (kernel §3c)
+  let sameIssueTripped = false
+  for (const f of findings) {
+    if (f.passed) continue
+    const key = `${f.id}:${f.severity}`
+    issueCounts[key] = (issueCounts[key] || 0) + 1
+    if (issueCounts[key] >= SAME_ISSUE_MAX) {
+      stopReason = `same_issue (key="${key}" x${issueCounts[key]})`
+      log(`[STOP] ${stopReason}`)
+      sameIssueTripped = true
+      break
+    }
+  }
+  if (sameIssueTripped) break
+
+  // §1-g oscillation (kernel §3d — GC3: pass→fail transition only)
+  const currentFailIds = new Set(findings.filter(f => !f.passed).map(f => f.id))
+  const currentPassIds = new Set(findings.filter(f =>  f.passed).map(f => f.id))
+  for (const id of currentPassIds) { if (resolvedFindings[id] === undefined) resolvedFindings[id] = true }
+  let oscillationTripped = false
+  for (const id of currentFailIds) {
+    if (resolvedFindings[id] !== undefined && (priorPassedIds || new Set()).has(id)) {
+      oscillationHits[id] = (oscillationHits[id] || 0) + 1
+      log(`[oscillation-track] id="${id}" pass→fail #${oscillationHits[id]}`)
+      if (oscillationHits[id] >= OSCILLATION_MAX) {
+        stopReason = `oscillation (id="${id}" x${oscillationHits[id]})`
+        log(`[STOP] ${stopReason}`)
+        oscillationTripped = true
+        break
+      }
+    }
+  }
+  priorPassedIds = currentPassIds
+  if (oscillationTripped) break
+
+  // §1-h plateau (kernel §3e — GC5: net gain over window)
+  scores.push(score)
+  if (scores.length >= PLATEAU_CONSECUTIVE + 1) {
+    const w = scores.slice(-(PLATEAU_CONSECUTIVE + 1))
+    const netGain = Math.max(...w) - w[0]
+    if (netGain <= PLATEAU_EPSILON) {
+      stopReason = `plateau (netGain=${netGain} ≤ ε=${PLATEAU_EPSILON}, scores=[${scores.slice(-4)}])`
+      log(`[STOP] ${stopReason}`)
+      break
+    }
+  }
+}
+
+resultLine    = `final_score: ${lastScore !== null ? lastScore : 'N/A'}`
+finalArtifact = String(lastOutput)

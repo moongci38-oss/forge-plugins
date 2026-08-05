@@ -77,7 +77,7 @@ Agent(subagent_type="advisor-strategist",
 ## Override 경로
 
 NOT DONE/UNVERIFIABLE 항목의 override 선언·재검증(단일 FR 재탐색, override당 1회)은
-`$HOME/.claude/rules-on-demand/verification-overrides.md` 스키마(`must_have/reason/accepted_by/at`) 참조.
+`~/.claude/rules-on-demand/verification-overrides.md` 스키마(`must_have/reason/accepted_by/at`) 참조.
 
 ## 주의사항
 

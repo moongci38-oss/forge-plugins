@@ -17,21 +17,21 @@ Forge Dev 파이프라인 Check 8.9 담당 하네스 무결성 감사자. read-o
 
 ## 컨텍스트
 
-Check 8.5와 병렬 실행 가능한 Forge Dev 파이프라인 단계. 입력은 `.specify/specs/*.md`, `pipeline.md`, `$HOME/.claude/skills/*/SKILL.md`, `${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md` 등 레포 내 파일이며, 수동 호출 시 `/agent-drift-auditor`로도 발동한다.
+Check 8.5와 병렬 실행 가능한 Forge Dev 파이프라인 단계. 입력은 `.specify/specs/*.md`, `pipeline.md`, `~/.claude/skills/*/SKILL.md`, `~/forge/.claude/agents/*.md` 등 레포 내 파일이며, 수동 호출 시 `/agent-drift-auditor`로도 발동한다.
 
 ## 검사 3종
 
 ### Check 1: 삭제 Agent 호출 감지 (HIGH)
 
 ```
-scan: .specify/specs/*.md, pipeline.md, $HOME/.claude/skills/*/SKILL.md 내 subagent_type 참조
-compare: ${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md 실재 파일 목록
+scan: .specify/specs/*.md, pipeline.md, ~/.claude/skills/*/SKILL.md 내 subagent_type 참조
+compare: ~/forge/.claude/agents/*.md 실재 파일 목록
 mismatch → drift_issues severity=HIGH
 ```
 
 **방법**:
-1. `grep -r "subagent_type" .specify/ pipeline.md $HOME/.claude/skills/` → 호출 목록 추출
-2. `ls ${FORGE_ROOT:-$HOME/forge}/.claude/agents/` → 실재 에이전트 목록
+1. `grep -r "subagent_type" .specify/ pipeline.md ~/.claude/skills/` → 호출 목록 추출
+2. `ls ~/forge/.claude/agents/` → 실재 에이전트 목록
 3. **호출 목록 − 실재 목록 = 결손 목록** → HIGH
    ⚠️ 2026-08-03 정정: 종전 표기는 `∩`(교집합)이었다 — 교집합은 "정상적으로 실재하는 호출"이라
    결손과 정반대다. 그대로 구현하면 멀쩡한 호출이 전부 HIGH 로 뜬다.
@@ -40,9 +40,9 @@ mismatch → drift_issues severity=HIGH
 ```bash
 comm -23 \
   <(grep -rhoE 'subagent_type["'"'"']?\s*[:=]\s*["'"'"']([A-Za-z0-9:_-]+)' \
-      .specify/ pipeline.md $HOME/.claude/skills/ 2>/dev/null \
+      .specify/ pipeline.md ~/.claude/skills/ 2>/dev/null \
     | grep -oE '["'"'"']([A-Za-z0-9:_-]+)["'"'"']$' | tr -d '"'"'"'"' | sort -u) \
-  <(ls ${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md 2>/dev/null | xargs -n1 basename | sed 's/\.md$//' | sort -u)
+  <(ls ~/forge/.claude/agents/*.md 2>/dev/null | xargs -n1 basename | sed 's/\.md$//' | sort -u)
 ```
 출력이 **비어 있으면 PASS**(결손 0). 한 줄이라도 나오면 그 이름이 호출되지만 실재하지 않는 에이전트다.
 
@@ -78,7 +78,7 @@ require: 동일 파일(또는 직접 호출 파일) 내 [STOP] / Human 승인 �
 ### Check 4: 모델 핀 누락·구버전 (MEDIUM)
 
 ```
-scan: ${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md frontmatter
+scan: ~/forge/.claude/agents/*.md frontmatter
 require: `model:` 키 존재 AND 값이 금지 목록(구버전 핀)에 없을 것
 누락 또는 구버전 → model_pin_drift severity=MEDIUM
 ```
@@ -92,13 +92,13 @@ require: `model:` 키 존재 AND 값이 금지 목록(구버전 핀)에 없을 �
 # 핀 누락 — frontmatter 에 `name:` 이 있는 파일만 '에이전트'로 센다.
 #   (agents/ 안에는 에이전트가 아닌 참고문서도 있다 — 예: healer-reference.md 는
 #    frontmatter 자체가 없다. 이걸 안 거르면 상시 1건 오탐이 난다. 2026-08-03 실측)
-for f in ${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md; do
+for f in ~/forge/.claude/agents/*.md; do
   fm=$(awk '/^---$/{n++; next} n==1' "$f")
   echo "$fm" | grep -q '^name:'  || continue
   echo "$fm" | grep -q '^model:' || echo "PIN-MISSING $(basename "$f")"
 done
 # 구버전 핀
-grep -lE '^model:.*(opus-4-8|opus-4-7|opus-4-6|sonnet-4-6)' ${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md 2>/dev/null \
+grep -lE '^model:.*(opus-4-8|opus-4-7|opus-4-6|sonnet-4-6)' ~/forge/.claude/agents/*.md 2>/dev/null \
   | xargs -r -n1 basename | sed 's/^/PIN-LEGACY /'
 ```
 출력 0줄 = PASS. (2026-08-03 실측 기준선: agents 36종 중 PIN-MISSING 0 · PIN-LEGACY 0.)

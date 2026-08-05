@@ -10,9 +10,11 @@ group: ops
 
 세션 상태를 확인하고 마지막 중단 지점부터 재개합니다.
 
+> 연속성 계약 ①~⑦ 전문 · 경로 SSoT → `rules-on-demand/handover-canon.md`
+
 ## 실행 순서
 
-1. `node $HOME/.claude/scripts/session-state.mjs list` 실행하여 활성 세션 목록 확인
+1. `node ~/.claude/scripts/session-state.mjs list` 실행하여 활성 세션 목록 확인
 2. 세션이 없으면 "No previous session found" 출력 후 종료
 3. 세션이 1개면 자동 선택, 2개 이상이면 목록 출력 후 사용자에게 선택 요청
 4. 선택된 세션의 상태 출력:

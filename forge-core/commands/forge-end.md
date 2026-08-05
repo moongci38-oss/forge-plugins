@@ -11,6 +11,8 @@ group: ops
 
 > 같은 세션을 계속 쓸 거면 여기가 아니라 `/forge-checkpoint`다(3분법: 새로 연다=start / 계속 쓴다=checkpoint / 완전히 닫는다=end).
 
+> 연속성 계약 ①~⑦ 전문 · 경로 SSoT · handover 8절 → `rules-on-demand/handover-canon.md`
+
 ## 실행
 
 ### 1. 착지 경로 결정 (계약 ⑤ — 워크트리 우회)
@@ -77,7 +79,7 @@ else
 fi
 ```
 
-**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)를 가리킨다. 세션 버스 워커(`--resume` 방식)는 `$HOME/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이다. 위 (c)의 "15분+ 무변화 & 핑 무응답 = 사망 판정" 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태이지 사망 신호가 아니다).
+**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)를 가리킨다. 세션 버스 워커(`--resume` 방식)는 `~/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이다. 위 (c)의 "15분+ 무변화 & 핑 무응답 = 사망 판정" 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태이지 사망 신호가 아니다).
 
 `## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. `BUS_WORKER_N=name|sid8|cwd|age|dormant`를 그대로 옮기고, "인계 지시"는 AI가 판단해 채운다(다음 세션이 이 워커에 무엇을 시켜야 하는지 1줄, 없으면 `-`):
 
@@ -119,8 +121,19 @@ project: forge         # repo 이름으로 정규화
 ### 4. **[게이트] 자가 대조 — 저장 직후 검증** (계약 ⑦(b))
 
 ```bash
-bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify "$HANDOVER_DIR/{파일명}"
+H="$HANDOVER_DIR/{파일명}"
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify "$H"
+
+# 민감정보 스캔 — handover 는 git 추적되어 팀 레포에 push 된다 (WARN, 저장을 막지 않음)
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-secret-scan.sh" "$H"
+
+# 미보고 갭 대조 — 실패는 적었는데 갭 리포트가 없으면 표면화한다 (WARN)
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/gap-signal-scan.sh" "$H"
 ```
+
+두 스캔은 **WARN 이지 BLOCK 이 아니다**(AD-168). 발견 항목은 지울지 남길지 사람이 정하고,
+남기기로 했으면 그 판단을 handover 에 적는다 — 판단을 남기는 것이 요점이다.
+규약 → `rules-on-demand/handover-canon.md §팀 공유 vs 개인`
 
 - `VERIFY=PASS` → 통과. 완료 보고에 `기록 무누락 게이트 PASS (8/8절)` 1줄 포함.
 - `VERIFY=FAIL` → `SECTION_MISSING`/`SECTION_EMPTY`로 지목된 절을 **보완한 뒤 재실행**. PASS 전에는 세션 종료 선언 금지.
@@ -136,14 +149,20 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-ind
 이번 세션 misfire(재작업·오추정·스킬 오작동·검수 지적·게이트 오탐)가 있었는데 learnings에 없으면 **지금 append**한다:
 
 ```bash
-bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/learnings.sh" append --category <process|decision|pge-failure|user-directive> \
+# 하네스/forge misfire → 전역 레인. `--global` 을 빼면 cwd 의 repo 루트 기준 PROJECT 레인으로
+# 조용히 떨어진다. /forge-end 는 거의 항상 프로젝트 repo 안에서 실행되므로 생략 = 오라우팅이 기본값이다.
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/learnings.sh" append --global --category <process|decision|pge-failure|user-directive> \
   --summary "<무엇을 하려다 왜 막혔나 1줄>" --apply "<다음에 이렇게>" \
   --evidence "session:{slug} | commit:{hash}"
+
+# 프로젝트 고유 버그 → 해당 repo 레인. 그 repo 안에서 `--global` **없이** 실행한다.
 ```
 
-라우팅 — **하네스/forge misfire = `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl`**(git 추적 = 전 PC 전파) / **프로젝트 고유 버그 = 해당 repo**. 없으면 skip(WARN-first, 강제 아님).
+라우팅 — **하네스/forge misfire = `~/forge/.claude/learnings.jsonl`**(git 추적 = 전 PC 전파, `--global`) / **프로젝트 고유 버그 = 해당 repo**(`--global` 생략). 없으면 skip(WARN-first, 강제 아님).
 
-하네스 결함·개선점은 별도로 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines-2/reviews/{main|local}/YYYY-MM-DD-{슬러그}-harness-gaps.md`에 저장한다(main=git 전파 조치 / local=이 PC 한정 조치).
+⚠️ append 는 성공 시 stderr 에 `→ <착지 파일 경로>` 를 찍는다. **rc=0 과 id 출력은 레인을 증명하지 않으므로** 그 경로를 눈으로 확인할 것(2026-08-04 실사고: 하네스 misfire 2건이 `forge-outputs` 레인으로 조용히 떨어졌다).
+
+하네스 결함·개선점은 별도로 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines-2/reviews/YYYY-MM-DD-{슬러그}-harness-gaps.md`에 저장한다 — **단일 폴더**다. 구 `main/`·`local/` 2분류는 2026-08-04 폐지됐고(`b24920ff`), 적용 범위는 폴더가 아니라 항목표의 **`적용` 열**(main=git 전파 / local=그 PC 한정)로 표현한다. 항목마다 **`재현:` 명령 1줄 필수** — 착수 전 `still-real.sh --plan` 게이트의 입력이 된다. 규약 SSoT → `rules-on-demand/forge-core-workflow-aux.md §하네스 갭 리포트 규약`
 
 ### 6. 팀 공유 동기화 (advisory·fail-open)
 

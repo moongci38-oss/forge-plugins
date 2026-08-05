@@ -56,7 +56,7 @@ disable-model-invocation: true
 
 ```bash
 # 직접 실행
-python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/goal-pev.py \
+python3 ~/forge/.claude/skills/qa/scripts/goal-pev.py \
   --condition "scope=auth 모든 시나리오 PASS" \
   --scope auth
 
