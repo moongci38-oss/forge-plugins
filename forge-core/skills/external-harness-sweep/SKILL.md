@@ -1,7 +1,17 @@
 ---
 name: external-harness-sweep
 description: "Use for full 1:1 source sweep of an external harness/skills repo against Forge → adoption matrix. Triggers: '외부 레포 전수 대조', '하네스 sweep', 'external sweep [url]', gstack/gsd/superpowers comparison. 5 phases: Scout→Inventory→Compare→Refute→Synthesize."
+disable-model-invocation: true
 ---
+
+> **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
+> 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> (2026-08-04 관측).
+
 
 # external-harness-sweep
 
@@ -17,13 +27,13 @@ description: "Use for full 1:1 source sweep of an external harness/skills repo a
 
 ## 출력
 
-`docs/reviews/final/<name>-sweep.json`(채택 매트릭스) + `11-platform/reports/<name>-forge-analysis-<date>.md`(종합 리포트) + `docs/planning/active/plans/<date>-<name>-apply-plan.md`(적용 계획서).
+`${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/final/<name>-sweep.json`(채택 매트릭스) + `11-platform/reports/<name>-forge-analysis-<date>.md`(종합 리포트) + `docs/planning/active/plans/<date>-<name>-apply-plan.md`(적용 계획서).
 
 ## 실행
 
 ```
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/external-harness-sweep/workflow.js"),
+  script: Bash("cat ~/.claude/skills/external-harness-sweep/workflow.js"),
   args: {
     target_url: "<외부 레포 git URL>",          // 필수
     target_name: "<slug>",                       // 선택 (없으면 URL 마지막 세그먼트)
@@ -62,7 +72,7 @@ Workflow({
 
 | 산출물 | 경로 |
 |-------|------|
-| 채택 매트릭스 JSON | `docs/reviews/final/<name>-sweep.json` |
+| 채택 매트릭스 JSON | `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/final/<name>-sweep.json` |
 | 종합 리포트 | `11-platform/reports/<name>-forge-analysis-<date>.md` |
 | 적용 계획서 | `docs/planning/active/plans/<date>-<name>-apply-plan.md` |
 

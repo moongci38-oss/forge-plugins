@@ -2,6 +2,7 @@
 description: "[DEPRECATED] → /forge-deploy stg 사용. develop → staging 승격 + 배포 위임 래퍼"
 model: haiku
 group: deploy
+disable-model-invocation: true
 ---
 
 # /forge-staging — [DEPRECATED 위임 래퍼]

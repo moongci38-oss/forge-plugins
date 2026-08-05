@@ -45,6 +45,19 @@ model: sonnet
 
 $ARGUMENTS
 
+## 출력 형식 (Artifact)
+
+모든 분석 리포트는 **Artifact XML 형식만**으로 stdout에 출력합니다. 파일 저장 불필요.
+
+```xml
+<artifact type="markdown" id="yt-{video_id}" title="{영상 제목}">
+{분석 내용 마크다운}
+</artifact>
+```
+
+- `report-formatter.mjs`의 `formatAsArtifact(title, content, 'markdown', id, true)` 사용
+- `stripFirstHeading: true` 옵션으로 첫 # 제목 자동 제거
+
 ## 수행 절차
 
 ### Step 1: 트랜스크립트 + 확장 데이터 추출
@@ -60,6 +73,13 @@ python3 shared/scripts/yt-analyzer/yt-analyzer.py $ARGUMENTS
 JSON 파일을 읽고 아래 신규 필드를 확인합니다:
 - `comments`: 상위 댓글 목록 (API 키 없으면 빈 배열)
 - `description_links`: 설명란 외부 링크 목록
+
+**보존소스 fidelity 규칙 (P3-22)**: 분석 워커에는 위 보존소스 **4종을 전량 공급**한다 —
+`full_text` · `timestamped_text` · `comments` · `description_links`.
+일부만 주면 워커는 없는 축을 '해당 없음'으로 단정하는데, 실제로는 **공급되지 않아 모를 뿐**이다.
+부득이 부분 공급할 때는 브리프에 부재 축을 **'검수범위 외(미공급)'** 로 명시하고,
+그 축에 대한 판단을 산출물에 쓰지 못하게 한다. 빈 배열(예: API 키 없어 comments=[])과
+미공급은 **다른 상태**다 — 빈 배열은 '없음'이지만 미공급은 '모름'이다.
 - `tags`: 영상 태그 목록
 - `description`: 설명란 전체 텍스트
 
@@ -182,7 +202,7 @@ Agent(haiku) ×N (핵심 주장별 1개): "이 주장의 반박·대안·한계�
 시스템 비교분석 **직전에** 아래 4단계 검증을 수행하여 Step 2.9의 입력을 정확하게 만든다.
 
 **GTC-1: 관련성 필터** — 영상에서 언급된 도구/서비스가 우리 시스템에서 실제 사용 중인지 확인
-- Read: `.mcp.json`, `$HOME/.claude.json` (MCP 서버 목록)
+- Read: `.mcp.json`, `~/.claude.json` (MCP 서버 목록)
 - Read: `forge-workspace.json` (활성 프로젝트)
 - Glob: `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`
 - 영상의 도구/서비스 언급을 위 파일에서 검색
@@ -190,7 +210,7 @@ Agent(haiku) ×N (핵심 주장별 1개): "이 주장의 반박·대안·한계�
 
 **GTC-2: 기구현 확인** — 영상의 제안/패턴이 이미 우리 시스템에 존재하는지 확인
 - Glob: `.github/workflows/*.yml` (GitHub Actions)
-- **Grep(내용 검색) 필수 — Glob(파일명 목록)만으로 "미적용" 단정 금지**: 각 제안 역량의 키워드로 `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `.claude/scripts/**`, `${FORGE_ROOT:-$HOME/forge}/shared/scripts/**`, `$HOME/.claude/rules*/*.md` **내용**을 Grep한다. (근본원인: 스킬명만 보고 역량을 놓치는 false gap — 실사례 2026-07-03 playwright-parallel-test/visual-loop/healer, promote-learnings.sh 누락)
+- **Grep(내용 검색) 필수 — Glob(파일명 목록)만으로 "미적용" 단정 금지**: 각 제안 역량의 키워드로 `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `.claude/scripts/**`, `~/forge/shared/scripts/**`, `~/.claude/rules*/*.md` **내용**을 Grep한다. (근본원인: 스킬명만 보고 역량을 놓치는 false gap — 실사례 2026-07-03 playwright-parallel-test/visual-loop/healer, promote-learnings.sh 누락)
 - **증거 원장(evidence ledger) 강제**: 비교 매트릭스의 어떤 행을 `미적용/부재/갭`으로 라벨하려면 그 행마다 기록 — `검색 위치` / `grep 쿼리` / `검토한 히트` / `왜 불충분` / `최종 라벨`. 원장 없는 `미적용` 행 금지. grep 히트 있으면 `기구현` 또는 `부분적용(차이 명시)`로 라벨.
 - **[자가검증 게이트]** 시스템 비교 테이블 출력 직전, 각 갭 행에 grep 증거가 첨부됐는지 자가 확인. 누락 시 테이블 생성 중단 후 grep 선행(인라인 자동 수정 — Human [STOP] 아님).
 - **이미 구현된 기능을 개선 제안하는 경우** → 비교 매트릭스에서 "기구현" 표기, 제안 목록에서 제거
@@ -298,7 +318,7 @@ analysis md(+ comparison + apply-plan, 존재 시)를 단일 HTML 대시보드�
 
 ```bash
 ANALYSIS="01-research/videos/analyses/{date}-{video_id}-{slug}-analysis.md"
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
+python3 ~/forge/shared/scripts/report_to_html.py \
   "${ANALYSIS%-analysis.md}-dashboard.html" --title "YT 분석 — {title}" \
   --subtitle "{channel}" \
   "$ANALYSIS" \
@@ -311,7 +331,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 
 **산출물 사후 정정 시**: .md 수정 후 반드시 위 `report_to_html.py` 명령으로 HTML 재생성할 것.
 md만 고치면 `dashboard.html` 이 silent stale 상태가 됨(false fact 잔존).
-stale 여부 확인: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analyzer/yt-sync-check.py {date} {video_id}` (exit 1 = stale, exit 0 = OK).
+stale 여부 확인: `python3 ~/forge/shared/scripts/yt-analyzer/yt-sync-check.py {date} {video_id}` (exit 1 = stale, exit 0 = OK).
 
 ### Step 4.95 — 최종 완료 게이트 (필수, Notion 업로드·완료 선언 직전)
 
@@ -322,7 +342,7 @@ stale 여부 확인: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analy
    - `{outputsRoot}/docs/reviews/{date}-{slug}-comparison.md` (tech 영상만 — 비기술이면 제외)
    - `{outputsRoot}/docs/planning/active/plans/{date}-{slug}-apply-plan.md` (tech 영상만)
    - 멀티 영상 종합 시: `{outputsRoot}/docs/planning/active/plans/{date}-yt-{주제slug}-consolidated-apply-plan.md`
-2. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh <위 절대경로 전부>`
+2. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh <위 절대경로 전부>`
 3. 스크립트 출력 표를 **그대로** 완료 보고로 사용. 표 밖에서 "완료" 임의 서술 금지.
 4. exit 2면 "완료" 선언 금지 — 누락 산출물 재생성 후 재검증(exit 0)까지 Step 5(Notion 업로드) 진행 금지.
 
@@ -335,7 +355,7 @@ daily의 학습자료 제공과 동일한 규약 (2026-07-18 배선). **텔레�
    ```bash
    TLDR_FILE="${CLAUDE_JOB_DIR:-/tmp}/yt-tldr-$(date +%s).md"
    sed -n '/^## TL;DR/,/^## /p' "{analysis.md}" | head -40 > "$TLDR_FILE"
-   bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/tg-report-analysis.sh \
+   bash ~/forge/shared/scripts/tg-report-analysis.sh \
      "🎬 YT 분석 — {title}" \
      "$TLDR_FILE" \
      "{analysis.md}" "{study-notes.md (있으면)}"
@@ -370,7 +390,7 @@ daily의 학습자료 제공과 동일한 규약 (2026-07-18 배선). **텔레�
    ```
 2. 스크립트로 원자적 추가:
    ```bash
-   echo '{"video_id":"abc123",...}' | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analyzer/append_index_record.py
+   echo '{"video_id":"abc123",...}' | python3 ~/forge/shared/scripts/yt-analyzer/append_index_record.py
    ```
 3. exit 0 확인 후 진행. **index.json은 절대 Write로 직접 수정 금지. 실패 시 수동 Write 폴백 금지 — 정지·보고.**
 
@@ -417,39 +437,12 @@ daily의 학습자료 제공과 동일한 규약 (2026-07-18 배선). **텔레�
 
 ## 자동 평가 (eval-rubric 통합)
 
-본 스킬 결과 산출 후 자동으로 `eval-rubric` 호출 → 4축 Rubric 채점 (clarity/consistency/completeness/safety) → `eval_cases.jsonl` 누적.
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-> **codex-review vs eval-rubric**: Step 4.7의 `codex-review`는 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점 (clarity/consistency/completeness/safety). 둘 다 발화 — 영역이 다름.
+- **target**: analysis md (`01-research/videos/analyses/{date}-{slug}-analysis.md`) 저장 직후
+- **case_id**: `EC-yt-{N}` · **eval_cases**: `~/.claude/skills/yt/eval_cases.jsonl`
 
-### 호출 시점
-- analysis md (`01-research/videos/analyses/{date}-{slug}-analysis.md`) 저장 직후
-
-### 절차
-1. 스킬 산출물 저장 후 다음 호출:
-   ```
-   /eval-rubric --target {analysis md 경로}
-   ```
-2. eval-rubric의 verdict (PASS/WARN/FAIL) + 4축 점수 + rationale 수신
-3. `eval_cases.jsonl` append:
-   - 위치: `$HOME/.claude/skills/yt/eval_cases.jsonl`
-   - case_id: `EC-yt-{N}` (auto-increment)
-   - split: holdout 결정 (`hash(case_id) % 100 < 20` → holdout, 그 외 sample)
-   - dedupe key: `sha256(skill+input.context+input.args)` 충돌 시 observed_count++
-
-### 자동 비활성 조건
-- 환경변수 `EVAL_RUBRIC_AUTO=off` 설정 시 스킵
-- 본 스킬 frontmatter에 `eval_cases: off` 명시 시 스킵
-
-### 통합 효과
-- FAIL 케이스 자동 누적 → 회귀 평가 데이터셋 구축
-- WARN 시 사용자 알림 (자동 차단 X — 본 스킬 verdict 우선)
-- 분기별 Harness GC 사이클의 Quality Audit 입력으로 활용
-
-### 보안 / 데이터 보호
-- eval-rubric의 입력 redaction 정책 자동 적용
-- 산출물에 secret/PII 의심 시 → STOP fail-safe
-
-> 출처: 하네스 백과사전 제5장, eval_cases.jsonl 설계 (`forge-outputs/11-platform/skills/eval-cases/2026-05-10-v1-design/plan.md`)
+> **codex-review vs eval-rubric**: Step 4.7의 `codex-review`는 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점. 둘 다 발화 — 영역이 다름(아래 §호출 순서 합성 룰 참조).
 
 ---
 
@@ -526,4 +519,4 @@ Agent(
 
 - **GTC 기구현 확인을 Glob(파일명)만으로 단정 금지** — 스킬/스크립트 '내용 grep' 없이 "미적용 갭"으로 단정해 false gap 2연속 발생. 내장 기능·런타임 기능은 파일명에 안 보인다. (증거: learnings `L-20260703T015846-3a9960f3`, `L-20260712T031446`)
 - **yt/ 폴더는 gitignore 상태에서 SKILL.md만 grandfathered tracked** — 신규 참조 파일(reference.md 등)을 폴더에 추가하면 커밋이 조용히 차단된다. 분할 배치 전 `.gitignore` 선확인. (증거: learnings `L-20260705T131617-185f0342`)
-- **Notion 인증 실패 시 즉시 Tier 2(index.json) 전환** — 질문 대기 금지. (증거: `$HOME/.claude/rules/tool-rules.md §Notion 인증 실패`)
+- **Notion 인증 실패 시 즉시 Tier 2(index.json) 전환** — 질문 대기 금지. (증거: `~/.claude/rules/tool-rules.md §Notion 인증 실패`)

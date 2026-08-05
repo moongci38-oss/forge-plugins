@@ -9,7 +9,7 @@ group: plan
 
 Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 
-> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `$HOME/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
+> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `~/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
 
 ## 모델 라우팅 (2026-07-04)
 
@@ -19,7 +19,7 @@ Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 | 탐색(기존 spec/ADR 충돌·데이터 스키마 확인) | **Haiku** | `Agent(model:"haiku")` |
 | 고위험 전략 자문(범위/NFR) | **Opus** | `advisor-strategist` |
 
-근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
+근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
 
 ## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
 
@@ -54,7 +54,7 @@ Phase-hard-gate 순서:
      - codex 가용 + FAIL 반환 → Spec 재작성 후 재통과 필수 (blocking 유지)
      - codex/MCP 미가용(도구 부재·인증 실패 등) → fail-open + WARN
        ("Codex 미가용 → advisory로 강등, 수동 리뷰 권고") 명시 후 Phase 진행
-       (근거: `$HOME/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
+       (근거: `~/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
      ↓
   4. [STOP] Human 승인
      ↓
@@ -134,6 +134,13 @@ Spec 작성 **전** 기존 Spec·ADR 충돌 체크 의무. **판정 결과: 충�
 AI/LLM 기능 포함 Spec 감지(`LLM`/`AI`/`embedding`/`vector`/`RAG` 키워드, `model` 단독 false-trigger 방지) 시 4-agent sequential pipeline(framework-selector → researcher → domain-researcher → eval-planner) 실행 → 산출물 `AI-SPEC.md`(locked design contract, Edit-only). AI 기능 없는 Spec은 생략.
 > 실행 시 상세 Read (파이프라인 전체·AI-SPEC.md 형식): `rules-on-demand/forge-spec-phases-detail.md §Phase 2.9 AI-integration 파이프라인`.
 > ⚠️ 조사 축약 체크: researcher/domain-researcher 단계를 스킵·축약했다면 spec 상단에 `research: abbreviated`로 명시하고 근거를 1줄 남긴다 — 무언 축약 금지 (online-mode M-4).
+> ⚠️ **수치 축약 금지**: spec 본문의 수량·금액·임계값은 `N만`·`N억`·`Nk` 같은 축약 표기 대신
+> **절대값을 병기**한다(예: `월 3만` → `월 30,000건(3만)`). 축약 표기는 자릿수 오독이 일어나도
+> 요구사항이 10배 어긋난 채 리뷰를 통과한다 — 숫자가 틀렸다는 신호가 문장 어디에도 남지 않기
+> 때문이다. Phase 2.6 측정가능성 검사에서 축약 단독 표기를 발견하면 WARN 으로 되돌린다.
+> (이 항목은 §조사 축약과 다른 주제다 — 그쪽은 *공정* 축약, 이쪽은 *표기* 축약이다.)
+>
+> ⚠️ 수치와 그 조사 근거를 **한 문자열로 결합하지 말 것**: `mem_level=1 (실유저)` 처럼 수치와 근거를 분리 표기한다. 결합해 쓰면 수치만 인용될 때 근거가 떨어져 나가 출처 없는 상수가 된다 (online-mode M-4 원 요구 — 위 '조사 축약' 항목은 같은 태그가 붙었으나 다른 주제였다).
 
 **M7 EXIT self-check** (`/readiness-gate §M7`): P4 EXIT 전수 확인 → `forge-spec-exit-readiness-{date}.md` 자동생성. **판정 결과: FAIL = [STOP] + 보강 작업지시**. EXIT ②는 존재 확인 + Phase 2.6 측정가능성 통과(WARN=0) 모두 충족해야 PASS.
 > 실행 시 상세 Read (EXIT ② 판정 강화 해설): `rules-on-demand/forge-spec-phases-detail.md §M7 EXIT 판정 강화`.

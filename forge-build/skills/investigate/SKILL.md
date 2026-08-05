@@ -18,7 +18,7 @@ model: sonnet
 ## Workflow 통합 (계획서 P2-7)
 RAG 선검색 → 조사 → 분석 → 가설 검증 컨텍스트 격리. Stage 4+5(재현+수정)는 human gate 후 healer/forge-pge 위임.
 패턴: RAG(Explore) → Investigate(소스+gitnexus) → Analyze(가설 2개+) → Verify → [STOP] human gate.
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })`
 skipVerify=true → Stage 3 skip, 가설 목록만 반환. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 직접 실행 fallback.
 
 ## 핵심 철칙
@@ -102,23 +102,7 @@ Stage 2(분석) 및 Stage 3(가설 검증) 진행 시, 4가지 추론 모델(bin
 
 **시작 전**: `.claude/reference/codebase-analysis.md` 존재 시 Read → 아키텍처·의존성 그래프 파악 후 영향 범위 추론에 활용
 
-```markdown
-## 증상
-- 무엇이 발생하는가:
-- 언제 발생하는가:
-- 어디서 발생하는가:
-- 재현 가능한가: [Yes/No/간헐적]
-- 재현 계정: [예: test_j만 / test_j + test_m 동일 / 모든 계정]
-
-## 재현 단계
-1. ...
-2. ...
-3. → 여기서 문제 발생
-
-## 기대 동작 vs 실제 동작
-- 기대: ...
-- 실제: ...
-```
+증상 기록 출력 템플릿 → `references/report-template.md §Stage 1 — 증상 기록`
 
 수집 방법:
 - 에러 로그/스택 트레이스 읽기
@@ -149,7 +133,7 @@ Stage 2(분석) 및 Stage 3(가설 검증) 진행 시, 4가지 추론 모델(bin
 **과거 버그 자동 검색 (필수)**: Stage 1 시작 시 두 채널로 유사 버그 확인.
 ```bash
 # (1) learnings.jsonl 의 bug-fix-pattern (compounding — global + project, access.log 자동 기록)
-LEARN_BY=investigate bash $HOME/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
+LEARN_BY=investigate bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
 # (2) rag-search (보완 — forge-outputs/01-research/bugs/ 본문 검색)
 rag-search("{project} {증상 키워드}")
 ```
@@ -201,19 +185,7 @@ For EACH component boundary:
 6. "이 파일만 보면 된다" — Stage 1 boundary 진단으로 레이어 확정 전 단일 파일 한정 금지.
 7. "테스트가 통과하니 원인이 아니다" — 테스트가 해당 경로를 커버하는지 먼저 확인.
 
-```markdown
-## 가설 목록
-| # | 가설 | 가능성 | 근거 |
-|---|------|:-----:|------|
-| 1 | ... | High | ... |
-| 2 | ... | Medium | ... |
-| 3 | ... | Low | ... |
-
-## 제외된 가설
-| 가설 | 제외 이유 |
-|------|---------|
-| ... | ... |
-```
+가설 목록/제외된 가설 출력 템플릿 → `references/report-template.md §Stage 2 — 가설 목록 / 제외된 가설`
 
 분석 방법:
 - 5 Whys (왜? 5번 반복)
@@ -231,12 +203,7 @@ For EACH component boundary:
 
 가장 가능성 높은 가설부터 검증한다.
 
-```markdown
-## 검증 결과
-| 가설 | 검증 방법 | 결과 | 확정? |
-|------|---------|------|:----:|
-| 1 | ... | ... | ✅/❌ |
-```
+검증 결과 출력 템플릿 → `references/report-template.md §Stage 3 — 검증 결과`
 
 검증 방법:
 - 최소 재현 코드 작성
@@ -283,12 +250,7 @@ Advisor 응답 받아 Stage 3 진행 순서 결정.
 > **Prove-It 원칙**: 버그를 코드로 증명한 후에만 수정한다.
 > 재현 테스트 없는 수정은 "고쳤다고 생각했는데 다시 터짐"의 원인이다.
 
-```markdown
-## 재현 테스트
-- 테스트 파일: ...
-- 테스트 내용: [버그를 정확히 재현하는 테스트]
-- 실행 결과: ❌ FAIL (버그가 재현됨을 확인)
-```
+재현 테스트 출력 템플릿 → `references/report-template.md §Stage 4 — 재현 테스트`
 
 프로세스:
 1. 버그를 정확히 재현하는 테스트 작성
@@ -302,24 +264,7 @@ Advisor 응답 받아 Stage 3 진행 순서 결정.
 
 재현 테스트가 FAIL하는 것을 확인한 후에만 수정한다.
 
-```markdown
-## 근본 원인
-[1문장으로 정확히 기술]
-
-## 수정 내용
-- 파일: ...
-- 변경: ...
-- 이유: ...
-
-## 검증
-- [ ] 재현 테스트 → ✅ PASS (수정 확인)
-- [ ] 기존 테스트 → ✅ 전체 PASS (회귀 없음)
-
-## 재발 방지
-- [ ] 재현 테스트가 CI에 포함됨
-- [ ] /learn에 패턴 저장
-- [ ] 관련 규칙/문서 업데이트
-```
+근본 원인/수정 내용/검증/재발 방지 출력 템플릿 → `references/report-template.md §Stage 5 — 근본 원인 / 수정 내용 / 검증 / 재발 방지`
 
 #### 3-fix 에스컬레이션
 
@@ -413,7 +358,7 @@ Stage 5 수정 완료 후 **반드시** bug log를 forge-outputs에 저장한다
 **+ learnings.jsonl 1줄 append (compounding — 필수)**: bug log MD 저장 후, 그 요약을 learnings에도 기록한다 (다음 세션·동료가 `learnings.sh load bug-fix-pattern`으로 자동 참조). 헬퍼가 sanitize(스택트레이스 full/토큰 차단)·collision-id·validate 처리:
 
 ```bash
-bash $HOME/.claude/scripts/learnings.sh append --category bug-fix-pattern \
+bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
   --summary "<증상 1줄>" \
   --trigger "<재현 조건 1줄>" \
   --apply "<근본 원인 + 수정 패턴 1줄>" \
@@ -426,7 +371,7 @@ bash $HOME/.claude/scripts/learnings.sh append --category bug-fix-pattern \
 ```bash
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)
 [ -d "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index" ] && [ "$REPO" != unknown ] && \
-  OPENAI_API_KEY="" timeout 180 bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" >/dev/null 2>&1 || true
+  OPENAI_API_KEY="" timeout 180 bash ~/forge/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" >/dev/null 2>&1 || true
 ```
 
 ### Stage 7: Codex bugfix 적대적 리뷰 (Plan v2-C1, 자동, 권고)

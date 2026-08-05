@@ -6,6 +6,15 @@ context: fork
 model: opus
 ---
 
+> **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
+> 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> (2026-08-04 관측).
+
+
 **역할**: 당신은 ACHCE 5축 에이전트를 병렬 스폰하여 AI 시스템을 통합 감사하는 수석 시스템 감사 오케스트레이터입니다.
 **컨텍스트**: `/system-audit` 호출 또는 종합 AI 시스템 점검이 필요할 때 실행됩니다.
 **출력**: 5축 병렬 감사 결과 + 축간 트레이드오프 분석 + 통합 개선 로드맵을 마크다운 보고서로 반환합니다.
@@ -53,7 +62,7 @@ model: opus
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$FORGE_ROOT/.claude/` 또는 `$HOME/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `system` | `$FORGE_ROOT/.claude/` 또는 `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -81,26 +90,26 @@ Workflow 스크립트는 셸 불가 → **기동 前 외부 선발행** 필수 (
 ```bash
 TODAY=$(date +%Y-%m-%d); SLUG="system-audit-${TODAY}"
 # --cr 플래그로 Codex 레그 제어: on(기본) | degrade | off
-# CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
+# CR_MODE=$(~/forge/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
 CR_MODE="${CR_MODE:-on}"
 
 # crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 스킵)
 if [ "$CR_MODE" = "on" ]; then
-  FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+  FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
     --task "$SLUG" --worker codex-critic --tools mcp__codex__codex --paths "$TARGET"
 fi
-FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
   --task "$SLUG" --worker gemini --tools mcp__gemini__analyze_media --paths "$TARGET"
 # 그 후 Workflow 기동
 Workflow({
-  script: Read("${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"),
+  script: Read("~/forge/.claude/skills/system-audit/workflow.js"),
   args: { date: TODAY, projectRoot: TARGET, slug: SLUG, crMode: CR_MODE }
 })
 ```
 
 > nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (cr-multi 참조).
 > `--cr` 값: `on`(기본, 3-LLM) | `degrade`(Codex rate-limit/비용 절감 시) | `off`(Codex 완전 비활성).
-> `cr-mode.sh` 경로: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
+> `cr-mode.sh` 경로: `~/forge/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
 
 Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 아래 Wave 1~4 fallback 실행.
@@ -209,7 +218,7 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 
 **2-3. 트렌드 비교 (Delta Analysis)**
 
-이전 감사 보고서가 존재하면 (`docs/reviews/audit/` 폴더) 최신 보고서와 비교:
+이전 감사 보고서가 존재하면 (`${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/` 폴더) 최신 보고서와 비교:
 - 각 축 점수 변화량 (Δ)
 - 이슈 해소율 = (이전 이슈 중 해결된 수 / 이전 전체 이슈) × 100
 - 신규 이슈 발생 수
@@ -240,118 +249,16 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 
 ### Wave 3: 통합 보고서 작성
 
-**저장 위치:** `docs/reviews/audit/{date}-system-audit[-{target}].md`
+**저장 위치:** `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit[-{target}].md`
 (`target`이 `system`이면 suffix 생략)
 
-**보고서 형식:**
-
-```markdown
-# ACHCE 5축 통합 시스템 감사 보고서
-
-**대상**: {target} | **날짜**: {date}
-
-## Executive Summary
-
-**전체 ACHCE 점수: {전체점수}/100**
-
-| 축 | 점수 | 등급 | 핵심 발견 |
-|----|:----:|:----:|---------|
-| Agentic | {A}/100 | ⭐~⭐⭐⭐⭐⭐ | |
-| Context | {C}/100 | | |
-| Harness | {H}/100 | | |
-| Cost | {Co}/100 | | |
-| Human-AI | {E}/100 | | |
-
-> 등급 기준: 90+ ⭐⭐⭐⭐⭐ / 75+ ⭐⭐⭐⭐ / 60+ ⭐⭐⭐ / 45+ ⭐⭐ / <45 ⭐
-
-## 1. 축별 감사 결과 요약
-
-### 1.1 Agentic (자율성·도구·멀티에이전트)
-{axis-agentic summary + top 2 issues}
-
-### 1.2 Context (컨텍스트 엔지니어링)
-{axis-context summary + top 2 issues}
-
-### 1.3 Harness (측정·제어·보안)
-{axis-harness summary + top 2 issues}
-
-### 1.4 Cost (비용 효율)
-{axis-cost summary + top 2 issues}
-
-### 1.5 Human-AI (경계 설계)
-{axis-human-ai summary + top 2 issues}
-
-### 1.6 Redundancy (중복/drift 감지) ← 신규
-| 유형 | 항목 | 권고 | 위험도 |
-|------|------|-----|:-----:|
-| 스킬 중복 | {names} | merge | LOW |
-| orphan agent | {names} | archive | MED |
-| deprecated | {names} | archive | LOW |
-| hook theater | {files} | fix | MED |
-| rule overlap | {files} | merge | LOW |
-
-요약: 중복 {N}건 / orphan {N}건 / deprecated {N}건 / theater {N}건
-
-## 2. 축간 트레이드오프 분석
-
-| 트레이드오프 | 현재 균형 | 권장 방향 |
-|------------|:--------:|---------|
-| Cost vs Harness | | |
-| Agentic vs Human-AI | | |
-| Context vs Cost | | |
-
-## 3. 정량 지표 대시보드
-
-| 축 | 지표 | 측정값 | 기준값 | 측정 유형 | 판정 |
-|----|------|:-----:|:-----:|:--------:|:---:|
-| Agentic | 도구 커버리지율 | | > 60% | 실측 | |
-| Context | 세션 시작 토큰 | | < 12,000 | 추정 | |
-| Context | MEMORY 항목 수 | | < 30 | 실측 | |
-| Context | 규칙 중복률 | | < 10% | 추정 | |
-| Harness | Hook 커버리지 | | > 70% | 실측 | |
-| Harness | OWASP 커버리지 | | > 50% | 실측 | |
-| Cost | 모델 계층화율 | | > 60% | 실측 | |
-| Cost | 조건부 로딩률 | | > 50% | 실측 | |
-| Human-AI | 게이트 커버리지 | | 100% | 실측 | |
-
-## 4. 트렌드 비교 (이전 감사 대비)
-
-| 축 | 이전 | 현재 | Δ | 방향 |
-|----|:----:|:----:|:--:|:---:|
-
-> 이전 감사 없으면 "첫 감사 — 베이스라인 설정" 표기
-
-**이슈 해소율**: N/A (또는 이전 이슈 대비 해결률)
-
-## 5. 통합 이슈 목록
-
-### CRITICAL (즉시 대응)
-### HIGH (이번 주)
-### MEDIUM (이번 달)
-### LOW (모니터링)
-
-## 6. 강점 요약
-
-## 7. 통합 개선 로드맵
-
-### P0 — 즉시 (이번 주)
-### P1 — 단기 (이번 달)
-### P2 — 중기 (다음 분기)
-
-## 6. 재감사 권장 시점
-
-- CRITICAL 이슈 해결 후 즉시
-- 정기 감사: 분기 1회 권장
-
-## 참조
-- $FORGE_OUTPUTS/docs/tech/2026-03-16-5-axis-ai-analysis-framework.md
-```
+Wave3 통합 보고서 템플릿 → `references/report-template.md`
 
 ---
 
 ### Wave 3.9: 최종 완료 게이트 (필수, Notion 등록·완료 보고 이전)
 
-1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "docs/reviews/audit/{date}-system-audit.md"`
+1. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"`
 2. 스크립트 출력 표를 완료 보고에 포함. 표 밖 임의 "완료" 서술 금지.
 3. exit 2(MISSING/0바이트)면 Wave 4 Notion 등록 및 "## 완료 보고" 출력 금지 — 보고서 재생성 후 재검증(exit 0) 통과 시에만 진행한다.
 
@@ -359,7 +266,7 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 
 보고서 작성 완료 후 Notion에 전체 내용을 기록한다.
 
-1. `Read("docs/reviews/audit/{date}-system-audit.md")` → 전체 내용 로드
+1. `Read("${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md")` → 전체 내용 로드
 2. `mcp__notion__notion-create-pages` 호출:
 
 ```json
@@ -380,7 +287,7 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
       "상태": "완료",
       "CRITICAL": "{전체 CRITICAL 이슈 수}",
       "HIGH": "{전체 HIGH 이슈 수}",
-      "보고서 경로": "docs/reviews/audit/{date}-system-audit.md"
+      "보고서 경로": "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"
     },
     "content": "{보고서 전체 내용}"
   }]
@@ -407,7 +314,7 @@ Wave 3.9 최종 완료 게이트(exit 0) 통과 후에만 아래 형식으로 �
 
 이슈: CRITICAL {n}건 / HIGH {n}건 / MEDIUM {n}건
 
-보고서: docs/reviews/audit/{date}-system-audit.md
+보고서: ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md
 ```
 
 
@@ -469,8 +376,8 @@ Agent(
 ```bash
 TODAY=$(date +%Y-%m-%d)
 # CR_MODE: on(기본 3-LLM) | degrade(Codex 스킵, Claude+Gemini) | off(동일)
-# ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh 로 자동 결정 가능
-Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
+# ~/forge/shared/scripts/cr-mode.sh 로 자동 결정 가능
+Workflow({ script: Bash("cat ~/forge/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
 ```
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 Wave 1~4 fallback.
@@ -490,6 +397,6 @@ Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-au
 이슈: CRITICAL {n}건 / HIGH {n}건 / MEDIUM {n}건
 검증: {verified}/{total} 통과 (3-LLM 2/3 합의)
 
-보고서: docs/reviews/audit/{date}-system-audit.md
+보고서: ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md
 ```
 

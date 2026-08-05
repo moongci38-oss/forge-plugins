@@ -33,7 +33,7 @@ const EVAL_SCHEMA = {
   type: 'object',
   properties: {
     verdict: { type: 'string', enum: ['PASS', 'WARN', 'FAIL'] },
-    score: { type: 'number' },
+    score: { type: 'number', minimum: 0, maximum: 100 },
     issues: { type: 'array', items: { type: 'string' } },
   },
   required: ['verdict', 'score'],
@@ -67,10 +67,10 @@ const evaluation = await agent(
   `코드 결과물만 독립 판정. 원본 계획 정보 없음 — 구현 자체 품질만 평가. ` +
   `summary: ${code?.summary}. filesChanged: ${JSON.stringify(code?.filesChanged)}. ` +
   `diff: ${(code?.diff || '').slice(0, 4000)}. ` +
-  `acceptance 기준 충족 여부를 코드만으로 역추론. verdict PASS/WARN/FAIL + score + issues.`,
+  `acceptance 기준 충족 여부를 코드만으로 역추론. verdict PASS/WARN/FAIL + score(0-100 정수) + issues.`,
   { label: 'evaluate', phase: 'Evaluate', schema: EVAL_SCHEMA }
 )
-log(`Evaluate: ${evaluation?.verdict} score=${evaluation?.score}`)
+log(`Evaluate: ${evaluation?.verdict} score=${evaluation?.score}/100`)
 
 return {
   verdict: evaluation?.verdict,

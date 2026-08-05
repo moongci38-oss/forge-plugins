@@ -12,7 +12,7 @@ group: plan
 
 P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 **P3 상세 기획 패키지**를 작성하는 단일 진입 커맨드.
 
-> 절차 정본 = `${FORGE_ROOT:-$HOME/forge}/pipeline.md` "## P3: Dev Plan+Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 3 게이트). 본 커맨드는 그 절차의 실행 래퍼.
+> 절차 정본 = `~/forge/pipeline.md` "## P3: Dev Plan+Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 3 게이트). 본 커맨드는 그 절차의 실행 래퍼.
 
 ## 모델 라우팅 (2026-07-04)
 
@@ -23,7 +23,7 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 | 기술 검토(7축 ADR) | (기존) | `cto-advisor` 에이전트/스킬 |
 | 비기술 전략 자문 | **Opus** | `advisor-strategist` |
 
-근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
+근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
 
 ## 사용법
 
@@ -37,11 +37,6 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 > **greenfield 한정** — brownfield(임의 legacy 코드/도메인 역설계·retrofit)는 본 파이프라인 범위 밖, 별도 `migration-audit` 트랙.
 > **단 기존 Forge P2/P3 산출물의 delta 검증·보강(M5)은 유효**(범위 내) — M5 검증·보강 모드(Step 1-M5)가 이 경로를 처리한다.
 > 즉: "기존 Forge 산출물 보강 = in-scope / 임의 legacy retrofit = out-of-scope"
-
-## 전제조건
-
-- `PIPELINE-IRON-1`: P2 기획서(`s3-prd.md` 또는 `s3-gdd.md`) + `s3-style-guide.md` + `s3-mockup/` 없이는 진입 금지 — 기획서 absent 시 GUIDE-STOP, 형식 불일치는 ADAPT 자동보완
-- 산출물 경로 `{project-root}` = `forge-outputs/02-product/{project-slug}/` (`folderMap.product` 해석 결과)
 
 ## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
 
@@ -57,6 +52,11 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 4. 적중 건이 있으면 기획 패키지 본문 "선행 지식" 항목에 출처 링크로 남긴다.
 
 > T3 미연결(강등) 세션이면 조회 결과가 팀과 다를 수 있다 — 세션 시작 배너(`t2-degraded-banner.sh`) 경고를 그대로 신뢰하고, 중요한 근거는 T3 복구 후 재조회한다.
+
+## 전제조건
+
+- `PIPELINE-IRON-1`: P2 기획서(`s3-prd.md` 또는 `s3-gdd.md`) + `s3-style-guide.md` + `s3-mockup/` 없이는 진입 금지 — 기획서 absent 시 GUIDE-STOP, 형식 불일치는 ADAPT 자동보완
+- 산출물 경로 `{project-root}` = `forge-outputs/02-product/{project-slug}/` (`folderMap.product` 해석 결과)
 
 ## Phase 0 — Readiness 판정 (요건 기반 3-way 게이트)
 
@@ -307,7 +307,7 @@ domains:
 
 ### Step 5 — 게이트 판정 (Check 4 — 모두 충족. 리포트 = 패턴 매칭 중 mtime 최신 1개 `ls -t {dir}/{pattern} | head -1`. 매칭 0개 = FAIL)
 <!-- mtime 기준 선정 이유: `-r2`/`-r3` 재시도 접미사는 사전순 정렬을 깨뜨림 (`-` 0x2D < `.` 0x2E → `...-r2.md`가 `....md`보다 사전순 앞섬), 따라서 `sort | tail -1`은 원본(stale) 리포트를 오선택할 수 있음 -->
-1. `bash $HOME/.claude/scripts/forge-gate-check.sh {project} S4` → PASS (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
+1. `bash ~/.claude/scripts/forge-gate-check.sh {project} S4` → PASS (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
 2. `wave2-verification-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Missing: 0$'` && `grep '^Critical: 0$'`
 3. `wave3-cto-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Critical: 0$'`
 4. `ui-check-*.json` mtime 최신: `jq '.verdict == "PASS" and .critical_count == 0'` == true
@@ -374,4 +374,4 @@ Claude Design(primary), Stitch MCP(fallback), `/cto-advisor`(스킬 — ADR), `c
 
 ## forge-sync 배포 대상
 
-이 커맨드는 `forge-sync` 실행 시 `$HOME/.claude/commands/forge-plan.md`에 자동 배포된다.
+이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-plan.md`에 자동 배포된다.

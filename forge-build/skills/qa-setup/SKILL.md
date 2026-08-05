@@ -77,6 +77,21 @@ with open('docs/qa/scenarios-filtered.md', 'w') as f:
     f.writelines(filtered)
 print(f'scope={scope} → {sum(1 for l in filtered if l.startswith(\"|\"))} 시나리오 필터링')
 "
+  # false-green 방지(CRITICAL, 2026-08-03 전수조사 skills-3/S67-01).
+  # 이전 판은 --scope 오타·무매칭이면 시나리오 0건인 채 조용히 통과했다.
+  # QA 가 아무것도 실행하지 않고 PASS 를 내는 최악의 실패 모드다.
+  # qa/SKILL.md 의 `--app`/`--domains` GUIDE-STOP 계약을 --scope 에도 동일 적용한다.
+  # grep -c 는 미매치 시 "0" 을 출력하면서 exit 1 을 낸다.
+  # `$(grep -c ... || echo 0)` 로 쓰면 "0\n0" 이 되어 `[ "$n" -eq 0 ]` 이 문법 에러를 낸다
+  # (이 가드를 처음 쓸 때 실제로 밟은 함정 — 가드가 가드를 못 하게 된다).
+  local n
+  n=$(grep -c '^|' docs/qa/scenarios-filtered.md 2>/dev/null) || n=0
+  if [ "${n:-0}" -eq 0 ]; then
+    echo "[GUIDE-STOP] scope='$QA_SCOPE' 매칭 없음 — 시나리오 0건. 조용히 진행하지 않는다." >&2
+    echo "  사용 가능한 스코프(scenarios.md 헤더):" >&2
+    grep '^#' docs/qa/scenarios.md 2>/dev/null | sed 's/^/    /' >&2
+    return 1
+  fi
 }
 ```
 
@@ -194,9 +209,9 @@ BACKEND_FRAMEWORK="$BE_RUNTIME"
 echo "스택: $STACK_TYPE | 런타임: $BE_RUNTIME"
 ```
 
-### 1.5. E2E 러너 실재 확인 + 폴백 (P1-⑤, 2026-07-07 로컬 QA 갭 — B1)
+### 1.5. E2E 러너 실재 확인 + 폴백 (P1-⑤)
 
-`scripts/run-e2e-local.sh` / `test-e2e-full.sh`는 `${HOME}/.claude/trine/scripts/e2e-runner.sh`에 위임한다. 이 러너가 파일시스템에 실재하지 않으면 로컬 스택 부트스트랩이 조용히 실패한다(2026-07-07 실측). qa-setup은 러너 실재를 먼저 확인하고, 부재 시 **WARN + 인라인 부트스트랩 폴백**으로 계속 진행한다(하드스톱 금지, fail-open).
+`scripts/run-e2e-local.sh` / `test-e2e-full.sh`는 `${HOME}/.claude/trine/scripts/e2e-runner.sh`에 위임한다. 러너 부재 시 WARN + 인라인 부트스트랩 폴백으로 계속 진행(fail-open). 배경·2026-07-07 실측 근거 + 폴백 5단계 상세 → `reference.md §E2E 러너 폴백`
 
 ```bash
 E2E_RUNNER="${HOME}/.claude/trine/scripts/e2e-runner.sh"
@@ -211,13 +226,6 @@ else
 fi
 export E2E_RUNNER_FALLBACK
 ```
-
-**인라인 폴백 절차** (`E2E_RUNNER_FALLBACK=1`일 때 qa-setup이 대신 수행 — 신규 러너 스크립트 작성 없이 기존 step 재사용):
-1. API 서버 기동 — step 5 `start_server` 로직 재사용 (role=backend/server)
-2. 헬스 대기 — step 5 폴링 루프(최대 30회 × 2초) 그대로 사용
-3. seed 주입 — step 8 로직 재사용, **auth/account seed 선행**(admin 의존 seed는 그 다음). `assert-db-isolation.sh` 게이트 그대로 적용
-4. web(frontend) 서버 기동 — step 5 `start_server` 재사용 (role=frontend/web)
-5. 스모크 확인 — `curl` 레벨로 BASE_URL 홈/로그인 페이지 200 확인 (Playwright 풀 E2E 아님, 최소 생존 확인)
 
 ### 1.6. 런타임 위생 — Redis 격리·포트 충돌·web 안정성 (WARN-first, 2026-07-07 로컬 QA 갭)
 
@@ -242,7 +250,7 @@ for p in "${BE_PORT:-${PORT:-3000}}" "${FE_PORT:-3000}"; do
 done
 ```
 
-**M4. web 안정성 + 세션 생존성 (권고)**: Playwright 부하 중 `next dev`가 반복 사망하면 워크플로가 실패한다(실측 2회). (a) web을 `next build && next start`(prod 모드)로 기동하면 개발 서버보다 안정적, (b) 서버 라이프사이클을 세션 독립(nohup/pm2 + healthcheck)으로 두면 장시간 Phase A~H 워크플로가 세션 종료에도 생존, (c) 워크플로 중단 시 `resumeFromRunId`로 재개. 권고이며 프로젝트 여건에 맞게 선택 — 강제 아님.
+**M4. web 안정성 + 세션 생존성 (권고)**: `next dev` 반복 사망 대응 3가지 권고(prod 모드 기동·세션독립 라이프사이클·재개) — 상세 → `reference.md §web 안정성 권고(M4)`
 
 ### 2. 로그인 엔드포인트 발견 (FIX-2)
 
@@ -467,12 +475,7 @@ jq -c '.servers[]' docs/qa/qa-config.json | while read -r server; do
 done
 ```
 
-**`portConflictPolicy`** (qa-config.json 최상위, 선택 필드, 기본 `isolate`): 대상 포트를 QA가 띄우지 않은 프로세스가 이미 점유 중일 때의 정책.
-- `isolate` (기본): dev 스택은 그대로 두고 QA만 격리 포트(`port+1000`대 빈 포트)로 재배정, `qa-config.json`(`servers[].port` + `baseUrl`)에 즉시 반영 → 이후 Step 9 scenarios.md/verify.sh가 갱신된 포트를 그대로 사용.
-- `restore-dev`: 점유 중인 dev 프로세스를 정지시키고 QA가 원 포트를 사용, QA 종료 시 동일 `cmd`/`cwd`로 best-effort 재기동 시도(완전 보장 아님 — 프로젝트별 dev 기동 스크립트 차이로 실패 가능, 실패 시 WARN).
-- `warn-only`: 조치 없이 경고만 남기고 기존 REUSE 동작 유지 (구버전 호환 opt-out).
-
-전부 **WARN-first·fail-open**: 점유 PID 판별 도구(lsof/fuser)가 없으면 판정 자체를 스킵하고 기존 REUSE로 진행 — 하드 실패 없음.
+**`portConflictPolicy`** (qa-config.json 최상위, 선택 필드, 기본 `isolate`) 3값 의미·WARN-first 원칙 → `reference.md §portConflictPolicy 상세`
 
 QA 종료 시 정리:
 ```bash
@@ -492,7 +495,7 @@ done
 ### 6. verify.sh 없으면 템플릿 복사
 
 ```bash
-[ ! -f verify.sh ] && cp ${FORGE_ROOT:-$HOME/forge}/dev/templates/verify.sh.template verify.sh && chmod +x verify.sh
+[ ! -f verify.sh ] && cp ~/forge/dev/templates/verify.sh.template verify.sh && chmod +x verify.sh
 ```
 
 ### 7. 디렉토리 생성
@@ -503,13 +506,7 @@ mkdir -p docs/qa/artifacts
 
 ### 8. DB Seed + 격리 (AD-92-3, FIX-4, +QA-SEED 2026-07-07)
 
-**QA-SEED — auth 계정 seed 선행 게이트**: 로그인 의존 E2E(로그인 스모크 등)는 fresh/reset DB에서 admin/editor/user 같은 multi-role 계정이 먼저 심어져 있어야 통과한다. 기존 엔진은 일반 단일파일 seed(`seed.sql`/`.ts`/`.js`) 디스패치와 계정 1건 삽입만 가정해 이 순서를 보장하지 않았다. 이 계약은 프로젝트가 `qa-config.json`에 아래 두 형태 중 하나(또는 둘 다)로 명시한다 — 특정 앱의 자격증명·파일명은 하드코딩하지 않고 계약 자체만 정의:
-
-- `seed.authSeed`: DB 드라이버로 직접 주입하는 파일 경로(.sql/.ts/.js) — 나머지 seed와 동일 방식이나 **가장 먼저** 실행.
-- `seed.authSeedHook`: 백엔드가 UP된 뒤에만 실행 가능한 커맨드 문자열(예: 내부 provisioning 엔드포인트를 호출해 admin/editor/user 계정을 생성하는 방식 — DB row insert가 아니라 API 경유로만 계정이 만들어지는 프로젝트용). Step 8은 Step 5(서버 기동) 이후에 실행되므로 순서 문제 없음.
-- `seed.dependentSeeds`: authSeed(Hook) 이후에 순서대로 실행할 나머지 seed 파일 배열.
-
-`qa-config.json`에 `seed.authSeed`도 `seed.authSeedHook`도 없으면 **WARN만(비차단)**: 프로젝트가 이미 다른 방식으로 auth 계정을 공급 중일 수 있으므로 하드 블록하지 않는다.
+**QA-SEED — auth 계정 seed 선행 게이트**: fresh DB에서 admin/editor/user 같은 multi-role 계정이 먼저 심어져 있어야 로그인 의존 E2E가 통과한다. 계약 필드(`seed.authSeed`/`seed.authSeedHook`/`seed.dependentSeeds`) 의미·미지정 시 WARN 근거 → `reference.md §QA-SEED 계약 상세`
 
 ```bash
 # ── QA-SEED: auth 계정 seed 선행 (admin 의존 seed보다 반드시 먼저) ──
@@ -687,33 +684,7 @@ mkdir -p docs/qa
 
 ## 자동 평가 (eval-rubric 통합)
 
-본 스킬 결과 산출 후 자동으로 `eval-rubric` 호출 → 4축 Rubric 채점 → `eval_cases.jsonl` 누적.
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-### 호출 시점
-- scenarios.md 생성 완료 직후 (`docs/qa/scenarios.md`)
-
-### 절차
-1. 산출물 저장 후: `/eval-rubric --target docs/qa/scenarios.md`
-2. verdict + 4축 점수 + rationale 수신
-3. eval_cases.jsonl append — case_id: EC-qa-setup-{N}
-
-### 자동 비활성
-- `EVAL_RUBRIC_AUTO=off`
-- frontmatter `eval_cases: off`
-
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
-```
-
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.
+- **target**: `docs/qa/scenarios.md` — scenarios.md 생성 완료 직후
+- **case_id**: `EC-qa-setup-{N}`

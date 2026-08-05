@@ -27,7 +27,7 @@ Boris Cherny workflow: Run validation checks, simplify code, create release PR i
    - Skippable: `--skip-simplify`
 
 3. **Release** — Create Release MR
-   - Invokes: `/forge-release` with auto-versioning
+   - Invokes: `/forge-deploy prod` <!-- root-cause(commands/CMD-04, 2026-08-03 관측): forge-release.md 자체가 "[DEPRECATED] → /forge-deploy prod 사용" 래퍼 — 인바운드를 정본으로 교체 -->
    - Skippable: `--skip-release` (for local testing only)
 
 ## Implementation
@@ -44,7 +44,7 @@ Run sequentially:
 
 # If PASS:
 # Step 3: Release
-/forge-release <version>
+/forge-deploy prod
 ```
 
 ## Bypass Modes

@@ -133,15 +133,24 @@ Phase 4: Blueprint → [STOP] 승인 → scaffold
 
 ### 4b. scaffold 산출 (6 building blocks)
 
-`scripts/scaffold.py --name {LOOP_NAME} --goal "{GOAL}" --pattern {PATTERN} --state {STATE_PATH} --max-iter {MAX_ITER} --wall-clock "{WALL_CLOCK}"`
+`scripts/scaffold.py --name {LOOP_NAME} --goal "{GOAL}" --pattern {PATTERN} --state {STATE_PATH} --max-iter {MAX_ITER} --wall-clock "{WALL_CLOCK}" --verify-cmd "{VERIFIER_CMD}"`
 
 | 분류 | 경로 | 템플릿 |
 |------|------|-------|
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(패턴 본문) |
 | Changing | `{PROJECT_CWD}/loops/{LOOP_NAME}/STATE.md` | `templates/STATE.md.tmpl` |
+
+**⚠️ workflow.js는 골격 1개 + 패턴 본문 4개 조합이다.** `--pattern`이 본문 템플릿을 고른다 — 골격만 고치면 특정 패턴의 판정 방식은 바뀌지 않는다. 패턴별 종료 판정:
+
+| 패턴 | 종료 판정 | 성공 신호 |
+|------|---------|---------|
+| `pev` | **외부 verifier exit code** (0=pass / 2=사람 판정 / else=fail) | `verify_pass` |
+| `evaluator-optimizer` | LLM 루브릭 0~100점 + `rubric_all_pass` | `rubric_all_pass` |
+| `orchestrator-workers` | 남은 subtask 수(`remaining`) — verifier 있으면 exit code 우선 | `all_done` |
+| `ralph` | 외부 verifier exit code. **verifier 없으면 성공 선언 안 함**(자기신고 금지) | `verify_pass` |
 
 scaffold 완료 후 파일 트리 출력.
 
@@ -168,7 +177,7 @@ scaffold 완료 후 파일 트리 출력.
 
 ## forge-sync 필수
 
-`${FORGE_ROOT:-$HOME/forge}` SSoT → `$HOME/.claude/` 미러. scaffold 후 반드시:
+`~/forge` SSoT → `~/.claude/` 미러. scaffold 후 반드시:
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
+node ~/forge/dev/scripts/forge-sync.mjs sync
 ```

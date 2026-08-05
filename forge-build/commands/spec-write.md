@@ -2,6 +2,7 @@
 description: "[DEPRECATED alias] /forge-spec으로 이름 변경됨 — Spec 작성 단독 명령"
 argument-hint: "<기능 설명> [--spec <기존 path>] [--plan <plan dir>] [--bulk <forge-context-path>]"
 group: plan
+disable-model-invocation: true
 ---
 
 # /spec-write (Alias)

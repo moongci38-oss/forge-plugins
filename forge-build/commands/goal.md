@@ -1,6 +1,7 @@
 ---
 description: "[DEPRECATED alias] /forge-fix --loop 로 흡수됨 — 자율 PEV 루프 (AD-93 §갭 9, 버그수정 파이프라인 통합 plan v1.1 §5-8/D6)"
 group: qa
+disable-model-invocation: true
 ---
 
 # /goal — DEPRECATED alias → `/forge-fix --loop`
@@ -55,7 +56,7 @@ group: qa
 
 ```bash
 # 직접 실행
-python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/goal-pev.py \
+python3 ~/forge/.claude/skills/qa/scripts/goal-pev.py \
   --condition "scope=auth 모든 시나리오 PASS" \
   --scope auth
 

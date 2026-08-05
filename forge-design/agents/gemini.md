@@ -1,8 +1,14 @@
 ---
 name: gemini
-description: MAS P0 structural reviewer — Gemini 2.5 Flash via mcp__gemini__analyze_media (vision/PDF) or mcp__gemini-text__generate_text (text/code review). Wide-context structural/vision analysis. Used for 1M+ document and multimodal review in mas multi-agent tasks.
+description: MAS P0 structural reviewer — Gemini 2.5 Flash via mcp__gemini__analyze_media (vision/PDF) or mcp__gemini-text__generate_text (text/code review). Wide-context structural/vision analysis. Used for 1M+ document and multimodal review in mas multi-agent tasks. ⚠️ NO filesystem access (no Read/Bash/Glob) — callers MUST inline file CONTENT into the prompt; passing file PATHS silently yields an empty/degraded review (D6, 반복 재발). 브리프에 대상 전문 인라인 필수 — FS 접근 없음.
 tools: mcp__gemini__analyze_media, mcp__gemini__list_models, mcp__gemini-text__generate_text
+model: sonnet
 ---
+
+<!-- root-cause: model 핀 누락 시 부모 모델(주로 Opus)을 상속해 비용이 새어나간다
+     (2026-08-03 전수조사 agents/AG-03). 이 에이전트는 외부 모델 호출 릴레이 —
+     판단은 Gemini 쪽에서 일어나므로 래퍼는 sonnet 이 하한이자 충분값이다. -->
+
 
 # gemini
 

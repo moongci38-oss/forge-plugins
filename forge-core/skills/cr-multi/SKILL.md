@@ -10,8 +10,12 @@ diff·provenance)은 쓰지 않는다** — 그건 게이트가 계산한다.
 
 ```
 ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-evidence/{stage}/{slug}-{stage}.json
-포맷: {legs[{worker,score,summary,issue_count,critical,high}], mode, expected_legs, stage, run_id}
+포맷: {legs[{worker,score,summary,issue_count,critical,high}], mode, expected_legs, stage, run_id, head_sha}
 ```
+
+- `head_sha` = **리뷰 시점 `git rev-parse HEAD` 관측치**(판정 아님 — D1-B 원칙과 무충돌).
+  `qa-event-router.sh` 의 cr-final 바인딩 검사가 이 값을 `grep -qF` 로 소비한다. 없으면
+  그 게이트는 상시 미바인딩 WARN(`FORGE_CR_EVIDENCE_STRICT=1` 이면 상시 차단)이 된다.
 
 - **왜 판정을 안 쓰나**: 에이전트가 `verdict:PASS` 를 파일로 써넣는 행위가 위조와
   구분되지 않아 안전 분류기에 반복 차단됐다(실측 3회 연속). raw legs(관측)는 통과한다.
@@ -65,6 +69,21 @@ ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-evidence/{stage}/{slug}-{
 > (2026-07-24 v2에서 workflow.js의 파일 발행 제거 — 현재 이 경로를 쓰는 코드는 없다).
 > 게이트가 소비하는 증거는 raw-legs 경로뿐이다.
 
+**`INVALID_INPUT` — 입력 실패는 품질 판정이 아니다 (2026-07-29, A-1b 세션 실발화)**
+
+대상을 읽지 못했을 때 `verdict:'INVALID_INPUT'` + `score:null` + `inputRejected:true`가 반환된다.
+과거에는 이 경우도 `verdict:'FAIL'`/`score:0`이었고, 실제로 **읽지도 못한 코어를 "0점"으로 오독**했다.
+
+| `issues[].code` | 뜻 | 대응 |
+|---|---|---|
+| `too_large` | 청크 로더 상한(600줄)과 폴백 상한(256KB)을 **동시** 초과 | 논리 단위로 나눠 개별 호출 |
+| `not_found` | 경로를 에이전트 셸에서 읽지 못함 | 존재 여부 + 경로 표기 확인(백슬래시는 슬래시로 정규화됨) |
+| `content_mismatch` | 확보한 내용이 원문과 불일치(폴백이 요약했거나 리뷰 중 파일이 바뀜) | 나눠서 재호출 |
+
+⚠️ **`INVALID_INPUT`은 PASS도 WARN도 FAIL도 아니다** — 머지·진행 판단의 근거로 쓰지 말고
+입력을 고쳐 **재호출**한다. 점수를 인용하지 말 것(`score`는 숫자가 아니라 `null`이다).
+`combined`·`scores`·`results`는 이 반환에 **없다**(검수가 수행되지 않았으므로) — 소비자는 null-safe로 다룰 것.
+
 **degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
 
 **`evidence_tier` (증거등급, Batch 3-2)**: 기존 `degraded`·워커 생존 수에서 **순수 파생**되는 필드(신규 판정 로직 아님).
@@ -89,7 +108,7 @@ ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-evidence/{stage}/{slug}-{
 
 cr-multi 실행 후 usage 데이터 기록:
 ```bash
-bash $HOME/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
+bash ~/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
 ```
 usage 필드는 Anthropic SDK response.usage 에서 추출. 미지원 시 0 기본값 사용.
 
@@ -100,38 +119,49 @@ mcp__codex__ codex-critic = verify hook이 read-only sandbox로 무조건 면제
 ```js
 // Workflow 실행 (GitNexus StructuralContext + 3-LLM parallel)
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
 
 Agent Teams fallback: `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Agent 패턴.
 
+**호출 규약 — 세션 변경/삭제 파일 목록 동봉 (P1-15, pipe-2-opus-0721 G-3, 2026-07-21)**: 오케스트레이터는
+cr 스폰 시 이 세션에서 **변경·삭제한 파일 목록**을 브리핑에 동봉한다. codex-critic이 자신에게 로드된
+rules/CLAUDE.md 컨텍스트를 현재 파일 상태로 오인해 이미 삭제된 규칙을 근거로 정당한 PR을 FAIL 판정한
+실사례(PR #88)가 있었다 — workflow.js `basePrompt`의 "로드된 rules/CLAUDE.md를 현재 사실로 삼지 말고
+Read/Grep 실측" 경고와 짝을 이루는 조치다.
+
+### `crTestCtx` — 변경 코드를 덮는 기존 테스트 동봉 (D8, 2026-07-31)
+
+리뷰어에게 변경 코드만 주고 그 코드를 고정하는 **기존 테스트**를 주지 않으면, 테스트로 못박힌
+의도적 계약을 버그로 오신고한다(실제로 정당한 코드가 revert된 사고 1건). GitNexus 가 변경 심볼의
+caller 중 테스트 파일(`*.test.*`·`*_test.*`·`tests/`·`__tests__/`)을 `test_files` 로 반환하면,
+그 내용을 크기캡 안에서 읽어 `[변경 코드를 덮는 기존 테스트 — 의도된 계약이다]` 블록으로 프롬프트에 붙인다.
+
+| 값 | 동작 |
+|---|---|
+| `'auto'` (기본) | 동봉하되 `risk_level=LOW` 면 생략 (토큰 팽창 억제) |
+| `'on'` | risk 무관 항상 동봉 |
+| `'off'` | 완전 비활성 — 기존 동작 100% 동일 |
+
+- 크기캡: 파일당 `TEST_CTX_MAX_LINES_PER_FILE`(200줄) / 총 `TEST_CTX_MAX_TOTAL_LINES`(2000줄).
+  캡에 걸려 잘리거나 미첨부된 파일은 **프롬프트에 그 사실을 명시**한다(무언의 절단 금지).
+- 실패는 fail-open — 로드 실패 시 동봉 없이 기존 리뷰를 그대로 진행한다.
+- 회귀 테스트: `shared/scripts/cr-multi-testctx.test.sh` (18케이스, 순수 구간 소스 추출 실행 + 배선 grep).
+
 ## 참조
 
-- 명령: `${FORGE_ROOT:-$HOME/forge}/.claude/commands/cr-multi.md`
-- 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
-- Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
-- Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`
+- 명령: `~/forge/.claude/commands/cr-multi.md`
+- 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
+- Triage: `~/forge/shared/scripts/cr-multi-triage.py`
+- Plateau: `~/forge/shared/scripts/cr-multi-plateau-guard.py`
 
-## Evaluator (Wave 2.5)
+## 이종 모델 검수 설계배경
 
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
+<!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 이 절 위에 있던 "Evaluator (Wave 2.5)" 산문(role/model/isolation 설명 + PASS/WARN/FAIL 템플릿)은 8개 SKILL.md에 동일 문구로 복제됐고 실제 Agent()/hook 배선이 0건이라 제거했다 — 판단 근거는 codex-review/SKILL.md의 동일 root-cause 주석 참조. 다만 아래 한 문단은 cr-multi 고유의 실제 설계 근거(다른 7개 파일에는 없음)라 보존한다. -->
 
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
-```
-> **설계배경(이종 모델 검수)**: Codex/Gemini/Haiku 등 이종·경량 모델을 리뷰 레그에 섞는 이유는 self-referential bias(모델이 자기 산출물을 검증할 때 관대해지는 편향) 완화에 있다 — 작성자 모델과 다른 모델이 검토하면 같은 편향을 반복할 확률이 낮아진다. 다만 **동일 모델계열 내 편향(예: 같은 Claude 계열끼리)은 이 구조로 완전히 제거되지 않는다** — 이종 모델 배치는 완화 장치이지 무편향을 보장하는 장치가 아니다.
-
-
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.
+Codex/Gemini/Haiku 등 이종·경량 모델을 리뷰 레그에 섞는 이유는 self-referential bias(모델이 자기 산출물을 검증할 때 관대해지는 편향) 완화에 있다 — 작성자 모델과 다른 모델이 검토하면 같은 편향을 반복할 확률이 낮아진다. 다만 **동일 모델계열 내 편향(예: 같은 Claude 계열끼리)은 이 구조로 완전히 제거되지 않는다** — 이종 모델 배치는 완화 장치이지 무편향을 보장하는 장치가 아니다.
 
 ## Plateau 조기 감지 (AD-118 SkillOps)
 

@@ -6,6 +6,15 @@ context: fork
 model: sonnet
 ---
 
+> **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
+> 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> (2026-08-04 관측).
+
+
 **역할**: 당신은 AI 하네스 엔지니어링을 OWASP Agentic Top 10 기준으로 감사하는 AI 보안 및 측정 제어 전문가입니다.
 **컨텍스트**: `/system-audit` 또는 `/audit-harness` 호출 시, ACHCE 축 3(Harness) 평가가 필요할 때 실행됩니다.
 **출력**: Check Chain·가드레일·Hook 커버리지 항목별 점수 + 보안 개선 권고를 JSON 형식으로 반환합니다.
@@ -47,7 +56,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
+| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -126,7 +135,7 @@ model: sonnet
    ```
    스크립트 없을 시 직접 실측 (실행 가능한 단일 명령):
    ```bash
-   find $HOME/.claude/skills/ ${FORGE_ROOT:-$HOME/forge}/.claude/skills/ -name "SKILL.md" 2>/dev/null | sort | while read f; do
+   find ~/.claude/skills/ ~/forge/.claude/skills/ -name "SKILL.md" 2>/dev/null | sort | while read f; do
      grep -qE "Agent\(|독립 Evaluator|Wave 2\.5|Evaluator subagent|PGE\b|eval-report\.md|WP_EVAL|DSR_EVAL|WR_EVAL|FD_EVAL|Step 3\.5|신뢰도.*HIGH" "$f" \
        && echo "PASS $(dirname $f | xargs basename)" || echo "FAIL $(dirname $f | xargs basename)"
    done | sort
@@ -208,7 +217,7 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `grep -l "exit 0$" $HOME/.claude/hooks/*.sh 2>/dev/null` → 항상 통과 hook 목록
+1. `grep -l "exit 0$" ~/.claude/hooks/*.sh 2>/dev/null` → 항상 통과 hook 목록
 2. 각 hook의 의도 확인: WARN-only(의도적) vs 미완성 BLOCK(exit 2 없음) 분류
 3. enforcement-theater 룰 위반 체크: WARN+metrics 미설정 상태로 BLOCK = 룰 위반
 4. 결과: `hook_theater: [{file, type: "warn_only|incomplete_block|theater", recommendation}]`
@@ -230,7 +239,7 @@ GitNexus 미연결 시 스킵 (경고 출력).
 
 Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
 
-**저장 위치:** `docs/reviews/audit/{date}-audit-harness[-{target}].md`
+**저장 위치:** `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-audit-harness[-{target}].md`
 (`target`이 `system`이면 suffix 생략)
 
 **보고서 형식:**
@@ -267,7 +276,7 @@ Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
 
 ## 참조
 - docs/tech/2026-03-16-5-axis-ai-analysis-framework.md
-- `$HOME/.claude/rules-on-demand/harness-failure-modes.md` — 하네스 실패모드 카논 (F1-F19): false-test/enforcement-theater/dead-gate/SSoT-drift 등 실제 사례 매트릭스
+- `~/.claude/rules-on-demand/harness-failure-modes.md` — 하네스 실패모드 카논 (F1-F19): false-test/enforcement-theater/dead-gate/SSoT-drift 등 실제 사례 매트릭스
 ```
 
 ### Step 4: Notion 페이지 생성
@@ -285,7 +294,7 @@ Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
       "상태": "완료",
       "CRITICAL": "{CRITICAL 이슈 수}",
       "HIGH": "{HIGH 이슈 수}",
-      "보고서 경로": "docs/reviews/audit/{date}-audit-harness.md"
+      "보고서 경로": "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-audit-harness.md"
     },
     "content": "{보고서 전체 내용}"
   }]
@@ -332,7 +341,7 @@ Agent(
 4. **보고서 저장 확인 (Write+Read 증거)**
    - [위치] 보고서 마지막 줄 또는 에이전트 출력
    - [이유] 보고서 미저장 시 다음 감사 주기에 트렌드 비교 불가
-   - [방법] 보고서 경로(`docs/reviews/audit/{date}-audit-harness.md`)에 실제 파일이 Write된 후 Read로 존재 확인됐는지 검증. "SAVED: {path}" 출력이 있거나 파일 존재 확인 로그가 있으면 PASS. 저장 증거 없으면 FAIL.
+   - [방법] 보고서 경로(`${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-audit-harness.md`)에 실제 파일이 Write된 후 Read로 존재 확인됐는지 검증. "SAVED: {path}" 출력이 있거나 파일 존재 확인 로그가 있으면 PASS. 저장 증거 없으면 FAIL.
 
 **판정**: PASS(기준 4항목 모두 충족) / FAIL(1항목 이상 미충족)
 **피드백 형식**: [파일명+섹션] — [이유] → [방법]

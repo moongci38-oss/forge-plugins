@@ -97,11 +97,32 @@ check $? "openssl 실패해도 나머지 단계 계속 수행(중도 중단 없�
 check $? "실패한 토큰 파일 잔재 없음"
 
 echo
-echo "=== handover-manager.sh dead-bundle 부재 (v0.7.0 — /forge-end 통합으로 참조 0) ==="
+echo "=== handover-manager.sh dead-bundle 부재 + dangling 번들참조 금지 ==="
 [ ! -f "$PLUGIN_ROOT/hooks/handover-manager.sh" ]
-check $? "handover-manager.sh 미번들(dead bundle 제거 유지)" "재유입 — 커맨드 참조 0인데 번들 존재"
-! grep -rq "handover-manager.sh" "$PLUGIN_ROOT/commands/" 2>/dev/null
-check $? "커맨드의 handover-manager 참조 0 유지"
+check $? "handover-manager.sh 미번들(dead bundle 제거 유지)" "재유입 — 번들 존재"
+
+# 2026-08-04 계약 정정 — 원래 이 자리에는 `grep -rq "handover-manager.sh" commands/` 로
+#   **모든** 참조를 금지하는 검사가 있었다(v0.7.0, /forge-start·end 통합 직후 참조가 실제로 0이던 시점).
+#   그런데 그 뒤 커맨드가 다시 `${FORGE_ROOT}/shared/scripts/handover-manager.sh` 를 부르게 되면서
+#   이 검사가 발화했다. 실측해보니 그 금지는 **9개 중 1개만 콕 집는 비일관 계약**이었다:
+#
+#     $ grep -oE '\$\{FORGE_ROOT[^}]*\}/[a-z/]*[a-z-]+\.(sh|py|mjs)' \
+#           ~/forge/.claude/commands/forge-end.md | sort -u | wc -l
+#     → 9종(debug-knowledge-sync · forge-outputs-autosync · handover-landing · handover-manager ·
+#        index-refresh · learnings · memory-sync · session-recall · session-record-audit), 총 11회
+#       (2026-08-04 관측)
+#
+#   즉 forge-end 는 설계상 이미 forge 레포 스크립트에 광범위하게 의존하고, 전부 `|| true` fail-open 이다.
+#   handover-manager 하나만 금지하는 것은 원래 의도(=**번들에 없는 것을 번들 경로로 부르는
+#   dangling 참조** 차단, 2026-07-25 실사고 #35)를 표현하지 못한다.
+#
+#   그래서 검사를 실제 위험으로 좁힌다: **번들 상대경로 참조만 금지**한다.
+#   `${FORGE_ROOT}/shared/scripts/...` 형태는 다른 8종과 동일 취급(허용).
+#   ⚠️ 이 방어가 못 잡는 것: ~/forge 가 없는 순수 플러그인 사용자에게는 이 9종 호출이 전부
+#      조용히 skip 된다(무성 강등). 그것은 이 가드의 범위가 아니라 forge-end 의 플러그인
+#      이식성 설계 이슈이며 별도 결정 대상이다 — 리포트에 남겼다.
+! grep -rqE '(CLAUDE_PLUGIN_ROOT|\$\{?PLUGIN_ROOT)[^ ]*handover-manager\.sh' "$PLUGIN_ROOT/commands/" 2>/dev/null
+check $? "번들 상대경로로 handover-manager 를 부르는 커맨드 0(dangling 참조 금지)"
 
 echo
 echo "=== nounset 내성: CLAUDE_PLUGIN_ROOT 미설정 (cr-final MEDIUM 회귀) ==="

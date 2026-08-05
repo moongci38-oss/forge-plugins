@@ -1,59 +1,29 @@
 // {{LOOP_NAME}}/scripts/workflow.js
 // 패턴: {{PATTERN}}
 // Goal: {{GOAL}}
-// 생성: forge-loop-maker scaffold (loop-kernel.js §1–§5 패턴 인라인)
+// 생성: forge-loop-maker scaffold
+//   골격  = templates/workflow.js.tmpl        (이 파일 — 전 패턴 공통부)
+//   본문  = templates/workflow.body.{{PATTERN}}.js.tmpl  (아래 "패턴 본문 시작" 자리에 주입)
+// ⚠️ 골격 안에서 본문 자리표시자 토큰은 **단 한 번만** 등장해야 한다. 주석에라도 한 번 더
+//    적으면 그 자리에도 본문이 통째로 주입된다(실측 — scaffold.py 가 개수를 검사한다).
 // root-cause: Workflow sandbox = 외부 import 불가 → 커널 패턴을 인라인으로 복사
+//
+// ⚠️ 패턴마다 루프 본문이 다르다. 이 골격만 고치면 특정 패턴의 판정 방식은 바뀌지 않는다.
+//    pev = 외부 verifier exit code / evaluator-optimizer = LLM 루브릭 점수 /
+//    orchestrator-workers = 남은 subtask 수 / ralph = 고정 프롬프트 반복.
+//    (단일 템플릿이라 --pattern 이 헤더 주석에만 남던 결함 = 백로그 P0-8)
 
 export const meta = {
   name: '{{LOOP_NAME}}',
   description: '{{GOAL}}',
   phases: [
-    { title: 'Init',   detail: 'Parse args, load state' },
-    { title: 'Loop',   detail: 'Executor → Evaluator (isolated) → stop-check per cycle' },
-    { title: 'Report', detail: 'Cycle summary + stop reason + final score' },
+    { title: 'Init',   detail: 'Parse args, 초기 상태·predicate 확인' },
+    { title: 'Loop',   detail: '{{PATTERN}} 사이클 — 실행 → 검증(실행자와 분리) → stop-check' },
+    { title: 'Report', detail: 'Cycle summary + stop reason + 결과' },
   ],
 }
 
-// ── Schemas (loop-kernel.js §EVAL_SCHEMA / §EXECUTOR_SCHEMA 패턴) ────────────
-
-const EVAL_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    score:           { type: 'number' },
-    rubric_all_pass: { type: 'boolean' },
-    findings: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          id:       { type: 'string' },
-          severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low'] },
-          axis:     { type: 'string' },
-          detail:   { type: 'string' },
-          passed:   { type: 'boolean' },
-        },
-        required: ['id', 'severity', 'passed', 'detail'],
-      },
-    },
-    rationale:   { type: 'string' },
-    stop_signal: { type: 'string', enum: ['none', 'security_crit', 'regression'] },
-  },
-  required: ['score', 'rubric_all_pass', 'findings', 'rationale', 'stop_signal'],
-}
-
-const EXECUTOR_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    output:  { type: 'string' },
-    summary: { type: 'string' },
-  },
-  required: ['output'],
-}
-
-// ── Constants (loop-kernel.js §Constants 패턴) ─────────────────────────────────
+// ── Constants (loop-kernel.js §Constants — 전 패턴 공통) ─────────────────────
 
 const BUDGET_RESERVE      = 20000
 const SAME_ISSUE_MAX      = 3
@@ -61,176 +31,71 @@ const PLATEAU_EPSILON     = 5
 const PLATEAU_CONSECUTIVE = 2
 const OSCILLATION_MAX     = 2
 
-// ── Args ───────────────────────────────────────────────────────────────────────
+// ── Args (공통) ────────────────────────────────────────────────────────────────
 
 const _a = (typeof args === 'string')
   ? (() => { try { return JSON.parse(args) } catch (e) { return {} } })()
   : (args || {})
 
-const goal           = _a?.goal          || '{{GOAL}}'
-const feedbackSource = _a?.feedbackSource|| ''
-const executor       = _a?.executor      || ''
-const evaluator      = _a?.evaluator     || 'eval-rubric'
-const maxCycles      = Number(_a?.maxCycles ?? {{MAX_ITER}})
-const tokenCap       = _a?.tokenCap      || null
+const goal      = _a?.goal || '{{GOAL}}'
+const maxCycles = Number(_a?.maxCycles ?? {{MAX_ITER}})
 
-if (!executor) throw new Error('[{{LOOP_NAME}}] arg `executor` is required')
+log(`[{{LOOP_NAME}}] pattern={{PATTERN}} goal="${goal.slice(0,80)}" maxCycles=${maxCycles}`)
 
-log(`[{{LOOP_NAME}}] goal="${goal.slice(0,80)}" executor=${executor} maxCycles=${maxCycles}`)
+// ── 셸 실행 전용 에이전트 (결정론 검증 공통 헬퍼) ─────────────────────────────
+// root-cause: Workflow 샌드박스는 fs/exec 접근이 없다 → 스크립트가 직접 명령을 못 돌린다.
+//   그래서 **실행자와 분리된 별도 에이전트**가 명령을 돌리고 exit code 만 전달한다.
+//   판정 로직은 그 명령(셸 스크립트·테스트 러너)이 소유한다 — 에이전트는 전달자다(S1 검증자 분리).
 
-// ── State ──────────────────────────────────────────────────────────────────────
-
-let cycleCount       = 0
-let stopReason       = null
-let lastOutput       = feedbackSource
-let history          = []
-let scores           = []
-let lastScore        = null
-let issueCounts      = {}     // same_issue (kernel §3c)
-let resolvedFindings = {}     // oscillation tracking (kernel §3d)
-let oscillationHits  = {}
-let priorPassedIds   = null   // Set<string> | null
-
-phase('Init')
-log(`[Init] feedbackSource="${feedbackSource}" tokenCap=${tokenCap||'(none)'}`)
-
-// ── Main Loop ──────────────────────────────────────────────────────────────────
-
-phase('Loop')
-
-while (cycleCount < maxCycles) {
-  // kernel §3: budget_advisory (turn-budget aware)
-  if (budget && budget.total && budget.remaining && budget.remaining() < BUDGET_RESERVE) {
-    stopReason = `budget_advisory (remaining=${budget.remaining()} < ${BUDGET_RESERVE})`
-    log(`[STOP] ${stopReason}`)
-    break
-  }
-
-  cycleCount++
-  log(`\n── Cycle ${cycleCount}/${maxCycles} ──────────────`)
-
-  // ── Executor (kernel §4) ──────────────────────────────────────────────────
-  const historyNote = history.length > 0
-    ? `\nPrevious: ${history.map(h => `c${h.cycle} score=${h.score}`).join('; ')}\nLast feedback: ${history[history.length-1]?.rationale || '(none)'}`
-    : ''
-  const tokenHint = tokenCap ? `\n[Advisory: aim for <${tokenCap} tokens]` : ''
-
-  let executorResult
-  try {
-    executorResult = await agent(
-      `You are the executor. Produce a REAL improved output — do NOT just explain what you would change.
-
-GOAL: ${goal}
-CURRENT ARTIFACT: ${lastOutput}
-${historyNote}${tokenHint}
-Executor: ${executor}
-
-Return: { "output": "<full updated artifact or path>", "summary": "<key changes>" }`,
-      { label: `executor-c${cycleCount}`, phase: `Loop/c${cycleCount}`, schema: EXECUTOR_SCHEMA }
-    )
-  } catch (e) {
-    log(`[WARN] Executor failed c${cycleCount}: ${e?.message || e}`)
-    stopReason = `executor_error_c${cycleCount}`
-    break
-  }
-
-  const currentOutput = executorResult?.output || lastOutput
-  log(`[Executor] c=${cycleCount} summary="${(executorResult?.summary||'').slice(0,120)}"`)
-
-  // ── Evaluator (kernel §5 — prompt-enforced separation) ───────────────────
-  let evalResult
-  try {
-    evalResult = await agent(
-      `You are an independent evaluator. NO knowledge of how the output was produced.
-Evaluate ONLY based on rubric + artifact.
-
-GOAL / DONE-CRITERIA: ${goal}
-ARTIFACT: ${currentOutput}
-Evaluator: ${evaluator}
-
-Score each criterion (0-2 per axis), compute 0-100 aggregate.
-Stable finding id: {axis}:{criterion_slug}.
-rubric_all_pass=true ONLY if ALL criteria met.
-stop_signal: "security_crit" | "regression" | "none"
-Return structured JSON.`,
-      { label: `evaluator-c${cycleCount}`, phase: `Loop/c${cycleCount}`, schema: EVAL_SCHEMA }
-    )
-  } catch (e) {
-    log(`[WARN] Evaluator failed c${cycleCount}: ${e?.message || e}`)
-    stopReason = `evaluator_error_c${cycleCount}`
-    break
-  }
-
-  const score      = evalResult?.score ?? 0
-  const allPass    = evalResult?.rubric_all_pass ?? false
-  const findings   = evalResult?.findings || []
-  const rationale  = evalResult?.rationale || ''
-  const stopSignal = evalResult?.stop_signal || 'none'
-  log(`[Evaluator] c=${cycleCount} score=${score} allPass=${allPass} findings=${findings.length} stop=${stopSignal}`)
-
-  // GC2: lastScore 즉시 캡처 (scores[] push 전)
-  lastScore   = score
-  lastOutput  = currentOutput
-  history.push({ cycle: cycleCount, score, issues_count: findings.filter(f => !f.passed).length, rationale })
-
-  // ── Stop-condition checks (kernel §1) ─────────────────────────────────────
-
-  // §1-a rubric_all_pass
-  if (allPass) { stopReason = 'rubric_all_pass (SUCCESS)'; log(`[STOP] ${stopReason}`); break }
-
-  // §1-d security_crit / §1-e regression
-  if (stopSignal === 'security_crit') { stopReason = 'security_crit'; log(`[STOP] ${stopReason}`); break }
-  if (stopSignal === 'regression')    { stopReason = 'regression';    log(`[STOP] ${stopReason}`); break }
-
-  // §1-f same_issue (kernel §3c)
-  let sameIssueTripped = false
-  for (const f of findings) {
-    if (f.passed) continue
-    const key = `${f.id}:${f.severity}`
-    issueCounts[key] = (issueCounts[key] || 0) + 1
-    if (issueCounts[key] >= SAME_ISSUE_MAX) {
-      stopReason = `same_issue (key="${key}" x${issueCounts[key]})`
-      log(`[STOP] ${stopReason}`)
-      sameIssueTripped = true
-      break
-    }
-  }
-  if (sameIssueTripped) break
-
-  // §1-g oscillation (kernel §3d — GC3: pass→fail transition only)
-  const currentFailIds = new Set(findings.filter(f => !f.passed).map(f => f.id))
-  const currentPassIds = new Set(findings.filter(f =>  f.passed).map(f => f.id))
-  for (const id of currentPassIds) { if (resolvedFindings[id] === undefined) resolvedFindings[id] = true }
-  let oscillationTripped = false
-  for (const id of currentFailIds) {
-    if (resolvedFindings[id] !== undefined && (priorPassedIds || new Set()).has(id)) {
-      oscillationHits[id] = (oscillationHits[id] || 0) + 1
-      log(`[oscillation-track] id="${id}" pass→fail #${oscillationHits[id]}`)
-      if (oscillationHits[id] >= OSCILLATION_MAX) {
-        stopReason = `oscillation (id="${id}" x${oscillationHits[id]})`
-        log(`[STOP] ${stopReason}`)
-        oscillationTripped = true
-        break
-      }
-    }
-  }
-  priorPassedIds = currentPassIds
-  if (oscillationTripped) break
-
-  // §1-h plateau (kernel §3e — GC5: net gain over window)
-  scores.push(score)
-  if (scores.length >= PLATEAU_CONSECUTIVE + 1) {
-    const w = scores.slice(-(PLATEAU_CONSECUTIVE + 1))
-    const netGain = Math.max(...w) - w[0]
-    if (netGain <= PLATEAU_EPSILON) {
-      stopReason = `plateau (netGain=${netGain} ≤ ε=${PLATEAU_EPSILON}, scores=[${scores.slice(-4)}])`
-      log(`[STOP] ${stopReason}`)
-      break
-    }
-  }
+const SHELL_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    exit_code: { type: 'number' },
+    stdout:    { type: 'string' },
+  },
+  required: ['exit_code', 'stdout'],
 }
 
-// §1-b max_cycles
+// Windows 세션에서 WSL 레포를 다루면 shellWrap:"wsl" 로 호출한다(경로·git 실측 제약).
+const SHELL_WRAP = _a?.shellWrap || ''
+function wrapCmd(cmd) {
+  return SHELL_WRAP === 'wsl'
+    ? `wsl.exe -e bash -lc '${cmd.replace(/'/g, "'\\''")}'`
+    : cmd
+}
+
+async function sh(cmd, label, phaseName) {
+  const r = await agent(
+    `아래 명령을 **그대로 1회 실행**하고 결과만 보고하십시오. 해석·수정·재시도 금지.
+
+\`\`\`
+${wrapCmd(cmd)}
+\`\`\`
+
+반환: { "exit_code": <정수 exit code>, "stdout": "<출력 앞부분 2000자>" }
+⚠️ exit_code 를 추측하지 말 것 — 실제 종료 코드를 그대로 보고하십시오.`,
+    { label, phase: phaseName, schema: SHELL_SCHEMA, effort: 'low' }
+  )
+  return r || { exit_code: -1, stdout: '(agent returned null)' }
+}
+
+// ── State (공통 — 패턴 본문이 갱신한다) ───────────────────────────────────────
+
+let cycleCount    = 0
+let stopReason    = null
+let history       = []
+let resultLine    = ''     // report 배너 1줄 — 패턴 본문이 채운다
+let finalArtifact = ''     // report 첨부  — 패턴 본문이 채운다
+let successPrefix = null   // 성공으로 인정할 stopReason 접두사.
+                           // 본문이 설정하지 않으면 성공 판정을 하지 않는다(fail-closed).
+
+phase('Init')
+
+// ══ 패턴 본문 시작 — {{PATTERN}} ═══════════════════════════════════════════════
+{{PATTERN_BODY}}
+// ══ 패턴 본문 끝 ═══════════════════════════════════════════════════════════════
+
+// §1-b max_cycles (공통 — 본문이 다른 사유로 멈추지 않았을 때만 발화)
 if (!stopReason && cycleCount >= maxCycles) {
   stopReason = `max_cycles (${maxCycles})`
   log(`[STOP] ${stopReason}`)
@@ -239,13 +104,13 @@ if (!stopReason && cycleCount >= maxCycles) {
 // ── Report ─────────────────────────────────────────────────────────────────────
 
 phase('Report')
-const isSuccess = (stopReason || '').startsWith('rubric_all_pass')
+const isSuccess = !!successPrefix && (stopReason || '').startsWith(successPrefix)
 log(`
 ╔══════════════════════════════════════════════════
-║ /{{LOOP_NAME}} COMPLETE
+║ /{{LOOP_NAME}} COMPLETE  (pattern: {{PATTERN}})
 ║ cycles: ${cycleCount}/${maxCycles}
 ║ stop_reason: ${stopReason}
-║ final_score: ${lastScore !== null ? lastScore : 'N/A'}
+║ ${resultLine}
 ║ result: ${isSuccess ? '✅ SUCCESS' : '⚠ STOP'}
 ╚══════════════════════════════════════════════════`)
 
@@ -253,13 +118,22 @@ await agent(
   `Produce the final loop report as Markdown.
 
 RESULTS:
+- pattern: {{PATTERN}}
 - cycles: ${cycleCount}/${maxCycles}, stop: ${stopReason}
-- score: ${lastScore}, result: ${isSuccess ? 'SUCCESS' : 'STOP'}
+- ${resultLine}, result: ${isSuccess ? 'SUCCESS' : 'STOP'}
 - goal: ${goal}
 
 HISTORY: ${JSON.stringify(history, null, 2)}
-FINAL ARTIFACT: ${lastOutput}
+FINAL ARTIFACT: ${finalArtifact}
 
 Format: ## Result / ### Status / ### Stop Reason / ### Cycle History (table) / ### Final Artifact / ### Next Steps`,
   { label: 'report', phase: 'Report' }
 )
+
+return {
+  pattern:     '{{PATTERN}}',
+  cycles:      cycleCount,
+  stop_reason: stopReason,
+  success:     isSuccess,
+  history,
+}

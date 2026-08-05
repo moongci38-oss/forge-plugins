@@ -2,6 +2,7 @@
 description: "[DEPRECATED] → /forge-deploy dev --reverse 사용. main → develop 역동기화 위임 래퍼"
 model: haiku
 group: deploy
+disable-model-invocation: true
 ---
 
 # /forge-develop — [DEPRECATED 위임 래퍼]

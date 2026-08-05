@@ -8,6 +8,7 @@ description: |
   3-bucket 분류: MIGRATION-DRIFT / KNOWN-DIVERGENCE / LEGACY-BUG-CANDIDATE.
   오라클: golden-test(순수함수) + black-box trace(부수효과 영역).
   PEV 루프 종료조건: CRITICAL+HIGH=0 AND golden 100% AND 회귀 0 AND UNVERIFIED=0(or waiver).
+disable-model-invocation: true
 ---
 
 # /migration-audit
@@ -32,8 +33,36 @@ description: |
 
 **핵심 원칙**: legacy = 정답 기준. src≠legacy → src 의심 (legacy 버그 가능성도 기록). 대조 불가 = UNVERIFIED(BLOCKING), silent skip 금지.
 
-스택별 엔트리포인트 매핑 → `references/stack-mappings.md`
-Subagent 상세 명세 → `references/subagents.md`
+## 스택별 엔트리포인트 매핑
+
+> 2026-08-03 전수조사(skills-3/S67-02)에서 이 자리에 있던 references/stack-mappings.md ·
+> references/subagents.md 포인터가 **존재한 적 없는 파일**을 가리키고 있었다
+> (`find ~/forge ~/forge-outputs ~/.claude -name 'stack-mappings.md'` → 0건, 2026-08-03 관측).
+> workflow.js 의 Phase 0 프롬프트도 같은 경로를 참조해 Explore 워커가 없는 파일을 찾다
+> 조용히 자기 판단으로 대체하고 있었다. 위임을 접고 본문에 인라인한다.
+
+| stack | legacy 측 엔트리포인트 | migrated(NestJS) 측 대응 |
+|---|---|---|
+| `node-nest` | `socket.on('<event>')` · `io.on('connection')` 핸들러 · Express `app.get/post` | `@SubscribeMessage('<event>')`(Gateway) · `@MessagePattern` · `@Get/@Post` 컨트롤러 |
+| `php-nest` | 라우트 파일·프론트컨트롤러 진입점 · 공개 클래스 메서드(`$_POST`/`$_GET` 소비 지점) | 동일 — 컨트롤러 라우트 + Gateway 이벤트 |
+
+- **대조 키 = 이벤트명·라우트 경로**(파일명·클래스명 아님). 이름이 바뀌었으면 Phase 0.5 ledger 의
+  `INTENTIONAL` 로 등록하고 known-divergence 로 남긴다 — 조용히 매칭시키지 않는다.
+- 매핑 불가 항목은 **BLOCKER**다(Phase 0 게이트). `UNVERIFIED` 로 넘기지 말 것.
+- 새 스택 추가 시 이 표에 행을 더한다(`--stack=` 값과 문자열이 일치해야 한다).
+
+## Subagent 명세
+
+`workflow.js` 가 실제로 스폰하는 구성 — 값의 정본은 workflow.js 이고 이 표는 그 요약이다.
+
+| label | agentType | schema | 비고 |
+|---|---|---|---|
+| `phase-0:legacy-inv` · `phase-0:src-inv` | `Explore` | `INVENTORY_SCHEMA` | 2기 병렬. blockers·buildScriptExists 반환 |
+| `phase-0.5:ledger` | (기본) | `LEDGER_SCHEMA` | 커밋 분류 MIGRATION/INTENTIONAL/CHORE |
+| `phase-1:coverage` | (기본) | 커버리지 매트릭스 | 게이트 1 |
+| `phase-3:db` | (기본) | DB/외부계약 대조 | 게이트 2 |
+| `phase-4:review` | `codex-critic` | `REVIEW_SCHEMA` | 게이트 3 — BLOCKING |
+| `phase-5:report` · `phase-6:fix` | (기본) | 리포트·수정 | `--fix` 지정 시에만 6 |
 
 ## 사전 준비
 
@@ -98,7 +127,7 @@ src 인라인 주석(`legacy:.../g-N:...`) + bug_report + learnings 교차수집
 
 `--cr=on` (기본): codex-critic(`agentType:'codex-critic'`) 스폰 — 외부 토큰 선발행 전제.
 `--cr=degrade` | `--cr=off`: codex-critic 스폰 생략. Phase 2 findings를 WARN verdict로 그대로 통과. 비용 절감 또는 Codex 불가 환경용.
-crMode 해석은 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
+crMode 해석은 `~/forge/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
 
 Claude 1차 finding → `/cr-multi --mode triple`:
 
@@ -203,20 +232,14 @@ Golden tests: `<migrated-path>/test/migration-golden.*` (영구 편입)
 ## Workflow 통합 (계획서 P2-3)
 Phase 7 PEV 루프 = while() 자동화 (사이클 캡 6 + plateau 2연속 감지 중단).
 패턴: Phase 0 parallel(legacy/src 인벤토리) → Phase 2 pipeline(도메인별 병렬 대조) → Phase 5 [STOP] M1 게이트 → Phase 7 while(CRITICAL>0 && cycles<6).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix, crMode } })`
-`crMode` 값은 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 출력을 caller가 읽어 전달 (`on`|`degrade`|`off`, 기본 `on`).
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/migration-audit/workflow.js"), args: { legacyPath, migratedPath, stack, scope, fix, crMode } })`
+`crMode` 값은 `~/forge/shared/scripts/cr-mode.sh` 출력을 caller가 읽어 전달 (`on`|`degrade`|`off`, 기본 `on`).
 fix='off'(기본) → Phase 5에서 PENDING_APPROVAL 반환. fix='auto' → Phase 6+7 자동 실행.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 7 Phase 수동 실행 방식 fallback.
 
 ## 자동 평가 (eval-rubric 통합)
 
-### 호출 시점
-- Phase 5 완료 후: `/eval-rubric --target MIGRATION-AUDIT-REPORT.md`
-- Phase 7 루프 종료 후: SYNC-STATUS.md 평가
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-### 절차
-1. 산출물 저장 후: `/eval-rubric --target {경로}`
-2. verdict + 4축 점수 수신
-3. eval_cases.jsonl append (`$HOME/.claude/scripts/eval-cases-append.py`, case_id: EC-migration-audit-{N})
-
-자동 비활성: `EVAL_RUBRIC_AUTO=off`
+- **target**: Phase 5 완료 후 `MIGRATION-AUDIT-REPORT.md` · Phase 7 루프 종료 후 `SYNC-STATUS.md`
+- **case_id**: `EC-migration-audit-{N}`

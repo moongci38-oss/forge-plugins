@@ -60,7 +60,7 @@ model: sonnet
 기사 본문 전체를 분석하여 필수 7개 섹션을 도출한다.
 
 **프롬프트 캐싱**: JSON body가 대형 기사인 경우 (body > 3000자, 약 750+ tokens) `cache_control: ephemeral` 적용.
-복수 기사 분석 5분 내 반복 시 캐시 히트 가능. — 참조: `${FORGE_ROOT:-$HOME/forge}/.claude/rules/prompt-caching-rules.md`
+복수 기사 분석 5분 내 반복 시 캐시 히트 가능. — 참조: `~/forge/.claude/rules/prompt-caching-rules.md`
 
 - 30KB+ 본문은 섹션별로 분석 (본문을 문단 단위로 끊어서 순차 처리)
 - 카테고리 판정은 본문 + 제목 + 태그 종합
@@ -82,7 +82,7 @@ model: sonnet
 
 "관련성" 섹션 작성 시 아래 맥락 참고:
 
-- **Forge 워크스페이스**: 3-파이프라인 — 기획(S1~S5, S3.5 Fun Gate 등) + 개발(Phase 1~12, Check 3.5~3.8 등) + 정부과제(GR-1~6)
+- **Forge 워크스페이스**: 3-파이프라인 — 기획(S1~S5, S3.5 Fun Gate 등) + 개발(P4–P7 + platform층, Check 3.5~3.8 등) + 정부과제(GR-1~6)
 - **개발 도구**: Claude Code + Skills/Agents/Hooks/MCP, Subagent 병렬, Git worktree
 - **프론트엔드**: Next.js + Framer Motion + Lenis, Playwright E2E
 - **백엔드**: NestJS + TypeORM + PostgreSQL
@@ -90,7 +90,7 @@ model: sonnet
 - **자동화**: cron (daily-system-review, weekly-research, /article)
 - **지식 체계**: Karpathy 3-layer (Raw → Wiki → Meta), forge-outputs/20-wiki Obsidian vault
 
-실제 활성 프로젝트 목록은 `${FORGE_ROOT:-$HOME/forge}/forge-workspace.json`의 `projects` 필드를 Read해서 동적 확인.
+실제 활성 프로젝트 목록은 `~/forge/forge-workspace.json`의 `projects` 필드를 Read해서 동적 확인.
 
 ## 출력 형식
 

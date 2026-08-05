@@ -1,0 +1,180 @@
+// ── Orchestrator–workers — 독립 하위 태스크 fan-out ──────────────────────────
+//
+// 이 패턴의 판정은 **남은 subtask 수(remaining)** 다. 점수도, 단일 executor 도 없다.
+//   오케스트레이터: 남은 일을 독립 subtask 로 분해만 한다(직접 구현 금지).
+//   워커: subtask 1건씩 수행한다(서로의 결과에 의존하지 않는다).
+//   검증: verifyCmd 가 있으면 exit code 가 판정한다. 없으면 **분해자·워커와 분리된**
+//         별도 검증 에이전트가 remaining 을 센다(워커 자기신고 금지 — S1).
+//
+// ⚠️ 샌드박스에 병렬 agent() 선례가 없어 워커는 순차 호출한다.
+//    fan-out 은 논리적 분리(독립 subtask · 공유 상태 없음)로 유지된다.
+
+const verifyCmd  = _a?.verifyCmd || {{VERIFY_CMD_JS}}
+const executor   = _a?.executor  || ''
+const maxWorkers = Number(_a?.maxWorkers ?? 3)
+
+if (!executor) throw new Error('[{{LOOP_NAME}}] arg `executor` is required')
+
+successPrefix = 'all_done'
+
+const PLAN_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    subtasks: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          id:    { type: 'string' },
+          brief: { type: 'string' },
+        },
+        required: ['id', 'brief'],
+      },
+    },
+    remaining: { type: 'number' },
+  },
+  required: ['subtasks', 'remaining'],
+}
+
+const WORKER_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    id:      { type: 'string' },
+    summary: { type: 'string' },
+    ok:      { type: 'boolean' },
+  },
+  required: ['id', 'summary', 'ok'],
+}
+
+const CHECK_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    remaining: { type: 'number' },
+    detail:    { type: 'string' },
+  },
+  required: ['remaining', 'detail'],
+}
+
+log(`[Init] executor=${executor} maxWorkers=${maxWorkers} verifier=${verifyCmd || '(none — 검증 에이전트 사용)'}`)
+
+let remaining    = null
+let remainingLog = []   // plateau — remaining 추이
+let idFailures   = {}   // same_issue — 같은 subtask id 반복 실패
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
+phase('Loop')
+
+while (!stopReason && cycleCount < maxCycles) {
+  // §1-c budget_advisory
+  if (budget && budget.total && budget.remaining && budget.remaining() < BUDGET_RESERVE) {
+    stopReason = `budget_advisory (remaining=${budget.remaining()} < ${BUDGET_RESERVE})`
+    log(`[STOP] ${stopReason}`); break
+  }
+
+  cycleCount++
+  const ph = `Loop/c${cycleCount}`
+  log(`\n── Cycle ${cycleCount}/${maxCycles} ──────────────`)
+
+  // (1) Orchestrator — 분해만 한다
+  const plan = await agent(
+    `당신은 **오케스트레이터**입니다. 직접 구현하지 마십시오 — 분해만 합니다.
+
+GOAL / DONE-CRITERIA: ${goal}
+${history.length ? `이전 사이클: ${history.map(h => `c${h.cycle} done=${h.done}/${h.dispatched} remaining=${h.remaining}`).join('; ')}` : ''}
+
+남은 일을 **서로 독립인** subtask 로 최대 ${maxWorkers} 건 분해하십시오.
+- 서로의 산출물에 의존하는 작업은 같은 사이클에 넣지 마십시오(다음 사이클로).
+- id 는 안정 슬러그로 — 같은 일이 재분해되면 같은 id 여야 합니다(반복 실패 추적용).
+
+반환: { "subtasks": [{ "id": "...", "brief": "..." }], "remaining": <전체 남은 건수> }`,
+    { label: `orchestrator-c${cycleCount}`, phase: ph, schema: PLAN_SCHEMA }
+  )
+
+  const subtasks = (plan?.subtasks || []).slice(0, maxWorkers)
+  log(`[Orchestrator] c=${cycleCount} dispatch=${subtasks.length} remaining(자가보고)=${plan?.remaining}`)
+
+  if (subtasks.length === 0) {
+    log('[Orchestrator] 분해된 subtask 없음 — 검증으로 넘어감')
+  }
+
+  // (2) Workers — subtask 1건씩. 순차 호출이되 서로의 결과를 주지 않는다.
+  let okCount = 0
+  for (const st of subtasks) {
+    let w
+    try {
+      w = await agent(
+        `당신은 **워커**입니다. 아래 subtask **1건만** 수행하십시오. 다른 subtask 는 건드리지 마십시오.
+
+GOAL(맥락): ${goal}
+subtask id: ${st.id}
+brief: ${st.brief}
+Executor: ${executor}
+
+⚠️ 검증 기준·verifier 를 수정하지 마십시오(self-grading 금지).
+
+반환: { "id": "${st.id}", "summary": "<한 일>", "ok": <성공 여부> }`,
+        { label: `worker-c${cycleCount}-${st.id}`, phase: ph, schema: WORKER_SCHEMA }
+      )
+    } catch (e) {
+      log(`[WARN] worker ${st.id} failed: ${e?.message || e}`)
+      w = { id: st.id, summary: `error: ${e?.message || e}`, ok: false }
+    }
+    if (w?.ok) okCount++
+    else {
+      idFailures[st.id] = (idFailures[st.id] || 0) + 1
+      log(`[Worker] ${st.id} 실패 #${idFailures[st.id]}`)
+    }
+    log(`[Worker] ${st.id} ok=${w?.ok} :: ${(w?.summary || '').slice(0, 100)}`)
+  }
+
+  // (3) 검증 — 분해자·워커와 분리. verifyCmd 가 있으면 exit code 가 판정한다.
+  if (verifyCmd) {
+    const v = await sh(verifyCmd, `verify-c${cycleCount}`, ph)
+    log(`[Verify] c=${cycleCount} exit=${v.exit_code} :: ${(v.stdout || '').split('\n')[0]}`)
+    remaining = v.exit_code === 0 ? 0 : (plan?.remaining ?? null)
+    if (v.exit_code === 0) {
+      history.push({ cycle: cycleCount, dispatched: subtasks.length, done: okCount, remaining: 0 })
+      stopReason = 'all_done (SUCCESS — verifier exit 0)'
+      log(`[STOP] ${stopReason}`); break
+    }
+  } else {
+    const chk = await agent(
+      `당신은 **독립 검증자**입니다. 이 산출물을 누가 어떻게 만들었는지 모릅니다.
+워커의 자기신고를 신뢰하지 말고, 목표 대비 **아직 남은 건수**만 세십시오.
+
+GOAL / DONE-CRITERIA: ${goal}
+
+반환: { "remaining": <남은 건수>, "detail": "<무엇이 남았는지 1~3줄>" }`,
+      { label: `checker-c${cycleCount}`, phase: ph, schema: CHECK_SCHEMA }
+    )
+    remaining = chk?.remaining ?? null
+    log(`[Check] c=${cycleCount} remaining=${remaining} :: ${(chk?.detail || '').slice(0, 120)}`)
+    if (remaining === 0) {
+      history.push({ cycle: cycleCount, dispatched: subtasks.length, done: okCount, remaining: 0 })
+      stopReason = 'all_done (SUCCESS)'
+      log(`[STOP] ${stopReason}`); break
+    }
+  }
+
+  history.push({ cycle: cycleCount, dispatched: subtasks.length, done: okCount, remaining })
+
+  // §1-f same_issue — 같은 subtask 가 SAME_ISSUE_MAX 회 실패
+  const stuck = Object.entries(idFailures).find(([, n]) => n >= SAME_ISSUE_MAX)
+  if (stuck) {
+    stopReason = `same_issue (subtask="${stuck[0]}" x${stuck[1]})`
+    log(`[STOP] ${stopReason}`); break
+  }
+
+  // §1-h plateau — remaining 이 줄지 않으면 정지
+  if (typeof remaining === 'number') remainingLog.push(remaining)
+  if (remainingLog.length >= PLATEAU_CONSECUTIVE + 1) {
+    const w = remainingLog.slice(-(PLATEAU_CONSECUTIVE + 1))
+    if (w[0] - Math.min(...w) <= 0) {
+      stopReason = `plateau (remaining 감소 0, window=[${w}])`
+      log(`[STOP] ${stopReason}`); break
+    }
+  }
+}
+
+resultLine    = `remaining: ${remaining === null ? 'N/A' : remaining}`
+finalArtifact = `남은 건수: ${remaining === null ? 'N/A' : remaining}\n사이클별 처리: ${JSON.stringify(history)}`

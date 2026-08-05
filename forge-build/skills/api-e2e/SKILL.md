@@ -127,28 +127,13 @@ forge-outputs/docs/qa/YYYY-MM-DD-{spec-name}-api-e2e-report.md
 ```
 > 실패 시 [[pev-self-correction]] 적용
 
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
-```
-
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.
+<!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 여기 있던 "Evaluator (Wave 2.5)" 절은 8개 SKILL.md에 동일 문구로 복제된 산문이며 실제 Agent()/hook 배선이 0건이었다(role/model/isolation을 설명만 하고 아무것도 실행하지 않음). 독립 검증이 실제로 가치 있는 codex-review·forge-check-security만 실제 Agent() 호출로 승격했고, 나머지는 제거만 했다 — 자세한 판단 근거는 codex-review/SKILL.md의 동일 root-cause 주석 참조. -->
 
 ## Workflow 통합 (계획서 P1)
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Extract→pipeline() 4-axis→Report.
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/api-e2e/workflow.js") })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/api-e2e/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

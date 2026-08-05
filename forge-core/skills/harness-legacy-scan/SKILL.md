@@ -1,6 +1,7 @@
 ---
 name: harness-legacy-scan
 description: "Forge 하네스 읽기전용 레거시 감사: 낡은룰/중복/과대 전역컨텍스트/넓은 Skill/불필요 Hook·MCP/제품중복 분류. 트리거: /harness-legacy-scan"
+disable-model-invocation: true
 model: sonnet
 allowed-tools: Read, Bash, Glob, Grep, Write
 argument-hint: [--scope rules|skills|hooks|all]
@@ -12,6 +13,7 @@ argument-hint: [--scope rules|skills|hooks|all]
 **컨텍스트**: `/harness-legacy-scan` 호출 시. 하네스가 비대해졌다고 느낄 때, context-tax 줄이고 싶을 때.  
 **출력**: 9섹션 스캔 리포트 + diet-queue.json.  
 **입력 신호**: 최근 harness-gaps 리포트(`reviews/*harness-gaps*.md` 최신 8개)를 스캔 전 자동 요약해 Lens 5/6/7에 주입 — 실발화 결함(반복 FP=과차단 근거)·긍정 확인(실효 입증=KEEP 근거)을 정적 추정보다 우선 (2026-07-17 배선, fail-open).
+**텔레메트리 신호(참고, 대체 아님)**: `~/.claude.json`의 네이티브 skillUsage/pluginUsage 카운터(`shared/scripts/skill-telemetry.py`)를 스캔 전 1회 조회해 Lens 3(스킬 품질)·Lens 4(제품 중복)에 주입 — 기존 3경로 배선측정(skill-usage.py)의 보강 신호일 뿐이며 **이 운영자 이 머신 로컬 집계**라 팀 전체·타 환경 사용량은 반영하지 않는다. usage=0을 DELETE 근거로 쓰지 않는다 (2026-08-03 배선, fail-open).
 
 ## 쓰지 말아야 할 때
 
@@ -39,6 +41,10 @@ Workflow({
   args: { outBase: Bash("echo ${FORGE_OUTPUTS:-$HOME/forge-outputs}") }
 })
 ```
+
+> **UNC 환경(`\\wsl.localhost\...`)에서는 `script:` 인라인 대신 `scriptPath:` 를 쓴다.**
+> 인라인은 workflow.js 39KB를 호출마다 컨텍스트에 적재한다. SSoT를 로컬 비-UNC 경로로 복사한 뒤
+> 그 경로를 `scriptPath` 로 넘길 것.
 
 > **`outBase`를 반드시 주입하라.** Workflow 스크립트는 `process` 전역에 접근할 수 없어 `$HOME`을
 > 스스로 알 수 없다. 미주입 시 workflow.js의 하드코딩 폴백(작성자 로컬 경로)으로 떨어져

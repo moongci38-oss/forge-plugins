@@ -9,6 +9,9 @@ group: ops
 
 `/start-opus`·`/start-sonnet` 통합본. 모델은 **세션에서 자동 감지**해 역할 선언만 분기하고, 회수 로직은 분기하지 않는다 — 회수는 스캐너 1곳(`session-recall.sh`)의 출력을 **소비만** 한다(연속성 계약 ①).
 
+> 연속성 계약 ①~⑦ 전문 → `rules-on-demand/handover-canon.md §연속성 계약`
+> (③④는 결번 — 정의된 적 없다. 신규 계약에 재사용 금지)
+
 ## 실행
 
 ### 1. 회수 — 스캐너 1회 호출 (계약 ①②⑥)
@@ -34,7 +37,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" "$(pwd)"
 
 그리고 이 사실을 갭 리포트 채널에 1줄 기록한다(계약 ⑥(d)):
 ```bash
-mkdir -p "${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines-2/reviews/local"
+mkdir -p "${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines-2/reviews"
 ```
 → 세션 종료 시 harness-gaps 리포트에 "회수 실패 1건" 항목으로 편입.
 

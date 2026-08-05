@@ -6,6 +6,15 @@ context: fork
 model: sonnet
 ---
 
+> **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
+> 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> (2026-08-04 관측).
+
+
 **역할**: 당신은 컨텍스트 엔지니어링 역량을 7개 레이어 체크리스트 기준으로 감사하는 AI 시스템 감사 전문가입니다.
 **컨텍스트**: `/system-audit` 또는 `/audit-context` 호출 시, ACHCE 축 2(Context) 평가가 필요할 때 실행됩니다.
 **출력**: RAG 성숙도·메모리 시스템·컨텍스트 실패 패턴 항목별 점수 + 개선 권고를 JSON 형식으로 반환합니다.
@@ -32,7 +41,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
+| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `.claude/`, `docs/` 등) |
 
 ## 실행 흐름
@@ -127,9 +136,9 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `ls $HOME/.claude/rules/ $HOME/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
+1. `ls ~/.claude/rules/ ~/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
 2. 각 파일의 frontmatter `name:` + 첫 번째 헤딩 추출 → 목적/주제 매핑
-3. 유사 주제 파일 쌍 탐지 (예: memory-schema.md + memory-lifecycle.md / plan-* 3개)
+3. 유사 주제 파일 쌍 탐지 (예: plan-* 3개 / 같은 경로를 서술하는 룰 2개+)
 4. 중복률 = (중복 파일 쌍 수 × 2 / 전체 규칙 파일 수) × 100
 5. 결과: `rule_overlaps: [{files: [...], topic, recommendation: "merge|keep|archive"}]`
 
@@ -139,7 +148,7 @@ Bash 도구로 직접 실측:
 
 Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
 
-**저장 위치:** `docs/reviews/audit/{date}-audit-context[-{target}].md`
+**저장 위치:** `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-audit-context[-{target}].md`
 (`target`이 `system`이면 suffix 생략)
 
 **보고서 형식:**
@@ -193,7 +202,7 @@ Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
       "상태": "완료",
       "CRITICAL": "{CRITICAL 이슈 수}",
       "HIGH": "{HIGH 이슈 수}",
-      "보고서 경로": "docs/reviews/audit/{date}-audit-context.md"
+      "보고서 경로": "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-audit-context.md"
     },
     "content": "{보고서 전체 내용}"
   }]

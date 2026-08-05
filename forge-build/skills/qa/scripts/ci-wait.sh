@@ -33,15 +33,23 @@ ELAPSED=0
 INTERVAL=30
 
 while [ "$ELAPSED" -lt "$TIMEOUT_SEC" ]; do
-  STATUS=$(gh pr checks "$PR_NUMBER" --json name,state,conclusion \
+  # ⚠️ `conclusion` 은 `gh pr checks` 에 없는 필드였다(2026-07-31 실측: 유효 필드는
+  #    bucket/completedAt/description/event/link/name/startedAt/state/workflow).
+  #    gh 가 `Unknown JSON field` 로 죽고 stderr 는 2>/dev/null 로 삼켜져 **stdout 이 빈 채**
+  #    jq 로 들어갔다. jq 는 빈 입력에 아무것도 출력하지 않고 rc=0 이라 `|| echo PENDING`
+  #    도 안 걸리고 STATUS 가 빈 문자열이 됐다 → 아래 case 4분기 어디에도 안 걸려
+  #    **CI PASS/FAIL 을 한 번도 판정하지 못한 채 15분 타임아웃만 소진**했다.
+  #    판정은 `bucket`(pass/fail/pending/skipping/cancel)으로 한다 — state 보다 정규화돼 있다.
+  STATUS=$(gh pr checks "$PR_NUMBER" --json name,state,bucket \
     2>/dev/null | jq -r '
     if length == 0 then "no-checks"
-    elif all(.[]; .state == "COMPLETED") then
-      if all(.[]; .conclusion == "SUCCESS" or .conclusion == "SKIPPED") then "PASS"
-      else "FAIL"
-      end
-    else "PENDING"
+    elif any(.[]; .bucket == "pending") then "PENDING"
+    elif all(.[]; .bucket == "pass" or .bucket == "skipping") then "PASS"
+    else "FAIL"
     end' 2>/dev/null || echo "PENDING")
+  # 빈 문자열 = gh 호출 자체가 실패(미인증·필드 오타·네트워크). 조용히 타임아웃을 태우지 말고
+  # 매 회차 눈에 보이게 알린다. 폴링은 계속한다(fail-open — 새 BLOCK 을 만들지 않는다, AD-168).
+  [ -n "$STATUS" ] || STATUS="ERROR"
 
   case "$STATUS" in
     PASS)
@@ -62,6 +70,9 @@ while [ "$ELAPSED" -lt "$TIMEOUT_SEC" ]; do
     PENDING)
       echo "[ci-wait] CI 진행 중 (${ELAPSED}/${TIMEOUT_SEC}s)..." >&2
       ;;
+    ERROR)
+      echo "[WARN ci-wait] gh pr checks 응답 없음 — 판정 불가 (${ELAPSED}/${TIMEOUT_SEC}s). gh 인증·필드 확인." >&2
+      ;;
   esac
 
   sleep "$INTERVAL"
@@ -77,8 +88,10 @@ fi
 # ─── CI FAIL 패턴 분석 → ci-trigger.jsonl append
 if [ "$CI_RESULT" = "FAIL" ]; then
   # 실패한 check 이름 추출
-  FAILED_CHECKS=$(gh pr checks "$PR_NUMBER" --json name,state,conclusion \
-    2>/dev/null | jq -r '.[] | select(.conclusion == "FAILURE") | .name' 2>/dev/null || echo "unknown")
+  # 위와 같은 이유로 conclusion → bucket. 이 블록은 CI_RESULT=FAIL 일 때만 도는데, 그 FAIL
+  # 자체가 도달 불가였으므로 이 경로는 여태 한 번도 실행되지 않았다(ci-trigger.jsonl 이 빈 이유).
+  FAILED_CHECKS=$(gh pr checks "$PR_NUMBER" --json name,state,bucket \
+    2>/dev/null | jq -r '.[] | select(.bucket == "fail") | .name' 2>/dev/null || echo "unknown")
 
   while IFS= read -r check_name; do
     SEQUENCE="unknown"

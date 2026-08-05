@@ -3,6 +3,7 @@ description: "[DEPRECATED alias] /forge-find-item으로 이름 변경됨 — 비
 argument-hint: "<후보 한 줄>"
 group: research
 model: sonnet
+disable-model-invocation: true
 ---
 
 # /find-item (Alias)

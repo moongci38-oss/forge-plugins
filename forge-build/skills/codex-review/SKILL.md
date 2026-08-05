@@ -5,6 +5,8 @@ description: "OpenAI Codex(gpt-5.5) 경유 2차 리뷰 게이트 — Claude 1차
 
 # Codex Review
 
+> **인터페이스 구분(harness #3 2026-07-30)**: 이 SKILL = **자동/파이프라인 인터페이스**(P3~P7 Forge Dev 단계 자동 호출). 수동 `/codex-review` 슬래시는 `commands/codex-review.md`. 의도적 이중 인터페이스 — 한쪽 삭제 금지, stage 분기·`CODEX_REVIEW_AUTO_STAGES` 규약 공유, 로직 변경 시 양쪽 동기.
+
 Claude 1차 리뷰의 동일 모델 맹점 보완용 2차 게이트. SDD·PGE·Forge Dev 모든 단계에서 사용 가능.
 
 ## 역할
@@ -13,7 +15,7 @@ Claude 1차 리뷰의 동일 모델 맹점을 보완하는 OpenAI Codex(gpt-5.5)
 
 ## 컨텍스트
 
-SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev 통합 지점은 P3/P4(plan, blocking) / P5 Check P5.7-X(code, 권고) / P6 Check 6-TX(test, 권고) / P7 Check 7-X(final, blocking high-effort) / 버그 patch 후(bugfix, 수동). `${FORGE_ROOT:-$HOME/forge}/.env`의 `CODEX_REVIEW_AUTO_STAGES`로 자동 발동 stage를 제어한다.
+SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev 통합 지점은 P3/P4(plan, blocking) / P5 Check P5.7-X(code, 권고) / P6 Check 6-TX(test, 권고) / P7 Check 7-X(final, blocking high-effort) / 버그 patch 후(bugfix, 수동). `~/forge/.env`의 `CODEX_REVIEW_AUTO_STAGES`로 자동 발동 stage를 제어한다.
 
 ## 출력
 
@@ -21,7 +23,7 @@ SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev �
 
 ## Workflow 통합 (계획서 P2-8)
 단독 호출 = 현행 유지. cr-multi Workflow에 흡수 가능 (mode='double' — Claude+Codex).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"), args: { targetPath, mode: 'double', stage } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/cr-multi/workflow.js"), args: { targetPath, mode: 'double', stage } })`
 단독 Codex만 필요 시 → 기존 /codex-review 그대로 사용. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식.
 
 ## Quick Start
@@ -36,7 +38,7 @@ SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev �
 
 단축 래퍼: `/cr-plan`, `/cr-code`, `/cr-test`, `/cr-final`, `/cr-bug`.
 
-상세 호출 절차·JSON 스키마·diff 처리는 `${FORGE_ROOT:-$HOME/forge}/.claude/commands/codex-review.md` 참조.
+상세 호출 절차·JSON 스키마·diff 처리는 `~/forge/.claude/commands/codex-review.md` 참조.
 
 ## Stage 분기
 
@@ -62,7 +64,7 @@ SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev �
 > 값이 어긋나면 커맨드를 따른다. 2026-07-14 실측에서 두 문서의 **기본값이 서로 달랐다**
 > (커맨드 `off` vs 스킬 `plan,final`) — 리뷰 게이트가 돌기도 하고 조용히 안 돌기도 했다.
 
-`${FORGE_ROOT:-$HOME/forge}/.env` 환경변수:
+`~/forge/.env` 환경변수:
 
 ```bash
 CODEX_REVIEW_AUTO_STAGES="${CODEX_REVIEW_AUTO_STAGES:-off}"   # 미설정 = off (팀 비용절감)
@@ -86,7 +88,7 @@ ChatGPT OAuth (Plus/Pro 한도) → 모든 stage `$0.00`. API key fallback 시�
 | final | $0.00 | gpt-5.5 high ~$0.10~0.30 |
 | bugfix | $0.00 | gpt-5.5 ~$0.02~0.05 |
 
-상세 정책 (스킵 패턴·다운그레이드·diff 처리): `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`.
+상세 정책 (스킵 패턴·다운그레이드·diff 처리): `~/forge/dev/rules/codex-review-policy.md`.
 
 ## 효과 측정 (OAuth 모드)
 
@@ -95,7 +97,7 @@ ChatGPT OAuth (Plus/Pro 한도) → 모든 stage `$0.00`. API key fallback 시�
 월별 통계:
 
 ```bash
-${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-monthly-stats.sh
+~/forge/shared/scripts/codex-monthly-stats.sh
 ```
 
 임계값:
@@ -164,7 +166,7 @@ auth fail vs timeout vs model_unavailable 구분 → 오류별 대응 경로 분
 
 ## 호출처는 commands에 있음
 
-본 스킬은 의미 트리거·정책 요약 전용. **실제 호출 절차는 `${FORGE_ROOT:-$HOME/forge}/.claude/commands/codex-review.md`**:
+본 스킬은 의미 트리거·정책 요약 전용. **실제 호출 절차는 `~/forge/.claude/commands/codex-review.md`**:
 - Step 1: 대상 + diff 추출
 - Step 1.5: AUTO_STAGES 게이트
 - Step 2: Codex 호출 (codex CLI exec)
@@ -176,59 +178,29 @@ auth fail vs timeout vs model_unavailable 구분 → 오류별 대응 경로 분
 
 ## 관련
 
-- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`
-- Claude 1차: `$HOME/.claude/agents/code-reviewer/agent.md`
-- 비교 스크립트: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-delta-compute.py`
-- 월별 통계: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-monthly-stats.sh`
-- Forge Dev 게이트: `${FORGE_ROOT:-$HOME/forge}/pipeline.md` (Check P5.7-X / P6-TX / P7-X)
+- 정책: `~/forge/dev/rules/codex-review-policy.md`
+- Claude 1차: `~/.claude/agents/code-reviewer/agent.md`
+- 비교 스크립트: `~/forge/shared/scripts/codex-delta-compute.py`
+- 월별 통계: `~/forge/shared/scripts/codex-monthly-stats.sh`
+- Forge Dev 게이트: `~/forge/pipeline.md` (Check P5.7-X / P6-TX / P7-X)
 
-## 자동 평가 (eval-rubric 통합)
+## Evaluator (독립 검증 — 실제 호출)
 
-본 스킬 결과 산출 후 자동으로 `eval-rubric` 호출 → 4축 Rubric 채점 (clarity/consistency/completeness/safety) → `eval_cases.jsonl` 누적.
+<!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 원래 있던 "자동 평가(eval-rubric 통합)"·"Evaluator (Wave 2.5)" 두 절은 8개 SKILL.md에 동일 문구로 복제된 산문이었고 "자동 누적"이라 썼지만 실행하는 hook/Agent() 호출이 0건이었다(재현: `grep -rn "eval-rubric\|eval_cases" .claude/hooks .claude/settings.json` → 무관 hit뿐). codex-review는 그 자체가 2차 검토 게이트라 산출물의 자기검증 편향(review-of-review)이 특히 우려되므로, 이 스킬만 실제 Agent() 호출로 승격했다(나머지 6개는 제거만 — asset-extract/SKILL.md 등 참조). -->
 
-### 호출 시점
-- 본 스킬 핵심 산출물 저장 직후 — codex-review JSON (`docs/reviews/{stage}/{date}-{slug}.json`)
+codex-review 산출물(`docs/reviews/{stage}/{date}-{slug}.json`) 저장 직후, 독립 Evaluator subagent로 구조적 완결성을 확인한다:
 
-### 절차
-1. 스킬 산출물 저장 후 다음 호출:
-   ```
-   /eval-rubric --target {산출물 경로}
-   ```
-2. eval-rubric의 verdict (PASS/WARN/FAIL) + 4축 점수 + rationale 수신
-3. `eval_cases.jsonl` append:
-   - 위치: `$HOME/.claude/skills/codex-review/eval_cases.jsonl`
-   - case_id: `EC-codex-review-{N}` (auto-increment)
-   - split: holdout 결정 (`hash(case_id) % 100 < 20` → holdout, 그 외 sample)
-   - dedupe key: `sha256(skill+input.context+input.args)` 충돌 시 observed_count++
-
-### 자동 비활성 조건
-- 환경변수 `EVAL_RUBRIC_AUTO=off` 설정 시 스킵
-- 본 스킬 frontmatter에 `eval_cases: off` 명시 시 스킵 (특수 케이스)
-
-### 통합 효과
-- FAIL 케이스 자동 누적 → 회귀 평가 데이터셋 구축
-- WARN 시 사용자 알림 (자동 차단 X — 본 스킬 verdict 우선)
-- 분기별 Harness GC 사이클의 Quality Audit 입력으로 활용
-
-### 보안 / 데이터 보호
-- eval-rubric의 입력 redaction 정책 자동 적용 (`$HOME/.claude/skills/eval-rubric/SKILL.md` "보안 정책" 참조)
-- 산출물에 secret/PII 의심 시 → eval-rubric STOP fail-safe 발화 → 본 스킬도 STOP
-
-> 출처: 하네스 백과사전 제5장 평가 하네스, eval_cases.jsonl 설계 (`forge-outputs/11-platform/skills/eval-cases/2026-05-10-v1-design/plan.md`)
-
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="haiku",  # 탐색·기계적 검증 tier — model-routing.md §워커 tier
+  prompt=f"""아래 codex-review 산출물 JSON 하나만 읽고 PASS/WARN/FAIL 중 하나와 근거 1줄만 답하라.
+파일: {output_json_path}
+PASS: stage별 필수 필드(verdict/findings/blocking) 모두 존재 + JSON 파싱 가능 + blocking=true 항목에 근거 텍스트 존재
+WARN: 필드는 있으나 findings 배열이 비어 있거나 근거가 사실상 없음
+FAIL: 파일 부재 / JSON 파싱 실패 / 필수 필드 누락
+"""
+)
 ```
 
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.
+판정 결과를 `~/.claude/skills/codex-review/eval_cases.jsonl`에 `{"case_id":"EC-codex-review-{N}", "verdict":"PASS|WARN|FAIL", "note":"..."}` 형태로 이어서 기록한다(자동 훅 없음 — 이 스텝에서 직접 append). 통합 패턴(절차·holdout·dedupe) 정본 → `eval-rubric/references/skill-integration.md`.

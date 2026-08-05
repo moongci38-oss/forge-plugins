@@ -1,11 +1,47 @@
 ---
-description: "Forge Dev Phase 12 — 프로덕션 롤백 실행 (L1 Quick / L2 Release / L3 Hotfix Forward)"
+description: "Forge Dev platform층 — 프로덕션 롤백 실행 (L1 Quick / L2 Release / L3 Hotfix Forward)"
 model: sonnet
 group: deploy
-status: "reference only, not active phase"
+status: "per-repo — 대상 레포에 rollback.yml 배선 시 가동(§가동 여부 판정)"
 ---
 
-Forge Dev Phase 12 프로덕션 롤백을 실행합니다. 배포 실패 시 아래 레벨 중 선택하세요.
+## 가동 여부 판정 (Step 0 — 실행 전 필수)
+
+**이 커맨드의 가동 여부는 레포마다 다르다.** 아래 `gh workflow run rollback.yml`은 실행 대상
+레포의 `.github/workflows/rollback.yml`을 부르므로, **롤백하려는 그 레포에서** 먼저 확인한다:
+
+```bash
+ls .github/workflows/rollback.yml 2>/dev/null && echo "WIRED" || echo "NOT_WIRED"
+ls release-config.json 2>/dev/null && echo "redeploy=on" || echo "redeploy=off (L2는 코드 revert까지만)"
+```
+
+- `WIRED` → 아래 L1/L2/L3 그대로 실행 가능.
+- `NOT_WIRED` → `dev/github-spec-kit/workflows/rollback.yml`(spec-kit 템플릿)을 그 레포의
+  `.github/workflows/`에 복사해 배선한 뒤 실행한다. 템플릿 헤더가 명시하는 정규 설치 경로다.
+- `redeploy=off` → L2의 "Re-deploy previous version" 스텝이 `release-config.json` 부재로
+  **skip**된다(템플릿이 그렇게 설계됨). 코드는 되돌아가지만 재배포는 수동이다 — L2를 쓸 때
+  이 사실을 전제하고 재배포를 별도로 수행할 것.
+
+### 실측 현황 (2026-08-03 관측 — 재현: 위 판정 명령을 각 레포에서 실행)
+
+| 레포 | rollback.yml | release-config.json | 판정 |
+|---|:--:|:--:|---|
+| `~/forge` (하네스) | 없음 | 없음 | **해당 없음** — 프로덕션 배포 자체가 없다(`.github/workflows/`에 production-deploy 부재). 롤백할 대상이 없으므로 부재가 정상이다. |
+| `portfolio-project` (제품) | **있음** | 없음 | **가동** — 단 L2 재배포 스텝은 skip(코드 revert까지만). |
+
+> ⚠️ 2026-08-03 이전 이 문서는 "이 커맨드는 미가동"이라고 **전역 단정**했다. 그 판정은
+> `~/forge`에서 `ls .github/workflows/`를 실행한 결과를 일반화한 것인데, forge는 애초에
+> 프로덕션 배포가 없는 하네스 레포라 롤백 대상이 아니다. 정작 롤백이 필요한 제품 레포
+> (`portfolio-project`)에는 rollback.yml이 **배선돼 있었다**. 즉 그 단정은 장애 시점에
+> "이 커맨드는 죽었다"고 오인하게 만드는 **거짓 음성**이었다 — 부재 주장은 측정 명령과
+> 측정 위치를 함께 적어야 한다(`dev-workflow-rules.md §부재 주장은 측정 명령 + 관측일 동반`).
+
+**L1 수동 대안**(rollback.yml 미배선 레포에서 30분 내 긴급 시): `git revert <commit> && git push`.
+L2/L3는 `/forge-deploy --reverse`로 대체할 수 없다 — `prod --reverse`는 역머지 대상이 없어
+즉시 거부된다(`commands/forge-deploy.md:63`). 이전 릴리스 태그 checkout 후 `/forge-deploy prod`
+재배포로 대체한다.
+
+Forge Dev platform층 프로덕션 롤백을 실행합니다. 배포 실패 시 아래 레벨 중 선택하세요.
 
 ## 롤백 레벨 선택 가이드
 
@@ -33,7 +69,7 @@ Agent(subagent_type="advisor-strategist", prompt="장애 증상·롤백 대상 �
 ### L1 Quick Revert
 
 ```bash
-# TODO: deploy target 미확정 — rollback.yml NOT YET ACTIVE
+# 실행 전 §가동 여부 판정 Step 0 을 통과했는지 확인할 것.
 gh workflow run rollback.yml --ref main \
   -f JOB=rollback \
   -f REASON="<실패 원인 간략 설명>" \
@@ -43,7 +79,7 @@ gh workflow run rollback.yml --ref main \
 ### L2 Release Revert
 
 ```bash
-# TODO: deploy target 미확정 — rollback.yml NOT YET ACTIVE
+# 실행 전 §가동 여부 판정 Step 0 을 통과했는지 확인할 것.
 gh workflow run rollback.yml --ref main \
   -f JOB=rollback \
   -f REASON="<실패 원인 간략 설명>" \
@@ -54,7 +90,7 @@ gh workflow run rollback.yml --ref main \
 ### L3 Hotfix Forward
 
 ```bash
-# TODO: deploy target 미확정 — rollback.yml NOT YET ACTIVE
+# 실행 전 §가동 여부 판정 Step 0 을 통과했는지 확인할 것.
 gh workflow run rollback.yml --ref main \
   -f JOB=rollback \
   -f REASON="<실패 원인 간략 설명>" \

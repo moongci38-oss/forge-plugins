@@ -180,76 +180,7 @@ PR 생성 전(P7 진입 직전) 또는 릴리즈 전 최종 점검에 사용된�
 
 ## 자동 평가 (eval-rubric 통합)
 
-본 스킬 결과 산출 후 자동으로 `eval-rubric` 호출 → 4축 Rubric 채점 (clarity/consistency/completeness/safety) → `eval_cases.jsonl` 누적.
+산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-### 호출 시점
-- 본 스킬 핵심 산출물 저장 직후 — 종합 체크리스트 (`docs/reviews/inspection/{date}-{feature}.md`)
-
-### 절차
-1. 스킬 산출물 저장 후 다음 호출:
-   ```
-   /eval-rubric --target {산출물 경로}
-   ```
-2. eval-rubric의 verdict (PASS/WARN/FAIL) + 4축 점수 + rationale 수신
-3. `eval_cases.jsonl` append:
-   - 위치: `$HOME/.claude/skills/inspection-checklist/eval_cases.jsonl`
-   - case_id: `EC-inspection-checklist-{N}` (auto-increment)
-   - split: holdout 결정 (`hash(case_id) % 100 < 20` → holdout, 그 외 sample)
-   - dedupe key: `sha256(skill+input.context+input.args)` 충돌 시 observed_count++
-
-### 자동 비활성 조건
-- 환경변수 `EVAL_RUBRIC_AUTO=off` 설정 시 스킵
-- 본 스킬 frontmatter에 `eval_cases: off` 명시 시 스킵 (특수 케이스)
-
-### 통합 효과
-- FAIL 케이스 자동 누적 → 회귀 평가 데이터셋 구축
-- WARN 시 사용자 알림 (자동 차단 X — 본 스킬 verdict 우선)
-- 분기별 Harness GC 사이클의 Quality Audit 입력으로 활용
-
-### 보안 / 데이터 보호
-- eval-rubric의 입력 redaction 정책 자동 적용 (`$HOME/.claude/skills/eval-rubric/SKILL.md` "보안 정책" 참조)
-- 산출물에 secret/PII 의심 시 → eval-rubric STOP fail-safe 발화 → 본 스킬도 STOP
-
-> 출처: 하네스 백과사전 제5장 평가 하네스, eval_cases.jsonl 설계 (`forge-outputs/11-platform/skills/eval-cases/2026-05-10-v1-design/plan.md`)
-
-## Evaluator (Wave 2.5)
-
-독립 Evaluator subagent가 산출물 품질을 검증합니다.
-
-```
-Evaluator 역할: 산출물 독립 검증
-모델: claude-haiku-4-5 (경량, 편향 최소화)
-격리: 메인 컨텍스트 오염 방지
-```
-
-판정 기준:
-- PASS: 모든 핵심 기준 충족, 즉시 사용 가능
-- WARN: 사용 가능하나 개선 권장, 사용자 확인 후 진행
-- FAIL: 핵심 기준 미충족, 재실행 필요
-
-eval_cases.jsonl에 결과 자동 누적.
-
-### 도메인별 FAIL 재실행 (WAVE-2 P3 — bound=1 per domain)
-
-> 재검증은 실제 변경(fix/override) 발생 후에만 — 동일 입력 재실행 금지. 변경 없으면 caller가 fix 후 재호출.
-
-Evaluator가 특정 도메인 FAIL 판정 시 해당 도메인 sub-check를 **1회** 재실행한다. 전체 재실행 아님 — FAIL 도메인만 한정.
-
-도메인-스킬 매핑:
-| 도메인 | 해당 Check | 재실행 대상 |
-|--------|-----------|------------|
-| 빌드/테스트 | P5 (verify.sh) | `verify.sh` 재실행 |
-| Spec 추적성 | P5.5 | `/forge-check-traceability` 재실행 |
-| UI/품질 | P5.6 | `/forge-check-ui` 재실행 |
-| 코드 리뷰 | P5.7 | `/codex-review --stage code` 재실행 |
-| 보안 | P6 QA(T6) | `/forge-check-security` + `/forge-check-security-exec` 재실행 |
-| 문서 | P7 PR 전 | `/forge-check-docs` 재실행 |
-
-절차 (각 FAIL 도메인마다):
-1. Evaluator 판정 수신
-2. FAIL 도메인 식별 (최대 5도메인)
-3. 해당 도메인 sub-check 1회 재실행 (cap=1 per domain)
-4. 재실행 결과로 최종 체크리스트 업데이트
-5. 재실행 후에도 FAIL → 최종 체크리스트에 FAIL 확정. 코드리뷰(P5.7) 도메인이면 codex-review 규약대로 /cr-triple 에스컬레이션, 그 외는 Human [STOP] 에스컬레이션
-
-> bound=1 per domain, deterministic. 재시도 후 FAIL = 수동 개입 필수. 추정=보조, enforce=P4.
+- **target**: 종합 체크리스트 (`docs/reviews/inspection/{date}-{feature}.md`)
+- **case_id**: `EC-inspection-checklist-{N}` · **eval_cases**: `~/.claude/skills/inspection-checklist/eval_cases.jsonl`
