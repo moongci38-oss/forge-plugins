@@ -1,0 +1,35 @@
+{
+  "skill_name": "doc-verifier",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "docs/api/token.md 문서가 src/auth/token.ts와 일치하는지 검증해줘",
+      "expected_output": "PASS/WARN/FAIL 판정 + 이슈 목록 (STALE/INCORRECT/MISSING 유형 분류)",
+      "expectations": [
+        "3-Pass 검증 수행: 존재 확인 + 동작 확인 + 완전성 확인",
+        "판정(PASS/WARN/FAIL)과 이슈 유형(STALE/INCORRECT/MISSING) 명시",
+        "소스 파일에서 실제 코드를 grep/read하여 확인 (추측 없음)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "문서에 존재하지 않는 함수 deleteUserData()가 기술되어 있을 때 검증 결과는?",
+      "expected_output": "FAIL 판정 + STALE 이슈: deleteUserData() 소스에 미존재",
+      "expectations": [
+        "FAIL 판정 반환",
+        "STALE 이슈로 분류하고 함수명과 위치 명시",
+        "소스 파일 grep 실행 후 부재 확인"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "문서와 소스 코드가 완전히 일치하는 경우 검증 결과는?",
+      "expected_output": "PASS 판정 + 이슈 없음, Inversion 체크 수행 결과 포함",
+      "expectations": [
+        "PASS 판정 반환",
+        "Inversion 검증 수행 (PASS 이유 3가지 반박 시도) 언급",
+        "이슈 목록이 비어있거나 MISSING MINOR만 존재"
+      ]
+    }
+  ]
+}

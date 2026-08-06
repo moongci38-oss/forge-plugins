@@ -1,0 +1,37 @@
+{
+  "skill_name": "skill-creator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "새 스킬 pdf-redactor 생성. 민감 정보(이름/주민번호/계좌번호)를 PDF에서 자동 검출·마스킹. Step 1~Step 4.5까지 진행하라",
+      "expected_output": "Step 1~4.5 순서 실행: 구체 예시 파악 → 재사용 리소스 계획 → init_skill.py 실행 → SKILL.md 편집 → evals/evals.json 생성",
+      "expectations": [
+        "init_skill.py 스크립트가 실행되어 스킬 디렉토리 구조가 생성되는가?",
+        "SKILL.md frontmatter에 name/description이 포함되는가?",
+        "Step 4.5에서 evals/evals.json이 스킬 폴더 내에 생성되는가?",
+        "evals.json에 최소 3개 항목(happy/edge/FAIL 케이스)이 포함되는가?",
+        "package_skill.py 실행 전 evals.json이 완성되는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "기존 스킬 qa 업데이트. SKILL.md에 새 Step 추가 + evals.json에 id 4번 항목 추가",
+      "expected_output": "기존 SKILL.md 내용 유지하며 새 Step append. evals.json의 기존 3개 유지하고 id:4만 추가",
+      "expectations": [
+        "기존 SKILL.md 내용이 덮어쓰이지 않고 새 Step이 append되는가?",
+        "evals.json에서 기존 id 1~3 항목이 유지되고 id:4만 추가되는가?",
+        "업데이트 후 package_skill.py로 재패키징이 수행되는가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "evals.json 생성 없이 package_skill.py를 바로 실행하려 함. Gate 동작 확인",
+      "expected_output": "evals.json 미생성 상태에서 패키징 시도 → Step 4.5 먼저 완료 권고 출력 후 패키징 보류",
+      "expectations": [
+        "evals/evals.json 파일 미존재 시 패키징 전 Step 4.5 완료 권고가 출력되는가?",
+        "evals.json 없이 패키징을 강행하지 않고 게이트 경고가 명확히 표시되는가?",
+        "사용자가 evals.json 생성 후 재시도하면 정상 패키징이 진행되는가?"
+      ]
+    }
+  ]
+}

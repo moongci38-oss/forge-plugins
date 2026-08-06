@@ -1,0 +1,38 @@
+{
+  "skill_name": "freeze",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/freeze ~/forge/.claude/hooks/ --reason 훅 배포 완료, 실수 방지",
+      "expected_output": "freeze 등록 확인 메시지, 해당 경로 이후 Edit/Write 시 [STOP] 작동",
+      "expectations": [
+        "🔒 FREEZE 등록 메시지 출력 (경로, 사유, session-scoped 명시)",
+        "이후 hooks/ 내 파일 편집 시도 시 [STOP] 발동",
+        "freeze 목록에 정확한 경로 등록 확인 가능",
+        "/freeze --status로 등록 상태 조회 가능"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/freeze --careful ~/forge/.claude/rules/ 등록해줘. 그 다음 behavior-core.md를 편집해줘.",
+      "expected_output": "careful 모드 등록 후 편집 시도 시 추가 확인 요청 [STOP]",
+      "expectations": [
+        "careful 모드 등록 메시지 출력",
+        "behavior-core.md 편집 전 변경 내역 요약 + Human 확인 [STOP]",
+        "무조건 차단(LOCK) 아닌 확인 후 허용 흐름",
+        "승인 없이 바로 편집 진행하지 않음"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/unfreeze --all 해줘. 그리고 현재 freeze 상태 알려줘.",
+      "expected_output": "전체 해제 확인 메시지, /freeze --status 시 빈 목록",
+      "expectations": [
+        "전체 freeze 해제 확인 메시지 출력",
+        "/freeze --status 결과 빈 목록 또는 잠금 없음 표시",
+        "unfreeze 후 이전 freeze 경로 편집 시 [STOP] 미발동",
+        "session-scoped 특성 언급 (세션 종료 시 자동 해제)"
+      ]
+    }
+  ]
+}
