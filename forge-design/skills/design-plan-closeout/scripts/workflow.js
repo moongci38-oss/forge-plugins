@@ -104,7 +104,7 @@ phase('Init')
 // S1(검증자 분리): verifier 는 executor 와 다른 에이전트(sh 헬퍼)가 돌리고 exit code 만 전달한다.
 //   실행자가 자기 결과를 채점하지 않는다 — self-grading 금지.
 
-const verifyCmd = _a?.verifyCmd || "bash /home/damools/forge/shared/scripts/design-plan-verify.sh"
+const verifyCmd = _a?.verifyCmd || "bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/design-plan-verify.sh"
 const executor  = _a?.executor  || ''
 
 if (!verifyCmd) {
