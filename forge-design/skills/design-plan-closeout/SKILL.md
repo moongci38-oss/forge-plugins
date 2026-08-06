@@ -21,7 +21,7 @@ disable-model-invocation: true
 
 > **이 파일은 runtime read-only입니다. 상태(카운터·타임스탬프·진행 결과)를 여기에 쓰지 마세요.**
 
-- 변경 상태는 모두 `/home/damools/forge/.claude/worktrees/design-plan-closeout/loops/design-plan-closeout/STATE.md`에 저장
+- 변경 상태는 모두 `${FORGE_ROOT:-$HOME/forge}/loops/design-plan-closeout/STATE.md`에 저장
 - 이 파일은 cold-start 시 디스크에서 새로 로드됨 — 여기 쓴 상태는 다음 실행 시 초기화됨
 - Durable 정보만: goal predicate, action 절차, verifier 호출, stop criteria
 
@@ -29,11 +29,11 @@ disable-model-invocation: true
 
 | Step | 내용 |
 |------|------|
-| 1. Read state | `/home/damools/forge/.claude/worktrees/design-plan-closeout/loops/design-plan-closeout/STATE.md` 로드 → 이전 진행 상태 복원 |
+| 1. Read state | `${FORGE_ROOT:-$HOME/forge}/loops/design-plan-closeout/STATE.md` 로드 → 이전 진행 상태 복원 |
 | 2. Discover | 소스(디렉토리·API·qa-report 등) 스캔 → 처리할 항목 식별 |
 | 3. Act | 이터레이션 핵심 액션 실행 |
 | 4. Verify | **선행: 의존 MCP liveness pre-check** — verifier 의존 MCP 도구 1회 ping, 실패 시 G2 게이트 라우팅 + "재연결 필요" 명시(무감지 disconnect 실증 2026-07-10). 이후 verifier 실행 (binary exit code) — exit 0 = 통과, exit 1 = 중단 |
-| 5. Write state | `/home/damools/forge/.claude/worktrees/design-plan-closeout/loops/design-plan-closeout/STATE.md` 갱신 (새 위치·카운터·타임스탬프) |
+| 5. Write state | `${FORGE_ROOT:-$HOME/forge}/loops/design-plan-closeout/STATE.md` 갱신 (새 위치·카운터·타임스탬프) |
 | 6. Check predicate | `design-plan-verify.sh exit 0 — 디자인 품질 계획서 v3 의 완료 판정 측정명령 전량 PASS (P0.2/0.3/0.5 · P1.1~1.4 · P2 15축 · P3.1 SSoT · P4 지표하네스). Human 게이트 항목(P0.1/0.4 DesignSync write, P4 승격선 적용)은 예측에서 제외하되 DEFERRED 로 명시 출력한다.` 충족 시 STOP, 아니면 반복 |
 
 verifier exit 1 시 즉시 중단. 상태 파일에 실패 이유 기록 후 HUMAN-GATES.md G2 gate 대기.

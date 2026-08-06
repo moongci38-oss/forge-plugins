@@ -1,0 +1,40 @@
+{
+  "skill_name": "figma-screen-capture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Figma fileKey=Ke2sPiVdS1yvfLlYBgFXfY, page=63801:6816, 화이트리스트 node 3개(40010405:23928 로그인_크리에이터, 40010405:24045 플랫폼미가입, 40010440:20182 인증번호발송)에서 screens/ PNG + manifest.json + 02-화면정의.md + mockup/index.html 생성해줘. 출력 경로: /tmp/test-capture/",
+      "expected_output": "manifest.json 3건 + screens/3개 PNG + 02-화면정의.md (node-id 매핑표 포함) + mockup/index.html (필터탭·카드배지 포함)",
+      "expectations": [
+        "node-id : → - 변환 올바름 (40010405:23928 → 40010405-23928)",
+        "screens/ 디렉토리에 PNG 3개 생성",
+        "manifest.json에 status 배지(⚠️MCP추출) 기입",
+        "02-화면정의.md에 node-id 매핑표 존재",
+        "mockup/index.html 자립형 (외부 CDN 없음)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "화이트리스트 node 중 RBAC 권한설정 매트릭스는 Figma에 없다. 이 경우 어떻게 처리하고 산출물에 어떻게 표기하나?",
+      "expected_output": "manifest.json status=❌ClaudeDesign신규, 02-화면정의.md에 ⚠️TODO 명시, 신규 디자인 생성 X",
+      "expectations": [
+        "manifest.json에 status: '❌ClaudeDesign신규' 기입",
+        "02-화면정의.md 해당 섹션에 ⚠️TODO: Claude Design 신규 디자인 필요 명시",
+        "Claude Design으로 신규 디자인 생성 시도하지 않음",
+        "mockup/index.html 카드에 ❌ 배지 노출"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "MCP get_screenshot 호출 중 rate limit 응답('You have reached the Figma MCP tool call limit') 발생. 어떻게 폴백 처리하나?",
+      "expected_output": "즉시 폴백 선언, fallback-vision.md 참조, 기존 PNG 있으면 Option A 진행, 없으면 사용자에게 옵션 제시",
+      "expectations": [
+        "rate limit 감지 시 무한 재시도 X",
+        "fallback-vision.md Option A/B/C 제시",
+        "기존 figma-export/images/ 존재 시 Codex Vision 폴백 제안",
+        "분석 결과 doc에 Vision 분석 근사값 경고 표기",
+        "MCP 호출 총 ≤60 준수"
+      ]
+    }
+  ]
+}

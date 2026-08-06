@@ -1,0 +1,36 @@
+{
+  "skill_name": "decision-note",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/decision-note — DB 마이그레이션 도구로 Prisma 대신 raw SQL 마이그레이션 스크립트를 쓰기로 했다. 이유는 기존 레포가 이미 절반은 raw SQL이고, Prisma 도입 비용이 남은 일정 대비 크기 때문. 기록해줘.",
+      "expected_output": "3조각(문제정의 1문단·판단기준 5줄 이내·결정기록) 형식의 markdown 파일이 `${FORGE_OUTPUTS}/docs/decisions/{date}-{slug}.md` 경로에 생성된다. 문제정의에는 '누가/언제/뭘 못해서/뭘 포기'가 명시되고, 판단기준에는 Prisma vs raw SQL 옵션과 선택 이유(기존 코드 절반 raw SQL + 일정 제약)가 포함된다.",
+      "expectations": [
+        "출력 파일이 3개 섹션(## 문제정의, ## 판단기준 + 제약, ## 결정기록)을 모두 포함한다",
+        "판단기준 섹션이 5줄 이내로 압축돼 있다(장문 설명으로 늘어나지 않는다)",
+        "결정기록에 날짜가 YYYY-MM-DD 형식으로 명시된다",
+        "PRD/Spec/ADR 같은 별도 중량 문서를 새로 만들지 않는다"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/decision-note — 이번 마이크로서비스 전체를 어떻게 쪼갤지 아키텍처를 결정해야 하는데, 이거 이 스킬로 기록해도 돼?",
+      "expected_output": "이 스킬의 범위를 벗어난다는 판정과 함께 forge-adr-index.sh가 스캔하는 정식 ADR(S4 development-plan.md 섹션) 또는 forge-spec 경로로 안내한다 — decision-note 템플릿으로 억지로 기록하지 않는다.",
+      "expectations": [
+        "여러 서비스/FR에 걸치는 대형 아키텍처 결정은 범위 밖임을 명시한다",
+        "정식 ADR 경로(development-plan.md ADR 섹션) 또는 forge-spec으로 안내한다",
+        "3조각 템플릿을 억지로 채워 반환하지 않는다"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/decision-note — 오늘 커밋 3개 했는데 그거 아무 이유 없이 리팩터링만 한거야. 이것도 기록해?",
+      "expected_output": "판단기준(A vs B 트레이드오프)이 없는 단순 리팩터링은 이 스킬의 대상이 아니라는 판정 — '기록할 결정이 없음(A/B 선택이 없었음)'을 명시하고 기록을 생성하지 않는다.",
+      "expectations": [
+        "실질적 A/B 판단이 없는 경우 빈 기록을 억지로 만들지 않는다",
+        "판정 이유(트레이드오프 부재)를 명시한다",
+        "사용자에게 불필요한 파일을 생성하지 않는다"
+      ]
+    }
+  ]
+}

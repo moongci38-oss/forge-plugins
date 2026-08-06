@@ -1,0 +1,35 @@
+{
+  "skill_name": "doc-writer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "src/auth/token.ts 파일을 읽고 API 문서를 작성해줘",
+      "expected_output": "토큰 관련 함수들의 파라미터, 반환값, 예시를 포함한 구조화된 Markdown API 문서",
+      "expectations": [
+        "## 개요, ## 파라미터, ## 반환값, ## 예시 섹션 포함",
+        "소스 파일에 실제 존재하는 함수명과 타입 기반으로 작성",
+        "docs/api/token.md 경로에 저장 또는 저장 경로 명시"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "src/payment/ 디렉토리 전체를 module 유형으로 문서화해줘",
+      "expected_output": "결제 모듈 개요, 구조, 주요 컴포넌트, 의존성을 포함한 모듈 문서",
+      "expectations": [
+        "## 목적, ## 구조, ## 주요 컴포넌트, ## 의존성 섹션 포함",
+        "디렉토리 내 주요 파일들의 역할 설명 포함",
+        "doc-verifier 실행 권고 문구 포함 또는 검증 단계 언급"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "존재하지 않는 파일 nonexistent.ts에 대한 문서를 작성해줘",
+      "expected_output": "파일이 존재하지 않음을 명시하고 작성 불가 또는 경로 확인 요청",
+      "expectations": [
+        "파일 존재 여부 확인 후 부재 명시",
+        "임의로 문서 내용을 만들어내지 않음",
+        "올바른 파일 경로 제공 요청 또는 대안 제시"
+      ]
+    }
+  ]
+}

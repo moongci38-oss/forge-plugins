@@ -1,0 +1,10 @@
+# Upstream tracking for official Anthropic pptx skill
+source: github.com/anthropics/skills
+path: skills/pptx/
+last-synced: 2026-03-23
+notes: |
+  Company design system is NOT in SKILL.md.
+  Location: ~/forge/shared/deck-themes/DESIGN-SYSTEM.md
+  (2026-07-27 A2-3 P12: 이전 경로는 ~/.claude/projects/.../memory/ 안의 git 미추적
+   개인 메모리였다 — 다른 PC 에는 존재하지 않아 디자인시스템이 통째로 부재했다.)
+  Do NOT modify official files (SKILL.md, editing.md, pptxgenjs.md, scripts/).

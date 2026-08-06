@@ -39,7 +39,7 @@ G1, G2는 삭제 불가.
 
 ### Gate 처리 절차
 
-1. 루프가 `/home/damools/forge/.claude/worktrees/design-plan-closeout/loops/design-plan-closeout/STATE.md`에 gate-request 기록
+1. 루프가 `${FORGE_ROOT:-$HOME/forge}/loops/design-plan-closeout/STATE.md`에 gate-request 기록
 2. Human이 명시적 승인
 3. 루프가 승인 확인 후 계속
 

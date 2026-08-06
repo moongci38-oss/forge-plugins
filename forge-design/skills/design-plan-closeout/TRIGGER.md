@@ -14,7 +14,7 @@
 ## State file
 
 ```
-/home/damools/forge/.claude/worktrees/design-plan-closeout/loops/design-plan-closeout/STATE.md
+${FORGE_ROOT:-$HOME/forge}/loops/design-plan-closeout/STATE.md
 ```
 
 매 실행 시작 시 읽고 종료 전 씁니다.
@@ -33,14 +33,14 @@
 ### 수동 실행 (모든 플랫폼)
 
 ```
-/home/damools/forge/.claude/worktrees/design-plan-closeout/loops/design-plan-closeout/STATE.md 와 SKILL.md를 읽고 design-plan-closeout 루프를 실행하세요.
+${FORGE_ROOT:-$HOME/forge}/loops/design-plan-closeout/STATE.md 와 SKILL.md를 읽고 design-plan-closeout 루프를 실행하세요.
 ```
 
 ---
 
 ## 실행 전 체크리스트
 
-1. `/home/damools/forge/.claude/worktrees/design-plan-closeout/loops/design-plan-closeout/STATE.md` 존재 + 초기화 확인
+1. `${FORGE_ROOT:-$HOME/forge}/loops/design-plan-closeout/STATE.md` 존재 + 초기화 확인
 2. HUMAN-GATES.md G1 gate 완료
 3. verifier exit 0 확인
 4. Budget: max-iter=6, call-budget=1500, wall-clock=4시간
