@@ -182,6 +182,50 @@ export GEMINI_API_KEY="AIza..."      # Gemini MCP (vision 분석)
 
 ---
 
+## 프로젝트 경로 환경변수
+
+일부 스킬은 **여러분의 프로젝트 경로**를 참조합니다. 이 저장소는 **공개**라 특정 개발 환경의
+절대경로·식별자를 기본값으로 넣지 않았습니다. 그래서 해당 스킬을 쓰려면 직접 설정해야 합니다.
+
+### 설정하는 것 — `GODBLADE_ROOT` 하나뿐입니다
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc — 아래 스킬을 쓸 때만
+export GODBLADE_ROOT="/path/to/your/unity-project/src"
+```
+
+| 쓰는 곳 | 플러그인 | 미설정 시 |
+|---------|----------|-----------|
+| `dungeon-play-loop`·`dungeon-uiux-loop` (STATE 경로·`verify.sh`) | forge-game | 경로가 빈 문자열로 확장돼 **동작 실패** |
+| `forge-tools` MCP — `project="godblade"` 조회 | forge-knowledge | 해당 조회만 `프로젝트 경로 없음: <set GODBLADE_ROOT>` |
+| `image-orchestrate` — 게임 에셋 출력 경로 | forge-design | 일반 출력은 정상, 게임 에셋 경로만 미해석 |
+
+```bash
+# 확인
+echo "GODBLADE_ROOT=$GODBLADE_ROOT" && ls "$GODBLADE_ROOT" 2>/dev/null || echo "미설정 또는 경로 없음"
+```
+
+### ⚠️ 설정해도 소용없는 것 — 문서 플레이스홀더 2종
+
+아래 둘은 **환경변수처럼 생겼지만 읽는 코드가 없습니다.** 공개 저장소라 원래 있던 실제 값을
+지운 자리이며, `export`해도 아무 일도 일어나지 않습니다.
+
+| 이름 | 나오는 곳 | 본인 값으로 쓰려면 |
+|------|-----------|-------------------|
+| `${NOTION_DB_ID}` | `daily-analyze`·`daily-system-review`·`weekly-research` SKILL.md의 `DB URL:` 줄 | 그 줄을 직접 교체(업데이트 시 덮어써짐) 또는 **Notion MCP에서 대상 DB 지정**(권장) |
+| `${BOARDGAMES_ROOT}` | `game-qa/references/project-stacks.md` 참조표 | 그 문서를 본인 환경에 맞춰 읽고 판단 — 자동 해석 안 됨 |
+
+직접 확인: `grep -rn 'NOTION_DB_ID\|BOARDGAMES_ROOT' <플러그인>/` — 문서 줄에만 나옵니다.
+
+**왜 기본값을 안 넣었나**: 기본값에 실제 경로를 넣으면 공개 저장소에 개발 환경 구조가 그대로 실립니다.
+또 잘못된 기본 경로로 조용히 동작하는 것보다, 없으면 없다고 말하고 멈추는 편이 낫습니다 —
+그래서 `프로젝트 경로 없음: <set GODBLADE_ROOT>`처럼 **무엇을 설정해야 하는지가 그대로 노출**됩니다.
+
+> 위 스킬을 설치하지 않았다면 아무것도 설정할 필요가 없습니다.
+> 플러그인별 상세는 `forge-game/README.md`·`forge-design/README.md`·`forge-knowledge/README.md`.
+
+---
+
 ## 로컬 클론 방식 (대안)
 
 Marketplace 방식 대신 직접 클론해서 사용할 수 있습니다.
