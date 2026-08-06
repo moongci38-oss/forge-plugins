@@ -1,0 +1,35 @@
+{
+  "skill_name": "task-frontier",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "지금 뭐부터 하면 되지? 착수 가능한 것 보여줘",
+      "expected_output": "Notion Tasks(상태≠완료)·human-queue·MEMORY 미결스케줄을 read-only 조회해 Frontier/Blocked/Fog/인계대기 4단으로 렌더. 각 항목은 원본 링크만, 내용 복제 없음. 건수 명시(0건도).",
+      "expectations": [
+        "소스 3종을 실제로 조회하고 각각 read-only로 취급한다",
+        "blocked-by 텍스트 관례가 없는 항목은 frontier로 분류한다",
+        "각 항목에 Notion 링크/파일경로만 넣고 원본 내용을 복제 저장하지 않는다"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "GodBlade 프로젝트만 task frontier 보여줘 --project GodBlade",
+      "expected_output": "소스 1(Notion)을 GodBlade로 필터해 렌더. 소스 2·3은 프로젝트 무관 전역이라 관련 항목만 표기. 진행중+작업자 있으면 🔒 claim 표시(잠금 강제 아님).",
+      "expectations": [
+        "--project 인자로 Notion 조회를 해당 프로젝트로 필터한다",
+        "상태=진행중 + 작업자 존재 시 claim을 WARN 표시만 하고 잠금을 강제하지 않는다",
+        "새 Notion 스키마 필드를 추가하지 않는다"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "task frontier (Notion 인증이 실패한 상황)",
+      "expected_output": "소스 1 조회 실패를 '(조회 실패 — 스킵)'으로 한 줄 명시하고, 소스 2·3만으로 Fog·인계대기를 렌더. 전체 중단하지 않음(무블로킹).",
+      "expectations": [
+        "한 소스 실패가 전체 렌더를 막지 않는다(fail-open)",
+        "실패한 소스를 침묵하지 않고 명시적으로 표기한다",
+        "Fog/인계대기 건수를 0건이어도 명시한다"
+      ]
+    }
+  ]
+}
