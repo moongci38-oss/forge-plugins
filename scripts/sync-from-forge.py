@@ -48,15 +48,72 @@ RE_FORGE = re.compile(r'~/forge\b')
 RE_CLAUDE = re.compile(r'~/\.claude\b')
 DRIVE_MARK = re.compile(r'\b[A-Z]:[\\/~]')  # Windows drive-letter prose table lines
 
+# ⚠️ 이 레포는 PUBLIC 이고 forge SSoT 는 PRIVATE 다. 아래 규칙이 없으면 비공개 환경의
+#   절대경로·DB 식별자가 그대로 공개된다. 실사고(2026-08-06): `~/forge` 리터럴만 치환하던
+#   탓에 `/home/<user>/forge/.claude/worktrees/...` 8곳이 PR #42 로 공개 배포됐다.
+#   ↓ 순서 의존: 더 긴 경로(forge/.claude)를 먼저 치환해야 generic $HOME 규칙에 먹히지 않는다.
+RE_HOME_FORGE = re.compile(r'/home/[^/\s]+/forge\b')
+RE_HOME_CLAUDE = re.compile(r'/home/[^/\s]+/\.claude\b')
+RE_HOME_ANY = re.compile(r'/home/[^/\s]+(?=/|\b)')
+RE_NOTION_ID = re.compile(r'(notion\.so/)[0-9a-f]{32}\b')
+
+# 잔여 누출 탐지 — 치환 후에도 남은 사설 절대경로. 여기 걸리면 **쓰지 않는다**(fail-closed).
+#   제외 2종(오탐 내는 가드는 결국 무시당한다 — 정밀도가 곧 가드의 수명이다):
+#   ① `/mnt/<drive>/*` 는 WSL 드라이브 판별 glob(`/mnt/e/* 또는 E:/* → windows`) — 경로가 아니라 패턴
+#   ② `<user>` `${VAR}` `$USER` 같은 **플레이스홀더 세그먼트**는 이미 일반화된 표기다
+#   ③ `/mnt/<d>/Program Files` · `/mnt/<d>/Windows` 는 **표준 윈도우 설치 경로**다(예: Unity Hub).
+#      사설 정보가 아니고 문서로서 유용하다 — 이걸 막으면 가드가 정당한 문서를 죽인다.
+_PLACEHOLDER = r'(?:<[^>/\s]+>|\$\{[^}/\s]+\}|\$[A-Z_]+)'
+_WIN_SYSTEM = r'(?:Program(?:\\?[ ]|%20)Files(?:[ ]?\(x86\))?|Windows|ProgramData)'
+RE_LEAK = re.compile(
+    r'/home/(?!' + _PLACEHOLDER + r'/)[^/\s]+/'
+    r'|/mnt/[a-z]/(?![*\s])(?!' + _PLACEHOLDER + r')(?!' + _WIN_SYSTEM + r'\b)[^\s`"\')]+'
+)
+
+def _load_redactions():
+    """프로젝트 루트처럼 **문자열 자체가 사설**인 매핑은 이 공개 레포에 둘 수 없다.
+    PRIVATE 인 forge 쪽 JSON({"literal": "replacement"})에서 읽는다. 부재 시 빈 맵 —
+    누출은 RE_LEAK 가 fail-closed 로 잡으므로 조용히 새지 않는다."""
+    path = os.environ.get("PLUGIN_REDACT_MAP",
+                          os.path.join(FORGE_ROOT, "plugin-redact.json"))
+    try:
+        import json
+        with open(path, encoding='utf-8') as f:
+            m = json.load(f)
+        return sorted(m.items(), key=lambda kv: -len(kv[0]))  # 긴 것 먼저
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        print(f"[sync-from-forge] WARN: redaction map 읽기 실패 {path}: {e}", file=sys.stderr)
+        return []
+
+REDACTIONS = _load_redactions()
+
 def transform_line(line: str) -> str:
+    for literal, replacement in REDACTIONS:
+        line = line.replace(literal, replacement)
+    line = RE_NOTION_ID.sub(r'\1${NOTION_DB_ID}', line)
     if DRIVE_MARK.search(line):
         return line  # preserve Windows drive-table prose untouched
     line = RE_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', line)
     line = RE_CLAUDE.sub('$HOME/.claude', line)
+    line = RE_HOME_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', line)
+    line = RE_HOME_CLAUDE.sub('$HOME/.claude', line)
+    line = RE_HOME_ANY.sub('$HOME', line)
     return line
 
 def transform_content(content: str) -> str:
     return ''.join(transform_line(l) for l in content.splitlines(keepends=True))
+
+def find_leaks(content: str):
+    """치환 후 남은 사설 절대경로를 (행번호, 매칭) 으로 돌려준다. 비어야 정상."""
+    out = []
+    for i, line in enumerate(content.splitlines(), 1):
+        if DRIVE_MARK.search(line):
+            continue
+        for m in RE_LEAK.findall(line):
+            out.append((i, m))
+    return out
 
 def sha(s: str) -> str:
     return hashlib.sha256(s.encode('utf-8', errors='replace')).hexdigest()[:12]
@@ -91,6 +148,7 @@ def main():
     changed = {}
     missing_in_forge = []  # plugin-only files (present in plugin, absent in forge) -> untouched
     drift_remaining = []
+    leaked = []  # 치환 후에도 사설 절대경로가 남은 파일 — 쓰지 않고 보고한다
 
     for plugin, sub, rel, forge_abs, plug_abs in iter_pairs():
         if not os.path.isfile(forge_abs):
@@ -118,6 +176,13 @@ def main():
 
         target_content = transform_content(forge_content)
 
+        # PUBLIC 레포로 사설 절대경로가 나가는 것을 **쓰기 직전에** 막는다.
+        # 경고만 내면 사람이 놓친다 — 실제로 PR #42 가 그렇게 나갔다. 그래서 skip 이다.
+        leaks = find_leaks(target_content)
+        if leaks:
+            leaked.append((f"{plugin}/{sub}/{rel}", leaks[:3], len(leaks)))
+            continue
+
         if target_content != plug_content:
             changed.setdefault(plugin, []).append(f"{sub}/{rel}")
             if args.verify:
@@ -126,11 +191,23 @@ def main():
                 with open(plug_abs, 'w', encoding='utf-8') as f:
                     f.write(target_content)
 
+    # 누출은 drift 와 별개로 **항상 먼저** 보고한다 — 조용한 skip 은 "동기화 완료"로 오독된다.
+    if leaked:
+        print(f"LEAK_BLOCKED={len(leaked)}", file=sys.stderr)
+        for path, samples, n in leaked:
+            print(f"  LEAK: {path} ({n}건) — 치환 후에도 사설 절대경로 잔존", file=sys.stderr)
+            for ln, frag in samples:
+                print(f"        L{ln}: {frag}", file=sys.stderr)
+        print("  → 이 파일들은 쓰지 않았다. forge SSoT 를 고치거나 "
+              "PLUGIN_REDACT_MAP 에 매핑을 추가하라.", file=sys.stderr)
+    else:
+        print("LEAK_BLOCKED=0", file=sys.stderr)
+
     if args.verify:
         print(f"DRIFT_REMAINING={len(drift_remaining)}")
         for d in drift_remaining:
             print(f"  DRIFT: {d}")
-        return 0 if not drift_remaining else 1
+        return 0 if not (drift_remaining or leaked) else 1
 
     total = sum(len(v) for v in changed.values())
     mode = "DRY-RUN" if args.dry_run else "APPLIED"
@@ -144,7 +221,8 @@ def main():
     for f in missing_in_forge:
         print(f"    ~ {f}")
 
-    return 0
+    # exit code 로도 드러낸다 — 파이프라인이 stderr 를 안 읽어도 실패가 전달돼야 한다.
+    return 1 if leaked else 0
 
 if __name__ == '__main__':
     sys.exit(main())
