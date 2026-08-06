@@ -1,0 +1,47 @@
+<!-- root-cause: forge-loop-maker scaffold 템플릿 — HUMAN-GATES.md 생성용 -->
+# game-bug-runtime-loop — Human Gates & Budget
+
+> 루프 없이는 의도하지 않은 동작이 발생할 수 있습니다.
+> 예산 없이는 루프가 영원히 실행될 수 있습니다.
+> 아래 두 섹션은 필수입니다.
+
+---
+
+## Human Gates
+
+| # | Gate | 트리거 조건 | 승인자 |
+|---|------|-----------|-------|
+| G1 | Pre-run sign-off | 실제 데이터로 첫 실행 전 (백로그+하네스 확인) | 루프 소유자 |
+| G2 | 진행 이상 | bug BLOCKED(verify×3) · plateau(2연속 net0) · regression · security_crit | 루프 소유자 |
+| G3 | **forward 일괄 승인** | 루프 종료 시 STATE.md forward_list 제시 (미승인=revert 후보) | 루프 소유자 |
+| G4 | 파괴적 액션 | --force/main 직접커밋/develop 외 머지/파일삭제 전 (복구룰) | 루프 소유자 |
+
+G1, G2, G3는 삭제 불가.
+
+> **G2 처리 정밀화**: verifier FAIL은 즉시 전체 STOP 아님 — 해당 bug `same_issue×3`까지 재시도 후 BLOCKED 표시하고 **다음 우선순위로 skip**. 단 regression/security_crit/plateau는 즉시 전체 STOP 후 G2 보고.
+> **G3 (핵심)**: forward 수정은 루프 중 `// FORWARD:` 플래그+forward_list 기록하며 자율 적용(old와 diverge=PRODUCT-DECISION). 루프 종료 시 일괄 제시 → Human 개별 승인/revert.
+
+### Gate 처리 절차
+
+1. 루프가 `loops/game-bug-runtime-loop/STATE.md`에 gate-request 기록
+2. Human이 명시적 승인
+3. 루프가 승인 확인 후 계속
+
+**자가 승인 금지.**
+
+---
+
+## Budget / Stop (하드 상한)
+
+| 항목 | 상한 | 초과 시 |
+|------|------|--------|
+| Max iterations | 6 | 즉시 중단 |
+| call-budget | 400 | hook WARN → Human 판단 |
+| **wall-clock 상한** | 2시간 | 즉시 중단 |
+
+<!--
+⚠️ wall-clock: 미설정 = 상한 없음 = 루프 영구 실행 가능.
+   실제 수치 반드시 채워넣기 (예: 2시간, 30분, 4h).
+-->
+
+wall-clock = STATE.md wall_clock_start 타임스탬프 대비 경과 시간으로 체크.

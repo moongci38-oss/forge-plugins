@@ -20,7 +20,7 @@
 
 ---
 
-## 바둑이 (Baduggi) — `E:\workspace\boardgames\baduggi\` (WSL: `/mnt/e/workspace/boardgames/baduggi/`) — 실측 2026-07-21
+## 바둑이 (Baduggi) — `E:\workspace\boardgames\baduggi\` (WSL: `${BOARDGAMES_ROOT}/baduggi/`) — 실측 2026-07-21
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|
@@ -34,7 +34,7 @@
 
 ---
 
-## 맞고 (MatGo) — `E:\workspace\boardgames\matgo\` (WSL: `/mnt/e/workspace/boardgames/matgo/`) — 실측 2026-07-21
+## 맞고 (MatGo) — `E:\workspace\boardgames\matgo\` (WSL: `${BOARDGAMES_ROOT}/matgo/`) — 실측 2026-07-21
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|
@@ -49,7 +49,7 @@
 
 ---
 
-## GodBlade — `/mnt/e/workspace/godblade/` (Windows: `E:\workspace\godblade\`) — 실측 2026-07-18
+## GodBlade — `${GODBLADE_ROOT}/` (Windows: `E:\workspace\godblade\`) — 실측 2026-07-18
 
 | 컴포넌트 | 경로 | 런타임 | 프로토콜 |
 |---------|------|--------|---------|

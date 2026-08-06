@@ -98,6 +98,49 @@ else:
     ng("소스 부재를 조용히 continue — 침묵 스킵이 재발한다")
 
 print()
+print("== 5. 사설 절대경로 치환 (이 레포는 PUBLIC, forge SSoT 는 PRIVATE) ==")
+# 2026-08-06 실사고: `~/forge` 리터럴만 치환하던 탓에 `/home/<user>/forge/...` 8곳이 공개 배포됐다.
+for src, must_contain, must_not, why in [
+    ("/home/u1/forge/.claude/x", "${FORGE_ROOT:-$HOME/forge}", "/home/u1", "사용자 홈 아래 forge"),
+    ("/home/u1/.claude/hooks/a.sh", "$HOME/.claude", "/home/u1", "사용자 홈 아래 .claude"),
+    ("/home/u1/other/thing", "$HOME/other", "/home/u1", "그 밖의 사용자 홈"),
+    ("https://www.notion.so/" + "0" * 32, "${NOTION_DB_ID}", "0" * 32, "Notion DB 식별자"),
+]:
+    out = mod.transform_line(src)
+    if must_contain in out and must_not not in out:
+        ok(f"{why}: {out.strip()[:52]}")
+    else:
+        ng(f"{why} 미치환 → {out.strip()[:52]}")
+
+print()
+print("== 6. 누출 가드 판별력 (양방향 — 오탐 내는 가드는 무시당한다) ==")
+for src, should_flag, why in [
+    ("/home/damools/secret/x", True, "실제 사용자 홈"),
+    ("/mnt/z/secret/project/f.md", True, "미등록 사설 마운트 경로"),
+    ("/mnt/c/Users/someone/Downloads/x", True, "윈도우 사용자 홈"),
+    ("/home/<user>/...", False, "문서용 플레이스홀더"),
+    ("/home/${USER}/x", False, "변수 플레이스홀더"),
+    ("/mnt/c/Program Files/Unity/Hub/Editor/Unity.exe", False, "표준 윈도우 설치 경로"),
+    ("/mnt/e/* 또는 E:/* → windows", False, "WSL 드라이브 판별 glob"),
+    ("${GODBLADE_ROOT}/loops/x", False, "치환 완료본"),
+]:
+    flagged = bool(mod.find_leaks(src))
+    if flagged == should_flag:
+        ok(f"{'탐지' if should_flag else '통과'} — {why}")
+    else:
+        ng(f"{why}: 탐지={flagged} 기대={should_flag} ({src[:44]})")
+
+print()
+print("== 7. 역변조 — 누출 가드를 지우면 사설 경로가 통과해야 한다(판별력 실증) ==")
+mut2 = src_text.replace("leaks = find_leaks(target_content)", "leaks = []")
+if mut2 == src_text:
+    ng("역변조 지점 없음 — 가드 호출부가 소스와 어긋남")
+elif "if leaks:" in src_text and "continue" in src_text:
+    ok("가드가 write 전에 continue 로 차단 — 경고만 하고 쓰지 않는다")
+else:
+    ng("가드가 있으나 write 를 막지 않는다 — 경고는 유출을 막지 못한다")
+
+print()
 print("================================")
 print(f"PASS={PASS}  FAIL={FAIL}")
 sys.exit(0 if FAIL == 0 else 1)

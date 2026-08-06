@@ -1,0 +1,22 @@
+{
+  "target": "docs/spec/feature-auth-v2.md",
+  "rubric": "default-4axis",
+  "scores": {
+    "clarity": 2,
+    "consistency": 1,
+    "completeness": 2,
+    "safety": 1
+  },
+  "rationale": {
+    "clarity": "목적(OAuth2 PKCE 도입), 범위(모바일 앱 전용), 기대 결과(리프레시 토큰 자동 갱신)가 모두 명확히 기술됨",
+    "consistency": "입력 요구사항과 대체로 일치하나 에러 응답 포맷이 기존 API 스펙과 일부 불일치",
+    "completeness": "모든 엔드포인트, 플로우 다이어그램, 테스트 케이스 커버",
+    "safety": "토큰 만료 처리는 있으나 CSRF 방어 및 rate limiting 기술 누락"
+  },
+  "verdict": "WARN",
+  "improvement_priority": ["safety", "consistency"],
+  "avg_score": 1.5,
+  "total_score": 6,
+  "eval_date": "2026-05-10",
+  "eval_model": "claude-sonnet-4-6"
+}

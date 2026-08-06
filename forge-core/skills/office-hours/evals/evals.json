@@ -1,0 +1,41 @@
+{
+  "skill_name": "office-hours",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "안녕하세요! 저는 직장인 커뮤니티 앱을 만들려고 합니다. 직장인들이 익명으로 회사 이야기를 나누는 앱인데요, 어떻게 생각하세요?",
+      "expected_output": "Kill Signal 스캔 먼저 실행 (Blind/크레딧잡 기존 대안 존재). 6단계 진단 구조 출력. Anti-sycophancy — 즉각 긍정 없이 Kill Signal부터.",
+      "expectations": [
+        "Kill Signal 스캔을 최초 단계로 실행 (긍정 멘트 없이)",
+        "기존 대안(블라인드 등) 언급하며 차별화 근거 요구",
+        "수익 모델 질문 포함",
+        "Anti-sycophancy 원칙 — 좋아요/가능성 있다 표현 없음",
+        "다음 7일 검증 행동 제시"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/office-hours builder. 우리 SaaS 제품은 월 MAU 1200명, MRR 300만원입니다. 성장이 3개월째 정체입니다. 어떻게 해야 할까요?",
+      "expected_output": "Builder 모드 자동 감지. 현황 진단 + 성장 블로커 TOP3 + 전략 옵션 표 + OFFICE_HOURS_DESIGN.md 생성.",
+      "expectations": [
+        "Builder 모드로 자동 분류 (MAU/MRR 데이터 존재)",
+        "성장 블로커 3가지 이상 구체적으로 특정",
+        "전략 옵션 비교 표 (임팩트/리스크/타임라인)",
+        "OFFICE_HOURS_DESIGN.md 자동 생성 안내",
+        "7일 행동 계획 포함"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "저는 AI로 법률 문서를 자동 작성해주는 서비스를 만들려 합니다. 변호사 없이도 계약서를 쓸 수 있게요. 투자도 받고 싶습니다.",
+      "expected_output": "[STOP] 게이트 발동 — 규제 장벽(법무법인법/무변호사 법률서비스 금지). Kill Signal 2개+ 감지 시 옵션 A/B/C 제시.",
+      "expectations": [
+        "Kill Signal — 규제/법적 장벽 명시 (무자격 법률행위 금지)",
+        "[STOP] 게이트 발동 및 옵션 A/B/C 제시",
+        "긍정적 투자 가능성 언급 없음 (Anti-sycophancy)",
+        "Founder Mismatch 판단 — 법률 전문성 여부 질문",
+        "대안 방향 제시 (B2B 로펌 도구, 변호사 협업 모델 등)"
+      ]
+    }
+  ]
+}
