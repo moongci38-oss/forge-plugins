@@ -27,6 +27,21 @@ claude plugin install forge-design
 
 > Figma MCP·OPENAI_API_KEY 없이도 `visual-loop`·`multiformat-image`는 단독 동작합니다.
 
+### 프로젝트 경로 환경변수 (선택 — 게임 에셋 경로를 쓸 때만)
+
+`image-orchestrate`가 게임 프로젝트의 에셋 폴더를 출력 대상으로 참조합니다
+(`ASSETS_ROOT=${GODBLADE_ROOT}/client/Assets`). 이 저장소는 공개라 특정 개발 환경의
+절대경로를 기본값으로 넣지 않았습니다.
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc — 게임 에셋 경로로 출력할 때만 필요
+export GODBLADE_ROOT="/path/to/your/unity-project/src"
+```
+
+미설정이어도 `image-orchestrate`의 일반 출력 경로 사용에는 지장이 없습니다 —
+게임 에셋 출력 경로만 해석되지 않습니다.
+`forge-game`·`forge-knowledge`도 같은 변수를 씁니다(forge-game 쪽은 **필수**).
+
 ---
 
 ## 스킬 목록

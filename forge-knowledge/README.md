@@ -25,6 +25,40 @@ export FORGE_DB_URL="postgresql://user:pass@localhost:5432/forge"
 
 설정하지 않으면 로컬 FAISS + BM25 폴백으로 동작합니다.
 
+### 선택 — `GODBLADE_ROOT` (forge-tools MCP를 게임 프로젝트에 쓸 때)
+
+`forge-tools` MCP의 `git_status`·`run_health_check`가 `project="godblade"`를 받으면 이 변수를 읽습니다.
+이 저장소는 공개라 특정 개발 환경의 절대경로를 기본값으로 넣지 않았습니다.
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc
+export GODBLADE_ROOT="/path/to/your/unity-project/src"
+```
+
+미설정 시 `프로젝트 경로 없음: <set GODBLADE_ROOT>`로 **무엇을 설정해야 하는지가 그대로 뜹니다**.
+`project="forge"`·`project="portfolio"`나 절대경로 직접 전달은 이 변수 없이도 동작합니다.
+
+### ⚠️ `${NOTION_DB_ID}`는 환경변수가 아닙니다 — 직접 채워야 합니다
+
+`daily-analyze`·`daily-system-review`·`weekly-research`의 SKILL.md에는 업로드 대상이
+`https://www.notion.so/${NOTION_DB_ID}`로 적혀 있습니다. **이 저장소가 공개라 원래 있던 실제 DB
+식별자를 지운 자리**이며, **이 이름의 환경변수를 읽는 코드는 없습니다**
+(`grep -rn NOTION_DB_ID` — 문서 URL 줄에만 나옵니다). `export`해도 아무 일도 일어나지 않습니다.
+
+본인 Notion DB로 쓰려면 둘 중 하나입니다:
+
+1. 해당 SKILL.md의 `DB URL:` 줄을 **본인 DB URL로 직접 교체** — 단, SKILL.md는 동기화 대상이라
+   플러그인 업데이트 시 덮어써집니다.
+2. **Notion MCP 쪽에서 대상 데이터베이스를 지정** — 업데이트에 영향받지 않아 이쪽을 권합니다.
+
+DB 식별자는 Notion에서 해당 데이터베이스를 열었을 때 주소창 URL의 마지막 32자리 16진 문자열입니다
+(`https://www.notion.so/<32자리>`). 하이픈이 섞여 있으면 제거합니다.
+
+| 이름 | 정체 | 미설정/미교체 시 |
+|------|------|------------------|
+| `GODBLADE_ROOT` | **실제 환경변수**(`forge-tools-server.py`가 읽음) | `project="godblade"` 조회만 경로 없음 에러 |
+| `${NOTION_DB_ID}` | **문서 플레이스홀더**(읽는 코드 없음) | 업로드 대상이 비어 있음 — 위 1·2 중 하나로 채울 것 |
+
 ---
 
 ## 스킬 목록

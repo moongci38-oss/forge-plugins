@@ -28,6 +28,36 @@ claude plugin install forge-game
 
 > Unity MCP 없이도 `game-asset-generate`·`game-asset-pipeline`·`asset-extract`는 동작합니다.
 
+### 프로젝트 경로 환경변수 (기본값 없음 — 설정 필수)
+
+`dungeon-play-loop`·`dungeon-uiux-loop`는 **여러분의 게임 프로젝트 경로**를 참조합니다.
+이 저장소는 공개라 특정 개발 환경의 절대경로를 기본값으로 넣지 않았습니다 —
+그래서 **설정하지 않으면 동작하지 않습니다**(조용히 잘못된 경로를 훑는 것보다 낫다는 판단).
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc 에 추가
+export GODBLADE_ROOT="/path/to/your/unity-project/src"
+```
+
+| 이름 | 정체 | 쓰는 곳 | 가리켜야 하는 것 |
+|------|------|---------|------------------|
+| `GODBLADE_ROOT` | **실제 환경변수** — 쉘이 확장한다 | `dungeon-uiux-loop/scripts/verify.sh` · 두 루프의 SKILL/TRIGGER 경로 | Unity 프로젝트 루트(`client/`·`loops/`의 부모) |
+| `${BOARDGAMES_ROOT}` | **문서 플레이스홀더** — 읽는 코드 없음 | `game-qa/references/project-stacks.md` 참조표 | (설정 불필요 — 아래 참고) |
+
+**미설정 시 증상**: `verify.sh`가 `${GODBLADE_ROOT}`를 빈 문자열로 확장해
+`/client/loops/.../verify-report.json`을 찾다 실패합니다. 루프 SKILL.md·TRIGGER.md의 STATE 경로도
+같은 이유로 해석되지 않습니다. 경로가 이상하게 짧아 보이면 이 변수를 먼저 확인하세요.
+
+```bash
+# 확인
+echo "GODBLADE_ROOT=$GODBLADE_ROOT" && ls "$GODBLADE_ROOT" 2>/dev/null || echo "미설정 또는 경로 없음"
+```
+
+> **`${BOARDGAMES_ROOT}`는 export해도 아무 일도 일어나지 않습니다.** 공개 저장소라 원래 있던
+> 실제 경로를 지운 자리이고, 이 이름을 읽는 코드는 없습니다(`grep -rn BOARDGAMES_ROOT` 로 확인 —
+> `project-stacks.md` 참조표에만 나옵니다). 그 참조표를 본인 환경에 맞춰 쓰려면 해당 문서의 경로를
+> 직접 읽고 판단하세요 — 자동 해석되지 않습니다.
+
 ---
 
 ## 게임 개발 파이프라인
