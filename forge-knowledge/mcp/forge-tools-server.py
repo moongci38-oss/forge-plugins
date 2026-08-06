@@ -29,6 +29,13 @@ FORGE_OUTPUTS = Path(os.environ.get("FORGE_OUTPUTS", HOME / "forge-outputs"))
 FORGE_ROOT = Path(os.environ.get("FORGE_ROOT", HOME / "forge"))
 FORGE_MCP_TOKEN = os.environ.get("FORGE_MCP_TOKEN", "")
 
+# ⚠️ 이 레포는 PUBLIC 이다 — 사설 프로젝트 절대경로를 기본값으로 박지 않는다.
+#   `mcp/` 는 `sync-from-forge.py` 의 SUBDIRS(skills/commands/agents/rules) **밖**이라
+#   경로 치환도 누출 가드도 닿지 않는다. 여기서 직접 지켜야 한다(2026-08-06 3곳 회수).
+#   미설정 시 실재하지 않는 표식 경로가 되어, 호출부의 exists() 검사가
+#   "프로젝트 경로 없음: <set GODBLADE_ROOT>" 로 무엇을 설정해야 하는지 그대로 알린다.
+GODBLADE_ROOT = os.environ.get("GODBLADE_ROOT", "<set GODBLADE_ROOT>")
+
 # root-cause: AD-106 MCP-SEC — .env 자동 로드 = 파일 변조 시 토큰 오염 위험. shell env 직접 설정 필요.
 # (구) telegram-workspace .env 자동 로드 제거됨.
 
@@ -173,7 +180,7 @@ def git_status(project: str = "forge") -> str:
     project_paths = {
         "forge": FORGE_ROOT,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        "godblade": Path("/mnt/e/new_workspace/god_Sword/src"),
+        "godblade": Path(GODBLADE_ROOT),
     }
     cwd = project_paths.get(project, Path(project))
     if not cwd.exists():
@@ -198,7 +205,7 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
         "forge": FORGE_ROOT,
         "forge-outputs": FORGE_OUTPUTS,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        "godblade": Path("/mnt/e/new_workspace/god_Sword/src"),
+        "godblade": Path(GODBLADE_ROOT),
     }
     cwd = project_paths.get(project, Path(project))
     if not cwd.exists():
@@ -470,7 +477,7 @@ def run_health_check(project: str = "forge", months: int = 12) -> str:
     project_paths = {
         "forge": str(FORGE_ROOT),
         "portfolio": str(HOME / "mywsl_workspace/portfolio-project"),
-        "godblade": "/mnt/e/new_workspace/god_Sword/src",
+        "godblade": GODBLADE_ROOT,
     }
     project_path = project_paths.get(project, project)
     return run_script("forge-codebase-health.sh", [project_path, str(months)])
