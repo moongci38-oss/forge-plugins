@@ -1,0 +1,54 @@
+# design-rubric.yaml — 디자인 산출물 전용 평가 루브릭
+# 출처: Anthropic Engineering Blog — "Designing multi-agent harnesses for long-running Claude applications"
+#   저자: Prithvi Rajasekaran (Anthropic), 2026-04
+#   URL: https://www.anthropic.com/engineering/harness-design-long-running-apps
+#   영상 타임스탬프: 11:23~14:10
+# 변경 시 supersedes 필드에 이전 버전 날짜 기재 필수 (학습 누적 보호)
+version: "1.0"
+created: "2026-05-22"
+rubric_id: design-v1
+
+# 채점 방식: 각 축 0/1/2점, 총합 8점 만점, pass_threshold = 4.0 (50%+)
+# rubrics/ = 도메인 특화 루브릭. references/ = default/예시 전용.
+
+axes:
+  design_quality:
+    description: "전체 디자인이 하나의 일관된 작품처럼 느껴지는가 (색상·타이포·레이아웃·이미지 통합)"
+    levels:
+      0: "색상·타이포·레이아웃이 개별 요소로 충돌하거나 통일성 없음"
+      1: "전반적으로 일관성 있으나 일부 요소 불일치 존재"
+      2: "색상·타이포·레이아웃·이미지가 하나의 응집된 시각 언어를 형성"
+
+  originality:
+    description: "템플릿/AI 슬롭 패턴이 아닌 창의적 선택이 보이는가. 보라 그라데이션+흰 카드 = 즉시 0점"
+    levels:
+      0: "Generic 템플릿 패턴 그대로 사용 (보라 그라데이션, 흰 카드, AI 슬롭 조합 해당)"
+      1: "일부 독창적 요소 있으나 전반적으로 익숙한 패턴 의존"
+      2: "명확한 크리에이티브 방향성, 템플릿에서 벗어난 의도적 창의적 선택"
+
+  craft:
+    description: "타이포그래피·색상·여백·대비 비율 등 기술적 완성도"
+    levels:
+      0: "타이포그래피·여백·대비 비율에 심각한 결함 (판독 불가, 극단적 대비 부재 등)"
+      1: "기본 craft 충족, 일부 세부 조정 필요"
+      2: "타이포그래피·여백·대비·색상이 모두 의도적으로 정교하게 조율됨"
+
+  functionality:
+    description: "사용자가 기능을 직관적으로 사용할 수 있는가"
+    levels:
+      0: "핵심 기능 접근 경로 불명확하거나 숨겨짐"
+      1: "주요 기능 접근 가능, 일부 사용성 개선 여지"
+      2: "모든 주요 기능이 직관적으로 접근 가능하고 사용 흐름이 자연스러움"
+
+pass_criteria:
+  pass_threshold: 4.0
+  pass: "총합 >= 4.0 (8점 만점) AND craft >= 1 AND functionality >= 1"
+  warn: "총합 3.0~3.9 OR originality = 0"
+  fail: "총합 < 3.0 OR design_quality = 0"
+
+usage:
+  example: "/eval-rubric --target path/to/design-output.md --rubric ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/rubrics/design.yaml"
+  use_cases:
+    - "포트폴리오 UI 리뷰"
+    - "GodBlade 화면 검수"
+    - "Claude Design 산출물 quality gate"

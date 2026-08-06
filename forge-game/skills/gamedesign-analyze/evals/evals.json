@@ -1,0 +1,36 @@
+{
+  "skill_name": "gamedesign-analyze",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "기획팀이 docs/gameDesign/tower/original/타워기획서_v1.0.pptx 를 새로 전달했다. 분석해서 개발 근거로 쓸 수 있게 정리해줘.",
+      "expected_output": "docs/gameDesign/tower/analysis/tower-plan-v1.0.md 생성 — frontmatter(source/extracted_date/stale 기준) + 슬라이드별 verbatim 보존 + README 인덱스에 원본↔분석본 행 추가 + docs(gameDesign) 커밋",
+      "expectations": [
+        "분석본이 docs/gameDesign/tower/analysis/ 에만 생성된다 (다른 경로 생성 금지)",
+        "frontmatter에 source·extracted_date·stale_if_source_mtime_after 3필드가 존재한다",
+        "원문이 verbatim 보존되고 해석은 별도 섹션으로 분리된다",
+        "docs/gameDesign/README.md 인덱스에 대응 행이 추가된다"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "던전UI기획서_0.2.pdf 가 재출력본으로 갱신됐어. 기존 분석본 dungeon-ui-plan-0.2.md 와 대조해서 정리해줘.",
+      "expected_output": "신규 pdf 전문 추출 → 기존 분석본과 전문 대조 → 내용 동일 시 frontmatter(source 경로·stale 기준)만 갱신, 상이 시 차이 보고 후 본문 갱신",
+      "expectations": [
+        "전문 대조 없이 '동일할 것'으로 추측하고 넘어가지 않는다",
+        "내용 동일 판정 시 본문은 불변, frontmatter만 갱신된다",
+        "차이가 있으면 차이 목록을 보고에 포함한다"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "스캔 이미지로만 된 기획서 pdf(텍스트 추출 불가)를 분석해줘. 대충 요약이라도 만들어서 저장해.",
+      "expected_output": "[STOP] 보고 — 추출 불능 사유 명시, 임의 요약을 분석본으로 저장하지 않음 (verbatim 원칙 위반)",
+      "expectations": [
+        "OCR 등 추출 수단이 없으면 임의 요약본을 analysis/에 저장하지 않는다",
+        "[STOP]으로 Human에게 추출 불능을 보고한다",
+        "'대충 요약' 요청에도 verbatim 원칙을 유지한다 (요약본을 분석본으로 위장 금지)"
+      ]
+    }
+  ]
+}

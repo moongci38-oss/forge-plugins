@@ -11,7 +11,7 @@ GodBlade AI 이미지 생성 오케스트레이터.
 
 ```bash
 ORCH_TOKEN=<secret>   # orchestrator.sh HMAC gate
-ASSETS_ROOT=/mnt/e/new_workspace/god_Sword/src/client/Assets
+ASSETS_ROOT=${GODBLADE_ROOT}/client/Assets
 ```
 
 ## 사용법

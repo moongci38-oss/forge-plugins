@@ -1,0 +1,41 @@
+{
+  "skill_name": "eval-rubric",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "다음 spec 문서를 4축 rubric으로 채점하라: 문서에 목적은 있으나 수락 기준 없음, 보안 고려 없음, 용어 일관성 없음, 완성도 50% 수준",
+      "expected_output": "4축 JSON 채점 결과 — clarity/consistency/completeness/safety 각 0-2점, 총점 및 FAIL verdict, 개선 우선순위",
+      "expectations": [
+        "clarity/consistency/completeness/safety 4축 점수가 각각 명시되어 있는가?",
+        "총점 기준으로 PASS/WARN/FAIL verdict가 명확히 결정되어 있는가?",
+        "safety 0점 또는 completeness 낮은 점수에 대한 구체적 rationale이 있는가?",
+        "improvement_priority 배열에 먼저 개선할 축이 포함되어 있는가?",
+        "JSON 스키마(scores/rationale/verdict/improvement_priority)를 준수하는가?"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "다음 구현 산출물을 평가하라: auth.ts — JWT 검증 로직 완성, 에러 처리 완비, Spec 요구사항 100% 충족, 보안 취약점 없음, 테스트 PASS",
+      "expected_output": "4축 고득점(평균 ≥1.5) PASS verdict JSON, 각 축 근거 포함",
+      "expectations": [
+        "고품질 산출물에 대해 PASS verdict가 올바르게 부여되는가?",
+        "각 축이 1점 이상으로 채점되어 평균 ≥1.5 기준을 충족하는가?",
+        "rationale이 산출물 특성에 맞게 구체적으로 작성되어 있는가?",
+        "improvement_priority가 실제 개선 필요가 없거나 최소화되어 있는가?",
+        "채점 근거가 과대평가(관대한 채점) 없이 객관적인가?"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "QA 보고서를 평가하라: 시나리오 15개 중 10개 PASS, 5개 FAIL 잔존, 일부 FAIL 항목에 위치+이유만 있고 방법 없음, 전반적으로 커버리지는 충족",
+      "expected_output": "WARN 또는 FAIL verdict, consistency/completeness 낮은 점수, 피드백 3요소 누락 지적",
+      "expectations": [
+        "FAIL 항목에 위치+이유+방법 3요소가 모두 있는지 rationale에서 확인하는가?",
+        "5개 FAIL 잔존으로 completeness 또는 consistency 축에서 감점이 반영되었는가?",
+        "PASS/WARN/FAIL 중 상황에 맞는 verdict(WARN 또는 FAIL)가 부여되는가?",
+        "채점 이후 개선 방향이 improvement_priority에 반영되어 있는가?",
+        "자기평가 편향 없이(관대하게 보지 않고) 독립적으로 판정하는가?"
+      ]
+    }
+  ]
+}
