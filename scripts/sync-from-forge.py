@@ -179,15 +179,27 @@ def scan_repo_leaks(repo_root: str):
             # 추적 파일을 읽지도 못했다 = "깨끗함"이라고 말할 근거가 없다 → 호출부가 실패시킨다.
             skipped.append((rel, f"oserror:{e.__class__.__name__}"))
             continue
-        if b'\x00' in raw:
-            skipped.append((rel, "binary"))   # 설계상 정상 — 종료코드를 올리지 않는다
-            continue
-        try:
-            content = raw.decode('utf-8')
-        except UnicodeDecodeError:
-            # 비-UTF-8 텍스트(cp949/euc-kr/latin-1 …). latin-1 은 어떤 바이트열도 실패하지
-            # 않고 ASCII 구간을 그대로 보존하므로, 경로 패턴 탐지에는 충분하다.
-            content = raw.decode('latin-1')
+        is_binary = b'\x00' in raw
+        if is_binary:
+            # ⚠️ NUL 유무만으로 "바이너리 = 검사 불필요"라고 끊으면 **UTF-16/UTF-32 텍스트가
+            #   통째로 빠진다**(2026-08-07 cr-final HIGH, opus·codex 독립 적중).
+            #   UTF-16LE 의 `/home` 은 `/\x00h\x00o\x00m\x00e\x00` 라 ASCII 사이에 NUL 이 끼고,
+            #   latin-1 복호로도 `/home/` 정규식에 걸리지 않는다 — 즉 이 PR 이 닫으려던
+            #   '비-UTF-8 텍스트 침묵 스킵' 갭이 **인코딩만 바꿔 그대로 재현**된다.
+            # → 인코딩을 알아맞히려 들지 않는다(BOM 없는 UTF-16 판별은 휴리스틱의 연속이다).
+            #   **NUL 을 제거한 뒤 그대로 검사한다.** UTF-16/32 의 ASCII 구간이 복원되고,
+            #   진짜 바이너리에 박힌 ASCII 문자열도 함께 잡힌다(`strings` 와 같은 원리).
+            #   분류는 `binary` 로 남겨 종료코드를 올리지 않되(zip 하나로 상시 FAIL 방지),
+            #   **검사는 건너뛰지 않는다** — 스킵과 통과를 구분하는 것이 이 PR 의 전부다.
+            skipped.append((rel, "binary"))
+            content = raw.replace(b'\x00', b'').decode('latin-1')
+        else:
+            try:
+                content = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                # 비-UTF-8 단일바이트 텍스트(cp949/euc-kr/latin-1 …). latin-1 은 어떤 바이트열도
+                # 실패하지 않고 ASCII 구간을 그대로 보존하므로 경로 패턴 탐지에 충분하다.
+                content = raw.decode('latin-1')
         leaks = find_leaks(content)
         if leaks:
             found.append((rel, leaks))
@@ -250,7 +262,7 @@ def main():
             for ln, frag in leaks[:3]:
                 print(f"        L{ln}: {frag}", file=sys.stderr)
         for rel, _ in binary[:10]:
-            print(f"  BINARY: {rel} — 내용 검사 대상 아님(아카이브 내부는 여전히 미스캔)",
+            print(f"  BINARY: {rel} — NUL 제거 후 검사함(압축/암호화된 내부는 여전히 미스캔)",
                   file=sys.stderr)
         if len(binary) > 10:
             print(f"  BINARY: … 외 {len(binary) - 10}건", file=sys.stderr)

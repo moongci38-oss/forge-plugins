@@ -231,9 +231,29 @@ try:
     _f5b, skip5b = mod.scan_repo_leaks(_tmp)
     kinds = {rel: kind for rel, kind in skip5b}
     if kinds.get("forge-knowledge/mcp/blob.bin") == "binary":
-        ok("⑤-b NUL 포함 파일은 binary 로 분류 — 비-UTF-8 텍스트와 구분된다")
+        ok("⑤-b NUL 포함 파일은 binary 로 분류 — 종료코드를 올리지 않는다")
     else:
         ng(f"⑤-b 바이너리 분류 실패: {kinds}")
+
+    # ⑤-c **UTF-16 텍스트**의 누출도 잡아야 한다 (2026-08-07 cr-final HIGH, opus·codex 독립 적중)
+    #   NUL 유무만으로 "바이너리 = 검사 불필요"라 끊으면 UTF-16LE 의 `/home` 이
+    #   `/\x00h\x00o\x00m\x00e\x00` 라 통째로 빠진다 — 이 PR 이 닫으려던 갭이 인코딩만
+    #   바꿔 재현되고, exit code 도 안 올라가 CI 가 그린으로 통과한다.
+    #   판별력: `raw.replace(b'\x00', b'')` 를 지우고 binary 를 `continue` 로 되돌리면 FAIL 한다.
+    with open(os.path.join(_tmp, "forge-knowledge", "mcp", "utf16.txt"), "wb") as f:
+        f.write('P = "/home/someuser/forge-outputs/x"\n'.encode("utf-16-le"))
+    subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
+    found5c, skip5c = mod.scan_repo_leaks(_tmp)
+    hit5c = {rel for rel, _ in found5c}
+    kind5c = {rel: kind for rel, kind in skip5c}
+    if "forge-knowledge/mcp/utf16.txt" in hit5c:
+        ok("⑤-c UTF-16 텍스트의 누출도 잡는다 — NUL 제거 후 검사")
+    else:
+        ng(f"⑤-c UTF-16 누출 미탐 (탐지: {sorted(hit5c)}) — NUL 휴리스틱이 텍스트를 삼킨다")
+    if kind5c.get("forge-knowledge/mcp/utf16.txt") == "binary":
+        ok("⑤-d 그래도 분류는 binary — 종료코드는 LEAK 로만 올라간다(상시 FAIL 방지)")
+    else:
+        ng(f"⑤-d UTF-16 파일 분류가 예상 밖: {kind5c}")
 finally:
     shutil.rmtree(_tmp, ignore_errors=True)
 
@@ -299,23 +319,27 @@ try:
         f.write("OK = 1\n")
     subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
     os.chmod(_unread, 0o000)
-    _readable_anyway = True
+    # 권한 복원을 finally 로 감싼다(2026-08-07 cr-final MED): 중간 단언·서브프로세스에서
+    # 예외가 나면 0o000 파일이 남아 **같은 파일의 이후 테스트가 전부 오염**된다.
     try:
-        open(_unread, "rb").close()
-    except OSError:
-        _readable_anyway = False
-    if _readable_anyway:
-        skip("⑥-a4 chmod 000 이후에도 읽힘(root 실행?) — 읽기 실패를 주입하지 못했다")
-    else:
-        r_ur = subprocess.run([sys.executable, TARGET, "--scan-repo", _cli], capture_output=True, text=True)
-        if r_ur.returncode == 1 and "UNREADABLE=1" in r_ur.stderr:
-            ok("⑥-a4 읽지 못한 추적 파일 → exit 1 (문구와 종료코드가 일치한다)")
+        _readable_anyway = True
+        try:
+            open(_unread, "rb").close()
+        except OSError:
+            _readable_anyway = False
+        if _readable_anyway:
+            skip("⑥-a4 chmod 000 이후에도 읽힘(root 실행?) — 읽기 실패를 주입하지 못했다")
         else:
-            ng(f"⑥-a4 rc={r_ur.returncode} (기대 1) — '통과 아님'이라 찍고 통과시킨다 stderr={r_ur.stderr[:140]}")
-    os.chmod(_unread, 0o644)
-    os.remove(_unread)
-    os.remove(os.path.join(_cli, "forge-knowledge", "mcp", "b.bin"))
-    subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
+            r_ur = subprocess.run([sys.executable, TARGET, "--scan-repo", _cli], capture_output=True, text=True)
+            if r_ur.returncode == 1 and "UNREADABLE=1" in r_ur.stderr:
+                ok("⑥-a4 읽지 못한 추적 파일 → exit 1 (문구와 종료코드가 일치한다)")
+            else:
+                ng(f"⑥-a4 rc={r_ur.returncode} (기대 1) — '통과 아님'이라 찍고 통과시킨다 stderr={r_ur.stderr[:140]}")
+    finally:
+        os.chmod(_unread, 0o644)
+        os.remove(_unread)
+        os.remove(os.path.join(_cli, "forge-knowledge", "mcp", "b.bin"))
+        subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
 
     with open(os.path.join(_cli, "forge-knowledge", "mcp", "leak.py"), "w", encoding="utf-8") as f:
         f.write('P = "/home/someuser/forge-outputs/x"\n')
