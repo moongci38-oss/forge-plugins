@@ -146,21 +146,26 @@ def iter_tracked_files(repo_root: str):
     return [p for p in out.split("\0") if p]
 
 def scan_repo_leaks(repo_root: str):
-    """스캔 불가면 `None`, 아니면 `(found, unreadable)` 튜플.
+    """스캔 불가면 `None`, 아니면 `(found, skipped)` 튜플.
 
-    - `found`     = [(rel, leaks)] — 누출이 발견된 파일
-    - `unreadable`= [(rel, 사유)]  — **검사하지 못한** 파일(바이너리·디코드 실패·읽기 오류)
+    - `found`   = [(rel, leaks)] — 누출이 발견된 파일
+    - `skipped` = [(rel, kind)]  — 검사하지 **못한** 파일. `kind` 는
+                  `"binary"`(NUL 포함 = 설계상 정상) 또는 `"oserror:*"`(읽기 실패 = 비정상)
 
-    ⚠️ `unreadable` 을 따로 돌려주는 이유(2026-08-07 cr-final MED): 이전 판은 이 파일들을
-      `except: continue` 로 **건수도 신호도 없이** 삼켰다. 그러면 "검사했는데 깨끗함"과
-      "검사하지 못했음"이 출력에서 구분되지 않는다 — 이 스캐너가 `None`(스캔 실패) 과
-      `[]`(0건) 을 굳이 구분해 놓고 파일 단위에서는 그 엄밀함을 스스로 깨고 있었다.
-      비-UTF-8 로 저장된 텍스트 파일에 사설 경로가 있으면 조용히 통과했다.
+    ⚠️ 비-UTF-8 **텍스트**는 스킵하지 않는다(2026-08-07 cr-final HIGH). 1차판은
+      `UnicodeDecodeError` 를 통째로 스킵하고 exit 0 을 냈다 — 출력은 "검사하지 못했다
+      (통과 아님)" 이라 말하는데 **종료코드는 통과**여서 문구와 계약이 어긋났고, cp949 등으로
+      저장된 텍스트에 사설 경로가 있어도 CI 가 그린으로 지나갔다. 이 PR 이 닫으려던
+      '침묵 스킵' 갭이 exit code 계층에 그대로 남아 있었던 것이다.
+      → NUL 유무로 **바이너리와 비-UTF-8 텍스트를 가르고**, 후자는 latin-1 로 복호해
+        그대로 검사한다(사설 경로는 ASCII 라 latin-1 왕복에서 보존된다).
+      → 진짜 바이너리만 `binary` 로 남기고, 그건 exit code 를 올리지 않는다
+        (그렇지 않으면 zip 하나 때문에 가드가 상시 FAIL 이 돼 아무도 안 쓴다).
     """
     rels = iter_tracked_files(repo_root)
     if rels is None:
         return None
-    found, unreadable = [], []
+    found, skipped = [], []
     for rel in rels:
         if rel in SCAN_SELF_EXCLUDE:
             continue
@@ -168,20 +173,25 @@ def scan_repo_leaks(repo_root: str):
         if not os.path.isfile(p):
             continue
         try:
-            with open(p, encoding='utf-8') as f:
-                content = f.read()
-        except UnicodeDecodeError:
-            # 바이너리이거나 비-UTF-8 텍스트. 전자는 정상, 후자는 사각지대 — 구분이 안 되므로
-            # 통과시키되 **보이게** 남긴다(침묵 스킵 금지).
-            unreadable.append((rel, "non-utf8"))
-            continue
+            with open(p, 'rb') as f:
+                raw = f.read()
         except OSError as e:
-            unreadable.append((rel, f"oserror:{e.__class__.__name__}"))
+            # 추적 파일을 읽지도 못했다 = "깨끗함"이라고 말할 근거가 없다 → 호출부가 실패시킨다.
+            skipped.append((rel, f"oserror:{e.__class__.__name__}"))
             continue
+        if b'\x00' in raw:
+            skipped.append((rel, "binary"))   # 설계상 정상 — 종료코드를 올리지 않는다
+            continue
+        try:
+            content = raw.decode('utf-8')
+        except UnicodeDecodeError:
+            # 비-UTF-8 텍스트(cp949/euc-kr/latin-1 …). latin-1 은 어떤 바이트열도 실패하지
+            # 않고 ASCII 구간을 그대로 보존하므로, 경로 패턴 탐지에는 충분하다.
+            content = raw.decode('latin-1')
         leaks = find_leaks(content)
         if leaks:
             found.append((rel, leaks))
-    return found, unreadable
+    return found, skipped
 
 def sha(s: str) -> str:
     return hashlib.sha256(s.encode('utf-8', errors='replace')).hexdigest()[:12]
@@ -229,20 +239,33 @@ def main():
             # 스캔 실패를 0건과 같게 보고하면 "검사했는데 깨끗함"으로 오독된다 — 구분해서 실패시킨다.
             print(f"SCAN_STATUS=error — git ls-files 실패({root}). 검사되지 않았다.", file=sys.stderr)
             return 2
-        found, unreadable = result
-        # UNREADABLE 을 항상 찍는다(0 이어도). 침묵하면 "0 건"과 "안 봤음"이 구분되지 않는다.
+        found, skipped = result
+        binary = [(r, k) for r, k in skipped if k == "binary"]
+        unreadable = [(r, k) for r, k in skipped if k != "binary"]
+        # 세 카운터를 **항상** 찍는다(0 이어도). 침묵하면 "0 건"과 "안 봤음"이 구분되지 않는다.
         print(f"SCAN_STATUS=ok  SCAN_ROOT={root}  LEAK_FILES={len(found)}  "
-              f"UNREADABLE={len(unreadable)}", file=sys.stderr)
+              f"BINARY={len(binary)}  UNREADABLE={len(unreadable)}", file=sys.stderr)
         for rel, leaks in found:
             print(f"  LEAK: {rel} ({len(leaks)}건)", file=sys.stderr)
             for ln, frag in leaks[:3]:
                 print(f"        L{ln}: {frag}", file=sys.stderr)
+        for rel, _ in binary[:10]:
+            print(f"  BINARY: {rel} — 내용 검사 대상 아님(아카이브 내부는 여전히 미스캔)",
+                  file=sys.stderr)
+        if len(binary) > 10:
+            print(f"  BINARY: … 외 {len(binary) - 10}건", file=sys.stderr)
         for rel, why in unreadable[:10]:
             print(f"  UNREADABLE: {rel} ({why}) — 검사하지 못했다(통과 아님)", file=sys.stderr)
         if len(unreadable) > 10:
             print(f"  UNREADABLE: … 외 {len(unreadable) - 10}건", file=sys.stderr)
         if found:
             print("  → PUBLIC 레포다. forge SSoT 를 고치거나 PLUGIN_REDACT_MAP 에 매핑을 추가하라.",
+                  file=sys.stderr)
+            return 1
+        if unreadable:
+            # 출력이 "통과 아님"이라고 말했으면 **종료코드도 통과가 아니어야 한다**
+            # (2026-08-07 cr-final HIGH: 문구와 계약이 어긋나 CI 가 그린으로 지나갔다).
+            print("  → 추적 파일을 읽지 못했다. '깨끗함'이라고 말할 근거가 없으므로 실패로 낸다.",
                   file=sys.stderr)
             return 1
         return 0

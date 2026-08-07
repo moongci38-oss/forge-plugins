@@ -208,23 +208,32 @@ try:
     else:
         ng(f"② 깨끗한 레포에서 오탐: {mod.scan_repo_leaks(_tmp)}")
 
-    # ⑤ 비-UTF-8 추적 파일은 **통과가 아니라 UNREADABLE 로** 보고돼야 한다
-    #   (2026-08-07 cr-final MED: 이전 판은 건수·신호 없이 삼켜 "검사했는데 깨끗함"과
-    #    "검사하지 못했음"이 구분되지 않았다. 비-UTF-8 텍스트에 사설 경로가 있으면 조용히 통과했다.)
-    #   판별력: `unreadable.append(...)` 를 지우고 `continue` 만 남기면 이 케이스가 FAIL 한다.
+    # ⑤ 비-UTF-8 **텍스트**는 스킵하지 않고 그대로 검사한다 (2026-08-07 cr-final HIGH)
+    #   1차판은 UnicodeDecodeError 를 통째로 스킵하고 exit 0 을 냈다 — 출력은 "통과 아님"이라
+    #   말하면서 종료코드는 통과였고, cp949 로 저장된 텍스트의 사설 경로가 CI 를 그린으로 지나갔다.
+    #   → NUL 유무로 바이너리와 가르고, 비-UTF-8 텍스트는 latin-1 복호 후 검사한다.
+    #   판별력: latin-1 폴백을 지우고 `continue` 로 되돌리면 ⑤ 가 FAIL 한다.
     with open(os.path.join(_tmp, "forge-knowledge", "mcp", "cp949.py"), "wb") as f:
         f.write('P = "/home/someuser/비밀"\n'.encode("cp949"))  # UTF-8 로는 디코드 불가
     subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
-    found5, unread5 = mod.scan_repo_leaks(_tmp)
-    unread_rels = {rel for rel, _ in unread5}
-    if "forge-knowledge/mcp/cp949.py" in unread_rels:
-        ok("⑤ 비-UTF-8 파일이 UNREADABLE 로 보고된다 — 침묵 스킵 아님")
+    found5, skip5 = mod.scan_repo_leaks(_tmp)
+    hit5 = {rel for rel, _ in found5}
+    if "forge-knowledge/mcp/cp949.py" in hit5:
+        ok("⑤ 비-UTF-8 텍스트도 검사돼 누출이 잡힌다 — 스킵이 아니라 복호 후 스캔")
     else:
-        ng(f"⑤ 비-UTF-8 파일이 조용히 스킵됨 (unreadable={sorted(unread_rels)}) — 사각지대 은폐")
-    if not found5:
-        ok("⑤-b 그 파일이 LEAK 로는 세지 않는다(디코드 못 했으니 판정 불가가 맞다)")
+        ng(f"⑤ 비-UTF-8 텍스트의 누출을 놓쳤다 (탐지: {sorted(hit5)}) — exit 0 으로 새어나간다")
+
+    # ⑤-b 진짜 바이너리(NUL 포함)는 binary 로 분류돼 **종료코드를 올리지 않는다**
+    #   (zip 하나 때문에 가드가 상시 FAIL 이 되면 아무도 안 쓴다 — 정밀도가 가드의 수명이다)
+    with open(os.path.join(_tmp, "forge-knowledge", "mcp", "blob.bin"), "wb") as f:
+        f.write(b"\x00\x01\x02/home/someuser/x\x00")
+    subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
+    _f5b, skip5b = mod.scan_repo_leaks(_tmp)
+    kinds = {rel: kind for rel, kind in skip5b}
+    if kinds.get("forge-knowledge/mcp/blob.bin") == "binary":
+        ok("⑤-b NUL 포함 파일은 binary 로 분류 — 비-UTF-8 텍스트와 구분된다")
     else:
-        ng(f"⑤-b 디코드 실패 파일을 누출로 오보고: {found5}")
+        ng(f"⑤-b 바이너리 분류 실패: {kinds}")
 finally:
     shutil.rmtree(_tmp, ignore_errors=True)
 
@@ -267,10 +276,46 @@ try:
         ok("⑥-a 깨끗한 레포 → exit 0 + SCAN_STATUS=ok")
     else:
         ng(f"⑥-a rc={r_clean.returncode} stderr={r_clean.stderr[:120]}")
-    if "UNREADABLE=0" in r_clean.stderr:
-        ok("⑥-a2 UNREADABLE 건수가 0 이어도 출력된다 — '0건'과 '안 봤음'이 구분된다")
+    if "UNREADABLE=0" in r_clean.stderr and "BINARY=0" in r_clean.stderr:
+        ok("⑥-a2 BINARY·UNREADABLE 건수가 0 이어도 출력된다 — '0건'과 '안 봤음'이 구분된다")
     else:
-        ng("⑥-a2 UNREADABLE 카운터가 출력에 없다 — 침묵 스킵이 다시 보이지 않게 된다")
+        ng("⑥-a2 카운터가 출력에 없다 — 침묵 스킵이 다시 보이지 않게 된다")
+
+    # ⑥-a3 바이너리만 있는 레포는 **여전히 exit 0** 이어야 한다(상시 FAIL 방지)
+    with open(os.path.join(_cli, "forge-knowledge", "mcp", "b.bin"), "wb") as f:
+        f.write(b"\x00\x01\x02")
+    subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
+    r_bin = subprocess.run([sys.executable, TARGET, "--scan-repo", _cli], capture_output=True, text=True)
+    if r_bin.returncode == 0 and "BINARY=1" in r_bin.stderr:
+        ok("⑥-a3 바이너리는 BINARY 로 세되 exit 0 — zip 하나로 가드가 상시 FAIL 하지 않는다")
+    else:
+        ng(f"⑥-a3 rc={r_bin.returncode} (기대 0) stderr={r_bin.stderr[:120]}")
+
+    # ⑥-a4 **읽지 못한** 추적 파일이 있으면 exit 1 — 출력이 '통과 아님'이라 말했으면 계약도 그래야 한다
+    #   (2026-08-07 cr-final HIGH: UNREADABLE 을 찍어놓고 exit 0 을 내 CI 가 그린으로 지나갔다)
+    #   판별력: main() 의 `if unreadable: return 1` 을 지우면 이 케이스가 FAIL 한다.
+    _unread = os.path.join(_cli, "forge-knowledge", "mcp", "noperm.py")
+    with open(_unread, "w", encoding="utf-8") as f:
+        f.write("OK = 1\n")
+    subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
+    os.chmod(_unread, 0o000)
+    _readable_anyway = True
+    try:
+        open(_unread, "rb").close()
+    except OSError:
+        _readable_anyway = False
+    if _readable_anyway:
+        skip("⑥-a4 chmod 000 이후에도 읽힘(root 실행?) — 읽기 실패를 주입하지 못했다")
+    else:
+        r_ur = subprocess.run([sys.executable, TARGET, "--scan-repo", _cli], capture_output=True, text=True)
+        if r_ur.returncode == 1 and "UNREADABLE=1" in r_ur.stderr:
+            ok("⑥-a4 읽지 못한 추적 파일 → exit 1 (문구와 종료코드가 일치한다)")
+        else:
+            ng(f"⑥-a4 rc={r_ur.returncode} (기대 1) — '통과 아님'이라 찍고 통과시킨다 stderr={r_ur.stderr[:140]}")
+    os.chmod(_unread, 0o644)
+    os.remove(_unread)
+    os.remove(os.path.join(_cli, "forge-knowledge", "mcp", "b.bin"))
+    subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
 
     with open(os.path.join(_cli, "forge-knowledge", "mcp", "leak.py"), "w", encoding="utf-8") as f:
         f.write('P = "/home/someuser/forge-outputs/x"\n')
