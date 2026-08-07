@@ -327,7 +327,7 @@ done
 {
   "version": "2.0.0",
   "name": "내-워크스페이스",
-  "outputsRoot": "/home/유저명/forge-outputs"
+  "outputsRoot": "/home/<유저명>/forge-outputs"
 }
 ```
 

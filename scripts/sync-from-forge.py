@@ -115,6 +115,58 @@ def find_leaks(content: str):
             out.append((i, m))
     return out
 
+# ── G-3: 레포 전역 누출 스캔 ────────────────────────────────────────────────────
+# 왜 별개 경로인가: 위 find_leaks 는 main() 의 sync 루프 안에서만 돌아 **SUBDIRS
+#   (skills/commands/agents/rules)를 지나는 파일만** 본다. `mcp/`·`hooks/`·플러그인 루트
+#   문서는 sync 를 타지 않으므로 가드가 아예 닿지 않았다 — 실제로
+#   `forge-knowledge/mcp/forge-tools-server.py` 에 사설 경로 3곳이 남아 PR #46 에서야
+#   별도로 회수됐다(harness-gaps/2026-08-06-plugin-sync-public-leak-harness-gaps.md §G-3).
+#   이 스캔은 sync 경로와 **무관하게** 추적 파일 전량을 본다.
+# 대상 = `git ls-files`(추적 파일)뿐이다. 공개되는 것이 곧 추적본이고, 미추적 산출물까지
+#   세면 오탐이 늘어 가드가 무시당한다(§RE_LEAK 주석의 "정밀도가 곧 가드의 수명이다").
+# 폐기조건: 누출 검사가 CI 외부 도구(gitleaks 등)로 이관되면 이 모드를 지운다.
+SCAN_SELF_EXCLUDE = {
+    # 이 두 파일은 **탐지 규칙 자체와 그 픽스처**를 소스로 담고 있어 구조적으로 자기 매칭한다
+    # (`RE_HOME_FORGE = re.compile(r'/home/[^/\s]+/forge\b')` · 테스트의 `/home/u1/...`).
+    # 제외하지 않으면 가드가 영구 FAIL 이라 아무도 안 쓰게 된다. 대신 이 둘은 **사설 정보를
+    # 담을 이유가 없는 도구 파일**이라 위험이 낮다 — 실제 배포물(플러그인 번들)은 전부 검사된다.
+    "scripts/sync-from-forge.py",
+    "scripts/sync-from-forge.test.py",
+}
+
+def iter_tracked_files(repo_root: str):
+    """추적 중인 파일의 레포 상대경로를 돌려준다. git 부재·비레포면 빈 목록(fail-open 아님 —
+    호출부가 0건을 '스캔 못 함'으로 구분해 보고한다)."""
+    import subprocess
+    try:
+        out = subprocess.run(["git", "-C", repo_root, "ls-files", "-z"],
+                             capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return [p for p in out.split("\0") if p]
+
+def scan_repo_leaks(repo_root: str):
+    """(rel, leaks) 목록. 바이너리·자기참조 파일은 건너뛴다."""
+    rels = iter_tracked_files(repo_root)
+    if rels is None:
+        return None
+    found = []
+    for rel in rels:
+        if rel in SCAN_SELF_EXCLUDE:
+            continue
+        p = os.path.join(repo_root, rel)
+        if not os.path.isfile(p):
+            continue
+        try:
+            with open(p, encoding='utf-8') as f:
+                content = f.read()
+        except (UnicodeDecodeError, OSError):
+            continue  # 바이너리·읽기불가 — 텍스트 치환 규약 대상이 아니다
+        leaks = find_leaks(content)
+        if leaks:
+            found.append((rel, leaks))
+    return found
+
 def sha(s: str) -> str:
     return hashlib.sha256(s.encode('utf-8', errors='replace')).hexdigest()[:12]
 
@@ -143,7 +195,29 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--verify', action='store_true', help='report remaining drift, no writes')
+    ap.add_argument('--scan-repo', metavar='ROOT', nargs='?', const=PLUGIN_ROOT,
+                    help='G-3: sync 경로와 무관하게 추적 파일 전량에서 사설 절대경로를 찾는다 '
+                         '(기본 ROOT=PLUGIN_ROOT). 발견 시 exit 1, 쓰기 없음.')
     args = ap.parse_args()
+
+    # --scan-repo 는 sync 를 돌리지 않는 독립 모드다 — 쓰기가 없으므로 CI/pre-commit 에서 안전하다.
+    if args.scan_repo:
+        root = os.path.abspath(args.scan_repo)
+        found = scan_repo_leaks(root)
+        if found is None:
+            # 스캔 실패를 0건과 같게 보고하면 "검사했는데 깨끗함"으로 오독된다 — 구분해서 실패시킨다.
+            print(f"SCAN_STATUS=error — git ls-files 실패({root}). 검사되지 않았다.", file=sys.stderr)
+            return 2
+        print(f"SCAN_STATUS=ok  SCAN_ROOT={root}  LEAK_FILES={len(found)}", file=sys.stderr)
+        for rel, leaks in found:
+            print(f"  LEAK: {rel} ({len(leaks)}건)", file=sys.stderr)
+            for ln, frag in leaks[:3]:
+                print(f"        L{ln}: {frag}", file=sys.stderr)
+        if found:
+            print("  → PUBLIC 레포다. forge SSoT 를 고치거나 PLUGIN_REDACT_MAP 에 매핑을 추가하라.",
+                  file=sys.stderr)
+            return 1
+        return 0
 
     changed = {}
     missing_in_forge = []  # plugin-only files (present in plugin, absent in forge) -> untouched

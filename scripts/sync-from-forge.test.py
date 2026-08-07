@@ -39,6 +39,16 @@ def ng(msg, detail=""):
     print(f"  FAIL  {msg}  {detail}")
 
 
+SKIP = 0
+
+
+def skip(msg):
+    """측정 불가 — PASS 도 FAIL 도 아니다. 침묵하면 '검사했는데 통과'로 오독된다."""
+    global SKIP
+    SKIP += 1
+    print(f"  SKIP  {msg}")
+
+
 def load():
     spec = importlib.util.spec_from_file_location("sff", TARGET)
     mod = importlib.util.module_from_spec(spec)
@@ -46,49 +56,68 @@ def load():
     return mod
 
 
-print("== 1. 모든 카테고리의 forge 소스 디렉터리가 실재한다 ==")
 mod = load()
-for sub in mod.SUBDIRS:
-    src = mod.SUBDIR_SRC.get(sub, os.path.join(mod.FORGE_ROOT, sub))
-    if os.path.isdir(src):
-        ok(f"{sub} → {src}")
-    else:
-        ng(f"{sub} 소스 부재 → {src}",
-           "이 카테고리는 조용히 스킵된다(2026-07-27 rules 사고와 동일)")
+
+# ⚠️ §1~3 은 forge SSoT(PRIVATE 레포)가 로컬에 있어야만 의미가 있다. CI 러너에는 없다
+#   (2026-08-07 실측: FORGE_ROOT 부재 시 §1~3 이 FAIL=8 을 냈다 — 결함이 아니라 전제 부재다).
+#   없는 곳에서 FAIL 로 세면 CI 가 상시 빨갛게 되고, 그러면 아무도 안 본다. 그렇다고 조용히
+#   통과시키면 "검사했는데 깨끗함"으로 오독된다 → **SKIP 으로 명시**하고 종료코드에서 뺀다.
+#   §4~8 은 소스·순수로직 검사라 SSoT 없이도 유효하다 = CI 가 실제로 지키는 범위.
+_SSOT_PRESENT = all(
+    os.path.isdir(mod.SUBDIR_SRC.get(s, os.path.join(mod.FORGE_ROOT, s))) for s in mod.SUBDIRS
+)
+
+print("== 1. 모든 카테고리의 forge 소스 디렉터리가 실재한다 ==")
+if not _SSOT_PRESENT:
+    skip(f"forge SSoT 부재({mod.FORGE_ROOT}) — §1~3 은 로컬 전용 검사다")
+else:
+    for sub in mod.SUBDIRS:
+        src = mod.SUBDIR_SRC.get(sub, os.path.join(mod.FORGE_ROOT, sub))
+        if os.path.isdir(src):
+            ok(f"{sub} → {src}")
+        else:
+            ng(f"{sub} 소스 부재 → {src}",
+               "이 카테고리는 조용히 스킵된다(2026-07-27 rules 사고와 동일)")
 
 print()
 print("== 2. rules 카테고리가 실제로 대응 파일을 찾는다(0건 = 죽은 것) ==")
-counts = {}
-for plugin, sub, rel, forge_abs, plug_abs in mod.iter_pairs():
-    counts[sub] = counts.get(sub, 0) + 1
-for sub in mod.SUBDIRS:
-    n = counts.get(sub, 0)
-    if n > 0:
-        ok(f"{sub}: {n}건 대응")
-    else:
-        ng(f"{sub}: 0건 — 카테고리가 죽어 있다")
+if not _SSOT_PRESENT:
+    skip("forge SSoT 부재 — iter_pairs 대응 검사 불가")
+else:
+    counts = {}
+    for plugin, sub, rel, forge_abs, plug_abs in mod.iter_pairs():
+        counts[sub] = counts.get(sub, 0) + 1
+    for sub in mod.SUBDIRS:
+        n = counts.get(sub, 0)
+        if n > 0:
+            ok(f"{sub}: {n}건 대응")
+        else:
+            ng(f"{sub}: 0건 — 카테고리가 죽어 있다")
 
 print()
 print("== 3. 역변조 — rules 매핑을 지우면 감지돼야 한다(판별력 실증) ==")
 src_text = open(TARGET, encoding="utf-8").read()
-mutated = src_text.replace(
-    'forge_dir = SUBDIR_SRC.get(sub, os.path.join(FORGE_ROOT, sub))',
-    'forge_dir = os.path.join(FORGE_ROOT, sub)',
-)
-if mutated == src_text:
-    ng("역변조 지점 없음 — 테스트가 소스와 어긋남")
+if not _SSOT_PRESENT:
+    skip("forge SSoT 부재 — 역변조 대조군(rules 건수)을 만들 수 없다")
 else:
-    import tempfile
-    with tempfile.TemporaryDirectory() as td:
-        mut_path = os.path.join(td, "mut.py")
-        open(mut_path, "w", encoding="utf-8").write(mutated)
-        r = subprocess.run([sys.executable, mut_path, "--dry-run"],
-                           capture_output=True, text=True)
-        rules_lines = [l for l in r.stdout.splitlines() if l.strip().startswith("- rules/")]
-        if len(rules_lines) == 0:
-            ok("역변조 시 rules 0건 — 매핑이 실제로 일한다")
-        else:
-            ng(f"역변조해도 rules {len(rules_lines)}건 — 이 테스트는 공허하다")
+    mutated = src_text.replace(
+        'forge_dir = SUBDIR_SRC.get(sub, os.path.join(FORGE_ROOT, sub))',
+        'forge_dir = os.path.join(FORGE_ROOT, sub)',
+    )
+    if mutated == src_text:
+        ng("역변조 지점 없음 — 테스트가 소스와 어긋남")
+    else:
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            mut_path = os.path.join(td, "mut.py")
+            open(mut_path, "w", encoding="utf-8").write(mutated)
+            r = subprocess.run([sys.executable, mut_path, "--dry-run"],
+                               capture_output=True, text=True)
+            rules_lines = [l for l in r.stdout.splitlines() if l.strip().startswith("- rules/")]
+            if len(rules_lines) == 0:
+                ok("역변조 시 rules 0건 — 매핑이 실제로 일한다")
+            else:
+                ng(f"역변조해도 rules {len(rules_lines)}건 — 이 테스트는 공허하다")
 
 print()
 print("== 4. 소스 부재 시 침묵하지 않는다(WARN 출력) ==")
@@ -141,6 +170,65 @@ else:
     ng("가드가 있으나 write 를 막지 않는다 — 경고는 유출을 막지 못한다")
 
 print()
+print("== 8. G-3 레포 전역 스캔 — sync 범위 **밖** 파일도 검사되는가 ==")
+# 근거: 기존 가드는 main() 의 sync 루프 안에 있어 SUBDIRS(skills/commands/agents/rules)를
+#   지나는 파일만 봤다. mcp/·hooks/·루트 문서는 무방비였고 실제로
+#   forge-knowledge/mcp/forge-tools-server.py 에 사설 경로 3곳이 남아 PR #46 에서야 회수됐다.
+#   (harness-gaps/2026-08-06-plugin-sync-public-leak-harness-gaps.md §G-3)
+# 판별력: 아래 ①은 **mcp/ 하위**(sync 범위 밖)에 심은 누출을 잡는다 — scan_repo_leaks 가
+#   SUBDIRS 로 좁혀지면 즉시 FAIL 한다. ②는 자기참조 제외가 과하게 넓어지는 것을 막는다.
+import tempfile
+import shutil
+
+_tmp = tempfile.mkdtemp(prefix="g3-scan-")
+try:
+    subprocess.run(["git", "init", "-q", _tmp], check=True)
+    os.makedirs(os.path.join(_tmp, "forge-knowledge", "mcp"), exist_ok=True)
+    os.makedirs(os.path.join(_tmp, "forge-core", "skills", "x"), exist_ok=True)
+    # sync 범위 **밖**(mcp/) 에 누출을 심는다 — 기존 가드는 이 파일을 본 적이 없다
+    with open(os.path.join(_tmp, "forge-knowledge", "mcp", "server.py"), "w", encoding="utf-8") as f:
+        f.write('ROOT = "/home/someuser/forge-outputs/13-multiagent"\n')
+    # sync 범위 안은 깨끗하게 둔다 — ①이 통과하면 그것은 **범위 밖에서 잡았다**는 뜻이다
+    with open(os.path.join(_tmp, "forge-core", "skills", "x", "SKILL.md"), "w", encoding="utf-8") as f:
+        f.write("clean\n")
+    subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
+
+    found = mod.scan_repo_leaks(_tmp)
+    hits = {rel for rel, _ in (found or [])}
+    if "forge-knowledge/mcp/server.py" in hits:
+        ok("① sync 범위 밖(mcp/)의 누출을 잡는다 — G-3 무방비 구간 폐쇄")
+    else:
+        ng(f"① mcp/ 누출 미탐 — scan_repo_leaks 가 SUBDIRS 로 좁혀졌다 (탐지: {sorted(hits)})")
+
+    # 깨끗한 레포는 0건이어야 한다(오탐 내는 가드는 무시당한다)
+    os.remove(os.path.join(_tmp, "forge-knowledge", "mcp", "server.py"))
+    subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
+    if mod.scan_repo_leaks(_tmp) == []:
+        ok("② 깨끗한 레포는 0건 — 상시 FAIL 하는 가드가 아니다")
+    else:
+        ng(f"② 깨끗한 레포에서 오탐: {mod.scan_repo_leaks(_tmp)}")
+finally:
+    shutil.rmtree(_tmp, ignore_errors=True)
+
+# 자기참조 제외는 **딱 2개**여야 한다 — 넓어지면 실배포물이 검사에서 빠진다
+if mod.SCAN_SELF_EXCLUDE == {"scripts/sync-from-forge.py", "scripts/sync-from-forge.test.py"}:
+    ok("③ 자기참조 제외가 도구 2파일로 한정 — 플러그인 번들은 전량 검사 대상")
+else:
+    ng(f"③ SCAN_SELF_EXCLUDE 가 바뀌었다: {sorted(mod.SCAN_SELF_EXCLUDE)} — 배포물이 빠질 수 있다")
+
+# 스캔 실패(비-git 디렉터리)를 0건과 같게 보고하면 "검사했는데 깨끗함"으로 오독된다
+_nogit = tempfile.mkdtemp(prefix="g3-nogit-")
+try:
+    if mod.scan_repo_leaks(_nogit) is None:
+        ok("④ 비-git 경로는 None(스캔 불가) — 0건과 구분된다")
+    else:
+        ng("④ 비-git 경로가 0건으로 보고됨 — 검사 못 한 것이 통과로 오독된다")
+finally:
+    shutil.rmtree(_nogit, ignore_errors=True)
+
+print()
 print("================================")
-print(f"PASS={PASS}  FAIL={FAIL}")
+print(f"PASS={PASS}  FAIL={FAIL}  SKIP={SKIP}")
+if SKIP:
+    print("⚠️ SKIP 은 통과가 아니다 — forge SSoT 가 있는 로컬에서 한 번 더 돌려야 §1~3 이 실측된다.")
 sys.exit(0 if FAIL == 0 else 1)
