@@ -28,7 +28,13 @@
 
 set -uo pipefail
 
-[ "${FORGE_MAIN_GUARD:-on}" = "off" ] && exit 0
+# stdin 배수 후 종료 — 미배수 exit 은 생산자에게 EPIPE 를 던진다(A4, 2026-08-07 재현).
+#   ⚠️ 이 한 줄은 forge 사본(~/forge/.claude/hooks/main-write-guard.sh)에 2026-08-07 들어갔는데
+#   이 플러그인 사본에는 오지 않았다. 훅의 SSoT 가 서로 다른 레포라(플러그인 훅 = 이 repo,
+#   forge-sync 는 훅을 밀지 않는다) 같은 이름의 두 구현이 조용히 갈라진 것이다.
+#   같은 세션에서 두 등록이 **모두** 발화하므로, 갈라진 채로 두면 킬스위치를 켰을 때
+#   한쪽만 안전하게 빠져나가고 다른 쪽은 EPIPE 를 던지는 비대칭이 생긴다.
+[ "${FORGE_MAIN_GUARD:-on}" = "off" ] && { cat >/dev/null 2>&1 || true; exit 0; }
 
 INPUT=$(cat 2>/dev/null)
 [ -z "$INPUT" ] && exit 0
