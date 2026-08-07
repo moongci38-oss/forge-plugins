@@ -146,11 +146,21 @@ def iter_tracked_files(repo_root: str):
     return [p for p in out.split("\0") if p]
 
 def scan_repo_leaks(repo_root: str):
-    """(rel, leaks) 목록. 바이너리·자기참조 파일은 건너뛴다."""
+    """스캔 불가면 `None`, 아니면 `(found, unreadable)` 튜플.
+
+    - `found`     = [(rel, leaks)] — 누출이 발견된 파일
+    - `unreadable`= [(rel, 사유)]  — **검사하지 못한** 파일(바이너리·디코드 실패·읽기 오류)
+
+    ⚠️ `unreadable` 을 따로 돌려주는 이유(2026-08-07 cr-final MED): 이전 판은 이 파일들을
+      `except: continue` 로 **건수도 신호도 없이** 삼켰다. 그러면 "검사했는데 깨끗함"과
+      "검사하지 못했음"이 출력에서 구분되지 않는다 — 이 스캐너가 `None`(스캔 실패) 과
+      `[]`(0건) 을 굳이 구분해 놓고 파일 단위에서는 그 엄밀함을 스스로 깨고 있었다.
+      비-UTF-8 로 저장된 텍스트 파일에 사설 경로가 있으면 조용히 통과했다.
+    """
     rels = iter_tracked_files(repo_root)
     if rels is None:
         return None
-    found = []
+    found, unreadable = [], []
     for rel in rels:
         if rel in SCAN_SELF_EXCLUDE:
             continue
@@ -160,12 +170,18 @@ def scan_repo_leaks(repo_root: str):
         try:
             with open(p, encoding='utf-8') as f:
                 content = f.read()
-        except (UnicodeDecodeError, OSError):
-            continue  # 바이너리·읽기불가 — 텍스트 치환 규약 대상이 아니다
+        except UnicodeDecodeError:
+            # 바이너리이거나 비-UTF-8 텍스트. 전자는 정상, 후자는 사각지대 — 구분이 안 되므로
+            # 통과시키되 **보이게** 남긴다(침묵 스킵 금지).
+            unreadable.append((rel, "non-utf8"))
+            continue
+        except OSError as e:
+            unreadable.append((rel, f"oserror:{e.__class__.__name__}"))
+            continue
         leaks = find_leaks(content)
         if leaks:
             found.append((rel, leaks))
-    return found
+    return found, unreadable
 
 def sha(s: str) -> str:
     return hashlib.sha256(s.encode('utf-8', errors='replace')).hexdigest()[:12]
@@ -202,17 +218,29 @@ def main():
 
     # --scan-repo 는 sync 를 돌리지 않는 독립 모드다 — 쓰기가 없으므로 CI/pre-commit 에서 안전하다.
     if args.scan_repo:
+        # 조용히 무시하면 "dry-run 으로 스캔했다"는 오해를 남긴다(cr-final LOW).
+        for ignored in ('dry_run', 'verify'):
+            if getattr(args, ignored, False):
+                print(f"[sync-from-forge] WARN: --scan-repo 모드에서는 --{ignored.replace('_','-')} "
+                      f"가 의미 없다(sync 를 돌리지 않는다). 무시하고 스캔만 수행한다.", file=sys.stderr)
         root = os.path.abspath(args.scan_repo)
-        found = scan_repo_leaks(root)
-        if found is None:
+        result = scan_repo_leaks(root)
+        if result is None:
             # 스캔 실패를 0건과 같게 보고하면 "검사했는데 깨끗함"으로 오독된다 — 구분해서 실패시킨다.
             print(f"SCAN_STATUS=error — git ls-files 실패({root}). 검사되지 않았다.", file=sys.stderr)
             return 2
-        print(f"SCAN_STATUS=ok  SCAN_ROOT={root}  LEAK_FILES={len(found)}", file=sys.stderr)
+        found, unreadable = result
+        # UNREADABLE 을 항상 찍는다(0 이어도). 침묵하면 "0 건"과 "안 봤음"이 구분되지 않는다.
+        print(f"SCAN_STATUS=ok  SCAN_ROOT={root}  LEAK_FILES={len(found)}  "
+              f"UNREADABLE={len(unreadable)}", file=sys.stderr)
         for rel, leaks in found:
             print(f"  LEAK: {rel} ({len(leaks)}건)", file=sys.stderr)
             for ln, frag in leaks[:3]:
                 print(f"        L{ln}: {frag}", file=sys.stderr)
+        for rel, why in unreadable[:10]:
+            print(f"  UNREADABLE: {rel} ({why}) — 검사하지 못했다(통과 아님)", file=sys.stderr)
+        if len(unreadable) > 10:
+            print(f"  UNREADABLE: … 외 {len(unreadable) - 10}건", file=sys.stderr)
         if found:
             print("  → PUBLIC 레포다. forge SSoT 를 고치거나 PLUGIN_REDACT_MAP 에 매핑을 추가하라.",
                   file=sys.stderr)
