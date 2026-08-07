@@ -1,0 +1,37 @@
+name: Leak Scan
+
+# 왜 CI 인가: G-3 의 근본 대응은 "sync 경로와 무관한 레포 전역 스캔"인데, `.git/hooks/` 는
+# 버전관리되지 않아 pre-commit 만으로는 **아무에게도 설치되지 않은 채** 규범만 남는다
+# (2026-08-07 실측: 이 레포 `.git/hooks/` 에 sample 외 훅 0개). CI 는 설치 없이 전원에게 걸린다.
+# 로컬에서 같은 검사를 미리 돌리려면:
+#   python3 scripts/sync-from-forge.py --scan-repo .
+#
+# 근거: harness-gaps/2026-08-06-plugin-sync-public-leak-harness-gaps.md §G-3
+#   — 누출 가드가 sync 범위(SUBDIRS)에만 붙어 `mcp/`·`hooks/`·루트 문서가 무방비였다.
+#     실제로 forge-knowledge/mcp/forge-tools-server.py 의 사설 경로 3곳이 PR #46 에서야 회수됐다.
+# 폐기조건: 누출 검사를 외부 도구(gitleaks 등)로 이관하면 이 워크플로를 지운다.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# 최소권한(2026-08-07 cr-final LOW, 3레그 중 2레그 지적): 이 잡은 checkout 후 읽기 전용
+# 스캔만 한다 — GITHUB_TOKEN 이 레포/조직 기본 스코프를 상속할 이유가 없다.
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan tracked files for private absolute paths
+        run: |
+          python3 scripts/sync-from-forge.py --scan-repo .
+
+      - name: Guard self-test
+        run: |
+          python3 scripts/sync-from-forge.test.py
