@@ -146,11 +146,26 @@ def iter_tracked_files(repo_root: str):
     return [p for p in out.split("\0") if p]
 
 def scan_repo_leaks(repo_root: str):
-    """(rel, leaks) 목록. 바이너리·자기참조 파일은 건너뛴다."""
+    """스캔 불가면 `None`, 아니면 `(found, skipped)` 튜플.
+
+    - `found`   = [(rel, leaks)] — 누출이 발견된 파일
+    - `skipped` = [(rel, kind)]  — 검사하지 **못한** 파일. `kind` 는
+                  `"binary"`(NUL 포함 = 설계상 정상) 또는 `"oserror:*"`(읽기 실패 = 비정상)
+
+    ⚠️ 비-UTF-8 **텍스트**는 스킵하지 않는다(2026-08-07 cr-final HIGH). 1차판은
+      `UnicodeDecodeError` 를 통째로 스킵하고 exit 0 을 냈다 — 출력은 "검사하지 못했다
+      (통과 아님)" 이라 말하는데 **종료코드는 통과**여서 문구와 계약이 어긋났고, cp949 등으로
+      저장된 텍스트에 사설 경로가 있어도 CI 가 그린으로 지나갔다. 이 PR 이 닫으려던
+      '침묵 스킵' 갭이 exit code 계층에 그대로 남아 있었던 것이다.
+      → NUL 유무로 **바이너리와 비-UTF-8 텍스트를 가르고**, 후자는 latin-1 로 복호해
+        그대로 검사한다(사설 경로는 ASCII 라 latin-1 왕복에서 보존된다).
+      → 진짜 바이너리만 `binary` 로 남기고, 그건 exit code 를 올리지 않는다
+        (그렇지 않으면 zip 하나 때문에 가드가 상시 FAIL 이 돼 아무도 안 쓴다).
+    """
     rels = iter_tracked_files(repo_root)
     if rels is None:
         return None
-    found = []
+    found, skipped = [], []
     for rel in rels:
         if rel in SCAN_SELF_EXCLUDE:
             continue
@@ -158,14 +173,37 @@ def scan_repo_leaks(repo_root: str):
         if not os.path.isfile(p):
             continue
         try:
-            with open(p, encoding='utf-8') as f:
-                content = f.read()
-        except (UnicodeDecodeError, OSError):
-            continue  # 바이너리·읽기불가 — 텍스트 치환 규약 대상이 아니다
+            with open(p, 'rb') as f:
+                raw = f.read()
+        except OSError as e:
+            # 추적 파일을 읽지도 못했다 = "깨끗함"이라고 말할 근거가 없다 → 호출부가 실패시킨다.
+            skipped.append((rel, f"oserror:{e.__class__.__name__}"))
+            continue
+        is_binary = b'\x00' in raw
+        if is_binary:
+            # ⚠️ NUL 유무만으로 "바이너리 = 검사 불필요"라고 끊으면 **UTF-16/UTF-32 텍스트가
+            #   통째로 빠진다**(2026-08-07 cr-final HIGH, opus·codex 독립 적중).
+            #   UTF-16LE 의 `/home` 은 `/\x00h\x00o\x00m\x00e\x00` 라 ASCII 사이에 NUL 이 끼고,
+            #   latin-1 복호로도 `/home/` 정규식에 걸리지 않는다 — 즉 이 PR 이 닫으려던
+            #   '비-UTF-8 텍스트 침묵 스킵' 갭이 **인코딩만 바꿔 그대로 재현**된다.
+            # → 인코딩을 알아맞히려 들지 않는다(BOM 없는 UTF-16 판별은 휴리스틱의 연속이다).
+            #   **NUL 을 제거한 뒤 그대로 검사한다.** UTF-16/32 의 ASCII 구간이 복원되고,
+            #   진짜 바이너리에 박힌 ASCII 문자열도 함께 잡힌다(`strings` 와 같은 원리).
+            #   분류는 `binary` 로 남겨 종료코드를 올리지 않되(zip 하나로 상시 FAIL 방지),
+            #   **검사는 건너뛰지 않는다** — 스킵과 통과를 구분하는 것이 이 PR 의 전부다.
+            skipped.append((rel, "binary"))
+            content = raw.replace(b'\x00', b'').decode('latin-1')
+        else:
+            try:
+                content = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                # 비-UTF-8 단일바이트 텍스트(cp949/euc-kr/latin-1 …). latin-1 은 어떤 바이트열도
+                # 실패하지 않고 ASCII 구간을 그대로 보존하므로 경로 패턴 탐지에 충분하다.
+                content = raw.decode('latin-1')
         leaks = find_leaks(content)
         if leaks:
             found.append((rel, leaks))
-    return found
+    return found, skipped
 
 def sha(s: str) -> str:
     return hashlib.sha256(s.encode('utf-8', errors='replace')).hexdigest()[:12]
@@ -202,19 +240,44 @@ def main():
 
     # --scan-repo 는 sync 를 돌리지 않는 독립 모드다 — 쓰기가 없으므로 CI/pre-commit 에서 안전하다.
     if args.scan_repo:
+        # 조용히 무시하면 "dry-run 으로 스캔했다"는 오해를 남긴다(cr-final LOW).
+        for ignored in ('dry_run', 'verify'):
+            if getattr(args, ignored, False):
+                print(f"[sync-from-forge] WARN: --scan-repo 모드에서는 --{ignored.replace('_','-')} "
+                      f"가 의미 없다(sync 를 돌리지 않는다). 무시하고 스캔만 수행한다.", file=sys.stderr)
         root = os.path.abspath(args.scan_repo)
-        found = scan_repo_leaks(root)
-        if found is None:
+        result = scan_repo_leaks(root)
+        if result is None:
             # 스캔 실패를 0건과 같게 보고하면 "검사했는데 깨끗함"으로 오독된다 — 구분해서 실패시킨다.
             print(f"SCAN_STATUS=error — git ls-files 실패({root}). 검사되지 않았다.", file=sys.stderr)
             return 2
-        print(f"SCAN_STATUS=ok  SCAN_ROOT={root}  LEAK_FILES={len(found)}", file=sys.stderr)
+        found, skipped = result
+        binary = [(r, k) for r, k in skipped if k == "binary"]
+        unreadable = [(r, k) for r, k in skipped if k != "binary"]
+        # 세 카운터를 **항상** 찍는다(0 이어도). 침묵하면 "0 건"과 "안 봤음"이 구분되지 않는다.
+        print(f"SCAN_STATUS=ok  SCAN_ROOT={root}  LEAK_FILES={len(found)}  "
+              f"BINARY={len(binary)}  UNREADABLE={len(unreadable)}", file=sys.stderr)
         for rel, leaks in found:
             print(f"  LEAK: {rel} ({len(leaks)}건)", file=sys.stderr)
             for ln, frag in leaks[:3]:
                 print(f"        L{ln}: {frag}", file=sys.stderr)
+        for rel, _ in binary[:10]:
+            print(f"  BINARY: {rel} — NUL 제거 후 검사함(압축/암호화된 내부는 여전히 미스캔)",
+                  file=sys.stderr)
+        if len(binary) > 10:
+            print(f"  BINARY: … 외 {len(binary) - 10}건", file=sys.stderr)
+        for rel, why in unreadable[:10]:
+            print(f"  UNREADABLE: {rel} ({why}) — 검사하지 못했다(통과 아님)", file=sys.stderr)
+        if len(unreadable) > 10:
+            print(f"  UNREADABLE: … 외 {len(unreadable) - 10}건", file=sys.stderr)
         if found:
             print("  → PUBLIC 레포다. forge SSoT 를 고치거나 PLUGIN_REDACT_MAP 에 매핑을 추가하라.",
+                  file=sys.stderr)
+            return 1
+        if unreadable:
+            # 출력이 "통과 아님"이라고 말했으면 **종료코드도 통과가 아니어야 한다**
+            # (2026-08-07 cr-final HIGH: 문구와 계약이 어긋나 CI 가 그린으로 지나갔다).
+            print("  → 추적 파일을 읽지 못했다. '깨끗함'이라고 말할 근거가 없으므로 실패로 낸다.",
                   file=sys.stderr)
             return 1
         return 0

@@ -17,6 +17,11 @@ on:
   pull_request:
     branches: [main, develop]
 
+# 최소권한(2026-08-07 cr-final LOW, 3레그 중 2레그 지적): 이 잡은 checkout 후 읽기 전용
+# 스캔만 한다 — GITHUB_TOKEN 이 레포/조직 기본 스코프를 상속할 이유가 없다.
+permissions:
+  contents: read
+
 jobs:
   scan:
     runs-on: ubuntu-latest
