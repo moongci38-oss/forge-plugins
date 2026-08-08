@@ -417,8 +417,9 @@ else:
         _m11.PLUGINS = ["forge-core"]
         _m11.SUBDIRS = ["skills"]
         _m11.SUBDIR_SRC = {}
-        _gaps = _m11.iter_inbound_gaps()
+        _gaps, _filtered = _m11.iter_inbound_gaps()
         _rels = {r for _s, r in _gaps}
+        _frels = {r for _s, r in _filtered}
         if "orphan.md" in _rels:
             ok("⑧-a forge 에만 있는 파일이 잡힌다(구 구현은 어디에도 안 나왔다)")
         else:
@@ -435,6 +436,13 @@ else:
             ok("⑧-d 플러그인이 담은 적 없는 확장자는 '누락'이 아니다")
         else:
             ng("⑧-d 담은 적 없는 종류를 누락으로 보고 — 무시당하는 목록이 된다")
+        # ⑧-e (2026-08-08 cr-final opus): 필터로 뺀 것을 **침묵시키지 않는다**.
+        #   그냥 continue 하면 확장자 없는 파일이 영원히 안 보여, 이 기능이 고치려던
+        #   "0 이 완전성으로 읽힌다"를 다른 파일 모양으로 재현한다.
+        if "noise.bin" in _frels:
+            ok("⑧-e 필터 제외분이 별도 채널로 계수된다(침묵 제외 아님)")
+        else:
+            ng(f"⑧-e 제외분이 어디에도 안 잡힌다 — 침묵 제외 재발. filtered={_frels}")
         (_m11.FORGE_ROOT, _m11.PLUGIN_ROOT, _m11.PLUGINS, _m11.SUBDIRS, _m11.SUBDIR_SRC) = _sv
     finally:
         shutil.rmtree(_d11, ignore_errors=True)

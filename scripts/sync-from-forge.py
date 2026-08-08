@@ -233,11 +233,18 @@ def scan_repo_leaks(repo_root: str):
             #   UTF-16 은 잡히지만, 진짜 바이너리에서는 NUL 로 갈라져 있던 **멀리 떨어진 바이트들이
             #   맞붙어 원본에 없던 문자열이 합성된다** — 없는 경로를 만들어 오탐을 내는 구조다.
             #   (item 1 계열과 같은 병: 검사 대상을 가공해 만든 산물을 원본처럼 다룬다.)
-            # → 가공 대신 **세 개의 뷰**를 각각 본다. 어느 뷰도 원본에 없던 인접성을 만들지 않는다:
+            # → 가공 대신 **세 개의 뷰**를 각각 본다:
             #     ① raw            — 진짜 바이너리에 박힌 ASCII 문자열(`strings` 원리)
             #     ② raw[0::2]      — 짝수 바이트 평면 = UTF-16LE 의 ASCII 구간
             #     ③ raw[1::2]      — 홀수 바이트 평면 = UTF-16BE 의 ASCII 구간
             #   UTF-16 문자열이 짝수/홀수 어느 오프셋에서 시작하든 ②나 ③ 중 하나에 온전히 남는다.
+            #
+            # ⚠️ 2026-08-08 정정(cr-final codex): 초판 주석은 "어느 뷰도 원본에 없던 인접성을
+            #   만들지 않는다"고 적었으나 **거짓이다.** ②③ 은 한 바이트 걸러 버리므로 원본에서
+            #   인접하지 않던 바이트를 맞붙인다 — 그 점에서는 NUL 전역 제거와 같은 종류다.
+            #   합성 오탐을 실제로 막는 것은 이 평면 분리가 아니라 **RE_LEAK 에서 NUL 을
+            #   구분자로 뺀 것**이다(§RE_LEAK 주석). 둘은 쌍으로만 성립한다 — 한쪽만으로는
+            #   UTF-16 을 놓치거나(구분자만) 오탐을 낳는다(평면만).
             skipped.append((rel, "binary"))
             content = '\n'.join((
                 raw.decode('latin-1'),
@@ -306,7 +313,7 @@ def iter_inbound_gaps():
         ② 확장자는 **그 카테고리에서 플러그인이 실제로 담고 있는 확장자**만 — 담은 적 없는
            종류를 "누락"이라 부르지 않는다. 새 종류가 필요해지면 하나만 담기면 그때부터 보인다.
     """
-    gaps = []
+    gaps, out_of_scope = [], []
     for sub in SUBDIRS:
         forge_dir = SUBDIR_SRC.get(sub, os.path.join(FORGE_ROOT, sub))
         if not os.path.isdir(forge_dir):
@@ -329,16 +336,24 @@ def iter_inbound_gaps():
                 if rel in carried or _has_hidden_segment(rel):
                     continue
                 if os.path.splitext(fn)[1].lower() not in carried_ext:
+                    # ⚠️ 2026-08-08(cr-final opus): 여기서 그냥 continue 하면 확장자 없는 파일이나
+                    #   플러그인이 아직 한 번도 담지 않은 종류가 **영원히 안 보인다** — 이 기능이
+                    #   고치려던 "0 이 완전성으로 읽힌다"를 다른 파일 모양으로 재현하는 셈이다.
+                    #   후보로 올리지는 않되(정밀도 유지) **몇 건이 그 이유로 빠졌는지는 센다.**
+                    out_of_scope.append((sub, rel))
                     continue
                 gaps.append((sub, rel))
-    return sorted(gaps)
+    return sorted(gaps), sorted(out_of_scope)
 
 
 def report_inbound(limit=10):
     """INBOUND_NOT_CARRIED 를 **항상** 찍는다(0 이어도). 침묵하면 DRIFT_REMAINING=0 이
     '전부 최신'으로 읽힌다 — 이 줄이 그 오독을 막는 유일한 장치다."""
-    gaps = iter_inbound_gaps()
+    gaps, out_of_scope = iter_inbound_gaps()
     print(f"INBOUND_NOT_CARRIED={len(gaps)}", file=sys.stderr)
+    # 필터로 제외된 수를 함께 낸다 — 침묵 제외는 "그런 파일은 없다"로 오독된다.
+    print(f"INBOUND_FILTERED={len(out_of_scope)}  (확장자 미보유·dot-세그먼트로 후보에서 제외)",
+          file=sys.stderr)
     if gaps:
         print("  ↳ forge SSoT 에 있으나 어느 플러그인도 담고 있지 않다. DRIFT 수치에 포함되지 "
               "않으므로 DRIFT_REMAINING=0 이 '완전 동기화'를 뜻하지 않는다.", file=sys.stderr)
