@@ -18,9 +18,33 @@ import argparse, os, re, sys, hashlib
 
 _HOME = os.path.expanduser("~")
 FORGE_ROOT = os.environ.get("FORGE_ROOT", os.path.join(_HOME, "forge")) + "/.claude"
-PLUGIN_ROOT = os.environ.get(
-    "PLUGIN_ROOT", os.path.join(_HOME, ".claude/plugins/marketplaces/forge-plugins")
-)
+_MARKETPLACE_CLONE = os.path.join(_HOME, ".claude/plugins/marketplaces/forge-plugins")
+
+
+def default_plugin_root():
+    """PLUGIN_ROOT 기본값 — 이 스크립트를 담은 레포가 곧 기본 대상이다.
+
+    root-cause (G-4, 2026-08-06): 구 기본값은 마켓플레이스 **클론**
+      (~/.claude/plugins/marketplaces/forge-plugins) 이라, 레포 디렉터리에서
+      `python3 scripts/sync-from-forge.py` 를 실행해도 **눈앞의 레포가 아니라 클론이 바뀌었다.**
+      "지금 있는 곳에 작용한다"는 최소놀람 원칙을 기본값이 정면으로 뒤집은 것이다.
+      더 나쁜 건 조용하다는 점이다 — 클론이 바뀌어도 레포는 clean 이라 아무 신호가 없다.
+    → 스크립트가 플러그인 레포 안에 있으면(마켓플레이스 매니페스트로 식별) 그 레포를 기본값으로,
+      아니면 종전 클론 경로를 유지한다(설치 사용자 경로 불변 — 기존 동작 회귀 없음).
+    재현: cd <repo> && python3 scripts/sync-from-forge.py --verify
+          구 동작 = 클론을 검사 / 신 동작 = 이 레포를 검사
+    폐기조건: 마켓플레이스 배포가 레포 직접 참조로 바뀌어 클론 경로가 사라지면 분기를 지운다.
+    """
+    env = os.environ.get("PLUGIN_ROOT")
+    if env:
+        return env
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if os.path.isfile(os.path.join(here, ".claude-plugin", "marketplace.json")):
+        return here
+    return _MARKETPLACE_CLONE
+
+
+PLUGIN_ROOT = default_plugin_root()
 
 PLUGINS = ["forge-core", "forge-build", "forge-knowledge", "forge-design", "forge-game"]
 
@@ -65,9 +89,14 @@ RE_NOTION_ID = re.compile(r'(notion\.so/)[0-9a-f]{32}\b')
 #      사설 정보가 아니고 문서로서 유용하다 — 이걸 막으면 가드가 정당한 문서를 죽인다.
 _PLACEHOLDER = r'(?:<[^>/\s]+>|\$\{[^}/\s]+\}|\$[A-Z_]+)'
 _WIN_SYSTEM = r'(?:Program(?:\\?[ ]|%20)Files(?:[ ]?\(x86\))?|Windows|ProgramData)'
+# NUL(\x00)을 **구분자로** 취급한다 — 문자 클래스에 들어가면 안 된다.
+#   root-cause (2026-08-07): 바이너리 스캔에서 `[^/\s]+` 가 NUL 을 삼키는 바람에
+#   `/home/` 과 `/forge` 가 수백 바이트의 NUL 을 사이에 두고 떨어져 있어도 한 매칭으로 이어져
+#   **원본에 없는 경로가 합성**됐다. 텍스트 경로에는 NUL 이 없으므로 이 추가는 기존 동작 불변이고,
+#   바이너리 평면 스캔에서만 오탐을 없앤다.
 RE_LEAK = re.compile(
-    r'/home/(?!' + _PLACEHOLDER + r'/)[^/\s]+/'
-    r'|/mnt/[a-z]/(?![*\s])(?!' + _PLACEHOLDER + r')(?!' + _WIN_SYSTEM + r'\b)[^\s`"\')]+'
+    r'/home/(?!' + _PLACEHOLDER + r'/)[^/\s\x00]+/'
+    r'|/mnt/[a-z]/(?![*\s])(?!' + _PLACEHOLDER + r')(?!' + _WIN_SYSTEM + r'\b)[^\s`"\')\x00]+'
 )
 
 def _load_redactions():
@@ -148,9 +177,19 @@ def iter_tracked_files(repo_root: str):
 def scan_repo_leaks(repo_root: str):
     """스캔 불가면 `None`, 아니면 `(found, skipped)` 튜플.
 
-    - `found`   = [(rel, leaks)] — 누출이 발견된 파일
-    - `skipped` = [(rel, kind)]  — 검사하지 **못한** 파일. `kind` 는
-                  `"binary"`(NUL 포함 = 설계상 정상) 또는 `"oserror:*"`(읽기 실패 = 비정상)
+    - `found`   = [(rel, leaks)] — 누출이 발견된 파일 (exit 1)
+    - `skipped` = [(rel, kind)]  — **분류 채널**이지 "검사 안 함"이 아니다. `kind` 는
+                  `"binary"`  = NUL 포함. **검사는 한다**(아래 평면 스캔). 여기 담기는 것은
+                                "검사 결과가 exit code 를 올리지 않는다"는 뜻뿐이다
+                                (zip 하나로 가드가 상시 FAIL 되는 것을 막기 위함).
+                                단, 이 파일에서 누출이 나오면 `found` 로 가서 exit 1 이다.
+                  `"oserror:*"` = 읽기 실패. 이건 진짜로 **검사하지 못한** 것이고 exit 1 이다.
+
+    ⚠️ 이름이 `skipped` 라 "건너뛰었다"로 읽히지만 `binary` 는 건너뛰지 않는다(2026-08-07 정정).
+      1차 docstring 은 `binary` 를 "검사하지 못한 파일 / 설계상 정상"이라 적었는데, 그 문장이
+      쓰인 뒤 구현이 "검사하되 exit code 만 안 올림"으로 바뀌었고 문서만 옛 계약에 남았다.
+      계약을 읽고 소비하는 쪽이 "바이너리는 미검사"로 오해하면, 실제로는 검사돼 exit 1 을
+      낼 수 있는 경로를 예상하지 못한다.
 
     ⚠️ 비-UTF-8 **텍스트**는 스킵하지 않는다(2026-08-07 cr-final HIGH). 1차판은
       `UnicodeDecodeError` 를 통째로 스킵하고 exit 0 을 냈다 — 출력은 "검사하지 못했다
@@ -187,12 +226,31 @@ def scan_repo_leaks(repo_root: str):
             #   latin-1 복호로도 `/home/` 정규식에 걸리지 않는다 — 즉 이 PR 이 닫으려던
             #   '비-UTF-8 텍스트 침묵 스킵' 갭이 **인코딩만 바꿔 그대로 재현**된다.
             # → 인코딩을 알아맞히려 들지 않는다(BOM 없는 UTF-16 판별은 휴리스틱의 연속이다).
-            #   **NUL 을 제거한 뒤 그대로 검사한다.** UTF-16/32 의 ASCII 구간이 복원되고,
-            #   진짜 바이너리에 박힌 ASCII 문자열도 함께 잡힌다(`strings` 와 같은 원리).
             #   분류는 `binary` 로 남겨 종료코드를 올리지 않되(zip 하나로 상시 FAIL 방지),
-            #   **검사는 건너뛰지 않는다** — 스킵과 통과를 구분하는 것이 이 PR 의 전부다.
+            #   **검사는 건너뛰지 않는다** — 스킵과 통과를 구분하는 것이 이 계열의 전부다.
+            #
+            # 2026-08-07 정정: 1차 구현은 `raw.replace(b'\x00', b'')` 로 **NUL 을 전역 제거**했다.
+            #   UTF-16 은 잡히지만, 진짜 바이너리에서는 NUL 로 갈라져 있던 **멀리 떨어진 바이트들이
+            #   맞붙어 원본에 없던 문자열이 합성된다** — 없는 경로를 만들어 오탐을 내는 구조다.
+            #   (item 1 계열과 같은 병: 검사 대상을 가공해 만든 산물을 원본처럼 다룬다.)
+            # → 가공 대신 **세 개의 뷰**를 각각 본다:
+            #     ① raw            — 진짜 바이너리에 박힌 ASCII 문자열(`strings` 원리)
+            #     ② raw[0::2]      — 짝수 바이트 평면 = UTF-16LE 의 ASCII 구간
+            #     ③ raw[1::2]      — 홀수 바이트 평면 = UTF-16BE 의 ASCII 구간
+            #   UTF-16 문자열이 짝수/홀수 어느 오프셋에서 시작하든 ②나 ③ 중 하나에 온전히 남는다.
+            #
+            # ⚠️ 2026-08-08 정정(cr-final codex): 초판 주석은 "어느 뷰도 원본에 없던 인접성을
+            #   만들지 않는다"고 적었으나 **거짓이다.** ②③ 은 한 바이트 걸러 버리므로 원본에서
+            #   인접하지 않던 바이트를 맞붙인다 — 그 점에서는 NUL 전역 제거와 같은 종류다.
+            #   합성 오탐을 실제로 막는 것은 이 평면 분리가 아니라 **RE_LEAK 에서 NUL 을
+            #   구분자로 뺀 것**이다(§RE_LEAK 주석). 둘은 쌍으로만 성립한다 — 한쪽만으로는
+            #   UTF-16 을 놓치거나(구분자만) 오탐을 낳는다(평면만).
             skipped.append((rel, "binary"))
-            content = raw.replace(b'\x00', b'').decode('latin-1')
+            content = '\n'.join((
+                raw.decode('latin-1'),
+                raw[0::2].decode('latin-1'),
+                raw[1::2].decode('latin-1'),
+            ))
         else:
             try:
                 content = raw.decode('utf-8')
@@ -229,10 +287,92 @@ def iter_pairs():
                     forge_abs = os.path.join(forge_dir, rel)
                     yield plugin, sub, rel, forge_abs, plug_abs
 
+# ── G-1: inbound(안 오는 것) 가시화 ────────────────────────────────────────────
+# root-cause (2026-08-06): iter_pairs() 는 **플러그인 디렉터리를 walk** 하므로 정의상
+#   "양쪽에 다 있는 파일"만 본다. 그래서 forge SSoT 에 새 스킬이 생겨도 플러그인에 없으면
+#   drift 로도, plugin-only 로도, 어디에도 나타나지 않는다 — `--verify` 는 태연히
+#   `DRIFT_REMAINING=0` 을 낸다. 그 0 이 "완전 동기화"로 읽히는 것이 갭의 전부다.
+#   실측(2026-08-06): SSoT 스킬 98 vs 플러그인 등재 45.
+#   "새는 것"(누출)은 막았지만 "안 오는 것"(누락)은 그대로였다.
+# 자동 추가는 하지 않는다 — 어느 플러그인이 무엇을 담을지는 사람 판단이고, 전량 복사는
+#   PUBLIC 레포에 사설 자료를 밀어 넣는 정반대 사고를 만든다. 대신 **분모를 보이게** 한다.
+# 폐기조건: 플러그인별 "담아야 할 목록" 매니페스트가 생기면 후보가 아니라 정확한 누락을 낼 수 있다.
+def _has_hidden_segment(rel):
+    """경로에 dot-세그먼트가 있으면 런타임 부산물로 본다(예: agents/.claude/agent-budget/*.calls)."""
+    return any(p.startswith('.') for p in rel.split(os.sep) if p)
+
+
+def iter_inbound_gaps():
+    """forge SSoT 에 있으나 **어느 플러그인도 담고 있지 않은** 파일 → [(sub, rel)] 정렬 목록.
+
+    ⚠️ 정밀도가 곧 가드의 수명이다(§RE_LEAK 주석과 같은 이유). 1차 구현은 필터 없이 128건을
+      냈고 상위가 전부 `agents/.claude/agent-budget/*.calls` 같은 **런타임 부산물**이었다 —
+      그런 목록은 한 번 보고 무시당하며, 무시당하는 순간 갭은 안 고쳐진 것과 같다.
+    → 두 가지로 좁힌다. 둘 다 **하드코딩 목록이 아니라 관측에서 유도**한다:
+        ① dot-세그먼트 경로 제외(런타임/캐시 디렉터리)
+        ② 확장자는 **그 카테고리에서 플러그인이 실제로 담고 있는 확장자**만 — 담은 적 없는
+           종류를 "누락"이라 부르지 않는다. 새 종류가 필요해지면 하나만 담기면 그때부터 보인다.
+    """
+    gaps, out_of_scope = [], []
+    for sub in SUBDIRS:
+        forge_dir = SUBDIR_SRC.get(sub, os.path.join(FORGE_ROOT, sub))
+        if not os.path.isdir(forge_dir):
+            continue  # 부재는 iter_pairs() 가 이미 WARN 으로 보고한다(중복 경고 금지)
+        carried, carried_ext = set(), set()
+        for plugin in PLUGINS:
+            plug_dir = os.path.join(PLUGIN_ROOT, plugin, sub)
+            if not os.path.isdir(plug_dir):
+                continue
+            for root, _, files in os.walk(plug_dir):
+                for fn in files:
+                    rel = os.path.relpath(os.path.join(root, fn), plug_dir)
+                    carried.add(rel)
+                    carried_ext.add(os.path.splitext(fn)[1].lower())
+        if not carried_ext:
+            continue  # 이 카테고리를 담는 플러그인이 없다 = 비교 기준이 없다
+        for root, _, files in os.walk(forge_dir):
+            for fn in files:
+                rel = os.path.relpath(os.path.join(root, fn), forge_dir)
+                if rel in carried or _has_hidden_segment(rel):
+                    continue
+                if os.path.splitext(fn)[1].lower() not in carried_ext:
+                    # ⚠️ 2026-08-08(cr-final opus): 여기서 그냥 continue 하면 확장자 없는 파일이나
+                    #   플러그인이 아직 한 번도 담지 않은 종류가 **영원히 안 보인다** — 이 기능이
+                    #   고치려던 "0 이 완전성으로 읽힌다"를 다른 파일 모양으로 재현하는 셈이다.
+                    #   후보로 올리지는 않되(정밀도 유지) **몇 건이 그 이유로 빠졌는지는 센다.**
+                    out_of_scope.append((sub, rel))
+                    continue
+                gaps.append((sub, rel))
+    return sorted(gaps), sorted(out_of_scope)
+
+
+def report_inbound(limit=10):
+    """INBOUND_NOT_CARRIED 를 **항상** 찍는다(0 이어도). 침묵하면 DRIFT_REMAINING=0 이
+    '전부 최신'으로 읽힌다 — 이 줄이 그 오독을 막는 유일한 장치다."""
+    gaps, out_of_scope = iter_inbound_gaps()
+    print(f"INBOUND_NOT_CARRIED={len(gaps)}", file=sys.stderr)
+    # 필터로 제외된 수를 함께 낸다 — 침묵 제외는 "그런 파일은 없다"로 오독된다.
+    print(f"INBOUND_FILTERED={len(out_of_scope)}  (확장자 미보유·dot-세그먼트로 후보에서 제외)",
+          file=sys.stderr)
+    if gaps:
+        print("  ↳ forge SSoT 에 있으나 어느 플러그인도 담고 있지 않다. DRIFT 수치에 포함되지 "
+              "않으므로 DRIFT_REMAINING=0 이 '완전 동기화'를 뜻하지 않는다.", file=sys.stderr)
+        shown = gaps if limit is None else gaps[:limit]
+        for sub, rel in shown:
+            print(f"  NOT_CARRIED: {sub}/{rel}", file=sys.stderr)
+        if len(gaps) > len(shown):
+            # 상한을 두되 **잘린 양을 말한다** — 침묵 절단 금지(2026-08-07 audit 계열과 동일 규약).
+            print(f"  NOT_CARRIED: … 외 {len(gaps) - len(shown)}건 (전량은 --inbound-all)",
+                  file=sys.stderr)
+    return gaps
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--verify', action='store_true', help='report remaining drift, no writes')
+    ap.add_argument('--inbound-all', action='store_true',
+                    help='G-1: INBOUND_NOT_CARRIED 목록을 상한 없이 전량 출력한다')
     ap.add_argument('--scan-repo', metavar='ROOT', nargs='?', const=PLUGIN_ROOT,
                     help='G-3: sync 경로와 무관하게 추적 파일 전량에서 사설 절대경로를 찾는다 '
                          '(기본 ROOT=PLUGIN_ROOT). 발견 시 exit 1, 쓰기 없음.')
@@ -344,6 +484,8 @@ def main():
         print(f"DRIFT_REMAINING={len(drift_remaining)}")
         for d in drift_remaining:
             print(f"  DRIFT: {d}")
+        # G-1: DRIFT 는 '양쪽에 다 있는 파일'만 센다. 분모를 함께 내지 않으면 0 이 완전성으로 읽힌다.
+        report_inbound(limit=None if args.inbound_all else 10)
         return 0 if not (drift_remaining or leaked) else 1
 
     total = sum(len(v) for v in changed.values())
@@ -357,6 +499,10 @@ def main():
     print(f"\nplugin-only files (untouched, forge has none): {len(missing_in_forge)}")
     for f in missing_in_forge:
         print(f"    ~ {f}")
+
+    # 위 목록은 "플러그인에만 있는 것"이다. 그 대칭인 "forge 에만 있는 것"이 없으면
+    # 사람은 한쪽 방향만 보고 동기화가 끝났다고 판단한다(G-1).
+    report_inbound(limit=None if args.inbound_all else 10)
 
     # exit code 로도 드러낸다 — 파이프라인이 stderr 를 안 읽어도 실패가 전달돼야 한다.
     return 1 if leaked else 0

@@ -173,6 +173,54 @@ PY
   fi
 fi
 
+echo "== 6. kill-switch 경로가 stdin 을 배수하는가 (EPIPE 방지, A4) =="
+# root-cause(2026-08-07): forge 사본에만 "킬스위치 종료 전 stdin 배수" 수정이 들어가고 이
+#   플러그인 사본에는 오지 않아 두 구현이 갈라졌다. 훅 SSoT 가 서로 다른 레포라(플러그인 훅 =
+#   이 repo, forge-sync 는 훅을 밀지 않는다) 자동 전파 경로가 없다 — 사람이 안 옮기면 영원히 갈라진다.
+#   갈라진 결과: FORGE_MAIN_GUARD=off 로 껐을 때 한쪽은 조용히 빠지고 다른 쪽은 stdin 을 읽지
+#   않은 채 종료해 **생산자에게 EPIPE(SIGPIPE)** 를 던진다. 끄는 행위가 비대칭적으로 부작용을 낳는다.
+# §3 은 "꺼지는가"(exit 0)를 보고, 여기서는 "끄면서 파이프를 깨뜨리지 않는가"를 본다 — 다른 축이다.
+# 폐기조건: 두 사본이 하나로 합쳐지면 §5-3 과 함께 불필요해진다.
+big_input() { python3 -c "import sys; sys.stdout.write('x'*2000000)"; }
+
+big_input | ( cd "$REPO" && FORGE_MAIN_GUARD=off bash "$HOOK" >/dev/null 2>&1 )
+PRC=${PIPESTATUS[0]}
+if [ "$PRC" -eq 0 ]; then
+  PASS=$((PASS+1)); echo "  PASS  생산자 rc=0 — stdin 배수됨(EPIPE 없음)"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL  생산자 rc=$PRC (141/SIGPIPE = 미배수 exit — A4 회귀)"
+fi
+
+# 역변조: 배수 구문을 빼면 위 검사가 실제로 잡아내는가.
+# ⚠️ sed 치환 금지 — 치환문에 `/`·`{`·`|` 가 있어 구분자 충돌로 **조용히 실패**하고, 깨진 파일이
+#   낸 파싱 오류를 "판별력 실증"으로 오독한다(2026-08-08 실제로 겪었다). python 치환 + 성공 단언.
+MUT6="$TMP/mut6.sh"
+if python3 - "$HOOK" "$MUT6" <<'PY6'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+s = open(src, encoding='utf-8').read()
+old = '[ "${FORGE_MAIN_GUARD:-on}" = "off" ] && { cat >/dev/null 2>&1 || true; exit 0; }'
+new = '[ "${FORGE_MAIN_GUARD:-on}" = "off" ] && exit 0'
+if old not in s:
+    sys.exit(3)
+open(dst, 'w', encoding='utf-8').write(s.replace(old, new, 1))
+PY6
+then
+  if bash -n "$MUT6" 2>/dev/null; then
+    big_input | ( cd "$REPO" && FORGE_MAIN_GUARD=off bash "$MUT6" >/dev/null 2>&1 )
+    MRC=${PIPESTATUS[0]}
+    if [ "$MRC" -ne 0 ]; then
+      PASS=$((PASS+1)); echo "  PASS  배수를 빼면 생산자 rc=$MRC — 위 검사가 공허하지 않다"
+    else
+      FAIL=$((FAIL+1)); echo "  FAIL  배수를 빼도 rc=0 — 위 검사는 아무것도 증명하지 못한다"
+    fi
+  else
+    FAIL=$((FAIL+1)); echo "  FAIL  변조본 문법 오류 — 이 상태의 실패는 판별력 근거가 못 된다"
+  fi
+else
+  FAIL=$((FAIL+1)); echo "  FAIL  역변조 지점 없음 — 배수 구문이 기대 형태가 아니다"
+fi
+
 echo
 echo "================================"
 echo "PASS=$PASS  FAIL=$FAIL"

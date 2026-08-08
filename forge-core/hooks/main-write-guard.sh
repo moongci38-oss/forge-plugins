@@ -28,7 +28,8 @@
 
 set -uo pipefail
 
-[ "${FORGE_MAIN_GUARD:-on}" = "off" ] && exit 0
+# stdin 배수 후 종료 — 미배수 exit 은 생산자에게 EPIPE 를 던진다(A4, 2026-08-07 재현)
+[ "${FORGE_MAIN_GUARD:-on}" = "off" ] && { cat >/dev/null 2>&1 || true; exit 0; }
 
 INPUT=$(cat 2>/dev/null)
 [ -z "$INPUT" ] && exit 0

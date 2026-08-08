@@ -368,6 +368,119 @@ finally:
     shutil.rmtree(_cli, ignore_errors=True)
 
 print()
+print("== 10. G-4 PLUGIN_ROOT 기본값 — '지금 있는 레포'가 기본이다 ==")
+# root-cause(2026-08-06): 기본값이 마켓플레이스 클론이라, 레포에서 실행해도 클론이 바뀌었다.
+#   조용한 오작동이다 — 클론이 바뀌어도 레포는 clean 이라 아무 신호가 없다.
+_m10 = load()
+if _m10 is None:
+    skip("⑦ 모듈 로드 실패")
+else:
+    _repo = os.path.dirname(os.path.dirname(os.path.abspath(TARGET)))
+    _saved = os.environ.pop("PLUGIN_ROOT", None)
+    try:
+        if _m10.default_plugin_root() == _repo:
+            ok("⑦-a 매니페스트 보유 레포 안에서는 그 레포가 기본값")
+        else:
+            ng(f"⑦-a 기본값={_m10.default_plugin_root()} (기대 {_repo}) — 눈앞의 레포가 아닌 곳이 바뀐다")
+        os.environ["PLUGIN_ROOT"] = "/tmp/explicit-root"
+        if _m10.default_plugin_root() == "/tmp/explicit-root":
+            ok("⑦-b 명시 env 는 항상 이긴다(기존 사용자 경로 불변)")
+        else:
+            ng("⑦-b env PLUGIN_ROOT 가 무시된다")
+    finally:
+        os.environ.pop("PLUGIN_ROOT", None)
+        if _saved is not None:
+            os.environ["PLUGIN_ROOT"] = _saved
+
+print()
+print("== 11. G-1 inbound — 'forge 에만 있는 것'이 보이는가(0 이 완전성을 뜻하지 않게) ==")
+# root-cause(2026-08-06): iter_pairs() 는 플러그인 디렉터리를 walk 하므로 '양쪽에 다 있는 것'만
+#   본다. forge 에 새 스킬이 생겨도 어디에도 안 나타나고 --verify 는 DRIFT_REMAINING=0 을 냈다.
+_m11 = load()
+if _m11 is None:
+    skip("⑧ 모듈 로드 실패")
+else:
+    _d11 = tempfile.mkdtemp()
+    try:
+        _fsrc = os.path.join(_d11, "forge", "skills")
+        _psrc = os.path.join(_d11, "plug", "forge-core", "skills")
+        os.makedirs(os.path.join(_fsrc, ".claude", "agent-budget"))
+        os.makedirs(_psrc)
+        open(os.path.join(_psrc, "carried.md"), "w").write("x")          # 플러그인이 담은 것
+        open(os.path.join(_fsrc, "carried.md"), "w").write("x")
+        open(os.path.join(_fsrc, "orphan.md"), "w").write("x")           # forge 에만 있는 것
+        open(os.path.join(_fsrc, "noise.bin"), "wb").write(b"\x01")      # 담은 적 없는 확장자
+        open(os.path.join(_fsrc, ".claude", "agent-budget", "a.calls"), "w").write("x")  # 런타임 부산물
+        _sv = (_m11.FORGE_ROOT, _m11.PLUGIN_ROOT, _m11.PLUGINS, _m11.SUBDIRS, dict(_m11.SUBDIR_SRC))
+        _m11.FORGE_ROOT = os.path.join(_d11, "forge")
+        _m11.PLUGIN_ROOT = os.path.join(_d11, "plug")
+        _m11.PLUGINS = ["forge-core"]
+        _m11.SUBDIRS = ["skills"]
+        _m11.SUBDIR_SRC = {}
+        _gaps, _filtered = _m11.iter_inbound_gaps()
+        _rels = {r for _s, r in _gaps}
+        _frels = {r for _s, r in _filtered}
+        if "orphan.md" in _rels:
+            ok("⑧-a forge 에만 있는 파일이 잡힌다(구 구현은 어디에도 안 나왔다)")
+        else:
+            ng(f"⑧-a orphan.md 미검출 — gaps={_rels}")
+        if "carried.md" not in _rels:
+            ok("⑧-b 이미 담긴 파일은 세지 않는다")
+        else:
+            ng("⑧-b 담긴 파일이 누락으로 잡힘 — 오탐")
+        if not any(".claude" in r for r in _rels):
+            ok("⑧-c 런타임 부산물(dot-세그먼트)은 제외된다 — 정밀도가 가드의 수명이다")
+        else:
+            ng(f"⑧-c 런타임 파일이 섞임 — {_rels}")
+        if "noise.bin" not in _rels:
+            ok("⑧-d 플러그인이 담은 적 없는 확장자는 '누락'이 아니다")
+        else:
+            ng("⑧-d 담은 적 없는 종류를 누락으로 보고 — 무시당하는 목록이 된다")
+        # ⑧-e (2026-08-08 cr-final opus): 필터로 뺀 것을 **침묵시키지 않는다**.
+        #   그냥 continue 하면 확장자 없는 파일이 영원히 안 보여, 이 기능이 고치려던
+        #   "0 이 완전성으로 읽힌다"를 다른 파일 모양으로 재현한다.
+        if "noise.bin" in _frels:
+            ok("⑧-e 필터 제외분이 별도 채널로 계수된다(침묵 제외 아님)")
+        else:
+            ng(f"⑧-e 제외분이 어디에도 안 잡힌다 — 침묵 제외 재발. filtered={_frels}")
+        (_m11.FORGE_ROOT, _m11.PLUGIN_ROOT, _m11.PLUGINS, _m11.SUBDIRS, _m11.SUBDIR_SRC) = _sv
+    finally:
+        shutil.rmtree(_d11, ignore_errors=True)
+
+print()
+print("== 12. 바이너리 평면 스캔 — UTF-16 양 엔디언 탐지 + NUL 가로지른 합성 금지 ==")
+# root-cause(2026-08-07): 1차 구현은 NUL 을 전역 제거해 검사했다. UTF-16 은 잡히지만 진짜
+#   바이너리에서 멀리 떨어진 조각이 맞붙어 **원본에 없는 경로가 합성**됐다(item 1 과 같은 병 —
+#   가공한 산물을 원본처럼 다룬다). 평면 뷰 + NUL 을 구분자로 취급하는 것으로 바꿨다.
+_m12 = load()
+if _m12 is None:
+    skip("⑨ 모듈 로드 실패")
+else:
+    _d12 = tempfile.mkdtemp()
+    try:
+        subprocess.run(["git", "init", "-q", _d12], check=True)
+        _w = lambda n, b: open(os.path.join(_d12, n), "wb").write(b)
+        _w("le.txt", "/home/secretuser/forge/x".encode("utf-16-le"))
+        _w("be.txt", "/home/secretuser/forge/x".encode("utf-16-be"))
+        # '/home/' 와 'u/forge' 사이에 NUL 400개 — 원본에 그런 경로는 없다
+        _w("far.dat", b"\x89PNG" + b"/home/" + b"\x00" * 400 + b"u/forge" + b"\x01\x02")
+        subprocess.run(["git", "-C", _d12, "add", "-A"], check=True,
+                       capture_output=True)
+        _res = _m12.scan_repo_leaks(_d12)
+        _hit = {r for r, _ in _res[0]} if _res else set()
+        for _n, _endian in (("le.txt", "UTF-16LE"), ("be.txt", "UTF-16BE")):
+            if _n in _hit:
+                ok(f"⑨-a {_endian} 안의 사설 경로가 탐지된다")
+            else:
+                ng(f"⑨-a {_endian} 미탐지 — 인코딩만 바꾸면 빠져나간다")
+        if "far.dat" not in _hit:
+            ok("⑨-b NUL 을 가로지른 합성 오탐이 없다(NUL = 구분자)")
+        else:
+            ng("⑨-b 원본에 없는 경로가 합성돼 오탐 — 오탐 내는 가드는 무시당한다")
+    finally:
+        shutil.rmtree(_d12, ignore_errors=True)
+
+print()
 print("================================")
 print(f"PASS={PASS}  FAIL={FAIL}  SKIP={SKIP}")
 if SKIP:
