@@ -11,7 +11,7 @@
 | H2 | `qa-artifact-frontend.sh` | gate | Phase E a4 후 (UI 버그) Bash | - | ✓ | `<artifacts_dir> <bug_N> <phase>` | exit 0/2 | `artifacts-{complete,missing-tablet}/` |
 | H3 | `qa-artifact-backend.sh` | gate | Phase E a4 후 (API/DB 버그) Bash | - | ✓ | `<artifacts_dir> <bug_N>` | exit 0/2 | `be-logs-{complete,missing-db}/` |
 | H6 | `vision-evaluator-required.sh` | gate | Phase F 진입 직전 (UI) Bash | - | ✓ | `<reviews_dir> <bug_N>` | exit 0/2 | `vision-{pass,fail}.json` |
-| H7 | `pixel-diff-gate.sh` | gate | Phase E a4 후 Bash | - | ✓ | `<diff_json>` | exit 0/2 | `pixel-diff-{ok,over}.json` |
+| H7 | `pixel-diff-gate.sh` | gate | Phase E a4 후 Bash | - | ✓ | `<diff_json> [threshold]` | exit 0/2/**3** | `pixel-diff-{ok,over}.json` |
 | H9 | `healer-log-read-required.sh` | gate | PreToolUse Edit/Write (healer ctx) | Edit\|Write | ✓ | stdin JSON + `CLAUDE_AGENT_OUTPUT` + read-log jsonl | exit 0/2 | `healer-output-{with,without}-readconfirmed.txt` |
 | H10 | `bug-fix-plan-schema.sh` | gate | PreToolUse Write `*bug-fix-plan*.md` | Write | ✓ | stdin JSON (file content) | exit 0/2 | `plan-{valid,missing-component}.md` |
 | H26 | `scenarios-required.sh` | gate | Phase A→B 전환 Bash | - | ✓ | `<scenarios-path>` | exit 0/2 | `scenarios-{exists,missing}.md` |
@@ -19,10 +19,23 @@
 | H28 | `scenarios-parallel-exec.sh` | gate | Phase B 실행 시작 Bash | - | ✓ | `<scenarios-path> <mode> [spawn-json]` | exit 0/2 | `spawn-{parallel,serial-violation}.json` |
 | helper | `healer-read-tracker.sh` | helper | PreToolUse Read (sha256 수집) | Read | ✓ | stdin JSON | exit 0 always | (sha256 read-log jsonl에 append) |
 
+### H7 exit code 계약 (2026-08-06 — `exit 3` 신설)
+
+> ⚠️ 다른 게이트는 전부 `0/2` 인데 H7 만 3-값이다. 이 표를 SSoT 로 읽는 호출자가
+> `exit 3` 을 모르면, `phase-gate.sh` 의 `set -e` 에서 **phase 전체가 중단**되는 새 경로를 못 본다.
+
+| code | 의미 | 호출자가 해야 할 일 |
+|:---:|---|---|
+| 0 | 통과 — diff ≤ threshold, **또는 결과 파일 부재**(미실행이므로 미강제) | 다음 단계 진행 |
+| 2 | `diffPixelRatio > threshold` → 시각 회귀 **BLOCK** | 버그로 접수, 수정 후 재실행 |
+| 3 | 결과 파일은 있는데 파싱 불가·필드 부재·**비유한 수치**(NaN/Infinity) → 명시적 실패 | 측정 자체가 깨진 것 — PASS 도 FAIL 도 아니다. 캡처를 고쳐 재측정 (조용한 fail-open 금지) |
+
+정본 = `.claude/hooks/pixel-diff-gate.sh` 헤더 주석 · 계약 테스트 = `.claude/hooks/tests/pixel-diff-gate.test.sh`(검증기 체크 ID P1.4).
+
 ## Cross-reference
 
-- `~/forge/dev/scripts/forge-sync.mjs` HOOKS_ALLOWLIST: 11종 (10 gate + 1 helper)
-- `~/.claude/settings.json` PreToolUse: H9(Edit|Write) / H10(Write) / helper(Read)
+- `${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs` HOOKS_ALLOWLIST: 11종 (10 gate + 1 helper)
+- `$HOME/.claude/settings.json` PreToolUse: H9(Edit|Write) / H10(Write) / helper(Read)
 - `_ad97-pending/`: H4/H5/H8/H11~H25/H29 — AD-97 진입 전 발동 X
 
 ## bug-fix-plan.md 필수 필드 (H10 검증)

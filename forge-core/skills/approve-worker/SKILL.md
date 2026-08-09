@@ -12,7 +12,7 @@ MAS P0 worker 스폰 전 사용자 TTY 승인 토큰을 발행한다. `multiagen
 ## 실행
 
 ```bash
-python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
   --task {task_id} \
   --worker {worker} \
   --tools {tool1},{tool2} \
@@ -47,6 +47,6 @@ T-AW1~T-AW6 + T-AW2b + T-AW2c 모두 PASS 의무.
 
 - `scripts/approve-worker-sign.py` — HMAC 발행 (FR-1~FR-7 + production guard)
 - `scripts/approve-worker-verify.py` — HMAC 검증 + nonce atomic consume (FR-8)
-- `~/forge/.claude/commands/approve-worker.md` — 명령 Step 1~7 (forge 동기화 대상)
+- `${FORGE_ROOT:-$HOME/forge}/.claude/commands/approve-worker.md` — 명령 Step 1~7 (forge 동기화 대상)
 
 <!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 여기 있던 "Evaluator (Wave 2.5)" 절은 8개 SKILL.md에 동일 문구로 복제된 산문이며 실제 Agent()/hook 배선이 0건이었다(role/model/isolation을 설명만 하고 아무것도 실행하지 않음). 독립 검증이 실제로 가치 있는 codex-review·forge-check-security만 실제 Agent() 호출로 승격했고, 나머지는 제거만 했다 — 자세한 판단 근거는 codex-review/SKILL.md의 동일 root-cause 주석 참조. -->

@@ -15,7 +15,7 @@ group: ops
 **이번 세션에서 틀어진 것**을 훑어 사용자 머신에만 남는 로컬 학습 store 에 기록한다.
 
 - SPEC: `SPEC-LOOPB-P1` FR-004 (W2). 스토어 계약은 FR-001/002/007 = `forge-plugin-learn.sh`.
-- **로컬 전용**: 저장 위치는 `~/.claude/forge-plugin/learnings.jsonl` 하나뿐이다. 네트워크 전송·업로드·텔레메트리 없음. 파일을 지우면 완전히 폐기된다.
+- **로컬 전용**: 저장 위치는 `$HOME/.claude/forge-plugin/learnings.jsonl` 하나뿐이다. 네트워크 전송·업로드·텔레메트리 없음. 파일을 지우면 완전히 폐기된다.
 - 우리 팀 내부 학습(`/learn`, git 전파)과 **별개 계보**다 — id 접두가 `PL-` 로 다르다.
 
 ```bash
@@ -97,7 +97,7 @@ bash "$SCRIPT" append \
 
 ```
 sweep: 후보 {N}건 · 기록 {A}건 · 중복 skip {D}건 · 미확인 {U}건
-store: ~/.claude/forge-plugin/learnings.jsonl
+store: $HOME/.claude/forge-plugin/learnings.jsonl
 ```
 
 레코드 **전문을 stdout 에 출력하지 않는다**(레코드당 1줄 요약까지). 방금 정리한 내용을 컨텍스트에 되붓는 것은 이 커맨드의 목적과 반대다.
@@ -122,6 +122,6 @@ bash "$SCRIPT" purge --older-than <days> --yes    # 2) 확인 후에만 실제 �
 |---|---|
 | 우리 팀 내부 학습(git 전파) | `/learn` · `learnings.sh append --global` |
 | 이 세션 종료·인계 | `/forge-end` |
-| store 를 통째로 없애기 | `rm ~/.claude/forge-plugin/learnings.jsonl` (2차 사본·인덱스 없음) |
+| store 를 통째로 없애기 | `rm $HOME/.claude/forge-plugin/learnings.jsonl` (2차 사본·인덱스 없음) |
 
 **Phase 1 범위 밖**: 크로스세션 스캔 · 익명 집계 전송 · 사용자 간 공유 · 플러그인 자체 SKILL.md 자동 편집. 개인화는 **컨텍스트 주입 전용**이고 파일을 고치지 않는다.

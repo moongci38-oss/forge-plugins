@@ -70,7 +70,7 @@ raw-data.json의 `claude_search_needed` 항목에 대해 검색 수행:
 
 3종 파일 존재 확인을 실행 커맨드로 수행 (서술형 확인 금지):
 ```bash
-bash ~/forge/shared/scripts/verify-outputs.sh \
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/tech-trends.md" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/biz-trends.md" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/{project}/{date}-s1-research.md"

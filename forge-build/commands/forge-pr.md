@@ -18,7 +18,7 @@ PR 생성 단독 실행. `/sdd` Phase 5 분리 명령 (AD-46).
 | cr-final(Step 3) | **Opus**+Codex+Gemini | Claude 레그 Sonnet 고정(degrade=Opus+Gemini) |
 | 고위험 결정 advisor(BOUNDARY·scope-drift·봇충돌) | **Opus** | `advisor-strategist` — advisory only |
 
-근거: `~/.claude/rules/model-routing.md`. ⚠️ **forge-pr advisor는 Opus 고정 — Fable 자동분기 없음**(Fable 자동은 forge-fix T4 한정, forge-pr은 Human 수동 전용, `model-routing.md` Fable 카브아웃). Human 명시 요청 시에만 Fable.
+근거: `$HOME/.claude/rules/model-routing.md`. ⚠️ **forge-pr advisor는 Opus 고정 — Fable 자동분기 없음**(Fable 자동은 forge-fix T4 한정, forge-pr은 Human 수동 전용, `model-routing.md` Fable 카브아웃). Human 명시 요청 시에만 Fable.
 
 ## 선적 전 체크리스트 (Pre-ship) — AI-instruction 전용 (기계적 강제 없음)
 
@@ -44,7 +44,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
 감지 시 → 해당 정보 마스킹 후 재생성. STOP 불가.
 
-미충족 항목 → [STOP] 해소 후 진행. override 필요 시 → `~/.claude/rules-on-demand/verification-overrides.md` 참조.
+미충족 항목 → [STOP] 해소 후 진행. override 필요 시 → `$HOME/.claude/rules-on-demand/verification-overrides.md` 참조.
 
 ## 브랜치 완료 시 4-Choice 메뉴
 
@@ -105,15 +105,51 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
    #    빈 문자열이 되면서 비교가 **항상** 불일치 → 드리프트 여부와 무관하게 WARN 이 상시
    #    발화했다. 상시 경고는 경고가 아니다(alarm fatigue) — 드리프트 감지가 사실상 없었다.
    #    또 `baseRefOid` 로 이름만 고치면 의미가 달라진다(그건 '지금의 base' 이지 '분기 시점' 이
-   #    아니다). GS-B11 이 물어야 할 것은 "분기 이후 base 가 움직였나" 이므로 merge-base 로 본다.
+   #    아니다). GS-B11 이 물어야 할 것은 "분기 이후 base 가 움직였나" 이다.
+   # ⚠️ 2026-08-07 정정(G-5): merge-base 단독 비교는 **develop→main 릴리스 흐름에서 구조적으로
+   #    항상 깨진다.** main 은 develop 을 머지하며 머지커밋만 쌓으므로 develop 은 main 의 조상이
+   #    되고, merge-base(main, develop) = develop ≠ origin/main 이 **언제나** 성립한다.
+   #    GitHub 이 MERGEABLE/CLEAN 이라 말하는 PR 에서도 WARN 이 떴다 — 위 주석이 스스로 경계한
+   #    alarm fatigue 를 이 검사가 다시 만들어냈다.
+   #    → 권위 있는 판정(GitHub mergeStateStatus)을 1순위로 쓰고, merge-base 는 그 필드를 못
+   #      얻었을 때만 쓰는 폴백으로 내린다. BEHIND 만이 진짜 "base 가 앞서갔다" 이다.
    BASE=$(gh pr view --json baseRefName -q .baseRefName)
-   git fetch -q origin "$BASE"
-   BASE_SHA=$(git rev-parse "origin/$BASE")
-   MERGE_BASE=$(git merge-base "origin/$BASE" HEAD)
-   [ "$BASE_SHA" = "$MERGE_BASE" ] || echo "WARN: 머지 대상($BASE)이 분기 이후 전진함 (분기점 ${MERGE_BASE:0:7} ≠ base ${BASE_SHA:0:7}) — rebase 검토"
+   # gh 실패(인증·네트워크)와 "필드가 아직 없음"을 구분한다 — `|| echo ""` 로 뭉개면
+   # 조회 실패가 조용히 '판정 불가 통과'로 바뀐다(2026-08-08 cr-final codex 지적).
+   MSS=$(gh pr view --json mergeStateStatus -q .mergeStateStatus 2>/dev/null); GH_RC=$?
+   drift_fallback() {
+     # merge-base 폴백. base 가 HEAD 를 이미 포함하면(develop→main 처럼 조상 관계) 드리프트가 아니다.
+     git fetch -q origin "$BASE"
+     if git merge-base --is-ancestor HEAD "origin/$BASE"; then return 0; fi
+     BASE_SHA=$(git rev-parse "origin/$BASE"); MERGE_BASE=$(git merge-base "origin/$BASE" HEAD)
+     [ "$BASE_SHA" = "$MERGE_BASE" ] || echo "WARN: 머지 대상($BASE)이 분기 이후 전진함 (분기점 ${MERGE_BASE:0:7} ≠ base ${BASE_SHA:0:7}) — rebase 검토"
+   }
+   if [ "$GH_RC" -ne 0 ]; then
+     echo "WARN: mergeStateStatus 조회 실패(gh rc=$GH_RC — 인증·네트워크 확인). merge-base 폴백으로 판정한다."
+     drift_fallback
+   else
+     case "$MSS" in
+       BEHIND)         echo "WARN: 머지 대상($BASE)이 앞서감(mergeStateStatus=BEHIND) — rebase 검토" ;;
+       DIRTY|BLOCKED)  echo "WARN: 머지 불가 상태(mergeStateStatus=$MSS) — 충돌·게이트 확인" ;;
+       DRAFT)          echo "WARN: PR 이 draft 상태다 — ready for review 전환 후 머지" ;;
+       CLEAN|HAS_HOOKS|UNSTABLE) : ;;          # 확정적으로 드리프트 아님
+       UNKNOWN|"")
+         # UNKNOWN 은 "드리프트 없음"이 아니라 **아직 계산되지 않음**이다. 빈 값도 마찬가지.
+         # 측정되지 않은 상태를 '깨끗함'으로 세지 않는다(이 커맨드가 다른 절에서 세운 원칙).
+         echo "INFO: mergeStateStatus=${MSS:-<empty>} (미확정) — merge-base 폴백으로 판정한다."
+         drift_fallback ;;
+       *)
+         # 미열거 non-empty 상태(향후 신규 enum 등). 조용히 통과시키면 안전판이 무력해진다.
+         echo "WARN: 미확인 mergeStateStatus='$MSS' — 열거되지 않은 상태다. 폴백으로 판정하되 값을 확인하라."
+         drift_fallback ;;
+     esac
+   fi
    ```
    - 드리프트 감지 시: `git fetch && git rebase origin/$BASE` 권고 후 Human 확인 → 재CI
    - 드리프트 없음: 그대로 Step 3 진행
+   - 재현(오탐이 사라졌는지): develop→main PR 에서 위 블록을 돌려 WARN 이 **안 나와야** 한다.
+     구 검사식은 같은 PR 에서 항상 WARN 이었다 —
+     `[ "$(git rev-parse origin/main)" = "$(git merge-base origin/main HEAD)" ] || echo 오탐`
 2.7b. **저장소 정체성 게이트 (repo identity gate, harness-gaps 2026-07-23, cross-OS/cross-repo mis-merge 방지)** — GS-B11 base-drift 체크와 별개로, 머지 실행(`gh pr merge`) **직전** 항상 아래 3항목을 검증한다. 하나라도 불일치하면 머지를 **중단**한다 (진행 금지, [STOP] Human 에스컬레이션):
    ```bash
    # (1) 로컬 remote origin == gh가 타깃으로 하는 repo
@@ -201,7 +237,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
    **`--cr <on|degrade|off>` 인자** (Codex 비용 통제 게이트):
    ```
-   MODE=$(~/forge/shared/scripts/cr-mode.sh "$CR_ARG")
+   MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "$CR_ARG")
    # 우선순위: --cr 인자 > $FORGE_AUTO_CR 환경변수 > 기본값 on
    case "$MODE" in
      off)     echo "auto cr-final skip (cr=off). 강제: /forge-pr --cr on 또는 수동 /cr-final." ;;
@@ -419,7 +455,7 @@ accepted_by: <Human 이름 또는 AI-instruction>
 at: <YYYY-MM-DD>
 ```
 
-override 처리 → `~/.claude/rules-on-demand/verification-routing.md` §Override 처리 분기 참조.
+override 처리 → `$HOME/.claude/rules-on-demand/verification-routing.md` §Override 처리 분기 참조.
 
 ### 선행 조건
 
@@ -431,7 +467,7 @@ override 처리 → `~/.claude/rules-on-demand/verification-routing.md` §Overri
 
 PR 생성 전 변경 파일 스캔 → BOUNDARY 범주 감지 시 human 승인 필수.
 
-**감지 범주** (상세: `~/forge/BOUNDARY.md`):
+**감지 범주** (상세: `${FORGE_ROOT:-$HOME/forge}/BOUNDARY.md`):
 | 범주 | 감지 패턴 |
 |------|-----------|
 | B1 DB스키마 변경 | `ALTER/CREATE/DROP TABLE`, `migrations/` 신규 파일 |

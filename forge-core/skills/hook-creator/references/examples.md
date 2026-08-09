@@ -15,7 +15,7 @@ Complete, tested hook configurations for common use cases.
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '\"\\(.tool_input.command) - \\(.tool_input.description // \"No description\")\"' >> ~/.claude/bash-command-log.txt"
+            "command": "jq -r '\"\\(.tool_input.command) - \\(.tool_input.description // \"No description\")\"' >> $HOME/.claude/bash-command-log.txt"
           }
         ]
       }
@@ -35,7 +35,7 @@ Complete, tested hook configurations for common use cases.
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '\"[\\(now | strftime(\"%Y-%m-%d %H:%M:%S\"))] \\(.tool_name): \\(.tool_input.file_path)\"' >> ~/.claude/edit-log.txt"
+            "command": "jq -r '\"[\\(now | strftime(\"%Y-%m-%d %H:%M:%S\"))] \\(.tool_name): \\(.tool_input.file_path)\"' >> $HOME/.claude/edit-log.txt"
           }
         ]
       }

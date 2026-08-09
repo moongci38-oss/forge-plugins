@@ -7,7 +7,7 @@ version: 2
 
 ## 테스트 입력
 
-- input_1: "Create a hook that logs all bash commands to ~/.claude/bash-history.log"
+- input_1: "Create a hook that logs all bash commands to $HOME/.claude/bash-history.log"
 - input_2: "Create a hook that sends a desktop notification when any git commit is made"
 - input_3: "Auto-format Python files with black after every edit"
 

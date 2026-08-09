@@ -20,6 +20,12 @@ model: haiku
 
 프론트엔드 변경이 포함된 PR에서 UI/UX 품질을 검증한다.
 
+> **임계값 정본 = `shared/design-tokens/design-axes.json`** (2026-08-06, P3.1).
+> 아래 U-축에 적힌 수치는 그 파일의 값을 사람이 읽기 좋게 옮긴 것이다. **수치가 어긋나면 JSON 이 이긴다.**
+> 이전에는 같은 축의 수치가 이 파일·`design-rules.md`·`forge-check-ui/SKILL.md` 표·`design-metrics.mjs`
+> 임계값에 각각 하드코딩돼 한쪽만 고치면 조용히 드리프트했다.
+> `forge-check-ui/workflow.js`(skills 진입점)도 같은 JSON 을 참조한다 — 두 진입점이 이제 같은 루브릭을 본다.
+
 ## 입력
 
 - 변경된 프론트엔드 파일 목록 (*.tsx, *.jsx, *.css, *.scss)

@@ -59,7 +59,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect
   생존 실측: 최근 15분 변경 {N}건, 마지막 변경 {YYYY-MM-DD HH:MM} (collect의 WORKER_WORKTREE 행)
 ```
 
-- **(b) 브리프 영속 확인이 게이트다** — `WORKER_BRIEF_PERSISTED`가 `yes`가 아닌데 활성 워커가 있으면 **저장 전에 브리프를 디스크에 영속화**하고(예: `$CLAUDE_JOB_DIR/tmp/worker-briefs/{name}.md` 또는 `$FORGE_OUTPUTS/11-platform/pipelines-2/worker-briefs/`) 그 경로를 기록한다. 미영속 상태로 저장하면 **게이트 FAIL** — 컨텍스트가 날아가면 재스폰 불가가 된다(실사고 원인).
+- **(b) 브리프 영속 확인이 게이트다** — `WORKER_BRIEF_PERSISTED`가 `yes`가 아닌데 활성 워커가 있으면 **저장 전에 브리프를 디스크에 영속화**하고(예: `$CLAUDE_JOB_DIR/tmp/worker-briefs/{name}.md` 또는 `$FORGE_OUTPUTS/11-platform/pipelines/worker-briefs/`) 그 경로를 기록한다. 미영속 상태로 저장하면 **게이트 FAIL** — 컨텍스트가 날아가면 재스폰 불가가 된다(실사고 원인).
 - **(a) 생존 증거는 수치로만** — `recent_changes`·`last_change`는 collect가 실측한 값을 그대로 옮긴다. 값을 추정·반올림하지 않는다.
 - **(c) 재개 절차 1줄 필수**: `재개: 생존 실측 → 15분+ 무변화 & 핑(SendMessage) 무응답이면 사망 판정 → 영속 브리프에서 재스폰`.
 - 워커가 없으면 `없음`.
@@ -79,7 +79,7 @@ else
 fi
 ```
 
-**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)를 가리킨다. 세션 버스 워커(`--resume` 방식)는 `~/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이다. 위 (c)의 "15분+ 무변화 & 핑 무응답 = 사망 판정" 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태이지 사망 신호가 아니다).
+**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)를 가리킨다. 세션 버스 워커(`--resume` 방식)는 `$HOME/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이다. 위 (c)의 "15분+ 무변화 & 핑 무응답 = 사망 판정" 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태이지 사망 신호가 아니다).
 
 `## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. `BUS_WORKER_N=name|sid8|cwd|age|dormant`를 그대로 옮기고, "인계 지시"는 AI가 판단해 채운다(다음 세션이 이 워커에 무엇을 시켜야 하는지 1줄, 없으면 `-`):
 
@@ -158,11 +158,11 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/learnings.sh" append --global --
 # 프로젝트 고유 버그 → 해당 repo 레인. 그 repo 안에서 `--global` **없이** 실행한다.
 ```
 
-라우팅 — **하네스/forge misfire = `~/forge/.claude/learnings.jsonl`**(git 추적 = 전 PC 전파, `--global`) / **프로젝트 고유 버그 = 해당 repo**(`--global` 생략). 없으면 skip(WARN-first, 강제 아님).
+라우팅 — **하네스/forge misfire = `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl`**(git 추적 = 전 PC 전파, `--global`) / **프로젝트 고유 버그 = 해당 repo**(`--global` 생략). 없으면 skip(WARN-first, 강제 아님).
 
 ⚠️ append 는 성공 시 stderr 에 `→ <착지 파일 경로>` 를 찍는다. **rc=0 과 id 출력은 레인을 증명하지 않으므로** 그 경로를 눈으로 확인할 것(2026-08-04 실사고: 하네스 misfire 2건이 `forge-outputs` 레인으로 조용히 떨어졌다).
 
-하네스 결함·개선점은 별도로 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines-2/reviews/YYYY-MM-DD-{슬러그}-harness-gaps.md`에 저장한다 — **단일 폴더**다. 구 `main/`·`local/` 2분류는 2026-08-04 폐지됐고(`b24920ff`), 적용 범위는 폴더가 아니라 항목표의 **`적용` 열**(main=git 전파 / local=그 PC 한정)로 표현한다. 항목마다 **`재현:` 명령 1줄 필수** — 착수 전 `still-real.sh --plan` 게이트의 입력이 된다. 규약 SSoT → `rules-on-demand/forge-core-workflow-aux.md §하네스 갭 리포트 규약`
+하네스 결함·개선점은 별도로 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/harness-gaps/YYYY-MM-DD-{슬러그}-harness-gaps.md`에 저장한다 — **단일 폴더**다. 구 `main/`·`local/` 2분류는 2026-08-04 폐지됐고(`b24920ff`), 적용 범위는 폴더가 아니라 항목표의 **`적용` 열**(main=git 전파 / local=그 PC 한정)로 표현한다. 항목마다 **`재현:` 명령 1줄 필수** — 착수 전 `still-real.sh --plan` 게이트의 입력이 된다. 규약 SSoT → `rules-on-demand/forge-core-workflow-aux.md §하네스 갭 리포트 규약`
 
 ### 6. 팀 공유 동기화 (advisory·fail-open)
 

@@ -34,7 +34,7 @@ P3 advisory: `loc_stats()` — src vs test LOC 분리 (JSONL INFO 항목, 게이
 
 ```bash
 # 기본: 프로젝트 루트 자동 탐지
-python3 ~/forge/.claude/skills/forge-check-security-exec/scripts/scorer.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-check-security-exec/scripts/scorer.py \
   --target <프로젝트_루트>
 
 # entry point 명시 (자동 탐지 실패 시)
@@ -106,5 +106,5 @@ scorer가 틀리면 eval 자체가 무의미 → **selftest가 1순위 게이트
 ## forge-sync
 
 ```bash
-node ~/forge/dev/scripts/forge-sync.mjs sync
+node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
 ```

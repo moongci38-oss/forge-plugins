@@ -194,7 +194,7 @@ Lead가 5개 Teammate 결과를 종합하여 2개 문서 직접 작성:
 subagent_type: gemini  # 교차모델 — 동일모델(Claude) 평가는 편향 전파(arXiv 2606.20493 Contagion Networks). 미가용 시 general-purpose로 fail-open 폴백.
 ```
 
-**입력 파일 (직접 Read)**:
+**입력 파일 (대상 전문 인라인 — 직접 Read 아님)**: `gemini` 에이전트는 `Read`/`Bash`/`Glob` 도구가 없다(`agents/gemini.md` frontmatter 참조). 파일 경로만 넘기면 조용히 빈 근거 위에서 점수를 매긴다(D6, 반복 재발 — 2026-08-07 daily 세션 실측: 스킬 지시대로 경로만 넘겼다면 FAIL 35/100이 나와야 할 리포트가 근거 없이 통과했을 것). 아래 두 파일을 **호출자가 먼저 `Read`로 전량 확인한 뒤 전문을 프롬프트 본문에 인라인**해서 스폰한다:
 - `01-research/daily/{date}/ai-system-analysis.md`
 - `01-research/daily/{date}/system-improvement-plan.md`
 

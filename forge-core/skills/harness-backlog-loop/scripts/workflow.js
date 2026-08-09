@@ -73,7 +73,7 @@ const dryRun    = Boolean(_a?.dryRun ?? false)
 // 이 레포·이 머신의 실측 제약 — 모든 하위 에이전트 브리프에 동봉한다
 const CONSTRAINTS = `
 [필수 제약 — 위반 시 실사고 재현]
-1. git 조작은 반드시 WSL 경유: wsl.exe -e bash -lc 'git -C ~/forge ...'
+1. git 조작은 반드시 WSL 경유: wsl.exe -e bash -lc 'git -C ${FORGE_ROOT:-$HOME/forge} ...'
    Windows 측 git 은 mode-churn 유령 diff 592건 + 2분 타임아웃을 낸다.
 2. 커밋은 churn-immune temp-index 로만:
    GIT_INDEX_FILE=$(mktemp) → git read-tree HEAD → git update-index --add <명시 경로>
@@ -82,7 +82,7 @@ const CONSTRAINTS = `
    (이 레포는 autosync 레이스로 대량삭제 near-miss 2회 이력이 있다. naive git add/commit 금지)
 3. .git/index.lock 이 잡혀 있으면 강제 삭제하지 말고 해제를 대기한다.
 4. 파일 편집 후 셸 스크립트의 실행비트가 벗겨질 수 있다 — chmod +x 재확인.
-5. 전역룰 SSoT 는 ~/forge/dev/global-rules/ 다. ~/forge/.claude/rules/ 는 존재하지 않는다.
+5. 전역룰 SSoT 는 ${FORGE_ROOT:-$HOME/forge}/dev/global-rules/ 다. ${FORGE_ROOT:-$HOME/forge}/.claude/rules/ 는 존재하지 않는다.
 `.trim()
 
 log(`[harness-backlog-loop] backlog=${BACKLOG} maxCycles=${maxCycles} dryRun=${dryRun}`)
@@ -108,7 +108,7 @@ phase('Init')
 
 // 전제: 미러 sync (SSoT에 있음 != 발효 중)
 const syncRes = await sh(
-  'node ~/forge/dev/scripts/forge-sync.mjs sync 2>&1 | tail -5',
+  'node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync 2>&1 | tail -5',
   'prereq-forge-sync', 'Init'
 )
 log(`[Init] forge-sync exit=${syncRes.exit_code}`)
@@ -266,7 +266,7 @@ ${CONSTRAINTS}
 절차(churn-immune temp-index — naive git add/commit 금지):
 1. 경로를 레포 루트 기준 상대경로로 정규화하고, **이 항목 범위 밖 파일은 제외**하십시오.
    (병행 세션이 같은 레포에 동시 append 하는 파일이 있습니다 — 예: .claude/learnings.jsonl)
-2. cd ~/forge && OLD=\$(git rev-parse HEAD) && BR=\$(git rev-parse --abbrev-ref HEAD)
+2. cd ${FORGE_ROOT:-$HOME/forge} && OLD=\$(git rev-parse HEAD) && BR=\$(git rev-parse --abbrev-ref HEAD)
 3. TMP=\$(mktemp); export GIT_INDEX_FILE="\$TMP"; git read-tree HEAD
 4. git update-index --add -- <정규화한 경로들>
 5. TREE=\$(git write-tree); git diff-tree -r --name-status "\$OLD" "\$TREE"

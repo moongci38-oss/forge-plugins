@@ -25,7 +25,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage code --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.5 (medium effort) — ChatGPT OAuth 기본
+- 모델: gpt-5.6-terra (medium effort) — ChatGPT OAuth 기본
 - Blocking: severity별 강제 (Opus+Codex 2-leg 판정 기준; Gemini leg=advisory 0.2 가중, 차단 결정 미포함)
   - Critical: hard block → 자동수정 루프(최대 3회) → 3회 초과 → [STOP] Human 에스컬레이션
   - High: [STOP] 1회 override 허용 (Human 사유 명시 시 통과, 사유를 `{domain}/_STATUS.md`에 `cr_override_rate`/High-override 사유 멱등 로깅)
@@ -43,7 +43,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.02~0.05
+$0.00 (ChatGPT OAuth, gpt-5.6-terra) / 비상 폴백(apikey 시): ~$0.02~0.05
 
 ## 관련
 

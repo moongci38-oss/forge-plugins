@@ -8,10 +8,10 @@ model: opus
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
 > (2026-08-04 관측).
 
 
@@ -62,7 +62,7 @@ model: opus
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$FORGE_ROOT/.claude/` 또는 `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `system` | `$FORGE_ROOT/.claude/` 또는 `$HOME/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -90,26 +90,26 @@ Workflow 스크립트는 셸 불가 → **기동 前 외부 선발행** 필수 (
 ```bash
 TODAY=$(date +%Y-%m-%d); SLUG="system-audit-${TODAY}"
 # --cr 플래그로 Codex 레그 제어: on(기본) | degrade | off
-# CR_MODE=$(~/forge/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
+# CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
 CR_MODE="${CR_MODE:-on}"
 
 # crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 스킵)
 if [ "$CR_MODE" = "on" ]; then
-  FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+  FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
     --task "$SLUG" --worker codex-critic --tools mcp__codex__codex --paths "$TARGET"
 fi
-FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
   --task "$SLUG" --worker gemini --tools mcp__gemini__analyze_media --paths "$TARGET"
 # 그 후 Workflow 기동
 Workflow({
-  script: Read("~/forge/.claude/skills/system-audit/workflow.js"),
+  script: Read("${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"),
   args: { date: TODAY, projectRoot: TARGET, slug: SLUG, crMode: CR_MODE }
 })
 ```
 
 > nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (cr-multi 참조).
 > `--cr` 값: `on`(기본, 3-LLM) | `degrade`(Codex rate-limit/비용 절감 시) | `off`(Codex 완전 비활성).
-> `cr-mode.sh` 경로: `~/forge/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
+> `cr-mode.sh` 경로: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
 
 Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 아래 Wave 1~4 fallback 실행.
@@ -258,7 +258,7 @@ Wave3 통합 보고서 템플릿 → `references/report-template.md`
 
 ### Wave 3.9: 최종 완료 게이트 (필수, Notion 등록·완료 보고 이전)
 
-1. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"`
+1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"`
 2. 스크립트 출력 표를 완료 보고에 포함. 표 밖 임의 "완료" 서술 금지.
 3. exit 2(MISSING/0바이트)면 Wave 4 Notion 등록 및 "## 완료 보고" 출력 금지 — 보고서 재생성 후 재검증(exit 0) 통과 시에만 진행한다.
 
@@ -376,8 +376,8 @@ Agent(
 ```bash
 TODAY=$(date +%Y-%m-%d)
 # CR_MODE: on(기본 3-LLM) | degrade(Codex 스킵, Claude+Gemini) | off(동일)
-# ~/forge/shared/scripts/cr-mode.sh 로 자동 결정 가능
-Workflow({ script: Bash("cat ~/forge/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
+# ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh 로 자동 결정 가능
+Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
 ```
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 Wave 1~4 fallback.

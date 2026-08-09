@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Create a hook that logs all bash commands to ~/.claude/bash-history.log",
+      "prompt": "Create a hook that logs all bash commands to $HOME/.claude/bash-history.log",
       "expected_output": "Complete hook-creator output meeting all 5 criteria",
       "expectations": [
         "JSON 코드블록에 hooks 설정이 포함되어 있거나, 훅이 이미 존재/생성되었다는 안내가 있는가?",

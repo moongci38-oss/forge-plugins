@@ -46,7 +46,7 @@ k6 --version  # k6 설치 확인
 ## Workflow 통합 (계획서 P2-5)
 VU 단계적 증가 = for loop → 각 단계 결과 JS 변수 누적 → 최종 집계.
 패턴: Setup(k6 시나리오 생성) → for(ramp 3단계: base→mid→stress, FAIL 시 조기 중단) → Report(maxSafeVus + breakingPoint).
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/load-test/workflow.js"), args: { specPath, baseUrl, vuBase, vuMid, vuStress, duration } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/load-test/workflow.js"), args: { specPath, baseUrl, vuBase, vuMid, vuStress, duration } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 직접 실행 방식 fallback.
 
 ## 실행 주기 권장

@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/freeze ~/forge/.claude/hooks/ --reason 훅 배포 완료, 실수 방지",
+      "prompt": "/freeze ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/ --reason 훅 배포 완료, 실수 방지",
       "expected_output": "freeze 등록 확인 메시지, 해당 경로 이후 Edit/Write 시 [STOP] 작동",
       "expectations": [
         "🔒 FREEZE 등록 메시지 출력 (경로, 사유, session-scoped 명시)",
@@ -14,7 +14,7 @@
     },
     {
       "id": 2,
-      "prompt": "/freeze --careful ~/forge/.claude/rules/ 등록해줘. 그 다음 behavior-core.md를 편집해줘.",
+      "prompt": "/freeze --careful ${FORGE_ROOT:-$HOME/forge}/.claude/rules/ 등록해줘. 그 다음 behavior-core.md를 편집해줘.",
       "expected_output": "careful 모드 등록 후 편집 시도 시 추가 확인 요청 [STOP]",
       "expectations": [
         "careful 모드 등록 메시지 출력",

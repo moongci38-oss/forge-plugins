@@ -8,10 +8,10 @@ model: sonnet
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
 > (2026-08-04 관측).
 
 
@@ -41,7 +41,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `system` | `$HOME/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -125,8 +125,8 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `ls ~/forge/.claude/agents/` → 정의된 에이전트 목록 수집
-2. 각 에이전트명으로 `grep -rl "{agent-name}" ~/.claude/skills/*/SKILL.md 2>/dev/null` → 실제 호출 여부 확인
+1. `ls ${FORGE_ROOT:-$HOME/forge}/.claude/agents/` → 정의된 에이전트 목록 수집
+2. 각 에이전트명으로 `grep -rl "{agent-name}" $HOME/.claude/skills/*/SKILL.md 2>/dev/null` → 실제 호출 여부 확인
 3. 호출 파일 없음 = orphan → 아카이브 권고 + issues 등록
 4. 호출 있으나 `agentType` 값 불일치 = drift → 정합 권고 + issues 등록
 

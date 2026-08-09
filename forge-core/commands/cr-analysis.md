@@ -25,7 +25,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage analysis --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.5 (medium effort) — ChatGPT OAuth 기본
+- 모델: gpt-5.6-terra (medium effort) — ChatGPT OAuth 기본
 - Blocking: NO (권고 — 분석노트는 즉시 실행 가능 산출물이 아님)
 - 결과: `forge-outputs/docs/reviews/analysis/{date}-{slug}.{md,json}`
 - 프롬프트: `codex-review-analysis.md` (backlog/runbook frontmatter도 공용 — L-57)
@@ -48,11 +48,11 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.01~0.03
+$0.00 (ChatGPT OAuth, gpt-5.6-terra) / 비상 폴백(apikey 시): ~$0.01~0.03
 
 ## 관련
 
 - 본명령: `/codex-review --stage analysis`
-- 프롬프트: `~/forge/.claude/prompts/codex-review-analysis.md`
-- 정책: `~/forge/dev/rules/codex-review-policy.md`
+- 프롬프트: `${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-analysis.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`
 - 자매: `/cr-plan` (Spec/Plan, blocking)

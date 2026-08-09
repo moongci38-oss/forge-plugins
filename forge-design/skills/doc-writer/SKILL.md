@@ -140,5 +140,5 @@ description: "Write structured docs for code modules/APIs/functions/agents/skill
 ## 참조
 
 - doc-verifier로 문서 정확성 검증: `/doc-verifier`
-- 에이전트 계약 표준: `~/.claude/rules-on-demand/agent-contracts.md`
+- 에이전트 계약 표준: `$HOME/.claude/rules-on-demand/agent-contracts.md`
 - Diataxis 공식 문서: https://diataxis.fr

@@ -21,7 +21,7 @@ Create Claude Code hooks that execute shell commands at specific lifecycle event
 
 **Every response MUST include:**
 1. A complete JSON code block with the `"hooks"` key showing the full configuration
-2. The target settings file path (`~/.claude/settings.json` for user-level or `.claude/settings.json` for project-level)
+2. The target settings file path (`$HOME/.claude/settings.json` for user-level or `.claude/settings.json` for project-level)
 
 Always output the JSON config block first, then explain what it does.
 
@@ -31,7 +31,7 @@ Always output the JSON config block first, then explain what it does.
 2. **Select the appropriate event** - Choose from available hook events (see references/hook-events.md)
 3. **Design the hook command** - Write shell command that processes JSON input from stdin
 4. **Configure the matcher** - Set tool/event filter (use `*` for all, or specific tool names like `Bash`, `Edit|Write`)
-5. **Choose storage location** - User settings (`~/.claude/settings.json`) or project (`.claude/settings.json`)
+5. **Choose storage location** - User settings (`$HOME/.claude/settings.json`) or project (`.claude/settings.json`)
 6. **Output the complete JSON config** - Always include the full `"hooks": { ... }` block
 7. **Test the hook** - Verify behavior with a simple test case
 
@@ -88,7 +88,7 @@ jq -r 'if .tool_input.file_path then .tool_input.file_path else empty end'
 
 **Log all bash commands:**
 ```bash
-jq -r '"\(.tool_input.command)"' >> ~/.claude/bash-log.txt
+jq -r '"\(.tool_input.command)"' >> $HOME/.claude/bash-log.txt
 ```
 
 **Auto-format TypeScript after edit:**

@@ -29,7 +29,7 @@ QA Phase 1 T6(보안 WARN 게이트)에서 자동 트리거되거나 `/forge-che
 `scripts/check-security.sh` 실행:
 
 ```
-bash ~/forge/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"
 # JSON 결과: /tmp/security-scan-results.json
 ```
 
@@ -123,9 +123,9 @@ FAIL: 파일 부재 / phase 결과 대부분 누락 / CRITICAL 발견인데 근�
 )
 ```
 
-판정 결과를 `~/.claude/skills/forge-check-security/eval_cases.jsonl`에 `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL", "note":"..."}` 형태로 이어서 기록한다(자동 훅 없음 — 이 스텝에서 직접 append). 통합 패턴 정본 → `eval-rubric/references/skill-integration.md`.
+판정 결과를 `$HOME/.claude/skills/forge-check-security/eval_cases.jsonl`에 `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL", "note":"..."}` 형태로 이어서 기록한다(자동 훅 없음 — 이 스텝에서 직접 append). 통합 패턴 정본 → `eval-rubric/references/skill-integration.md`.
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() S1~S7 7종 보안 스캔 → 집계.
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-check-security/workflow.js"), args: { target } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/forge-check-security/workflow.js"), args: { target } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 check-security.sh 방식 fallback.

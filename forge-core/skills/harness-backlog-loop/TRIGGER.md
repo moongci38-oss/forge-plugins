@@ -24,7 +24,7 @@ exit code 규약: `0`=충족 / `1`=미충족(pending 잔존) / `2`=**REGRESSION(
 Workflow 도구로 결정론 실행:
 
 ```
-Workflow({ scriptPath: "~/forge/.claude/skills/harness-backlog-loop/scripts/workflow.js",
+Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-backlog-loop/scripts/workflow.js",
            args: { maxCycles: 10, dryRun: false } })
 ```
 
@@ -46,7 +46,7 @@ Workflow({ scriptPath: "~/forge/.claude/skills/harness-backlog-loop/scripts/work
 ## 실행 전 체크리스트
 
 1. `HUMAN-GATES.md` **G1** 완료
-2. 전제: `node ~/forge/dev/scripts/forge-sync.mjs sync` — SSoT에 있음 ≠ 발효 중
+2. 전제: `node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync` — SSoT에 있음 ≠ 발효 중
 3. `verify-all.sh` 가 **rc=1** 을 반환(= 아직 할 일이 남아 있음)
 4. 대상 레포에 `.git/index.lock` 부재 + 다른 세션 커밋 진행 중 아님
 5. Budget 확인: max-iter=10 / call-budget=600(WARN-only) / wall-clock=2시간

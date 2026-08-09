@@ -9,7 +9,7 @@ group: plan
 
 Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 
-> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `~/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
+> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `$HOME/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
 
 ## 모델 라우팅 (2026-07-04)
 
@@ -19,7 +19,7 @@ Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 | 탐색(기존 spec/ADR 충돌·데이터 스키마 확인) | **Haiku** | `Agent(model:"haiku")` |
 | 고위험 전략 자문(범위/NFR) | **Opus** | `advisor-strategist` |
 
-근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
+근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음 — forge-fix T4 한정).
 
 ## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
 
@@ -54,7 +54,7 @@ Phase-hard-gate 순서:
      - codex 가용 + FAIL 반환 → Spec 재작성 후 재통과 필수 (blocking 유지)
      - codex/MCP 미가용(도구 부재·인증 실패 등) → fail-open + WARN
        ("Codex 미가용 → advisory로 강등, 수동 리뷰 권고") 명시 후 Phase 진행
-       (근거: `~/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
+       (근거: `$HOME/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
      ↓
   4. [STOP] Human 승인
      ↓

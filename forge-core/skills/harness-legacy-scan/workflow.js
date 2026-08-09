@@ -57,13 +57,14 @@ const gapsSignal = await agent(
 // root-cause: G-4 (harness-diet-gate-harness-gaps.md 2026-08-03) — /system-audit 산출물
 //   (forge-outputs/docs/reviews/audit/*.md)이 이 글롭에 안 걸려 다음 스캔에 한 건도 주입되지 않았다
 //   (실측 2026-08-03: harness-gaps 55건 중 head -8 컷으로 47건 미주입, audit 산출물은 0건 매칭).
-[Step 1] 최근 리포트 나열 (최신 8개 + 전체 매칭 수). 현행 SSoT는 pipelines-2/reviews/ **단일 폴더**이고
-pipelines/reviews는 2026-07-22 이전 아카이브다. docs/reviews/audit/ 는 /system-audit 산출물로 파일명이
-*harness-gaps*가 아니라 별도 글롭이 필요하다 — 두 SSoT + audit 산출물을 함께 훑어 최신순 8개를 고른다:
+[Step 1] 최근 리포트 나열 (최신 8개 + 전체 매칭 수). 현행 SSoT는 pipelines/harness-gaps/ **단일 폴더**이고
+pipelines/reviews는 2026-07-22 이전 아카이브다(별개 폴더, 사문화 — 건드리지 않는다). docs/reviews/audit/ 는
+/system-audit 산출물로 파일명이 *harness-gaps*가 아니라 별도 글롭이 필요하다 — 두 SSoT + audit 산출물을
+함께 훑어 최신순 8개를 고른다:
 // root-cause: 2026-08-04 — b24920ff 가 reviews/{main,local} 2분류를 폐지했는데 이 글롭이 그대로
 //   남아 있었다. 그 두 디렉터리는 이제 존재하지 않으므로 **신규 리포트가 한 건도 안 걸린다**
 //   (위 G-4 와 정확히 같은 실패 모드가 폴더 개편으로 재발한 것). _archive/ 는 과거분이라 제외한다.
-ALL=$(ls -t "${outBase}/11-platform/pipelines-2/reviews/"*harness-gaps*.md "${outBase}/11-platform/pipelines/reviews/"*harness-gaps*.md "${outBase}/docs/reviews/audit/"*.md 2>/dev/null)
+ALL=$(ls -t "${outBase}/11-platform/pipelines/harness-gaps/"*harness-gaps*.md "${outBase}/11-platform/pipelines/reviews/"*harness-gaps*.md "${outBase}/docs/reviews/audit/"*.md 2>/dev/null)
 echo "$ALL" | grep -c . || echo 0    # total_matched (전체 매칭 수 — 잘리기 전)
 echo "$ALL" | head -8 || echo "NONE"  # 실제 읽을 8개
 
@@ -109,7 +110,7 @@ log(`[GapsSignal] reports=${gapsReportsRead} defects=${gapsDefects.length} keeps
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 0.6: 스킬/플러그인 실사용 텔레메트리 신호 수집 (2026-08-03 배선)
 // root-cause: `claude doctor`가 harness-legacy-scan이 못 잡은 죽은 .mcp.json 엔트리를 잡은
-//   사건(2026-08-03) 이후, doctor가 참조하는 ~/.claude.json 네이티브 카운터(skillUsage/
+//   사건(2026-08-03) 이후, doctor가 참조하는 $HOME/.claude.json 네이티브 카운터(skillUsage/
 //   pluginUsage)를 이 스캔도 신호로 쓸 수 있는지 실측했다. 실재함 — skill-telemetry.py 참조.
 //   ⚠️ 이 머신 로컬 집계다(팀 전체·타 환경 미반영). usage=0을 DELETE 근거로 쓰지 않는다 —
 //   기존 skill-usage.py(3경로 배선측정)의 보강 신호일 뿐 대체가 아니다. fail-open: 스크립트
@@ -176,22 +177,22 @@ const [
 스킬 수는 반드시 런타임 ls로 카운트할 것 (하드코딩 금지).
 
 [Step 1] Skills:
-ls ~/.claude/skills/ | wc -l
-find ~/.claude/skills -name "SKILL.md" | while read f; do dir=$(dirname "$f"); name=$(basename "$dir"); lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$name $lines $bytes"; done
+ls $HOME/.claude/skills/ | wc -l
+find $HOME/.claude/skills -name "SKILL.md" | while read f; do dir=$(dirname "$f"); name=$(basename "$dir"); lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$name $lines $bytes"; done
 
 [Step 2] Rules:
-find ~/.claude/rules -name "*.md" | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
-find ~/.claude/rules-on-demand -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
+find $HOME/.claude/rules -name "*.md" | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
+find $HOME/.claude/rules-on-demand -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); bytes=$(wc -c < "$f"); echo "$f $lines $bytes"; done
 
 [Step 3] Hooks:
-find ~/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find $HOME/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 [Step 4] Agents/Commands:
-find ~/forge/.claude/agents -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
-find ~/forge/.claude/commands -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}/.claude/agents -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}/.claude/commands -name "*.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 [Step 5] CLAUDE.md cascade:
-find ~/forge-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc -l < "$f"); echo "$f $lines"; done
 
 결과를 JSON 구조로 반환:
 {
@@ -230,8 +231,8 @@ find ~/forge-outputs -name "CLAUDE.md" 2>/dev/null | while read f; do lines=$(wc
     `Forge 전역 컨텍스트 비용 분석. Bash 도구 사용.
 
 [Step 1] cascade audit 스크립트 실행:
-bash ~/.claude/scripts/audit-context-cascade.sh 2>/dev/null || echo "SCRIPT_NOT_FOUND"
-ls ~/.claude/cache/context-audit-*.md 2>/dev/null | sort | tail -1
+bash $HOME/.claude/scripts/audit-context-cascade.sh 2>/dev/null || echo "SCRIPT_NOT_FOUND"
+ls $HOME/.claude/cache/context-audit-*.md 2>/dev/null | sort | tail -1
 
 [Step 2] 최신 캐시 파일 Read (존재 시):
 위 ls 결과의 최신 파일을 Read 도구로 읽어 핵심 수치 추출.
@@ -239,11 +240,11 @@ ls ~/.claude/cache/context-audit-*.md 2>/dev/null | sort | tail -1
 
 [Step 3] 직접 측정 (캐시 없을 때):
 # rules/ 총 라인수
-wc -l ~/.claude/rules/*.md | tail -1
+wc -l $HOME/.claude/rules/*.md | tail -1
 # rules-on-demand/ 파일 수
-ls ~/.claude/rules-on-demand/*.md 2>/dev/null | wc -l
+ls $HOME/.claude/rules-on-demand/*.md 2>/dev/null | wc -l
 # CLAUDE.md cascade 경로별 라인수
-find ~/forge-outputs -name "CLAUDE.md" -exec wc -l {} \\;
+find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\;
 
 [Step 4] cascade 5종 분류 (분석):
 - per-session (항상 로드): rules/*.md — 전역 항상 적용
@@ -336,7 +337,7 @@ axis 의미 (Matt Pocock, "The Missing Manual: How to Write Great Skills"):
   기능은 그대로 두고 상주 비용만 0이 된다.
 
 [Step 4.5] **네이티브 실사용 텔레메트리 교차조회 (참고신호 — 2026-08-03 배선, 대체 아님).**
-  ~/.claude.json 의 skillUsage 카운터에서 이 스크립트가 이미 usage_count=0/미발견으로 뽑아둔
+  $HOME/.claude.json 의 skillUsage 카운터에서 이 스크립트가 이미 usage_count=0/미발견으로 뽑아둔
   목록이다(이 세션이 별도로 다시 실행할 필요 없음 — Bash 재실행 금지):
   ${JSON.stringify(telemetrySkillZero)}
   ⚠️ 이 텔레메트리는 **이 운영자 이 머신 로컬 집계**다 — 팀 전체·타 환경(Windows/WSL 분리)
@@ -424,7 +425,7 @@ axis 의미 (Matt Pocock, "The Missing Manual: How to Write Great Skills"):
     `Forge rules/CLAUDE.md 중 Claude Code / Codex 제품 기본 기능과 중복되는 지침 탐지.
 
 [Step 1] rules/*.md 전부 Read:
-find ~/.claude/rules -name "*.md" | while read f; do
+find $HOME/.claude/rules -name "*.md" | while read f; do
   echo "=== $f ==="; cat "$f"; echo ""
 done
 
@@ -437,12 +438,12 @@ done
 - 반면 Forge 특화: 경로 규칙/AD-N 번호/특정 스크립트 경로 = 필요한 지침
 
 [Step 3] AGENTS.md / .cursor/rules 확인:
-ls ~/forge-outputs/.cursor/ 2>/dev/null || echo "N/A"
-ls ~/forge/.claude/AGENTS.md 2>/dev/null || echo "N/A"
+ls ${FORGE_ROOT:-$HOME/forge}-outputs/.cursor/ 2>/dev/null || echo "N/A"
+ls ${FORGE_ROOT:-$HOME/forge}/.claude/AGENTS.md 2>/dev/null || echo "N/A"
 — 존재하지 않으면 "N/A — 해당 없음" 명시.
 
 [Step 4] 설치 플러그인 실사용 0건 교차조회 (참고신호 — 2026-08-03 배선, Bash 재실행 금지).
-이 스캔이 이미 ~/.claude.json pluginUsage에서 usage_count=0인 설치 플러그인을 뽑아뒀다:
+이 스캔이 이미 $HOME/.claude.json pluginUsage에서 usage_count=0인 설치 플러그인을 뽑아뒀다:
 ${JSON.stringify(telemetryPluginZero)}
 ⚠️ 이 머신 로컬 집계다(팀 전체·타 환경 미반영). usage_count=0 자체가 삭제 근거는 아니지만
 (마켓플레이스 미설치 삭제는 harness-legacy-scan 소관도 아니다 — 읽기전용), "설치돼 있으나
@@ -504,7 +505,7 @@ Human이 마켓플레이스 설치를 재검토할 근거 자료로만 쓴다. D
 THEATER가 아닌 EFFECTIVE 판정 근거로 사용하라 (실발화 이력 > 정적 코드 추정).
 
 [Step 1] hooks 분석:
-find ~/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do
+find $HOME/.claude/hooks -name "*.sh" 2>/dev/null | while read f; do
   echo "=== $f ==="; head -30 "$f"; echo "..."
 done
 # 판단 기준:
@@ -513,14 +514,14 @@ done
 # - 보안 키워드: injection, redact, secret, permission, override, block
 
 [Step 2] settings.json allowed-tools 분석:
-cat ~/.claude/settings.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps({'permissions': d.get('permissions',{}), 'hooks': list(d.get('hooks',{}).keys())}, indent=2))"
+cat $HOME/.claude/settings.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps({'permissions': d.get('permissions',{}), 'hooks': list(d.get('hooks',{}).keys())}, indent=2))"
 
 [Step 3] MCP 권한 분석:
-cat ~/.claude.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); mcps=d.get('mcpServers',{}); print(json.dumps({k: list(v.keys()) for k,v in mcps.items()}, indent=2))" 2>/dev/null || echo "MCP: 없음"
-cat ~/forge-outputs/.mcp.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" 2>/dev/null || echo "project .mcp.json: 없음"
+cat $HOME/.claude.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); mcps=d.get('mcpServers',{}); print(json.dumps({k: list(v.keys()) for k,v in mcps.items()}, indent=2))" 2>/dev/null || echo "MCP: 없음"
+cat ${FORGE_ROOT:-$HOME/forge}-outputs/.mcp.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))" 2>/dev/null || echo "project .mcp.json: 없음"
 
 [Step 4] constraint-drift 룰 참조:
-Read 도구로 ~/.claude/rules-on-demand/constraint-drift-audit.md 읽기 (스킬/스크립트 호출 X — 룰 문서 참조만).
+Read 도구로 $HOME/.claude/rules-on-demand/constraint-drift-audit.md 읽기 (스킬/스크립트 호출 X — 룰 문서 참조만).
 오버라이드율/bypass 횟수 기준값 확인 후 hooks와 비교.
 
 [Step 5] 판정:
@@ -581,11 +582,11 @@ diet_auto=false + confidence=low로 강등하라 (2026-07-17 실증: 이미 수�
 재실측 없이 diet_auto=true로 세탁돼 액추에이터가 멀쩡한 파일을 수정할 뻔했다).
 
 [분석 대상]
-find ~/.claude/rules ~/.claude/rules-on-demand ~/.claude/skills ~/forge/.claude/agents ~/forge/.claude/commands -name "*.md" -o -name "*.sh" 2>/dev/null | head -80
+find $HOME/.claude/rules $HOME/.claude/rules-on-demand $HOME/.claude/skills ${FORGE_ROOT:-$HOME/forge}/.claude/agents ${FORGE_ROOT:-$HOME/forge}/.claude/commands -name "*.md" -o -name "*.sh" 2>/dev/null | head -80
 
 // root-cause: G-1 (harness-diet-gate-harness-gaps.md 2026-08-03) — "참조 0건/고아" 판정이 SSoT 뿌리 중
 //   forge/.claude/ 한쪽만 grep해서 나온 오판이었다(forge/dev/rules-on-demand/ 등을 누락).
-//   미러(~/.claude/rules-on-demand/)는 두 SSoT 뿌리가 병합돼 보이므로 미러만 보고는 이 누락을 알 수 없다.
+//   미러($HOME/.claude/rules-on-demand/)는 두 SSoT 뿌리가 병합돼 보이므로 미러만 보고는 이 누락을 알 수 없다.
 [참조(고아) 판정 프로토콜 — action=DELETE/MOVE 이고 근거가 "참조 0건"/"고아"/"refs=0"일 때 반드시 준수]
 1. 검색 범위는 미러 1곳이 아니라 SSoT 전체 4개 디렉터리를 모두 포함해야 한다:
    grep -rl "<검색어>" "\${FORGE_ROOT:-$HOME/forge}/.claude" "\${FORGE_ROOT:-$HOME/forge}/dev" \\
@@ -746,13 +747,13 @@ const adjustedItems = refactorPlan.items.map(item => {
 })
 
 // root-cause: G-2 (harness-diet-gate-harness-gaps.md 2026-08-03) — CF-03의 move_target이 미러 경로
-//   (~/.claude/rules-on-demand/_archive/)로 발행됐다. harness-diet의 편집 SSoT 규약(~/forge/.claude/만
+//   ($HOME/.claude/rules-on-demand/_archive/)로 발행됐다. harness-diet의 편집 SSoT 규약(${FORGE_ROOT:-$HOME/forge}/.claude/만
 //   편집)을 그대로 어기는 값이었다. SSoT 뿌리가 forge/.claude 인지 forge/dev 인지 이 시점엔 확신할 수
 //   없으므로(G-1), 표시상 SSoT로 정규화하되 diet_auto는 스스로 false로 강등해 actuator 자동적용을 막는다.
 const normalizeMoveTarget = (mt) => {
   const mirrorPrefix = /^~\/\.claude\//
   if (typeof mt === 'string' && mirrorPrefix.test(mt)) {
-    return { target: mt.replace(mirrorPrefix, '~/forge/.claude/'), wasMirror: true }
+    return { target: mt.replace(mirrorPrefix, '${FORGE_ROOT:-$HOME/forge}/.claude/'), wasMirror: true }
   }
   return { target: mt || '', wasMirror: false }
 }

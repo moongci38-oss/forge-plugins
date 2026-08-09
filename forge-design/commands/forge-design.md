@@ -47,7 +47,20 @@ web 또는 game track을 판별해 `/prd` 또는 `/gdd`로 위임합니다.
 
 ## 분기 로직 (우선순위 순서)
 
-1. **`--track` 인자 최우선**: `--track web` → `/prd` 위임, `--track game` → `/gdd` 위임
+> ⛔ **game 트랙 = 2026-08-07 부터 미지원(위임 대상 부재).** `/gdd` 는 게임 트랙 자산 14건과
+> 함께 `commands-archived/` 로 이관됐다(커밋 `9cd2a811` — 사용자 확정 "한 번도 사용 안 함").
+> 아래 game 분기는 **없는 커맨드를 호출한다** — 그래서 위임하지 않고 `[STOP]` 으로 멈춘다.
+> 조용히 실패하는 것보다 멈추는 것이 낫다.
+> ```
+> [STOP] game 트랙 미지원 — /gdd 가 아카이브 이관됐습니다(2026-08-07).
+>   복원: git mv .claude/commands-archived/gdd.md .claude/commands/gdd.md
+>         git mv .claude/agents-archived/gdd-writer.md .claude/agents/gdd-writer.md
+>         + .claude/plugin-manifest.json 에 forge-game 엔트리 재추가
+>   진행하려면 위 복원 후 재실행하거나, --track web 으로 전환하십시오.
+> ```
+> 재현: `ls .claude/commands/gdd.md` → No such file (2026-08-07 관측)
+
+1. **`--track` 인자 최우선**: `--track web` → `/prd` 위임, `--track game` → **`[STOP]` 위 고지**
 2. **인자 없을 시 — `forge-workspace.json` 감지**:
    ```bash
    # forge-workspace.json = $FORGE_ROOT canonical 단일 파일 (프로젝트별 사본 없음 — health-check.sh/forge-paths.sh/deploy-symlinks.sh와 동일 관례) → CWD 무관 절대경로로 조회
@@ -62,7 +75,7 @@ web 또는 game track을 판별해 `/prd` 또는 `/gdd`로 위임합니다.
    ' | head -1
    ```
    - `"web"` 또는 `"webapp"` → `/prd` 위임
-   - `"game"` → `/gdd` 위임
+   - `"game"` → **`[STOP]` game 트랙 미지원**(위 고지) — 자동 감지로도 `/gdd` 를 부르지 않는다
 3. **둘 다 없을 시 — [STOP] Human 확인 (임의 기본값 절대 금지)**:
    ```
    [STOP] track을 감지할 수 없습니다.
@@ -75,7 +88,7 @@ web 또는 game track을 판별해 `/prd` 또는 `/gdd`로 위임합니다.
 
 ```
 /forge-design --track web  "소셜 로그인 기능"   → /prd 로직 그대로 실행
-/forge-design --track game "전투 시스템 설계"    → /gdd 로직 그대로 실행
+/forge-design --track game "전투 시스템 설계"    → [STOP] 미지원(/gdd 아카이브 이관, 2026-08-07)
 /forge-design "신기능 설명"                      → forge-workspace.json 감지 → 없으면 [STOP]
 ```
 
@@ -103,6 +116,6 @@ track: {web|game}
 ## 위임 후 동작
 
 - `/prd` — PRD 5 요소 기반 웹/앱 기획서 작성. 기존 `/prd` 동작 100% 보존.
-- `/gdd` — GDD 게임 기획서 작성. 기존 `/gdd` 동작 100% 보존.
+- ~~`/gdd`~~ — **2026-08-07 `commands-archived/` 이관으로 위임 불가**(위 분기 로직의 `[STOP]` 참조). 복원 시 이 줄을 되살린다.
 
 track 판별 후 해당 커맨드로 즉시 위임. 추가 변환 없음.

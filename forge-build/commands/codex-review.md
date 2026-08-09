@@ -135,7 +135,7 @@ fi
 # --cr 게이트: cr-mode.sh로 effective mode 결정 (우선순위: --cr 인자 > FORGE_AUTO_CR env > on)
 # codex-review = 단일 Codex 경로 → degrade/off 모두 "Codex 호출 없음"과 동일 → skip
 # --cr on이면 CODEX_REVIEW_AUTO_STAGES=off보다 위에서 이미 빠져나갔으므로 여기서 on = 통과만
-CR_MODE=$(~/forge/shared/scripts/cr-mode.sh "${CR_ARG:-}")
+CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "${CR_ARG:-}")
 if [[ "$CR_MODE" == "off" || "$CR_MODE" == "degrade" ]]; then
   echo "[codex-review] --cr $CR_MODE → Codex 호출 생략"
   exit 0
@@ -170,16 +170,16 @@ fi
 ### Step 2 — Codex 호출
 
 ```bash
-# 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. config model=gpt-5.5. codex 호출 $0.
-# apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 gpt-5.5 API 가격 과금.
+# 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. config model=gpt-5.6-terra. codex 호출 $0.
+# apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 gpt-5.6-terra API 가격 과금.
 # --sol/--terra/--luna (Human opt-in, 2026-07-15): Codex 검수 레그 tier 승격 (model-registry SSoT).
-#   caller 인자 파싱: --sol→CODEX_TIER=max · --terra→high · --luna→low. 미지정 시 기본 gpt-5.5 유지(no-op).
-#   resolve 실패 시 fail-open → gpt-5.5 폴백. 버전무관: 모델 id는 model-registry.json이 소유.
+#   caller 인자 파싱: --sol→CODEX_TIER=max · --terra→high · --luna→low. 미지정 시 기본 gpt-5.6-terra 유지(no-op).
+#   resolve 실패 시 fail-open → gpt-5.6-terra 폴백. 버전무관: 모델 id는 model-registry.json이 소유.
 CODEX_TIER="${CODEX_TIER:-}"
 if [[ -n "$CODEX_TIER" ]]; then
-  MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) || MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+  MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) || MODEL="${CODEX_REVIEW_MODEL:-gpt-5.6-terra}"
 else
-  MODEL="${CODEX_REVIEW_MODEL:-gpt-5.5}"
+  MODEL="${CODEX_REVIEW_MODEL:-gpt-5.6-terra}"
 fi
 EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
@@ -252,7 +252,7 @@ Codex 출력을 다음 스키마로 정규화:
   ],
   "suggestions": ["..."],
   "delta_vs_claude": "agreement|disagreement|extension|null",
-  "model": "gpt-5.5",
+  "model": "gpt-5.6-terra",
   "cost_usd": 0.0,
   "ts": "2026-05-07T05:30:00Z"
 }
@@ -283,7 +283,7 @@ CLAUDE_JSON="${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/claude/${STAGE}/
 CODEX_JSON="${OUT_DIR}/${DATE}-${SLUG}.json"
 
 # 비교 알고리즘 → "agreement" | "disagreement" | "extension" | "null"
-DELTA=$(python3 ~/forge/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
+DELTA=$(python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
 
 # JSON 갱신 (delta_vs_claude 필드 자동 기록)
 jq --arg d "$DELTA" '.delta_vs_claude = $d' "$CODEX_JSON" > "$CODEX_JSON.tmp" \
@@ -427,21 +427,21 @@ fi
 
 ## 비용 통제
 
-**현재 설정 (2026-06-17 전환 완료)**: auth_mode=`chatgpt` (OAuth), model=`gpt-5.5` (`~/.codex/config.toml`) → **ChatGPT Plus 구독 포함, API 과금 $0**. effort로 강도만 차등.
-> apikey 폴백: `~/.codex/auth.json.apikey-backup-20260617` 복원 시 gpt-5.5 API 가격 과금.
+**현재 설정 (2026-06-17 전환 완료)**: auth_mode=`chatgpt` (OAuth), model=`gpt-5.6-terra` (`~/.codex/config.toml`) → **ChatGPT Plus 구독 포함, API 과금 $0**. effort로 강도만 차등.
+> apikey 폴백: `~/.codex/auth.json.apikey-backup-20260617` 복원 시 gpt-5.6-terra API 가격 과금.
 
 | Stage | 모델 | Reasoning Effort | 비용 (OAuth) | 비상 폴백 (apikey 시) |
 |-------|------|------------------|-------------|----------------------|
-| `plan` | gpt-5.5 | medium | **$0.00** | ~$0.01~0.03 |
-| `analysis` | gpt-5.5 | medium | **$0.00** | ~$0.01~0.03 |
-| `code` | gpt-5.5 | medium | **$0.00** | ~$0.02~0.05 |
-| `test` | gpt-5.5 | medium | **$0.00** | ~$0.01~0.03 |
-| `final` | **gpt-5.5** | **high** | **$0.00** | ~$0.10~0.30 |
-| `bugfix` | gpt-5.5 | medium | **$0.00** | ~$0.02~0.05 |
+| `plan` | gpt-5.6-terra | medium | **$0.00** | ~$0.01~0.03 |
+| `analysis` | gpt-5.6-terra | medium | **$0.00** | ~$0.01~0.03 |
+| `code` | gpt-5.6-terra | medium | **$0.00** | ~$0.02~0.05 |
+| `test` | gpt-5.6-terra | medium | **$0.00** | ~$0.01~0.03 |
+| `final` | **gpt-5.6-terra** | **high** | **$0.00** | ~$0.10~0.30 |
+| `bugfix` | gpt-5.6-terra | medium | **$0.00** | ~$0.02~0.05 |
 
 모델 override (env):
 ```
-export CODEX_REVIEW_MODEL="gpt-5.5"          # 현재 기본값
+export CODEX_REVIEW_MODEL="gpt-5.6-terra"          # 현재 기본값
 export CODEX_REVIEW_DAILY_LIMIT=20
 export CODEX_REVIEW_MONTHLY_BUDGET_USD=20
 ```

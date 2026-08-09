@@ -45,7 +45,7 @@ model: sonnet
 
 ```bash
 # 프로젝트 내 저장 시
-bash ~/.claude/scripts/analyze-video.sh \
+bash $HOME/.claude/scripts/analyze-video.sh \
   "{VIDEO_PATH}" \
   "docs/assets/video-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" \
   "{ANALYSIS_FOCUS에 맞는 상세 프롬프트}"
@@ -173,7 +173,7 @@ Unity DoTween Sequence 또는 Timeline으로 구현하기 위한 타이밍 차�
 ## 환경 요구사항
 
 - `GEMINI_API_KEY` 환경변수 설정 필수
-- `~/.claude/scripts/analyze-video.sh` 스크립트 존재
+- `$HOME/.claude/scripts/analyze-video.sh` 스크립트 존재
 - Python 3 (JSON 파싱용)
 - curl (API 호출용)
 

@@ -133,7 +133,7 @@ forge-outputs/docs/qa/YYYY-MM-DD-{spec-name}-api-e2e-report.md
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Extract→pipeline() 4-axis→Report.
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/api-e2e/workflow.js") })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/api-e2e/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

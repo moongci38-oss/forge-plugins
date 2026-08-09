@@ -130,9 +130,9 @@ def redact_actions(actions: list) -> list:
 # ---------------------------------------------------------------------------
 
 def _log_cache_stats(source: str, model: str, cache_read: int, cache_creation: int, raw_input: int, phase: str = "cu-runner") -> None:
-    """AD-105: cache hit 통계를 ~/.claude/cache-stats.jsonl에 기록 (H2 wiring: phase 파라미터 추가)."""
+    """AD-105: cache hit 통계를 $HOME/.claude/cache-stats.jsonl에 기록 (H2 wiring: phase 파라미터 추가)."""
     import subprocess, shutil
-    logger = shutil.which("cache-stats-logger.sh") or os.path.expanduser("~/.claude/scripts/cache-stats-logger.sh")
+    logger = shutil.which("cache-stats-logger.sh") or os.path.expanduser("$HOME/.claude/scripts/cache-stats-logger.sh")
     if os.path.isfile(logger):
         subprocess.run(
             ["/bin/bash", logger, source, model, str(cache_read), str(cache_creation), str(raw_input), phase],
