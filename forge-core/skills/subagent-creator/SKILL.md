@@ -23,14 +23,14 @@ Create specialized AI sub-agents for Claude Code that handle specific tasks with
 1. The agent's **trigger condition** — always state when it auto-runs using "Use proactively after/when..." (e.g., "Use proactively after writing or modifying code")
 2. YAML frontmatter with `name` and `description` (description MUST contain the trigger condition)
 3. System prompt body defining the role
-4. Save path (`.claude/agents/` or `~/.claude/agents/`)
+4. Save path (`.claude/agents/` or `$HOME/.claude/agents/`)
 5. If the agent already exists, describe its current configuration including its trigger conditions
 
 ## Sub-agent File Format
 
 Sub-agents are Markdown files with YAML frontmatter stored in:
 - **Project**: `.claude/agents/` (higher priority)
-- **User**: `~/.claude/agents/` (lower priority)
+- **User**: `$HOME/.claude/agents/` (lower priority)
 
 ### Structure
 
@@ -61,7 +61,7 @@ System prompt goes here. Define role, responsibilities, and behavior.
 ## Creation Workflow
 
 1. **Gather requirements**: Ask about the sub-agent's purpose, when to use it, and required capabilities
-2. **Choose scope**: Project (`.claude/agents/`) or user (`~/.claude/agents/`)
+2. **Choose scope**: Project (`.claude/agents/`) or user (`$HOME/.claude/agents/`)
 3. **Define configuration**: Name, description, tools, model
 4. **Write system prompt**: Clear role, responsibilities, and output format
 5. **Create file**: Write the `.md` file to the appropriate location

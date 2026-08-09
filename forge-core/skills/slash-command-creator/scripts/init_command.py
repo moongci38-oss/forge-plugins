@@ -7,7 +7,7 @@ Usage:
 
 Examples:
     init_command.py review                    # Creates .claude/commands/review.md
-    init_command.py deploy --scope personal   # Creates ~/.claude/commands/deploy.md
+    init_command.py deploy --scope personal   # Creates $HOME/.claude/commands/deploy.md
     init_command.py test --path ./my-commands # Creates ./my-commands/test.md
 """
 
@@ -168,7 +168,7 @@ Examples:
       Creates .claude/commands/review.md (project command)
 
   %(prog)s deploy --scope personal
-      Creates ~/.claude/commands/deploy.md (personal command)
+      Creates $HOME/.claude/commands/deploy.md (personal command)
 
   %(prog)s component --namespace frontend
       Creates .claude/commands/frontend/component.md
@@ -185,7 +185,7 @@ Command naming:
 
     parser.add_argument('command_name', help='Name of the slash command (without .md)')
     parser.add_argument('--scope', choices=['project', 'personal'], default='project',
-                        help='Command scope: project (.claude/commands) or personal (~/.claude/commands)')
+                        help='Command scope: project (.claude/commands) or personal ($HOME/.claude/commands)')
     parser.add_argument('--path', dest='custom_path', help='Custom path for command file')
     parser.add_argument('--namespace', help='Subdirectory namespace (e.g., frontend, backend)')
     parser.add_argument('--description', help='Command description')

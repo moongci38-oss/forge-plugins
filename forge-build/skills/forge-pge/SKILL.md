@@ -96,7 +96,7 @@ Evaluator가 사용할 평가 기준을 Generator 실행 **전**에 명시한다
 PGE Workflow 시작 시 Planner가 다음 contract를 작성. Generator·Evaluator 양쪽이 참조.
 
 ```yaml
-sprint_contract:
+sprint키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:
   scope: "이번 반복에서 다룰 것 (구체적 기능 / 파일 / 출력)"
   out_of_scope: "명시적 제외 (다음 반복에서 다룸 또는 영구 제외)"
   done_criteria: "Evaluator가 PASS 판정하는 객관적 조건"
@@ -120,8 +120,8 @@ sprint_contract:
 1. `{project_root}/.claude/reference/` 존재 확인 → 태스크 유형에 맞는 파일 Read (하단 Reference 로딩 표 참조)
 1b. **과거 PGE 실패·버그 패턴 로드 (compounding — 필수)**:
    ```bash
-   LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load pge-failure 2>/dev/null
-   LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
+   LEARN_BY=pge bash $HOME/.claude/scripts/learnings.sh load pge-failure 2>/dev/null
+   LEARN_BY=pge bash $HOME/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
    ```
    → `pge-failure` 항목의 `apply` = "이 방식은 이전 PGE에서 FAIL했음 — 피하라". 실행 계획에 반영. (access.log 자동 기록.)
 2. 작업 요구사항 분석
@@ -163,7 +163,7 @@ Planner 산출 직후 Codex 2차 게이트 실행. PGE_SPEC.md의 요구 명확�
 - **결과**: `forge-outputs/docs/reviews/plan/{date}-forge-pge-spec-{slug}.{md,json}`
 - **PASS/WARN** → Phase 2 진입
 - **FAIL** → Planner 재실행 (Codex issues[]를 PGE_SPEC.md `## 이전 시도 실패 이력` 섹션에 추가하여 같은 갭 반복 방지)
-- **비용**: ChatGPT OAuth `gpt-5.5` = $0.00. API key + `gpt-5-mini` = ~$0.02
+- **비용**: ChatGPT OAuth `gpt-5.6-terra` = $0.00. API key + `gpt-5-mini` = ~$0.02
 
 ### Phase 2: Generator (메인 컨텍스트에서 직접 실행)
 
@@ -395,7 +395,7 @@ Advisor 응답 기준:
 PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 
 사이클 진입 전 (bash, 메인 컨텍스트):
-  used=$(bash ${FORGE_ROOT:-~/forge}/shared/scripts/loop-budget.sh "${PGE_CALL_CAP:-600}")
+  used=$(bash ${FORGE_ROOT:-${FORGE_ROOT:-$HOME/forge}}/shared/scripts/loop-budget.sh "${PGE_CALL_CAP:-600}")
   rc=$?
   if [ "$rc" -ne 0 ]; then   # exit 1 = over cap (loop-budget.sh가 cap 비교)
     "[STOP] PGE_CALL_CAP={cap} 도달 (tool-call ${used}). 사이클 {N} 시작 취소."
@@ -510,7 +510,7 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 |------------|---------|
 | **Unity 클라이언트** | `key-file-map.md`, `code-snippets.md`, `pre-modification-analysis-detail.md` |
 | **서버 / 웹 / 앱** | `codebase-analysis.md` (존재 시), `key-file-map.md`, `code-snippets.md`, `golden-rules.md` |
-| **웹 / 앱 UI** | `~/forge/shared/design-tokens/design-rules.md` |
+| **웹 / 앱 UI** | `${FORGE_ROOT:-$HOME/forge}/shared/design-tokens/design-rules.md` |
 | 프로토콜 / 네트워크 | `key-file-map.md`, `protocol-ranges.md`, `tech-stack.md` |
 | 빌드 / 배포 | `build-commands.md`, `dependency-order.md` |
 
@@ -553,13 +553,13 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
 - **target**: {산출물 경로} — Evaluator subagent 결과(PGE Phase 4 종료) 직후
-- **case_id**: `EC-forge-pge-{N}` · **eval_cases**: `~/.claude/skills/forge-pge/eval_cases.jsonl`
+- **case_id**: `EC-forge-pge-{N}` · **eval_cases**: `$HOME/.claude/skills/forge-pge/eval_cases.jsonl`
 
 ## Workflow 통합 (계획서 P1)
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Plan→Generate→Evaluate (Evaluator에 plan 미전달 격리).
 
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-pge/workflow.js") })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/forge-pge/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

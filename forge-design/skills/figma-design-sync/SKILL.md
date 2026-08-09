@@ -24,12 +24,12 @@ claude.ai/design 결과물이 Figma 원본과 안 맞는 문제 해결.
 ## Workflow 통합 (계획서 P2-7)
 Figma MCP → rate limit 자동 폴백: Codex Vision(즉시) → Gemini Vision(2차). 폴백 source 명시.
 패턴: Fetch(URL파싱+MCP병렬3종) → Fallback(rate limit 시 Codex→Gemini 자동) → Map(토큰매핑+저장) → Update(PROMPTS갱신+브랜드룰).
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/figma-design-sync/workflow.js"), args: { figmaUrl, docPath, brandRules, crMode } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/figma-design-sync/workflow.js"), args: { figmaUrl, docPath, brandRules, crMode } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Step 1~9 직접 실행 방식 fallback.
 
 ### `--cr` 옵션 (crMode)
 
-Figma MCP rate limit 발생 시 Vision 폴백에서 Codex 사용 여부를 제어한다. caller는 `~/forge/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
+Figma MCP rate limit 발생 시 Vision 폴백에서 Codex 사용 여부를 제어한다. caller는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
 
 | 값 | 동작 |
 |----|------|
@@ -60,7 +60,7 @@ Figma MCP rate limit 발생 시 Vision 폴백에서 Codex 사용 여부를 제�
 ### Step 1: URL 파싱
 
 ```bash
-python3 ~/.claude/skills/figma-design-sync/scripts/parse_figma_url.py "<URL>"
+python3 $HOME/.claude/skills/figma-design-sync/scripts/parse_figma_url.py "<URL>"
 # 출력: {"fileKey": "...", "nodeId": "...", "branchKey": null}
 ```
 
@@ -206,7 +206,7 @@ mkdir -p "$TARGET"
 
 ## 참조 파일
 
-- `~/.claude/rules-on-demand/claude-design-workflow.md` — claude.ai/design 사용 가이드
+- `$HOME/.claude/rules-on-demand/claude-design-workflow.md` — claude.ai/design 사용 가이드
 - 현 산출물 예시: `starbeginz-origin/docs/plans/operations-tool/CLAUDE-DESIGN-PROMPTS.md`
 - references/fallback-vision.md — rate limit 폴백 흐름
 - references/token-mapping.md — Figma → CSS/Tailwind 토큰 매핑

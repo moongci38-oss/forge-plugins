@@ -20,7 +20,7 @@ model: sonnet
 ## Workflow 통합 (계획서 P2-5)
 pipeline(파일 병렬) + 뮤테이션 점수 집계. SDD Phase 3 완료 시 자동 트리거.
 패턴: Discover(프레임워크 감지+대상 파일 탐색) → pipeline(파일, 분석→생성→뮤테이션강화) → Report(avgMutation + 판정).
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/unit-test-gen/workflow.js"), args: { targetPath, framework } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/unit-test-gen/workflow.js"), args: { targetPath, framework } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 단일 파일 직접 생성 방식 fallback.
 
 ## 품질 지표: 커버리지 vs 뮤테이션 점수

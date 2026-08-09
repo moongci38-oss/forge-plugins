@@ -8,10 +8,10 @@ model: sonnet
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
 > (2026-08-04 관측).
 
 
@@ -41,7 +41,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
+| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `.claude/`, `docs/` 등) |
 
 ## 실행 흐름
@@ -136,7 +136,7 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `ls ~/.claude/rules/ ~/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
+1. `ls $HOME/.claude/rules/ $HOME/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
 2. 각 파일의 frontmatter `name:` + 첫 번째 헤딩 추출 → 목적/주제 매핑
 3. 유사 주제 파일 쌍 탐지 (예: plan-* 3개 / 같은 경로를 서술하는 룰 2개+)
 4. 중복률 = (중복 파일 쌍 수 × 2 / 전체 규칙 파일 수) × 100

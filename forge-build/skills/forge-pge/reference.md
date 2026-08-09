@@ -5,7 +5,7 @@
 ## §Sprint Contract 예시
 
 ```yaml
-sprint_contract:
+sprint키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:
   scope: "결제 API /payment/charge 엔드포인트 + 단위 테스트"
   out_of_scope: "환불 API, 결제 이력 조회 (별도 sprint)"
   done_criteria: "단위 테스트 PASS + Stripe sandbox 1회 전송 성공 응답"

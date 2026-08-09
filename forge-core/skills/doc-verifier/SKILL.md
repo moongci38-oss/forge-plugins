@@ -104,4 +104,4 @@ PASS 판정 직전 반전 체크:
 ## 참조
 
 - 문서 생성: `/doc-writer`
-- spec-compliance-checker (FR 레벨 검증): `~/forge/.claude/skills/spec-compliance-checker/SKILL.md`
+- spec-compliance-checker (FR 레벨 검증): `${FORGE_ROOT:-$HOME/forge}/.claude/skills/spec-compliance-checker/SKILL.md`

@@ -22,7 +22,7 @@ Create custom slash commands for Claude Code to automate frequently-used prompts
 **Every response MUST include the complete command file in a markdown code block FIRST**, with:
 1. YAML frontmatter (`description`, `allowed-tools` if needed)
 2. Full prompt/instruction body (the actual prompt Claude will receive)
-3. Save path (`.claude/commands/` or `~/.claude/commands/`)
+3. Save path (`.claude/commands/` or `$HOME/.claude/commands/`)
 4. Example usage showing how to invoke the command
 
 Output the complete file content first, then offer to write it.
@@ -53,13 +53,13 @@ $ARGUMENTS
 | Scope    | Path                    | Shown as           |
 |----------|-------------------------|-------------------|
 | Project  | `.claude/commands/`     | (project)         |
-| Personal | `~/.claude/commands/`   | (user)            |
+| Personal | `$HOME/.claude/commands/`   | (user)            |
 
 ### Namespacing
 
 Organize commands in subdirectories:
 - `.claude/commands/frontend/component.md` → `/component` shows "(project:frontend)"
-- `~/.claude/commands/backend/api.md` → `/api` shows "(user:backend)"
+- `$HOME/.claude/commands/backend/api.md` → `/api` shows "(user:backend)"
 
 ## Features
 

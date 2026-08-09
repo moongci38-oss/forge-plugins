@@ -8,7 +8,9 @@ group: research
 
 > **MCP Fallback (v4)**: brave-search 미설정 시 Tavily/Exa 만으로 진행. Tavily/Exa 모두 미설정 시 WebSearch (내장) fallback. 3 MCP 모두 + WebSearch 실패 시 → 신호 수집 FAIL → 사용자 알림 + 수동 Kill 결정.
 
-# /find-item — Phase 1 비즈니스 아이템 검증 게이트 v3
+# /forge-find-item — Phase 1 비즈니스 아이템 검증 게이트 v3
+
+> **참고 (2026-08-07)**: 구 별칭 `/find-item`은 `commands-archived/`로 이관됐다(I3). 정본 진입은 `/forge-find-item`.
 
 후보 1줄 → Reject 룰 4 사전 필터 → 카테고리 식별 → 5 신호 자동 수집 → 1페이지 markdown → Human 승인 → Obsidian 적재.
 
@@ -20,7 +22,7 @@ group: research
 | 신호 수집·시장 탐색(web/grep) | **Haiku** | `Agent(model:"haiku")` subagent (50p+ 장문 분석은 기존 Gemini 라우팅 유지) |
 | GO/NO-GO 자문 | **Opus** | `advisor-strategist` |
 
-근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
+근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
 
 **방법론 출처** (forge-outputs RAG): Mike Hill 10단계 / Mom Test / Lean Validation 4주 / 10 후보 v2 Reject·Priority 룰
 
@@ -29,7 +31,7 @@ group: research
 ## 입력
 
 ```
-/find-item "1인 개발자용 업무 자동화 봇"
+/forge-find-item "1인 개발자용 업무 자동화 봇"
 ```
 
 ## 동작 (메인 컨텍스트, subagent X)
@@ -216,7 +218,7 @@ Reject 4가 다루지 않는 두 축만 확인한다(나머지 4문항 = Reject 
 
 ### Step 4.5 — 반증 탐색 counter-case (deep-research 메커니즘 c)
 
-> 참조: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색 — "핵심 주장마다 반대증거 1회+ 실행, Confirmation Loop(반대증거 미탐색) 회피 의무"
+> 참조: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색 — "핵심 주장마다 반대증거 1회+ 실행, Confirmation Loop(반대증거 미탐색) 회피 의무"
 
 5 신호 수집 완료 후, `pass` 판정 전 필수 실행. 동일 에이전트 자가채점 편향을 방지하기 위해 **후보에 불리한 증거를 능동 탐색**한다.
 
@@ -270,7 +272,7 @@ Reject 4가 다루지 않는 두 축만 확인한다(나머지 4문항 = Reject 
 
 ### Step 5 — `validated-item.md` 1페이지 작성
 
-템플릿: `~/forge/.claude/templates/validated-item.md` 읽고 채워서 저장.
+템플릿: `${FORGE_ROOT:-$HOME/forge}/.claude/templates/validated-item.md` 읽고 채워서 저장.
 
 필수 섹션 (v3):
 - H1 제목 + Karpathy `> [!info]` callout
@@ -397,7 +399,7 @@ forge-outputs/01-research/items/{slug}/
 
 ```
 1. 아이디어 한 줄 떠올림
-2. /find-item "한 줄 입력"
+2. /forge-find-item "한 줄 입력"
 3. 5-15분 대기 (Reject 4 + 5 신호 자동 수집)
 4. 1페이지 표 검토 → Reject 4 ✅ + 5 신호 ✅
 5. ALL PASS → Phase 2 + Obsidian vault 적재

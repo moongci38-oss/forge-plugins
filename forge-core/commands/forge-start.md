@@ -37,7 +37,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" "$(pwd)"
 
 그리고 이 사실을 갭 리포트 채널에 1줄 기록한다(계약 ⑥(d)):
 ```bash
-mkdir -p "${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines-2/reviews"
+mkdir -p "${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/harness-gaps"
 ```
 → 세션 종료 시 harness-gaps 리포트에 "회수 실패 1건" 항목으로 편입.
 

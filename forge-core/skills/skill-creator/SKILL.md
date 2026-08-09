@@ -325,7 +325,7 @@ Pocock 4축(트리거·구조·유도·가지치기) 결정론 검사다. **CRIT
 #### 검증
 
 ```bash
-python3 ~/forge/shared/scripts/validate-evals.py structure
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/validate-evals.py structure
 ```
 
 PASS 확인 후 Step 5 진행.
@@ -429,7 +429,7 @@ output: (필수) 스킬이 생성하는 출력물 — 한 줄 설명
      - 명시적 STOP / FAIL JSON
      - 사용자 재시도 (`/skill` 재호출 within 5min)
      - skill 내부 에러 stdout
-   - **분모**: 최근 30일 총 호출 횟수 (settings.json hooks 메트릭 또는 `~/.claude/metrics/{date}.jsonl` 누적)
+   - **분모**: 최근 30일 총 호출 횟수 (settings.json hooks 메트릭 또는 `$HOME/.claude/metrics/{date}.jsonl` 누적)
    - **임계값**: 분자/분모 > 0.20
    - **데이터 소스**: P2-3 session-end-metrics hook의 metrics jsonl
    - **분모 < 10**: 측정 불가 → "사용 빈도 부족" 별도 라벨 (#2 미사용 트리거 우선 적용)

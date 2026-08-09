@@ -39,7 +39,7 @@ SKILL.md §Step 4.5(evals.json 생성) 및 §신규 스킬 생성 시 eval-rubri
 ### 절차
 1. 산출물 저장 후: `/eval-rubric --target {경로}`
 2. verdict + 4축 점수 + rationale 수신
-3. eval_cases.jsonl append (helper: `~/.claude/skills/eval-rubric/scripts/eval-cases-append.py`)
+3. eval_cases.jsonl append (helper: `$HOME/.claude/skills/eval-rubric/scripts/eval-cases-append.py`)
    - case_id: EC-{skill}-{N} auto-increment
    - split: hash 결정적 (sample 80% / holdout 20%)
    - dedupe: sha256(skill+input)

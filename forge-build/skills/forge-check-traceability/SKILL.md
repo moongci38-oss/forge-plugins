@@ -7,7 +7,7 @@ argument-hint: "[--spec <path>] [--plan <path>] [--pr <number>]"
 
 # /forge-check-traceability
 
-**절차 SSoT = `~/forge/.claude/commands/forge-check-traceability.md` → `spec-compliance-checker` subagent.**
+**절차 SSoT = `${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-check-traceability.md` → `spec-compliance-checker` subagent.**
 이 파일은 동명 커맨드/스킬 우선순위 미규정 문제(Claude Code 공식 미규정)로 인한
 이중 판정 체계 충돌을 막기 위한 얇은 위임 포인터다. 이 스킬이 호출되어도
 반드시 위 커맨드 절차를 그대로 따른다 — 독자 판정 로직을 두지 않는다.
@@ -36,10 +36,10 @@ argument-hint: "[--spec <path>] [--plan <path>] [--pr <number>]"
 ## Override 경로
 
 FR 미해결 항목의 override 선언·재검증 절차는
-`~/forge/.claude/commands/forge-check-traceability.md §Override 경로` 및
-`~/.claude/rules-on-demand/verification-overrides.md` 참조.
+`${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-check-traceability.md §Override 경로` 및
+`$HOME/.claude/rules-on-demand/verification-overrides.md` 참조.
 
 ## 관련 규칙
 
-- scope-drift audit → `~/forge/.claude/commands/forge-pr.md §Scope-Drift Audit`
-- verification routing → `~/forge/.claude/rules-on-demand/verification-routing.md`
+- scope-drift audit → `${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-pr.md §Scope-Drift Audit`
+- verification routing → `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/verification-routing.md`

@@ -12,7 +12,7 @@ group: plan
 
 P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 **P3 상세 기획 패키지**를 작성하는 단일 진입 커맨드.
 
-> 절차 정본 = `~/forge/pipeline.md` "## P3: Dev Plan+Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 3 게이트). 본 커맨드는 그 절차의 실행 래퍼.
+> 절차 정본 = `${FORGE_ROOT:-$HOME/forge}/pipeline.md` "## P3: Dev Plan+Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 3 게이트). 본 커맨드는 그 절차의 실행 래퍼.
 
 ## 모델 라우팅 (2026-07-04)
 
@@ -23,7 +23,7 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 | 기술 검토(7축 ADR) | (기존) | `cto-advisor` 에이전트/스킬 |
 | 비기술 전략 자문 | **Opus** | `advisor-strategist` |
 
-근거: `~/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
+근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
 
 ## 사용법
 
@@ -103,7 +103,14 @@ Step 1 실행 전 기존 도메인 폴더 유무 확인:
 
 > **➕ M8 mid-session 재트리거 (freshness check, WARN-first, fail-open)**: 위 pull-only 갭 보완 — forge-plan 재호출 없이도 **같은 세션 내에서** Step 2~6 각 진입 직전, P2 기획서 mtime을 직전 생성된 P3 산출물(Step 1 `_registry.yaml` 또는 도메인 폴더) mtime과 비교:
 > ```
-> P2_MTIME=$(stat -c %Y "{project-root}/s3-prd.md" 2>/dev/null || stat -c %Y "{project-root}/s3-gdd.md" 2>/dev/null)
+> # ⚠️ 리터럴 파일명 금지 — 쓰는 쪽(`prd.md:34,52`)은 `YYYY-MM-DD-s3-prd.md` 로 **날짜 접두**를 붙인다.
+> # 구 표기 `"{project-root}/s3-prd.md"` 는 실존 파일과 안 맞아 P2_MTIME 이 **항상 공백** →
+> # 아래 `[ -n "$P2_MTIME" ]` 가 늘 실패 → fail-open 으로 조용히 통과 = 이 WARN 이 **한 번도
+> # 발화할 수 없었다**(2026-08-07 실측: `ls {FO}/02-product/arborAI/s3-prd.md` → 부재,
+> # `2026-07-27-s3-prd.md` 존재). 같은 파일 `:58,138`(readiness-gate)과
+> # `forge-gate-check.sh:216` 은 이미 글롭을 쓴다 — 스크립트는 맞고 이 줄만 틀렸다.
+> P2_FILE=$(ls -t "{project-root}"/*s3-prd*.md "{project-root}"/*s3-gdd*.md 2>/dev/null | head -1)
+> P2_MTIME=$(stat -c %Y "$P2_FILE" 2>/dev/null)
 > P3_MTIME=$(stat -c %Y "{domain}/_registry.yaml" 2>/dev/null)
 > [ -n "$P2_MTIME" ] && [ -n "$P3_MTIME" ] && [ "$P2_MTIME" -gt "$P3_MTIME" ] && echo "WARN: P2 기획서가 세션 중 변경됨 — 현재 Step 진행 전 영향받는 Step 재실행 권고 (M8 mid-session stale)"
 > ```
@@ -129,7 +136,7 @@ features:
     stack: next.js      # 이 feature의 주 기술 스택
     mockup_refs:        # 연관 목업 파일 (key: 화면ID, value: 경로)
       {page-id}: s3-mockup/{page-id}.png
-    api_contract:       # 핵심 API 계약 (EP + 응답 1줄)
+    api키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:       # 핵심 API 계약 (EP + 응답 1줄)
       - "POST /endpoint → 201 {resultId}"
     aggregate: null     # DDD 집합체 (P3 기능명세 DDD 섹션 작성 후 채움 — 2차)
 ```
@@ -307,7 +314,7 @@ domains:
 
 ### Step 5 — 게이트 판정 (Check 4 — 모두 충족. 리포트 = 패턴 매칭 중 mtime 최신 1개 `ls -t {dir}/{pattern} | head -1`. 매칭 0개 = FAIL)
 <!-- mtime 기준 선정 이유: `-r2`/`-r3` 재시도 접미사는 사전순 정렬을 깨뜨림 (`-` 0x2D < `.` 0x2E → `...-r2.md`가 `....md`보다 사전순 앞섬), 따라서 `sort | tail -1`은 원본(stale) 리포트를 오선택할 수 있음 -->
-1. `bash ~/.claude/scripts/forge-gate-check.sh {project} S4` → PASS (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
+1. `bash $HOME/.claude/scripts/forge-gate-check.sh {project} S4` → PASS (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
 2. `wave2-verification-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Missing: 0$'` && `grep '^Critical: 0$'`
 3. `wave3-cto-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Critical: 0$'`
 4. `ui-check-*.json` mtime 최신: `jq '.verdict == "PASS" and .critical_count == 0'` == true
@@ -351,7 +358,11 @@ Step 5 FAIL 시 재작성 루프 진입 전 수렴 상태 체크:
    이 스텝은 advisory(exit 0) — 기존 게이트 차단 불가.
 3. `gate-log.md` 업데이트 (s3 → s4 전환). `_STATUS.md` `stage: P3_DONE` + `수렴 상태 status: CONVERGED` + `stage: P4_READY` 기록.
 4. 게이트 통과 시점 1 커밋 (`chore(s4): check 3 pass — {slug}`).
-5. **P4 진입** (/forge-onboard P3 packaging checklist 흡수 완료 → `/forge` 또는 `/spec-write`로 P4 시작).
+5. **P4 진입** (/forge-onboard P3 packaging checklist 흡수 완료 → `/forge` 또는 **`/forge-spec`**로 P4 시작).
+   ⚠️ 구 표기 `/spec-write` 는 **쓰지 않는다** — `commands/spec-write.md` 는 `[DEPRECATED alias]` 이고
+   frontmatter 에 `disable-model-invocation: true` 가 걸려 있어(`:2,5`, 2026-08-07 실측) **모델이
+   자동 호출할 수 없다**. 사람이 치면 동작하지만 agent 체인에서는 이 경로로 진입하면 실패한다.
+   정본은 `/forge-spec`.
 
 ## Iron Laws
 
@@ -374,4 +385,4 @@ Claude Design(primary), Stitch MCP(fallback), `/cto-advisor`(스킬 — ADR), `c
 
 ## forge-sync 배포 대상
 
-이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-plan.md`에 자동 배포된다.
+이 커맨드는 `forge-sync` 실행 시 `$HOME/.claude/commands/forge-plan.md`에 자동 배포된다.

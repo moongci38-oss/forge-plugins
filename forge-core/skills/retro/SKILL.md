@@ -18,7 +18,7 @@ description: "Use when user says /retro for sprint/session retrospective. Went-w
 ## Step 1 — /forge-end 선행 확인
 
 세션 회고(`/retro`) 실행 전:
-- handover 파일 존재 여부 확인: `ls ~/forge-outputs/handover/` 최신본
+- handover 파일 존재 여부 확인: `ls ${FORGE_ROOT:-$HOME/forge}-outputs/handover/` 최신본
 - 없으면 먼저 제안: "세션 정리(/forge-end)가 먼저 필요합니다. 진행할까요?"
 - handover 있으면 → Step 2 진행 (요약 참조)
 
@@ -71,7 +71,7 @@ Went Wrong → review-pattern 또는 pge-failure
 
 추출 명령 (1건 이상 있을 때):
 ```bash
-bash ~/.claude/scripts/learnings.sh append \
+bash $HOME/.claude/scripts/learnings.sh append \
   --category review-pattern \
   --summary "{핵심 교훈 1줄}" \
   --source "{session slug 또는 sprint 이름}"
@@ -83,7 +83,7 @@ bash ~/.claude/scripts/learnings.sh append \
 
 스프린트 회고는 forge-outputs에 저장:
 ```bash
-# 경로: ~/forge-outputs/docs/retro/YYYY-MM-DD-{sprint-name}-retro.md
+# 경로: ${FORGE_ROOT:-$HOME/forge}-outputs/docs/retro/YYYY-MM-DD-{sprint-name}-retro.md
 ```
 
 세션 회고는 handover 파일의 ## Retrospective 섹션으로 append.

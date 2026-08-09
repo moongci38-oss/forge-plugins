@@ -22,7 +22,7 @@ argument-hint: "[--dry-run] [--queue <path-to-diet-queue.json>]"
 
 ## 의도 (§2 전문)
 
-harness-legacy-scan 결과를 실제 SSoT(`~/forge/.claude/`)에 적용하는 actuator.  
+harness-legacy-scan 결과를 실제 SSoT(`${FORGE_ROOT:-$HOME/forge}/.claude/`)에 적용하는 actuator.  
 안전 우선: diet_auto=true && risk=low만 자동. medium/high는 목록 반환 후 Human 승인.
 
 > **판별 기준 reference**: `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/skill-writing-principles.md`
@@ -51,7 +51,7 @@ harness-legacy-scan 결과를 실제 SSoT(`~/forge/.claude/`)에 적용하는 ac
 
 ### 편집 SSoT
 
-편집 대상 = `~/forge/.claude/` (SSoT). `~/.claude/` 직접 편집은 block-forge-mirror-edit hook exit2로 차단됨.
+편집 대상 = `${FORGE_ROOT:-$HOME/forge}/.claude/` (SSoT). `$HOME/.claude/` 직접 편집은 block-forge-mirror-edit hook exit2로 차단됨.
 
 ### archive 경로
 
@@ -61,10 +61,10 @@ harness-legacy-scan 결과를 실제 SSoT(`~/forge/.claude/`)에 적용하는 ac
 
 ### forge-sync 삭제 미전파 FIX (CRITICAL)
 
-스킬 archive(이동) 시 SSoT 폴더(`~/forge/.claude/skills/{name}/`) 이동 후  
-**`~/.claude/skills/{name}` mirror copy도 python3 shutil.rmtree로 반드시 제거**.  
+스킬 archive(이동) 시 SSoT 폴더(`${FORGE_ROOT:-$HOME/forge}/.claude/skills/{name}/`) 이동 후  
+**`$HOME/.claude/skills/{name}` mirror copy도 python3 shutil.rmtree로 반드시 제거**.  
 안 하면 호출 가능한 orphan mirror가 잔존해 삭제가 반영되지 않음.  
-rollback 시: archive에서 복원 후 `node ~/.claude/scripts/forge-sync.mjs sync` 실행.
+rollback 시: archive에서 복원 후 `node $HOME/.claude/scripts/forge-sync.mjs sync` 실행.
 
 ### SAFETY carve-out
 
@@ -93,7 +93,7 @@ effectiveness=SAFETY-DETERRENT 또는 보안키워드(injection/redact/secret/pe
 - orphan 에이전트 스텁 방지
 
 **마커 파일 (.forge-profile)**:
-- `~/.claude/` 또는 프로젝트 `.claude/`에 프로파일 마커 저장
+- `$HOME/.claude/` 또는 프로젝트 `.claude/`에 프로파일 마커 저장
 - 마커 우선, 없으면 `full` 기본
 
 ### install-profile 선택 레이어 (WI-17)
@@ -112,17 +112,17 @@ harness-diet 호출 시 `--profile` 인자로 적용 스킬 표면을 지정한�
 |---------|-------|----------|--------|---------|
 | 핵심 | `core` | forge-implement · forge-fix · qa · forge-pr · spec-write · forge-pge · forge-checkpoint · forge-end | ~8 | 집중 구현 |
 | 확장 | `standard` | 핵심 + cr-* · investigate · harness-diet · healer · doc-writer | ~16 | 일반 개발 |
-| 전체 | `full` | `~/.claude/skills/` 전체 | 현재 78+ | 기본값 |
+| 전체 | `full` | `$HOME/.claude/skills/` 전체 | 현재 78+ | 기본값 |
 
 **환경 감지 auto-profile** (프로파일 명시 없을 때):
 1. 프로젝트 `.claude/.forge-profile` 존재 → 파일 값 사용 (로컬 우선)
-2. `~/.claude/.forge-profile` 존재 → 파일 값 사용 (전역)
+2. `$HOME/.claude/.forge-profile` 존재 → 파일 값 사용 (전역)
 3. 마커 없고 스킬 수 ≥ 60 → `standard` 권장 안내 출력 (자동 변경 X)
 4. 마커 없고 스킬 수 < 60 → `full` 유지
 
 **마커 설정**:
 ```bash
-echo "standard" > ~/.claude/.forge-profile    # 전역 고정
+echo "standard" > $HOME/.claude/.forge-profile    # 전역 고정
 echo "core" > .claude/.forge-profile          # 프로젝트 오버라이드
 ```
 
@@ -131,7 +131,7 @@ echo "core" > .claude/.forge-profile          # 프로젝트 오버라이드
 ### 구현 트리거
 
 - Claude Max extra usage 실측 증가 추세 지속 시
-- `~/.claude/skills/` 스킬 수 100+ 초과 시
+- `$HOME/.claude/skills/` 스킬 수 100+ 초과 시
 - `context-engineering.md` §컨텍스트 토큰 관리 임계치 반복 도달 시
 
 ### 작업 경로

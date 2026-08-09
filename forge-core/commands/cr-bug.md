@@ -24,7 +24,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage bugfix --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.5 (medium effort) — ChatGPT OAuth 기본
+- 모델: gpt-5.6-terra (medium effort) — ChatGPT OAuth 기본
 - Blocking: NO (수동 호출, 결과 검토 후 사용자 판단)
 - 결과: `forge-outputs/docs/reviews/bugfix/{date}-{slug}.{md,json}`
 
@@ -43,7 +43,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.02~0.05
+$0.00 (ChatGPT OAuth, gpt-5.6-terra) / 비상 폴백(apikey 시): ~$0.02~0.05
 
 ## 관련
 

@@ -24,7 +24,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage final --target "$TARGET" --effort high --blocking ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.5 (HIGH effort, 적대적) — ChatGPT OAuth 기본
+- 모델: gpt-5.6-terra (HIGH effort, 적대적) — ChatGPT OAuth 기본
 - Blocking: YES (FAIL → PR 차단)
 - 결과: `forge-outputs/docs/reviews/final/{date}-{slug}.{md,json}`
 
@@ -40,7 +40,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.10~0.30 (high effort). 단순 변경은 자동 스킵.
+$0.00 (ChatGPT OAuth, gpt-5.6-terra) / 비상 폴백(apikey 시): ~$0.10~0.30 (high effort). 단순 변경은 자동 스킵.
 
 ## Completeness Critic (P-6)
 
@@ -50,4 +50,4 @@ $0.00 (ChatGPT OAuth, gpt-5.5) / 비상 폴백(apikey 시): ~$0.10~0.30 (high ef
 
 - 본명령: `/codex-review --stage final --effort high --blocking`
 - Forge Dev P7 Check 7-X에서 자동 호출
-- 정책: `~/forge/dev/rules/codex-review-policy.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`

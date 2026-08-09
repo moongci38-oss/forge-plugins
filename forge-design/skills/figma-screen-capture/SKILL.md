@@ -30,7 +30,7 @@ Figma node-id 화이트리스트(CSV 또는 매핑표)와 함께 "화면정의"/
 
 - **화이트리스트만** — 전수 열거 X. MCP 호출 ≤60.
 - **구조정의만** — 코드 추출 X (개발 단계 React 재구현).
-- **미러 주의**: `~/.claude/skills/` 직접 편집 차단. SSoT = `~/forge/.claude/skills/`. 작성 후 `node ~/.claude/scripts/forge-sync.mjs sync` 필수.
+- **미러 주의**: `$HOME/.claude/skills/` 직접 편집 차단. SSoT = `${FORGE_ROOT:-$HOME/forge}/.claude/skills/`. 작성 후 `node $HOME/.claude/scripts/forge-sync.mjs sync` 필수.
 - node-id MCP 형식: `:` → `-` 변환 (예: `40010405:23928` → `40010405-23928`).
 
 ## 핵심 로직 (Claude 실행 순서)
@@ -51,7 +51,7 @@ Figma node-id 화이트리스트(CSV 또는 매핑표)와 함께 "화면정의"/
 
 ```bash
 # ① manifest 초기화 (node-id 화이트리스트 → skeleton)
-python3 ~/.claude/skills/figma-screen-capture/scripts/figma_capture.py init \
+python3 $HOME/.claude/skills/figma-screen-capture/scripts/figma_capture.py init \
   --whitelist "40010405:23928,40010405:24045" \
   --names "로그인_크리에이터,플랫폼미선택" \
   --sections "로그인,로그인" \
@@ -60,15 +60,15 @@ python3 ~/.claude/skills/figma-screen-capture/scripts/figma_capture.py init \
   --page-node "63801:6816"
 
 # ⑦ 화면정의.md 생성
-python3 ~/.claude/skills/figma-screen-capture/scripts/figma_capture.py gen-md \
+python3 $HOME/.claude/skills/figma-screen-capture/scripts/figma_capture.py gen-md \
   --manifest /abs/path/.../manifest.json \
   --out /abs/path/to/login-signup-approval/ \
   --title "로그인·회원가입·승인 화면정의서"
 
 # ⑧ mockup HTML 생성
-python3 ~/.claude/skills/figma-screen-capture/scripts/figma_capture.py gen-html \
+python3 $HOME/.claude/skills/figma-screen-capture/scripts/figma_capture.py gen-html \
   --manifest /abs/path/.../manifest.json \
-  --template ~/.claude/skills/figma-screen-capture/assets/mockup-template.html \
+  --template $HOME/.claude/skills/figma-screen-capture/assets/mockup-template.html \
   --out /abs/path/to/login-signup-approval/
 ```
 
