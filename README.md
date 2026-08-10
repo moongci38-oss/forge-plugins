@@ -452,10 +452,9 @@ forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
 ├── forge-core/                        — (v0.6.0) 기반 + 하네스 정리 + AI 감사 흡수
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 20개
+│   ├── skills/                        — 30개
 │   │   ├── approve-worker/            — forge 승인 워커
 │   │   ├── cr-multi/                  — 멀티 검수 오케스트레이터
-│   │   ├── start-sonnet/ end-sonnet/ start-opus/ end-opus/ checkpoint/  — 세션관리 5종
 │   │   ├── rag-search/                — 하이브리드 RAG 검색
 │   │   ├── forge-loop-maker/          — Generic refinement loop
 │   │   ├── harness-legacy-scan/ harness-diet/ external-harness-sweep/ agent-drift-auditor/  — 하네스 정리 4종

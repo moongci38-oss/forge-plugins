@@ -104,7 +104,7 @@ HMAC-SHA256 서명 토큰을 발행하여 멀티에이전트 시스템(MAS)의 w
 
 `/compact` 후 '계속' 또는 'resume' 입력 시 체크포인트 자동 복원.
 
-> **vs end-sonnet**: checkpoint는 세션 종료 없이 토큰만 관리하는 경량 도구입니다.
+> **vs `/forge-end`**: `/forge-checkpoint` 는 세션 종료 없이 토큰만 관리하는 경량 도구입니다.
 
 ### cr-multi
 
@@ -351,16 +351,11 @@ claude plugin install forge-core
 forge-core/
 ├── .claude-plugin/
 │   └── plugin.json          — 플러그인 매니페스트 (v0.6.0)
-├── skills/                  — 20개
+├── skills/                  — 30개
 │   ├── approve-worker/      — MAS P0 승인 게이트
-│   ├── checkpoint/          — Mid-session 체크포인트
 │   ├── cr-multi/            — Multi-LLM 검수 오케스트레이터
-│   ├── end-opus/            — Opus 세션 종료
-│   ├── end-sonnet/          — Sonnet 세션 종료
 │   ├── forge-loop-maker/    — Generic refinement loop scaffold
 │   ├── rag-search/          — 하이브리드 RAG 검색
-│   ├── start-opus/          — Opus 세션 시작
-│   ├── start-sonnet/        — Sonnet 세션 시작
 │   ├── harness-legacy-scan/ — 레거시 하네스 감사 (구 forge-harness)
 │   ├── harness-diet/        — low-risk 하네스 정리 적용
 │   ├── external-harness-sweep/ — 외부 하네스 레포 1:1 sweep
