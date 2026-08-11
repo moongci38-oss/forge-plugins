@@ -6,7 +6,7 @@ description: >
   Input: Figma fileKey + node-id whitelist (CSV or mapping table) + output directory.
   Output: screens/*.png + manifest.json + 02-화면정의.md + mockup/index.html (standalone gallery).
   Use when: (1) given a whitelist of Figma node-ids and need per-frame screenshots, (2) generating 화면정의서 (screen definition docs) from Figma, (3) building a standalone meeting mockup gallery HTML.
-  SKIP for: full Figma design-token sync (use figma-design-sync), code extraction from Figma, or non-whitelist bulk export.
+  SKIP for: full Figma design-token sync (figma-design-sync — ⛔DEPRECATED 2026-08-11, no longer auto-selected), code extraction from Figma, or non-whitelist bulk export.
   Triggers: "화면정의", "목업 갤러리", "Figma 프레임 추출", "figma-screen-capture".
 ---
 
@@ -20,7 +20,11 @@ Figma 화이트리스트 프레임을 화면정의서(02-화면정의.md)와 독
 
 ## 컨텍스트
 
-Figma node-id 화이트리스트(CSV 또는 매핑표)와 함께 "화면정의"/"목업 갤러리"/"Figma 프레임 추출" 요청 시 발동. 전체 디자인 토큰 동기화는 `figma-design-sync`가 담당하므로 이 스킬의 범위 밖.
+Figma node-id 화이트리스트(CSV 또는 매핑표)와 함께 "화면정의"/"목업 갤러리"/"Figma 프레임 추출" 요청 시 발동.
+
+전체 디자인 토큰 동기화는 이 스킬의 범위 밖이다. 그 일을 하던 `figma-design-sync` 는 **2026-08-11 DEPRECATED**
+(유지보수 중단, 모델 자동 선택 차단)이므로 **현재 대체 수단이 없다** — 명시 호출(`/figma-design-sync`)은
+아직 동작하나 계속 필요하면 알려 주십시오.
 
 ## 출력
 

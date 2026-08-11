@@ -1,8 +1,17 @@
 ---
 name: decision-note
-description: "소규모 설계/구현 판단을 3조각(문제정의 1문단·판단기준 5줄·결정기록)으로 기록. PRD/Spec/ADR 작성은 과한데 나중에 \"이거 왜 이렇게 했지\"를 물을 만한 결정을 내렸을 때 사용. /decision-note로 명시 호출. SKIP: 정식 기능 명세(→ forge-spec/PRD), 여러 FR에 걸친 결정(→ ADR, forge-adr-index.sh 대상)."
+description: "⛔ DEPRECATED(2026-08-11) — 유지보수 중단. 소규모 설계/구현 판단을 3조각(문제정의 1문단·판단기준 5줄·결정기록)으로 기록. PRD/Spec/ADR 작성은 과한데 나중에 \"이거 왜 이렇게 했지\"를 물을 만한 결정을 내렸을 때 사용. /decision-note로 명시 호출. SKIP: 정식 기능 명세(→ forge-spec/PRD), 여러 FR에 걸친 결정(→ ADR, forge-adr-index.sh 대상)."
 disable-model-invocation: true
 ---
+> **⛔ DEPRECATED(2026-08-11) — 유지보수가 중단된 스킬입니다.**
+>
+> 원본 시스템(forge SSoT)에서 2026-08-11 에 미사용으로 제거됐습니다. 이 플러그인에는
+> **기존 설치자를 깨뜨리지 않기 위해 남겨 둡니다** — 계속 동작하지만 더 이상 고쳐지지 않습니다.
+>
+> **대체 없음** — 같은 일을 하는 다른 스킬이 없습니다. 없는 것을 가리키지 않으려고 비워 둡니다.
+>
+> 다음 릴리스에서 제거될 수 있습니다. 계속 필요하면 알려 주십시오.
+
 
 # Decision Note — 경량 판단기록
 
