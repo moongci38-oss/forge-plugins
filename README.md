@@ -476,7 +476,7 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 ```
 forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
-├── forge-core/                        — (v0.6.0) 기반 + 하네스 정리 + AI 감사 흡수
+├── forge-core/                        — (v0.7.9) 기반 + 하네스 정리 + AI 감사 흡수
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 23개
 │   │   ├── approve-worker/            — forge 승인 워커
@@ -494,21 +494,21 @@ forge-plugins-repo/
 │       ├── forge-core.md              — forge 전역 규칙
 │       ├── behavior-core.md           — 자율실행·외과적변경·존댓말 등
 │       └── tool-rules.md              — 도구 사용 정책
-├── forge-build/                       — (v0.2.0) 구 forge-dev + forge-plan 통합
+├── forge-build/                       — (v0.4.19) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 30개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
 │   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
 │   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
-├── forge-knowledge/                   — (v0.2.0) 구 forge-brain 개명 + forge-research 통합
+├── forge-knowledge/                   — (v0.2.18) 구 forge-brain 개명 + forge-research 통합
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — learn/memory-manage/wiki-sync/site-deep-analyze/yt
 │   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item/learn/memory-manage/wiki-sync
 │   ├── agents/                        — 6개 (academic-researcher/article-analyst/fact-checker/yt-cross-analyst/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
-├── forge-design/                      — (v0.1.5)
+├── forge-design/                      — (v0.2.13)
 │   ├── skills/                        — image-orchestrate/visual-loop/figma-screen-capture
 │   └── agents/                        — doc-writer/gemini
-└── forge-game/                        — (v0.1.2)
+└── forge-game/                        — (v0.1.15)
     ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
     └── agents/                        — gdd-writer
 ```

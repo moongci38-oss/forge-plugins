@@ -2,7 +2,7 @@
 
 > Forge 시스템의 핵심 인프라 — 모든 forge 플러그인의 공통 기반
 
-**버전**: v0.6.0 | **의존성**: 없음 (기반 플러그인) | **레포**: `moongci38-oss/forge-plugins`
+**버전**: v0.7.9 | **의존성**: 없음 (기반 플러그인) | **레포**: `moongci38-oss/forge-plugins`
 
 ---
 
@@ -348,7 +348,7 @@ claude plugin install forge-core
 ```
 forge-core/
 ├── .claude-plugin/
-│   └── plugin.json          — 플러그인 매니페스트 (v0.6.0)
+│   └── plugin.json          — 플러그인 매니페스트 (v0.7.9)
 ├── skills/                  — 23개
 │   ├── approve-worker/      — MAS P0 승인 게이트
 │   ├── cr-multi/            — Multi-LLM 검수 오케스트레이터

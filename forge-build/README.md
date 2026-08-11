@@ -2,7 +2,7 @@
 
 > Forge 제품 생성 파이프라인 — 기획(Spec/Plan)부터 Phase 1~12 구현·QA·버그수정·보안·테스트·배포까지, SDD 본류를 담당하는 통합 플러그인
 
-**버전**: v0.2.0 | **의존성**: `forge-core` | **레포**: `moongci38-oss/forge-plugins`
+**버전**: v0.4.19 | **의존성**: `forge-core` | **레포**: `moongci38-oss/forge-plugins`
 
 ---
 
@@ -362,7 +362,7 @@ forge-build 설치 시 다음 전문 에이전트들이 활성화됩니다. (v0.
 ```
 forge-build/
 ├── .claude-plugin/
-│   └── plugin.json             — 플러그인 매니페스트 (v0.2.0)
+│   └── plugin.json             — 플러그인 매니페스트 (v0.4.19)
 ├── skills/                     — 30개
 │   ├── api-e2e/                — REST API E2E 자동 테스트
 │   ├── benchmark/              — 성능 벤치마크
