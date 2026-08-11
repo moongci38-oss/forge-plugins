@@ -8,19 +8,25 @@ Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + 
 
 ---
 
-## ⛔ Deprecated 스킬 (2026-08-11)
+## 제거된 스킬 (2026-08-11)
 
-아래 12종은 원본 시스템(forge SSoT)에서 미사용으로 제거됐습니다. **기존 설치자를 깨뜨리지 않기 위해
-플러그인에는 남겨 둡니다** — 계속 동작하지만 더 이상 고쳐지지 않고, 다음 릴리스에서 제거될 수 있습니다.
+아래 12종은 원본 시스템(forge SSoT)에서 미사용으로 제거됐고, **예고 후 플러그인에서도 제거**했습니다.
+업데이트하면 이 스킬들은 사라집니다.
 
 `agent-drift-auditor` · `decision-note` · `figma-design-sync` · `forge-check-security-exec` · `freeze` ·
 `harness-backlog-loop` · `load-test` · `partner-onboarding-e2e` · `retro` · `site-clone` · `task-frontier` ·
 `unit-test-gen`
 
-그중 `agent-drift-auditor` · `forge-check-security-exec` · `unit-test-gen` · `figma-design-sync` 는
-**모델이 자동으로 고르지 않습니다**(`disable-model-invocation`). 슬래시로 명시 호출하면 그대로 동작합니다.
+**대체 수단**(완전 대체가 아닌 것은 한계를 함께 적습니다)
 
-각 스킬의 `SKILL.md` 맨 앞에 대체 수단과 그 한계를 적어 뒀습니다. **계속 필요한 스킬이 있으면 알려 주십시오.**
+| 제거된 스킬 | 대체 | 한계 |
+|---|---|---|
+| `forge-check-security-exec` | `/forge-check-security` | 그쪽은 **정적** 패턴 검사(S14). 원래 스킬은 실행 판정이라 **실행 경로 취약점은 여전히 놓칩니다** — `/qa` 시나리오나 수동 확인으로 보완하십시오 |
+| `site-clone` | `/site-deep-analyze` | 재구현 **가이드**까지만. **코드 생성은 대체되지 않습니다** |
+| `agent-drift-auditor` | `/system-audit` | **부분 대체**. ①삭제된 에이전트 호출 ②중간 산출물 잔여 ③미승인 외부 발신 ④모델 pin 부재·구버전 — 이 4개 검사는 없습니다 |
+| 나머지 9종 | 없음 | 같은 일을 하는 다른 스킬이 없습니다 |
+
+⚠️ **되돌릴 수 있습니다.** 계속 필요한 스킬이 있으면 알려 주십시오 — git 이력에 남아 있어 복원 후 재배포하면 됩니다.
 
 ## 역할별 설치 추천
 
@@ -307,7 +313,6 @@ cd ~/forge-plugins-repo && git pull
 | `/harness-legacy-scan` | `/harness-legacy-scan <경로>` | 레거시 하네스 패턴 탐지 |
 | `/harness-diet` | `/harness-diet <경로>` | 불필요한 하네스 코드 정리 |
 | `/external-harness-sweep` | `/external-harness-sweep <레포>` | 외부 하네스 레포 1:1 sweep (gstack/gsd/superpowers/gbrain) |
-| `/agent-drift-auditor` | `/agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 ⛔ **DEPRECATED(2026-08-11)** |
 
 ### forge-core — AI 감사 시스템 (v0.6.0 흡수)
 
@@ -349,7 +354,7 @@ cd ~/forge-plugins-repo && git pull
 | `/forge-check-traceability` | `/forge-check-traceability` | 추적성 체크 (Spec → 코드 → 테스트 연결 검증) |
 | `/forge-check-ui` | `/forge-check-ui` | UI 품질 체크 (Lighthouse/a11y 기준) |
 
-> **참고**: `/agent-drift-auditor`·`/migration-audit`는 `forge-core`(하네스/감사 흡수)에 있습니다.
+> **참고**: `/migration-audit`는 `forge-core`(하네스/감사 흡수)에 있습니다. `/agent-drift-auditor` 는 2026-08-11 제거됐습니다(부분 대체: `/system-audit`).
 
 ### forge-build — 기획 (PM/기획자, v0.2.0 흡수)
 
@@ -386,7 +391,6 @@ cd ~/forge-plugins-repo && git pull
 
 | 스킬 | 사용법 | 설명 |
 |------|--------|------|
-| `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 ⛔ **DEPRECATED(2026-08-11)** |
 | `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
 
 ### forge-game (게임 개발자)
@@ -466,12 +470,12 @@ forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
 ├── forge-core/                        — (v0.6.0) 기반 + 하네스 정리 + AI 감사 흡수
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 30개
+│   ├── skills/                        — 23개
 │   │   ├── approve-worker/            — forge 승인 워커
 │   │   ├── cr-multi/                  — 멀티 검수 오케스트레이터
 │   │   ├── rag-search/                — 하이브리드 RAG 검색
 │   │   ├── forge-loop-maker/          — Generic refinement loop
-│   │   ├── harness-legacy-scan/ harness-diet/ external-harness-sweep/ agent-drift-auditor/  — 하네스 정리 4종
+│   │   ├── harness-legacy-scan/ harness-diet/ external-harness-sweep/  — 하네스 정리 3종
 │   │   └── system-audit/ audit-agentic/ audit-context/ audit-cost/ audit-harness/ audit-human-ai/ migration-audit/  — 감사 7종
 │   ├── agents/                        — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
 │   ├── commands/                      — 25개 슬래시 커맨드
@@ -484,7 +488,7 @@ forge-plugins-repo/
 │       └── tool-rules.md              — 도구 사용 정책
 ├── forge-build/                       — (v0.2.0) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 18개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
+│   ├── skills/                        — 30개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
 │   ├── commands/                      — 21개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
 │   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
 ├── forge-knowledge/                   — (v0.2.0) 구 forge-brain 개명 + forge-research 통합
@@ -494,7 +498,7 @@ forge-plugins-repo/
 │   ├── agents/                        — 6개 (academic-researcher/article-analyst/fact-checker/yt-cross-analyst/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
 ├── forge-design/                      — (v0.1.5)
-│   ├── skills/                        — figma-design-sync/image-orchestrate/visual-loop
+│   ├── skills/                        — image-orchestrate/visual-loop/figma-screen-capture
 │   └── agents/                        — doc-writer/gemini
 └── forge-game/                        — (v0.1.2)
     ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract

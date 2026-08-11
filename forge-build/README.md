@@ -363,7 +363,7 @@ forge-build 설치 시 다음 전문 에이전트들이 활성화됩니다. (v0.
 forge-build/
 ├── .claude-plugin/
 │   └── plugin.json             — 플러그인 매니페스트 (v0.2.0)
-├── skills/                     — 19개
+├── skills/                     — 30개
 │   ├── api-e2e/                — REST API E2E 자동 테스트
 │   ├── benchmark/              — 성능 벤치마크
 │   ├── bug-report/             — 웹앱 버그 탐지

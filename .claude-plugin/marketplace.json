@@ -27,7 +27,7 @@
     },
     {
       "name": "forge-design",
-      "description": "Forge 디자인 도구 — figma-sync(⛔deprecated)/image-orchestrate/visual-loop.",
+      "description": "Forge 디자인 도구 — image-orchestrate/visual-loop.",
       "source": "./forge-design",
       "category": "design"
     },
