@@ -2,7 +2,7 @@
 
 Forge 게임 개발 파이프라인 플러그인. GodBlade/Unity 전용 GDD 작성, 게임 QA, 에셋 생성·관리.
 
-> **버전**: v0.1.2 | **의존성**: forge-core, forge-design
+> **버전**: v0.1.15 | **의존성**: forge-core, forge-design
 
 ---
 

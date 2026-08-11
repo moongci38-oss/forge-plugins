@@ -2,7 +2,7 @@
 
 Forge 디자인·에셋 파이프라인 플러그인. Figma 동기화, AI 이미지 생성, 다형식 변환, 시각적 품질 검증.
 
-> **버전**: v0.1.3 | **의존성**: forge-core
+> **버전**: v0.2.13 | **의존성**: forge-core
 
 ---
 
@@ -20,7 +20,6 @@ claude plugin install forge-design
 
 | 도구 | 용도 | 설정 |
 |------|------|------|
-| Figma MCP | figma-design-sync | `~/.claude.json` mcpServers에 figma 등록 ⛔ **DEPRECATED(2026-08-11)** |
 | `OPENAI_API_KEY` | image-orchestrate (gpt-image-1) | `~/.bashrc` export |
 | `GEMINI_API_KEY` | visual-loop, Gemini Vision | `~/.bashrc` export |
 | Playwright | visual-loop (브라우저 스크린샷) | `npx playwright install` |
@@ -46,33 +45,13 @@ export GODBLADE_ROOT="/path/to/your/unity-project/src"
 
 ## 스킬 목록
 
-### figma-design-sync
+### ~~figma-design-sync~~ — 2026-08-11 제거됨
 
-Figma file URL을 입력받아 디자인 토큰·메타·스크린샷을 Figma MCP로 fetch하고 `CLAUDE-DESIGN-PROMPTS.md` + `figma-export/ANALYSIS-REPORT.md`를 갱신합니다. claude.ai/design 결과물의 정합도를 높이는 데 사용합니다.
+Figma 디자인 토큰·메타·스크린샷 동기화를 담당하던 스킬입니다. 원본 시스템(forge SSoT)에서
+미사용으로 제거된 뒤 예고를 거쳐 플러그인에서도 제거했습니다.
 
-**주요 기능**
-- Figma MCP로 Variables/Styles/Component 메타 fetch
-- `figma-export/variables.json` 원본 저장
-- `CLAUDE-DESIGN-PROMPTS.md` 디자인 토큰 자동 갱신
-- `figma-export/ANALYSIS-REPORT.md` 실측 diff 생성
-- Figma MCP rate limit 시 Codex/Gemini Vision PNG 재분석 자동 폴백
-
-**사용법**
-```
-/figma-design-sync https://www.figma.com/file/XXXXX/project-name
-```
-
-**산출물**
-```
-docs/design/
-├── CLAUDE-DESIGN-PROMPTS.md      — 디자인 토큰 갱신
-├── figma-export/
-│   ├── variables.json             — Figma Variables 원본
-│   └── ANALYSIS-REPORT.md         — 실측·diff 리포트
-└── screenshots/                   — 컴포넌트 스크린샷
-```
-
----
+**대체 없음.** 프레임 스크린샷·화면정의서가 필요하면 `figma-screen-capture` 가 그 범위를 다루지만,
+전체 디자인 토큰 동기화는 대체되지 않습니다. 계속 필요하면 알려 주십시오 — git 이력에서 복원할 수 있습니다.
 
 ### image-orchestrate
 
@@ -175,8 +154,8 @@ forge-design 단독 커맨드는 없으며, **forge-dev**의 다음 커맨드와
 ## 빠른 시작
 
 ```bash
-# 1. Figma 디자인 토큰 동기화
-/figma-design-sync https://www.figma.com/file/XXXXX/my-app
+# 1. Figma 프레임 스크린샷·화면정의서 (figma-design-sync 는 2026-08-11 제거됨)
+/figma-screen-capture https://www.figma.com/file/XXXXX/my-app
 
 # 2. 게임 캐릭터 이미지 생성
 /image-orchestrate character "Hero Warrior" "용감한 전사, 금빛 갑옷, 투명 PNG"

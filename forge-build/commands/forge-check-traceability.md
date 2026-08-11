@@ -82,5 +82,7 @@ NOT DONE/UNVERIFIABLE 항목의 override 선언·재검증(단일 FR 재탐색, 
 ## 주의사항
 
 - 읽기 전용 wrapper. 코드 수정은 Lead 수행
-- Agent Drift 검사(삭제 agent 감지·외부발송 게이트) → `agent-drift-auditor` 스킬 (P5 Check P5.9)
+- Agent Drift 검사(삭제 agent 감지·외부발송 게이트) → 전용 스킬(`agent-drift-auditor`)은 2026-08-11 제거됨.
+  `/system-audit` 가 넓은 중복·드리프트 감사로 **부분만** 겹친다 — 삭제 agent 호출·외부발송 게이트는
+  포함되지 않으므로 필요하면 수동 확인 (P5 Check P5.9)
 > 실패 시 [[pev-self-correction]] 적용
