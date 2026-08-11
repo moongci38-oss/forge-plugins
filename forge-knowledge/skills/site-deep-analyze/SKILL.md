@@ -1,6 +1,6 @@
 ---
 name: site-deep-analyze
-description: "사이트 URL 정밀분석(DOM패턴·CSS토큰·API)→재구현가이드. 구조/디자인 분석 요청 시 사용. 코드생성까지 원하면 site-clone."
+description: "사이트 URL 정밀분석(DOM패턴·CSS토큰·API)→재구현가이드. 구조/디자인 분석 요청 시 사용. 코드생성 전담이던 site-clone 은 2026-08-11 DEPRECATED(유지보수 중단) — 본 스킬은 재구현 가이드(reconstruction-spec.md)까지만 제공하며 코드는 생성하지 않는다."
 context: fork
 model: sonnet
 ---

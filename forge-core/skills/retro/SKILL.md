@@ -1,8 +1,17 @@
 ---
 name: retro
 disable-model-invocation: true
-description: "Use when user says /retro for sprint/session retrospective. Went-well/Went-wrong/Next-sprint 3섹션 + learnings.jsonl 캡처 + SMART 액션아이템. Triggers: \"sprint 회고\", \"세션 회고\", \"레트로\". /forge-end 미완료 시 먼저 권고."
+description: "⛔ DEPRECATED(2026-08-11) — 유지보수 중단. Use when user says /retro for sprint/session retrospective. Went-well/Went-wrong/Next-sprint 3섹션 + learnings.jsonl 캡처 + SMART 액션아이템. Triggers: \"sprint 회고\", \"세션 회고\", \"레트로\". /forge-end 미완료 시 먼저 권고."
 ---
+> **⛔ DEPRECATED(2026-08-11) — 유지보수가 중단된 스킬입니다.**
+>
+> 원본 시스템(forge SSoT)에서 2026-08-11 에 미사용으로 제거됐습니다. 이 플러그인에는
+> **기존 설치자를 깨뜨리지 않기 위해 남겨 둡니다** — 계속 동작하지만 더 이상 고쳐지지 않습니다.
+>
+> **대체 없음** — 같은 일을 하는 다른 스킬이 없습니다. 없는 것을 가리키지 않으려고 비워 둡니다.
+>
+> 다음 릴리스에서 제거될 수 있습니다. 계속 필요하면 알려 주십시오.
+
 
 # /retro — Sprint/Session 회고
 

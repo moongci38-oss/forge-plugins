@@ -20,7 +20,7 @@ claude plugin install forge-design
 
 | 도구 | 용도 | 설정 |
 |------|------|------|
-| Figma MCP | figma-design-sync | `~/.claude.json` mcpServers에 figma 등록 |
+| Figma MCP | figma-design-sync | `~/.claude.json` mcpServers에 figma 등록 ⛔ **DEPRECATED(2026-08-11)** |
 | `OPENAI_API_KEY` | image-orchestrate (gpt-image-1) | `~/.bashrc` export |
 | `GEMINI_API_KEY` | visual-loop, Gemini Vision | `~/.bashrc` export |
 | Playwright | visual-loop (브라우저 스크린샷) | `npx playwright install` |

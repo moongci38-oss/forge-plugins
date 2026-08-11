@@ -1,7 +1,7 @@
 {
   "name": "forge-design",
-  "version": "0.2.11",
-  "description": "Forge 디자인 도구 — figma-sync/image-orchestrate/visual-loop. UI·에셋 파이프라인.",
+  "version": "0.2.12",
+  "description": "Forge 디자인 도구 — figma-sync(⛔deprecated)/image-orchestrate/visual-loop. UI·에셋 파이프라인.",
   "author": {
     "name": "forge"
   },
