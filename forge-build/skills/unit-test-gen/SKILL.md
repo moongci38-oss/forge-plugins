@@ -1,5 +1,6 @@
 ---
 name: unit-test-gen
+disable-model-invocation: true
 description: "⛔ DEPRECATED(2026-08-11) — 유지보수 중단. 소스에서 유닛테스트 자동생성 — Jest(TS/JS), pytest(Python), NUnit/xUnit(C#), JUnit(Java). 뮤테이션 테스팅 점수 활용. 테스트 없는 파일 발견 시 자동제안. /qa 또는 SDD 구현완료 후 자동트리거. 직접호출 /unit-test-gen <path>."
 context: fork
 model: sonnet
@@ -10,6 +11,9 @@ model: sonnet
 > **기존 설치자를 깨뜨리지 않기 위해 남겨 둡니다** — 계속 동작하지만 더 이상 고쳐지지 않습니다.
 >
 > **대체 없음** — 같은 일을 하는 다른 스킬이 없습니다. 없는 것을 가리키지 않으려고 비워 둡니다.
+>
+> **모델이 자동으로 고르지 않습니다**(`disable-model-invocation`). 유지보수가 끝난 스킬을
+> 모델이 계속 집어 쓰면 경고가 무의미해집니다 — `/unit-test-gen` 로 **명시 호출하면 그대로 동작**합니다.
 >
 > 다음 릴리스에서 제거될 수 있습니다. 계속 필요하면 알려 주십시오.
 

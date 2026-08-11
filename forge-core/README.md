@@ -69,7 +69,7 @@ claude plugin install forge-core
 | `harness-legacy-scan` | 레거시 하네스 패턴·중복·과대 전역컨텍스트 읽기전용 감사 | `/harness-legacy-scan` |
 | `harness-diet` | harness-legacy-scan low-risk 항목 정리 적용 | `/harness-diet` |
 | `external-harness-sweep` | 외부 하네스 레포(gstack/gsd/superpowers/gbrain) 1:1 sweep | `/external-harness-sweep` |
-| `agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 | `/agent-drift-auditor` |
+| `agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 | `/agent-drift-auditor` ⛔ **DEPRECATED(2026-08-11)** |
 | `system-audit` | Forge 전체 시스템 ACHCE 6축 통합 감사 | `/system-audit` |
 | `audit-agentic` | 에이전틱 AI 역량 감사 (자율성·도구·MAS) | `/audit-agentic` |
 | `audit-context` | 컨텍스트 엔지니어링 역량 감사 (RAG·메모리) | `/audit-context` |
@@ -158,7 +158,7 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 | `harness-legacy-scan` | 낡은 룰·중복·과대 전역컨텍스트·넓은 Skill·불필요 Hook/MCP를 읽기전용으로 분류 |
 | `harness-diet` | harness-legacy-scan low-risk 항목만 적용(CLAUDE.md 축소·절차→Skill 이동·삭제후보 archive) |
 | `external-harness-sweep` | 외부 하네스/스킬 레포(gstack/gsd/superpowers/gbrain)를 Forge와 1:1 대조해 adoption matrix 생성 |
-| `agent-drift-auditor` | 에이전트/스킬의 의도 vs 실제 실행 괴리를 감지 |
+| `agent-drift-auditor` | 에이전트/스킬의 의도 vs 실제 실행 괴리를 감지 ⛔ **DEPRECATED(2026-08-11)** |
 
 ### AI 감사 시스템 7종 (v0.6.0 흡수, 구 forge-audit)
 

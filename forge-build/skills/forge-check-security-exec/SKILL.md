@@ -1,5 +1,6 @@
 ---
 name: forge-check-security-exec
+disable-model-invocation: true
 description: "⛔ DEPRECATED(2026-08-11) — 유지보수 중단. 실행 기반 보안 검증. 정적 STRIDE 스캔이 놓치는 false-negative를 실제 실행 경로로 보완한다. 배포 전 보안 확인이 필요할 때 사용한다."
 ---
 > **⛔ DEPRECATED(2026-08-11) — 유지보수가 중단된 스킬입니다.**
@@ -11,6 +12,9 @@ description: "⛔ DEPRECATED(2026-08-11) — 유지보수 중단. 실행 기반 
 >
 > ⚠️ **완전한 대체가 아닙니다.** 이 스킬은 실제로 실행해서 판정했고, S14 는 **정적 패턴 탐지**입니다.
 > 실행 경로에서만 드러나는 취약점은 여전히 놓칩니다 — 그 부분은 `/qa` 시나리오나 수동 확인으로 메우십시오.
+>
+> **모델이 자동으로 고르지 않습니다**(`disable-model-invocation`). 유지보수가 끝난 스킬을
+> 모델이 계속 집어 쓰면 경고가 무의미해집니다 — `/forge-check-security-exec` 로 **명시 호출하면 그대로 동작**합니다.
 >
 > 다음 릴리스에서 제거될 수 있습니다. 계속 필요하면 알려 주십시오.
 

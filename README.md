@@ -8,6 +8,20 @@ Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + 
 
 ---
 
+## ⛔ Deprecated 스킬 (2026-08-11)
+
+아래 12종은 원본 시스템(forge SSoT)에서 미사용으로 제거됐습니다. **기존 설치자를 깨뜨리지 않기 위해
+플러그인에는 남겨 둡니다** — 계속 동작하지만 더 이상 고쳐지지 않고, 다음 릴리스에서 제거될 수 있습니다.
+
+`agent-drift-auditor` · `decision-note` · `figma-design-sync` · `forge-check-security-exec` · `freeze` ·
+`harness-backlog-loop` · `load-test` · `partner-onboarding-e2e` · `retro` · `site-clone` · `task-frontier` ·
+`unit-test-gen`
+
+그중 `agent-drift-auditor` · `forge-check-security-exec` · `unit-test-gen` · `figma-design-sync` 는
+**모델이 자동으로 고르지 않습니다**(`disable-model-invocation`). 슬래시로 명시 호출하면 그대로 동작합니다.
+
+각 스킬의 `SKILL.md` 맨 앞에 대체 수단과 그 한계를 적어 뒀습니다. **계속 필요한 스킬이 있으면 알려 주십시오.**
+
 ## 역할별 설치 추천
 
 | 역할 | 설치 플러그인 |
@@ -293,7 +307,7 @@ cd ~/forge-plugins-repo && git pull
 | `/harness-legacy-scan` | `/harness-legacy-scan <경로>` | 레거시 하네스 패턴 탐지 |
 | `/harness-diet` | `/harness-diet <경로>` | 불필요한 하네스 코드 정리 |
 | `/external-harness-sweep` | `/external-harness-sweep <레포>` | 외부 하네스 레포 1:1 sweep (gstack/gsd/superpowers/gbrain) |
-| `/agent-drift-auditor` | `/agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 |
+| `/agent-drift-auditor` | `/agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 ⛔ **DEPRECATED(2026-08-11)** |
 
 ### forge-core — AI 감사 시스템 (v0.6.0 흡수)
 
@@ -372,7 +386,7 @@ cd ~/forge-plugins-repo && git pull
 
 | 스킬 | 사용법 | 설명 |
 |------|--------|------|
-| `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 |
+| `/figma-design-sync` | `/figma-design-sync` | Figma 디자인 동기화 ⛔ **DEPRECATED(2026-08-11)** |
 | `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
 
 ### forge-game (게임 개발자)
