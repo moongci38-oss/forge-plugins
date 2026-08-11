@@ -382,7 +382,7 @@ forge-build/
 │   ├── spec-compliance-checker/ — Spec-코드 추적성 검증
 │   ├── autoplan/               — 기획서 3관점 리뷰 + Synthesizer (구 forge-plan)
 │   └── writing-plans/          — Spec → TDD 구현 계획 전환 (구 forge-plan)
-├── commands/                   — 21개 슬래시 커맨드 (spec-write/forge-spec/prd/forge-plan 포함)
+├── commands/                   — 24개 슬래시 커맨드 (spec-write/forge-spec/prd/forge-plan 포함)
 └── agents/                     — 7개 전문 에이전트
     ├── canary-judge.md
     ├── code-reviewer.md

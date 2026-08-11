@@ -365,7 +365,7 @@ forge-core/
 │   ├── audit-human-ai/      — Human-AI 경계 설계 감사
 │   └── migration-audit/     — 마이그레이션 검수 하네스
 ├── agents/                  — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
-├── commands/                — 25개 슬래시 커맨드
+├── commands/                — 22개 슬래시 커맨드
 ├── hooks/
 │   ├── forge-onboard.sh     — SessionStart 자동 온보딩
 │   └── handover-manager.sh  — 핸드오버 원자적 쓰기 (flock)

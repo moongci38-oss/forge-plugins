@@ -54,11 +54,11 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
-| **forge-core** | v0.6.10 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep/agent-drift) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
-| **forge-build** | v0.4.8 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
-| **forge-knowledge** | v0.2.9 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
-| **forge-design** | v0.2.4 | 디자인·에셋 — figma-sync/image-orchestrate/visual-loop | forge-core |
-| **forge-game** | v0.1.8 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
+| **forge-core** | v0.7.9 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
+| **forge-build** | v0.4.19 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
+| **forge-knowledge** | v0.2.18 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
+| **forge-design** | v0.2.13 | 디자인·에셋 — image-orchestrate/visual-loop/figma-screen-capture | forge-core |
+| **forge-game** | v0.1.15 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
 
 ---
 
@@ -486,7 +486,7 @@ forge-plugins-repo/
 │   │   ├── harness-legacy-scan/ harness-diet/ external-harness-sweep/  — 하네스 정리 3종
 │   │   └── system-audit/ audit-agentic/ audit-context/ audit-cost/ audit-harness/ audit-human-ai/ migration-audit/  — 감사 7종
 │   ├── agents/                        — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
-│   ├── commands/                      — 25개 슬래시 커맨드
+│   ├── commands/                      — 22개 슬래시 커맨드
 │   ├── hooks/
 │   │   ├── forge-onboard.sh           — SessionStart 자동 실행
 │   │   └── handover-manager.sh        — 핸드오버 원자적 쓰기 (flock)
@@ -497,7 +497,7 @@ forge-plugins-repo/
 ├── forge-build/                       — (v0.2.0) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 30개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
-│   ├── commands/                      — 21개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
+│   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
 │   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
 ├── forge-knowledge/                   — (v0.2.0) 구 forge-brain 개명 + forge-research 통합
 │   ├── .claude-plugin/plugin.json
