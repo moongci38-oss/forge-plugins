@@ -1,8 +1,20 @@
 ---
 name: site-clone
 disable-model-invocation: true
-description: "Use when the user wants a website cloned/rebuilt INTO WORKING CODE (default Next.js). Triggers: '이 사이트 클론/복제', '이 사이트 코드로 만들어', '픽셀 그대로 재현', 'pixel-perfect clone', 'rebuild as code'. Analysis-only report → site-deep-analyze. SKIP third-party sites without rights."
+description: "⛔ DEPRECATED(2026-08-11) — 유지보수 중단. Use when the user wants a website cloned/rebuilt INTO WORKING CODE (default Next.js). Triggers: '이 사이트 클론/복제', '이 사이트 코드로 만들어', '픽셀 그대로 재현', 'pixel-perfect clone', 'rebuild as code'. Analysis-only report → site-deep-analyze. SKIP third-party sites without rights."
 ---
+> **⛔ DEPRECATED(2026-08-11) — 유지보수가 중단된 스킬입니다.**
+>
+> 원본 시스템(forge SSoT)에서 2026-08-11 에 미사용으로 제거됐습니다. 이 플러그인에는
+> **기존 설치자를 깨뜨리지 않기 위해 남겨 둡니다** — 계속 동작하지만 더 이상 고쳐지지 않습니다.
+>
+> **대체**: `/site-deep-analyze` — 사이트 구조·디자인 분석과 재구현 **가이드**까지 제공합니다.
+>
+> ⚠️ **코드 생성은 대체되지 않습니다.** 이 스킬은 실행 가능한 코드까지 만들었지만,
+> `/site-deep-analyze` 는 가이드 문서(reconstruction-spec.md)에서 멈춥니다.
+>
+> 다음 릴리스에서 제거될 수 있습니다. 계속 필요하면 알려 주십시오.
+
 
 # Clone Website (Forge-native)
 
