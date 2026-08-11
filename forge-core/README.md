@@ -2,7 +2,7 @@
 
 > Forge 시스템의 핵심 인프라 — 모든 forge 플러그인의 공통 기반
 
-**버전**: v0.6.0 | **의존성**: 없음 (기반 플러그인) | **레포**: `moongci38-oss/forge-plugins`
+**버전**: v0.7.9 | **의존성**: 없음 (기반 플러그인) | **레포**: `moongci38-oss/forge-plugins`
 
 ---
 
@@ -69,7 +69,6 @@ claude plugin install forge-core
 | `harness-legacy-scan` | 레거시 하네스 패턴·중복·과대 전역컨텍스트 읽기전용 감사 | `/harness-legacy-scan` |
 | `harness-diet` | harness-legacy-scan low-risk 항목 정리 적용 | `/harness-diet` |
 | `external-harness-sweep` | 외부 하네스 레포(gstack/gsd/superpowers/gbrain) 1:1 sweep | `/external-harness-sweep` |
-| `agent-drift-auditor` | 에이전트 드리프트 감사 — 의도 vs 실행 괴리 감지 | `/agent-drift-auditor` ⛔ **DEPRECATED(2026-08-11)** |
 | `system-audit` | Forge 전체 시스템 ACHCE 6축 통합 감사 | `/system-audit` |
 | `audit-agentic` | 에이전틱 AI 역량 감사 (자율성·도구·MAS) | `/audit-agentic` |
 | `audit-context` | 컨텍스트 엔지니어링 역량 감사 (RAG·메모리) | `/audit-context` |
@@ -158,7 +157,6 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 | `harness-legacy-scan` | 낡은 룰·중복·과대 전역컨텍스트·넓은 Skill·불필요 Hook/MCP를 읽기전용으로 분류 |
 | `harness-diet` | harness-legacy-scan low-risk 항목만 적용(CLAUDE.md 축소·절차→Skill 이동·삭제후보 archive) |
 | `external-harness-sweep` | 외부 하네스/스킬 레포(gstack/gsd/superpowers/gbrain)를 Forge와 1:1 대조해 adoption matrix 생성 |
-| `agent-drift-auditor` | 에이전트/스킬의 의도 vs 실제 실행 괴리를 감지 ⛔ **DEPRECATED(2026-08-11)** |
 
 ### AI 감사 시스템 7종 (v0.6.0 흡수, 구 forge-audit)
 
@@ -251,7 +249,7 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 |--------|------|
 | `/migration-audit` | 레거시→신규 스택 마이그레이션 감사 |
 
-> `/system-audit`, `/audit-agentic`, `/audit-context`, `/audit-cost`, `/audit-harness`, `/audit-human-ai`, `/agent-drift-auditor`(⛔DEPRECATED 2026-08-11 — 모델 자동 선택 차단, 명시 호출만)는 스킬 트리거로 호출됩니다(전용 커맨드 없음, `/system-audit` 등 스킬명으로 자동 인식).
+> `/system-audit`, `/audit-agentic`, `/audit-context`, `/audit-cost`, `/audit-harness`, `/audit-human-ai`는 스킬 트리거로 호출됩니다(전용 커맨드 없음, `/system-audit` 등 스킬명으로 자동 인식).
 
 ### 기타 커맨드
 
@@ -350,8 +348,8 @@ claude plugin install forge-core
 ```
 forge-core/
 ├── .claude-plugin/
-│   └── plugin.json          — 플러그인 매니페스트 (v0.6.0)
-├── skills/                  — 30개
+│   └── plugin.json          — 플러그인 매니페스트 (v0.7.9)
+├── skills/                  — 23개
 │   ├── approve-worker/      — MAS P0 승인 게이트
 │   ├── cr-multi/            — Multi-LLM 검수 오케스트레이터
 │   ├── forge-loop-maker/    — Generic refinement loop scaffold
@@ -359,7 +357,6 @@ forge-core/
 │   ├── harness-legacy-scan/ — 레거시 하네스 감사 (구 forge-harness)
 │   ├── harness-diet/        — low-risk 하네스 정리 적용
 │   ├── external-harness-sweep/ — 외부 하네스 레포 1:1 sweep
-│   ├── agent-drift-auditor/ — 에이전트 드리프트 감사
 │   ├── system-audit/        — ACHCE 6축 통합 감사 (구 forge-audit)
 │   ├── audit-agentic/       — 에이전틱 AI 역량 감사
 │   ├── audit-context/       — 컨텍스트 엔지니어링 감사
@@ -368,7 +365,7 @@ forge-core/
 │   ├── audit-human-ai/      — Human-AI 경계 설계 감사
 │   └── migration-audit/     — 마이그레이션 검수 하네스
 ├── agents/                  — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
-├── commands/                — 25개 슬래시 커맨드
+├── commands/                — 22개 슬래시 커맨드
 ├── hooks/
 │   ├── forge-onboard.sh     — SessionStart 자동 온보딩
 │   └── handover-manager.sh  — 핸드오버 원자적 쓰기 (flock)

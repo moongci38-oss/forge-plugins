@@ -2,7 +2,7 @@
 
 Forge 지식·리서치 레이어 플러그인 — 세션 간 학습 축적, Obsidian 지식 동기화, 메모리 관리(구 `forge-brain`)에 더해 외부 리서치(article/yt/site-deep-analyze/weekly-research/forge-find-item, 구 `forge-research`)까지 통합한 플러그인입니다. forge-core의 `/rag-search` 및 자체 `forge-tools` MCP(ADR-174 unified_search)와 함께 Forge의 컴파운딩 지식 루프를 구성합니다.
 
-> **버전**: v0.2.0 | **의존성**: forge-core
+> **버전**: v0.2.18 | **의존성**: forge-core
 
 ---
 
