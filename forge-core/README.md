@@ -251,7 +251,7 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 |--------|------|
 | `/migration-audit` | 레거시→신규 스택 마이그레이션 감사 |
 
-> `/system-audit`, `/audit-agentic`, `/audit-context`, `/audit-cost`, `/audit-harness`, `/audit-human-ai`, `/agent-drift-auditor`는 스킬 트리거로 호출됩니다(전용 커맨드 없음, `/system-audit` 등 스킬명으로 자동 인식).
+> `/system-audit`, `/audit-agentic`, `/audit-context`, `/audit-cost`, `/audit-harness`, `/audit-human-ai`, `/agent-drift-auditor`(⛔DEPRECATED 2026-08-11 — 모델 자동 선택 차단, 명시 호출만)는 스킬 트리거로 호출됩니다(전용 커맨드 없음, `/system-audit` 등 스킬명으로 자동 인식).
 
 ### 기타 커맨드
 
