@@ -10,10 +10,10 @@ Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + 
 
 ## 제거된 스킬 (2026-08-11)
 
-아래 12종은 원본 시스템(forge SSoT)에서 미사용으로 제거됐고, **예고 후 플러그인에서도 제거**했습니다.
+아래 11종은 원본 시스템(forge SSoT)에서 미사용으로 제거됐고, **예고 후 플러그인에서도 제거**했습니다.
 업데이트하면 이 스킬들은 사라집니다.
 
-`agent-drift-auditor` · `decision-note` · `figma-design-sync` · `forge-check-security-exec` · `freeze` ·
+`agent-drift-auditor` · `decision-note` · `figma-design-sync` · `freeze` ·
 `harness-backlog-loop` · `load-test` · `partner-onboarding-e2e` · `retro` · `site-clone` · `task-frontier` ·
 `unit-test-gen`
 
@@ -21,10 +21,12 @@ Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + 
 
 | 제거된 스킬 | 대체 | 한계 |
 |---|---|---|
-| `forge-check-security-exec` | `/forge-check-security` | 그쪽은 **정적** 패턴 검사(S14). 원래 스킬은 실행 판정이라 **실행 경로 취약점은 여전히 놓칩니다** — `/qa` 시나리오나 수동 확인으로 보완하십시오 |
 | `site-clone` | `/site-deep-analyze` | 재구현 **가이드**까지만. **코드 생성은 대체되지 않습니다** |
 | `agent-drift-auditor` | `/system-audit` | **부분 대체**. ①삭제된 에이전트 호출 ②중간 산출물 잔여 ③미승인 외부 발신 ④모델 pin 부재·구버전 — 이 4개 검사는 없습니다 |
 | 나머지 9종 | 없음 | 같은 일을 하는 다른 스킬이 없습니다 |
+
+> ✅ **`forge-check-security-exec` 는 되살렸습니다**(2026-08-11). `/forge-check-security` 의 정적 스캔이
+> 실행 경로 취약점을 놓치는 공백을 메웁니다 — `/forge-pr` 이 보안 민감 경로 변경을 감지하면 조건부로 호출합니다.
 
 ⚠️ **되돌릴 수 있습니다.** 계속 필요한 스킬이 있으면 알려 주십시오. 삭제 직전 상태는 커밋 `906648e` 에
 그대로 남아 있습니다 — 복원은 한 줄입니다:
@@ -55,7 +57,7 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
 | **forge-core** | v0.7.9 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
-| **forge-build** | v0.4.19 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
+| **forge-build** | v0.4.20 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
 | **forge-knowledge** | v0.2.18 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
 | **forge-design** | v0.2.13 | 디자인·에셋 — image-orchestrate/visual-loop/figma-screen-capture | forge-core |
 | **forge-game** | v0.1.15 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
@@ -494,7 +496,7 @@ forge-plugins-repo/
 │       ├── forge-core.md              — forge 전역 규칙
 │       ├── behavior-core.md           — 자율실행·외과적변경·존댓말 등
 │       └── tool-rules.md              — 도구 사용 정책
-├── forge-build/                       — (v0.4.19) 구 forge-dev + forge-plan 통합
+├── forge-build/                       — (v0.4.20) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 30개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
 │   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
