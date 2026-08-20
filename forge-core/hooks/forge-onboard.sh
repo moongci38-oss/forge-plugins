@@ -112,4 +112,85 @@ for i in "${!SKILL_SCRIPT_SRCS[@]}"; do
   fi
 done
 
+# 7. 설치본 ↔ 마켓플레이스 버전 대조 (갭 G4, 2026-08-20)
+# 왜: 전파는 3층이다 — ①repo ②마켓플레이스 클론 ③설치 캐시. ①②는 명령 한 줄로 확인되는데
+#   ③은 `/plugin` **사람 조작**이라 자동 확인 지점이 없다. 그래서 밀려 있어도 아무 신호가 없다.
+#   실측(2026-08-20): 설치본이 클론보다 **7~10 패치** 뒤처진 채 약 3주 방치돼 있었고,
+#   그동안 1·2층만 밀어 놓고 "배포 완료"로 읽혔다.
+#   **택배가 문 앞까지 왔는데 아무도 안 들여놓았고, 안 들여놨다고 알려주는 사람도 없는 상태**였다.
+# 설계: 둘 다 **로컬 파일**이라 네트워크가 필요 없다. AD-168 대로 **WARN 만** — 차단하지 않는다.
+#   python3 가 없거나 파일이 없으면 조용히 넘어간다(fail-open).
+_INST="$HOME/.claude/plugins/installed_plugins.json"
+_MKT="$HOME/.claude/plugins/marketplaces/forge-plugins"
+if command -v python3 >/dev/null 2>&1 && [ -f "$_INST" ] && [ -d "$_MKT" ]; then
+  python3 - "$_INST" "$_MKT" >&2 <<'PYEOF' || true
+import json, os, sys
+
+inst_path, mkt = sys.argv[1], sys.argv[2]
+
+
+def parts(v):
+    """'0.7.10' -> (0,7,10). **순수 숫자 점표기만** 판정한다. 그 밖은 None.
+
+    ⚠️ 처음엔 숫자가 아닌 조각을 -1 로 뒀는데, 자체 탐침에서 **오탐 5건**이 나왔다:
+       '0.7' vs '0.7.0'(같은 버전인데 뒤처짐) · 'unknown' · '1.0.0-rc1' · '0.7.10+build'.
+       경보가 한 번 거짓이면 사람은 다음부터 안 읽는다 — 이 훅이 막으려는 병이 바로 그거다.
+       그래서 **판정 불가는 뒤처짐이 아니다**: 애매하면 조용히 넘어간다(오탐 0 우선).
+    """
+    ss = str(v).strip()
+    if not ss:
+        return None
+    out = []
+    for x in ss.split("."):
+        if not x.isdigit():
+            return None
+        out.append(int(x))
+    return tuple(out)
+
+
+def behind_of(cur, latest):
+    """cur 가 latest 보다 낮은가. 판정 불가면 False(경보 안 함)."""
+    a, b = parts(cur), parts(latest)
+    if a is None or b is None:
+        return False
+    n = max(len(a), len(b))          # '0.7' 과 '0.7.0' 을 같게 본다
+    a += (0,) * (n - len(a))
+    b += (0,) * (n - len(b))
+    return a < b
+
+
+try:
+    with open(inst_path, encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    sys.exit(0)
+
+behind = []
+for key, entries in (data.get("plugins") or {}).items():
+    if not key.endswith("@forge-plugins"):
+        continue
+    name = key.split("@", 1)[0]
+    mf = os.path.join(mkt, name, ".claude-plugin", "plugin.json")
+    if not os.path.isfile(mf):
+        continue
+    try:
+        with open(mf, encoding="utf-8") as f:
+            latest = json.load(f).get("version")
+    except Exception:
+        continue
+    # 여러 항목(scope 별)이 있으면 **판정 가능한 것 중 최신**을 설치본으로 본다.
+    cands = [e.get("version") for e in entries if parts(e.get("version")) is not None]
+    if not cands or parts(latest) is None:
+        continue                      # 판정 불가 — 조용히 넘어간다
+    cur = max(cands, key=parts)
+    if behind_of(cur, latest):
+        behind.append(f"{name} {cur}→{latest}")
+
+if behind:
+    print(f"[forge-onboard] ⚠️ 플러그인 설치본이 뒤처져 있습니다 ({len(behind)}종): "
+          + " · ".join(sorted(behind)))
+    print("[forge-onboard]    `/plugin` 으로 갱신하세요 — 지금 로드되는 것은 옛 버전입니다.")
+PYEOF
+fi
+
 exit 0

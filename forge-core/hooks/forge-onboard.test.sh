@@ -163,6 +163,70 @@ HOME="$RO" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" >/dev/null 2>&1
 check $? "쓰기 불가 HOME 에서도 exit 0(세션 미차단)"
 chmod 700 "$RO"
 
+echo
+echo "=== 설치본 뒤처짐 경보 (갭 G4) ==="
+# 전파 3층 중 ③(설치 캐시)만 자동 확인 지점이 없어, 7~10 패치 뒤처진 채 3주 방치됐다.
+# 이 검사는 **로컬 파일 두 개**만 대조한다(네트워크 불필요) — WARN 만, 차단 없음(AD-168).
+mk_g4_home() { # $1=설치버전 $2=마켓버전
+  local h; h="$(mktmp)" || exit 2
+  mkdir -p "$h/.claude/plugins/marketplaces/forge-plugins/forge-core/.claude-plugin"
+  printf '{"version":2,"plugins":{"forge-core@forge-plugins":[{"scope":"user","version":"%s"}]}}' "$1" \
+    > "$h/.claude/plugins/installed_plugins.json"
+  printf '{"name":"forge-core","version":"%s"}' "$2" \
+    > "$h/.claude/plugins/marketplaces/forge-plugins/forge-core/.claude-plugin/plugin.json"
+  echo "$h"
+}
+
+G4A="$(mk_g4_home 0.7.2 0.7.11)"
+OUT_G4A="$(HOME="$G4A" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"; RC_G4A=$?
+[ "$RC_G4A" = "0" ]; check $? "G4: 경보가 떠도 exit 0(세션 미차단)" "rc=$RC_G4A"
+printf '%s' "$OUT_G4A" | grep -q '0.7.2→0.7.11'
+check $? "G4: 뒤처진 설치본을 탐지하고 버전을 함께 보여준다" "$(printf '%s' "$OUT_G4A" | tail -2)"
+
+# ⚠️ 숫자 비교여야 한다 — 문자열 비교면 '0.7.2' > '0.7.11' 로 읽혀 **거꾸로** 판정한다.
+#   위 케이스가 바로 그 함정(2 vs 11)을 밟고 있다.
+G4B="$(mk_g4_home 0.7.11 0.7.11)"
+OUT_G4B="$(HOME="$G4B" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
+! printf '%s' "$OUT_G4B" | grep -q '뒤처져'
+check $? "G4: 같은 버전이면 조용하다(오탐 없음)" "$(printf '%s' "$OUT_G4B" | tail -2)"
+
+G4C="$(mk_g4_home 0.7.12 0.7.11)"
+OUT_G4C="$(HOME="$G4C" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
+! printf '%s' "$OUT_G4C" | grep -q '뒤처져'
+check $? "G4: 설치본이 더 최신이어도 조용하다" "$(printf '%s' "$OUT_G4C" | tail -2)"
+
+# 파일이 아예 없는 환경(플러그인 미설치·신규 머신)에서 죽지 않는다
+G4D="$(mktmp)" || exit 2
+OUT_G4D="$(HOME="$G4D" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"; RC_G4D=$?
+[ "$RC_G4D" = "0" ]; check $? "G4: 대조 파일 부재에도 exit 0(fail-open)" "rc=$RC_G4D"
+! printf '%s' "$OUT_G4D" | grep -q '뒤처져'
+check $? "G4: 대조 불가일 때 경보하지 않는다(판정 불가 != 뒤처짐)"
+
+# ⚠️ 오탐 경계 — 자체 탐침에서 **5건이 잘못 경보**했다(2026-08-20). 경보가 한 번 거짓이면
+#   사람은 다음부터 안 읽는다 — 이 훅이 막으려는 병이 정확히 그거다.
+#   원칙: **판정 불가는 뒤처짐이 아니다.** 애매하면 조용히 넘어간다(오탐 0 우선).
+_g4_quiet() { # $1=라벨 $2=설치 $3=마켓
+  local h; h="$(mk_g4_home "$2" "$3")"
+  local o; o="$(HOME="$h" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
+  ! printf '%s' "$o" | grep -q '뒤처져'
+  check $? "G4 오탐금지: $1 ($2 vs $3)" "$(printf '%s' "$o" | grep 뒤처져 | head -1)"
+  rm -rf "$h" 2>/dev/null
+}
+_g4_quiet "자릿수 다름"   0.7        0.7.0
+_g4_quiet "자릿수 다름(역)" 0.7.0      0.7
+_g4_quiet "unknown"     unknown    0.7.11
+_g4_quiet "프리릴리스"     1.0.0-rc1  1.0.0
+_g4_quiet "빌드메타"      0.7.10+b   0.7.10
+
+# 반대로 **진짜 뒤처짐은 여전히 잡아야** 한다(오탐 0 을 무탐지로 사지 않는다)
+G4E="$(mk_g4_home 0.9.9 1.0.0)"
+OUT_G4E="$(HOME="$G4E" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
+printf '%s' "$OUT_G4E" | grep -q '0.9.9→1.0.0'
+check $? "G4: 메이저 뒤처짐은 여전히 잡는다(무탐지로 도망가지 않음)" "$(printf '%s' "$OUT_G4E" | tail -1)"
+rm -rf "$G4E" 2>/dev/null
+
+rm -rf "$G4A" "$G4B" "$G4C" "$G4D" 2>/dev/null
+
 rm -rf "$FAKE_HOME" "$FAKE_HOME2" "$FAKE_HOME3" "$FAKE_HOME4" "$STUB" "$RO" 2>/dev/null
 
 echo
