@@ -86,6 +86,40 @@ OUT="$(HOME="$FAKE_HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"; 
 [ -d "$FAKE_HOME/.claude/handover/opus" ]; check $? "세션 디렉토리 생성(handover/opus)"
 [ -d "$FAKE_HOME/.claude/checkpoints" ];   check $? "세션 디렉토리 생성(checkpoints)"
 [ -f "$FAKE_HOME/.claude/rules/forge-core.md" ]; check $? "플러그인 rules 설치"
+# ⚠️ **번들에 넣은 rules 가 전량 설치되는가** — 파일만 넣고 설치가 안 되면 "넣었다"가 거짓이 된다.
+#   설치 루프가 글롭(`rules/*.md`)이라 지금은 자동으로 따라오지만, 누가 하드코딩 목록으로
+#   바꾸면 조용히 어긋난다. 그 순간을 잡는다.
+#   (forge SSoT 를 참조하지 않으므로 CI 러너에서도 유효하다 — §1~3 과 달리 SKIP 되지 않는다)
+_N_BUNDLE=$(ls "$PLUGIN_ROOT/rules/"*.md 2>/dev/null | wc -l)
+_N_INST=$(ls "$FAKE_HOME/.claude/rules/"*.md 2>/dev/null | wc -l)
+[ "$_N_BUNDLE" -gt 0 ] && [ "$_N_INST" = "$_N_BUNDLE" ]
+check $? "번들 rules 전량 설치 (번들 $_N_BUNDLE = 설치 $_N_INST)" "설치 누락 — 파일만 넣고 배선이 안 됐다"
+
+# ⚠️ **기존 사용자 시나리오** — 신규 룰이 "새 설치에만" 가면 반쪽이다.
+#   설치 루프의 `[ ! -f ]` 가드는 **파일 단위**라, 이미 rules 를 가진 HOME 에도
+#   **없는 파일만** 새로 들어가고 **사용자가 고친 파일은 보존된다.**
+#   (작성자가 처음에 "기존 사용자는 못 받는다"로 잘못 적었다가 실측으로 정정한 지점이다 —
+#    가드가 디렉터리 단위였다면 정말 못 받았을 것이다. 그 차이를 여기 고정한다.)
+_EU="$(mktmp)" || exit 2
+mkdir -p "$_EU/.claude/rules"
+printf '# 사용자가 고친 내용\n' > "$_EU/.claude/rules/forge-core.md"
+_EU_BEFORE="$(md5sum "$_EU/.claude/rules/forge-core.md" | cut -d' ' -f1)"
+HOME="$_EU" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" >/dev/null 2>&1
+_EU_AFTER="$(md5sum "$_EU/.claude/rules/forge-core.md" | cut -d' ' -f1)"
+_EU_N="$(ls "$_EU/.claude/rules/"*.md 2>/dev/null | wc -l)"
+_EU_BUNDLE="$(ls "$PLUGIN_ROOT/rules/"*.md 2>/dev/null | wc -l)"
+[ "$_EU_N" = "$_EU_BUNDLE" ]
+check $? "기존 사용자에게도 신규 룰이 설치된다 (설치 $_EU_N = 번들 $_EU_BUNDLE)" "신규 룰 미전달"
+[ "$_EU_BEFORE" = "$_EU_AFTER" ]
+check $? "사용자가 고친 룰은 덮어쓰지 않는다" "수정본 훼손 — 이 가드가 존재하는 이유다"
+rm -rf "$_EU" 2>/dev/null
+
+# 2026-08-21 Human 승인으로 추가된 5종이 **실제로 번들에 있는가**.
+#   빠져 있으면 플러그인 사용자는 카논의 62%를 못 받는다(그 상태로 3주 이상 있었다).
+for _r in context-engineering dev-workflow-rules model-routing security-agent-input success-is-silent; do
+  [ -f "$PLUGIN_ROOT/rules/$_r.md" ]
+  check $? "카논 rules 번들 포함: $_r.md" "번들에 없음 — 사용자가 이 규범을 못 받는다"
+done
 [ -f "$FAKE_HOME/.claude/skills/cr-multi/workflow.js" ]
 check $? "cr-multi workflow.js 자가설치(설치 후 /cr-multi 동작 조건)"
 
