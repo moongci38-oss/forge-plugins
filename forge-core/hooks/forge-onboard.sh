@@ -122,11 +122,31 @@ done
 #   python3 가 없거나 파일이 없으면 조용히 넘어간다(fail-open).
 _INST="$HOME/.claude/plugins/installed_plugins.json"
 _MKT="$HOME/.claude/plugins/marketplaces/forge-plugins"
+_SET="$HOME/.claude/settings.json"
 if command -v python3 >/dev/null 2>&1 && [ -f "$_INST" ] && [ -d "$_MKT" ]; then
-  python3 - "$_INST" "$_MKT" >&2 <<'PYEOF' || true
+  python3 - "$_INST" "$_MKT" "$_SET" >&2 <<'PYEOF' || true
 import json, os, sys
 
 inst_path, mkt = sys.argv[1], sys.argv[2]
+set_path = sys.argv[3] if len(sys.argv) > 3 else ""
+
+
+def disabled_set(path):
+    """`enabledPlugins` 에서 **명시적으로 false** 인 것만 모은다.
+
+    ⚠️ 왜 '명시적 false' 만인가: 키가 아예 없는 것은 "꺼둔 것"이 아니라 "아직 안 만진 것"이다.
+       모르는 것을 껐다고 단정하면 진짜 뒤처짐을 놓친다 — 조용해지는 쪽으로만 고치면
+       경보가 아니라 장식이 된다.
+    """
+    try:
+        with open(path, encoding="utf-8") as f:
+            ep = (json.load(f) or {}).get("enabledPlugins") or {}
+    except Exception:
+        return set()          # 못 읽으면 아무것도 끄지 않는다(알리는 쪽이 안전)
+    return {k for k, v in ep.items() if v is False}
+
+
+OFF = disabled_set(set_path)
 
 
 def parts(v):
@@ -168,6 +188,10 @@ except Exception:
 behind = []
 for key, entries in (data.get("plugins") or {}).items():
     if not key.endswith("@forge-plugins"):
+        continue
+    if key in OFF:
+        # 일부러 꺼둔 플러그인은 뒤처져도 문제가 아니다. SSoT 머신은 플러그인을 끄고
+        # standalone 미러를 정본으로 쓴다(둘 다 켜면 double-load) — 문서화된 구성이다.
         continue
     name = key.split("@", 1)[0]
     mf = os.path.join(mkt, name, ".claude-plugin", "plugin.json")

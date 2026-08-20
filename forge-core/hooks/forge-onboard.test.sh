@@ -252,6 +252,42 @@ _g4_quiet "unknown"     unknown    0.7.11
 _g4_quiet "프리릴리스"     1.0.0-rc1  1.0.0
 _g4_quiet "빌드메타"      0.7.10+b   0.7.10
 
+# ⚠️ **꺼둔 플러그인은 뒤처져도 문제가 아니다** (2026-08-21 실사고)
+#   SSoT 머신은 플러그인 5종을 **일부러 꺼두고**(enabled=False) standalone 미러를 정본으로
+#   쓴다(둘 다 켜면 double-load — 문서화된 staged cutover). 그런데 경보는 켜져 있는지
+#   안 보고 버전만 비교해 **매 세션 잔소리**를 했고, 사용자가 바로 지적했다.
+#   경보가 한 번 거짓이면 안 읽힌다 — 이 훅이 막으려던 병 그 자체다.
+_g4_settings() { # $1=home $2=enabled(true|false|none|other)
+  #   none  = 설정 파일 자체가 없다
+  #   other = 파일은 있고 **다른 플러그인만** 등재돼 있다(우리 키는 부재) — 현실적인 형태다
+  case "$2" in
+    none)  return 0 ;;
+    other) printf '{"enabledPlugins":{"someone-else@other-mkt":true}}' > "$1/.claude/settings.json" ;;
+    *)     printf '{"enabledPlugins":{"forge-core@forge-plugins":%s}}' "$2" > "$1/.claude/settings.json" ;;
+  esac
+}
+_g4_warns() { # $1=라벨 $2=enabled $3=기대(warn|quiet)
+  local h; h="$(mk_g4_home 0.7.2 0.7.11)"
+  mkdir -p "$h/.claude"
+  _g4_settings "$h" "$2"
+  local o; o="$(HOME="$h" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
+  if [ "$3" = "warn" ]; then
+    printf '%s' "$o" | grep -q '뒤처져'
+    check $? "G4 enabled: $1 → 경보한다" "뒤처졌는데 조용하다 — 장식이 됐다"
+  else
+    ! printf '%s' "$o" | grep -q '뒤처져'
+    check $? "G4 enabled: $1 → 조용하다" "$(printf '%s' "$o" | grep 뒤처져 | head -1)"
+  fi
+  rm -rf "$h" 2>/dev/null
+}
+_g4_warns "명시적으로 꺼둠(false)"   false quiet
+_g4_warns "켜져 있음(true)"          true  warn
+# ⚠️ 키가 없는 것은 "꺼둔 것"이 아니라 "아직 안 만진 것"이다 — 단정하면 진짜 뒤처짐을 놓친다
+_g4_warns "설정 파일 자체가 없음"     none  warn
+# ⚠️ 이게 진짜 경계다 — 파일은 있는데 **우리 키만 없는** 경우. "명시적 false 만 끈 것으로 본다"를
+#   "true 가 아니면 끈 것"으로 바꾸면 여기서 조용해진다(과잉침묵). 그 순간을 잡는다.
+_g4_warns "파일은 있고 우리 키만 부재"  other warn
+
 # 반대로 **진짜 뒤처짐은 여전히 잡아야** 한다(오탐 0 을 무탐지로 사지 않는다)
 G4E="$(mk_g4_home 0.9.9 1.0.0)"
 OUT_G4E="$(HOME="$G4E" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
