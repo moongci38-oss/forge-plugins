@@ -81,6 +81,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
 
 > **Human 개입 없이 100% 자율 진행. Human은 develop 머지 후 final-qa-report만 검수.**
 
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```
 [User] /qa --scope={domain|full}
    │
@@ -99,12 +100,24 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
    │           ```bash
    │           if [ "${FORGE_RAG_RECALL:-on}" != "off" ]; then
    │             RAG_QUERY="{--scope 값 또는 대상 도메인/기능명} 버그 회귀"
+   │             # 프로젝트 스코프 태깅(2026-08-02 harness-gaps M-5) — 필터링이 아니라 라벨링.
+   │             # 타 프로젝트 회상이 항상 무익하진 않으므로(브랜드보다 recall 유지) 결과는
+   │             # 그대로 두고 project_match 로 2단 분리 집계만 한다.
+   │             # 워크트리 오귀속 방지(cr-final pr267-chunk2): 워크트리에선 --show-toplevel 이
+   │             # .claude/worktrees/<name> 을 반환해 프로젝트명이 세션명으로 라벨링된다(F6 클래스
+   │             # 재발 — handover-landing.sh 와 동일 패턴으로 워크트리 접미를 벗긴다).
+   │             RAG_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+   │             case "$RAG_ROOT" in */.claude/worktrees/*) RAG_ROOT="${RAG_ROOT%%/.claude/worktrees/*}" ;; esac
+   │             RAG_PROJECT="$(basename "$RAG_ROOT")"
    │             RAG_JSON=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh" search.py "$RAG_QUERY" \
-   │               --top-k 5 --json --index-dir "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index" 2>/dev/null)
+   │               --top-k 5 --json --project "$RAG_PROJECT" --index-dir "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index" 2>/dev/null)
    │             RAG_COUNT=$(echo "$RAG_JSON" | jq 'length' 2>/dev/null || echo 0)
-   │             echo "[rag-recall] 팀 공유 지식 회상: ${RAG_COUNT}건"
-   │             # 히트 목록 출력 — 건수만으로는 참조 불가. 스키마 실측: file_path / score / text
-   │             [ "${RAG_COUNT:-0}" -gt 0 ] && echo "$RAG_JSON" | jq -r '.[] | "  - \(.file_path) [\(.score)]"' 2>/dev/null
+   │             RAG_PROJECT_N=$(echo "$RAG_JSON" | jq '[.[] | select(.project_match == true)] | length' 2>/dev/null || echo 0)
+   │             RAG_OTHER_M=$(echo "$RAG_JSON" | jq '[.[] | select(.project_match == false)] | length' 2>/dev/null || echo 0)
+   │             echo "[rag-recall] 팀 공유 지식 회상: ${RAG_COUNT}건 (이 프로젝트 ${RAG_PROJECT_N} / 타 프로젝트 ${RAG_OTHER_M})"
+   │             [ "${RAG_PROJECT_N:-0}" -eq 0 ] && echo "[rag-recall] 이 프로젝트(${RAG_PROJECT}) 회귀 이력 없음 — 신규 영역"
+   │             # 히트 목록 출력 — 건수만으로는 참조 불가. 스키마 실측: file_path / score / text / project_match
+   │             [ "${RAG_COUNT:-0}" -gt 0 ] && echo "$RAG_JSON" | jq -r '.[] | "  - \(.file_path) [\(.score)] \(if .project_match then "🎯이프로젝트" else "🌐타프로젝트" end)"' 2>/dev/null
    │           else
    │             echo "[rag-recall] FORGE_RAG_RECALL=off — 회상 스킵"
    │           fi
@@ -129,7 +142,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
    │           `--exhaustive` 시: 동일 헬퍼 `--crawl` 모드로 clickable 요소 전수 클릭·검증(파괴적 액션 스킵) — 결과가 Phase B scenarios.md를 보강하고 발견 버그는 동일 bugs[]로 흡수된다(신규 시나리오 카테고리 아님, 기존 8카테고리 그대로).
    │           `--accounts` 시: T1/T2가 계정별로 fan-out 실행되며(T3/T6/T7은 계정 무관 1회), 헬퍼 `--accounts <로그인시퀀스json>`으로 로그인 후 캡처 — 발견 버그는 `account` 필드로 태깅.
    │           ⚠️ 대량 동시 FAIL 감지(권장 기본: 동일 도메인/FR군 시나리오의 50%+ 또는 절대 5건+ 동시 FAIL, 튜닝 가능) 시
-   │              → 개별 bug-N 파일링·Lane A 위임 전에 advisor-strategist(Opus) 자문:
+   │              → 개별 bug-N 파일링·Lane A 위임 전에 advisor-strategist(리졸버 기본 = Fable 5) 자문:
    │                Agent(subagent_type="advisor-strategist", prompt="<대량 FAIL 패턴 요약 500토큰> 구조적 단일결함 vs 개별버그 판단·접근 재정렬 조언 요청")
    │              구조적 단일결함이면 근본원인 1건으로 수렴(개별 N건 남발 방지). advisory only — 최종 판단 Human/오케스트레이터.
    │
@@ -148,7 +161,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
    │             • SPEC_STALE_CANDIDATE (B: 코드가 의도적 커밋으로 스펙보다 최신) → Reconciliation 게이트
    │             • AMBIGUOUS (신호부족/판별불가) → Reconciliation 게이트 (안전 기본값)
    │           Reconciliation 게이트:
-   │             1) advisor-strategist(Opus) 자문 스폰 (main 컨텍스트 1-level; 중첩 시 [→Lead 위임])
+   │             1) advisor-strategist(리졸버 기본 = Fable 5) 자문 스폰 (main 컨텍스트 1-level; 중첩 시 [→Lead 위임])
    │             2) Human [STOP]: 판별 신호+advisor 권고 제시 → 2택
    │                - "스펙 노후 확정" → 스펙 정정(Human 승인 = sanctioned 사후 변경): .spec.md FR 갱신 → 시나리오 재생성 → 재검증
    │                - "코드 버그 확정" → Phase D~F Lane A 위임(코드 수정)
@@ -273,7 +286,7 @@ bash ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/dispatch/phase-gate.sh phase-f-ent
 
 카테고리 표기 허용 형식(H27 훅 판정 기준, 하위호환): 필드형 `카테고리: N`(reference.md 시나리오 schema) 또는 헤딩형 `카테고리 N`/`### 카테고리 N: <이름>` — 콜론 유무 무관, 숫자 뒤 경계만 확인.
 면제 시: `면제 카테고리: [N] / 사유: <1줄>` 명시. 3건 이상 동시 면제 = [STOP].
-[STOP] 발동 전 advisor-strategist(Opus) 자문: `Agent(subagent_type="advisor-strategist", prompt="<면제 제안 카테고리 N개+각 사유 요약 500토큰> 테스트 커버리지 축소 리스크·대안 조언 요청")` (중첩 시 [→Lead 위임]). advisor 응답(400~700토큰)을 [STOP] 보고에 포함 — advisory이며 면제 승인·최종결정은 Human. 3건 미만 면제는 스폰하지 않는다(비용).
+[STOP] 발동 전 advisor-strategist(리졸버 기본 = Fable 5) 자문: `Agent(subagent_type="advisor-strategist", prompt="<면제 제안 카테고리 N개+각 사유 요약 500토큰> 테스트 커버리지 축소 리스크·대안 조언 요청")` (중첩 시 [→Lead 위임]). advisor 응답(400~700토큰)을 [STOP] 보고에 포함 — advisory이며 면제 승인·최종결정은 Human. 3건 미만 면제는 스폰하지 않는다(비용).
 H28 gate: 카테고리 1·2·3·4·6·8 합산 5+건 직렬 시도 → 차단.
 상세 시나리오 schema + 병렬 실행 코드 → `reference.md` §Phase B 상세
 
@@ -287,7 +300,7 @@ qa 자체 Phase E는 폐지되었다(Phase D~F 위임, 위 §참조). 복잡도�
 
 ## qa 자체 advisor 자문 지점 (Q1/Q2 — 2026-07-04)
 
-버그 수정(Lane A)의 advisor T1~T4와 별개로, qa의 **discovery 국면 고위험 판단**에 advisor(Opus)를 자문한다:
+버그 수정(Lane A)의 advisor T1~T4와 별개로, qa의 **discovery 국면 고위험 판단**에 advisor 를 자문한다(모델 = `advisor-model-resolve.sh` 출력, 기본 Fable 5):
 
 | 지점 | 트리거 | 자문 목적 |
 |------|--------|----------|
@@ -295,7 +308,7 @@ qa 자체 Phase E는 폐지되었다(Phase D~F 위임, 위 §참조). 복잡도�
 | **Q2** | Phase C 대량 시나리오 동시 FAIL(구조적 의심) | 구조적 단일결함 vs 개별버그 판단 |
 | (Phase C.5) | spec-code 불일치 SPEC_STALE_CANDIDATE/AMBIGUOUS | 스펙정정 vs 코드수정 (기배선) |
 
-- 모델=Opus(비-Fable), advisory only([STOP]·최종판정 Human), 저빈도 고위험만, non-blocking(스폰 실패해도 Human 진행).
+- 모델=`advisor-model-resolve.sh` 출력(기본 Fable 5 · 대체 `gpt-5.6-sol` — 2026-08-12 이전 "Opus(비-Fable)" 고정 폐기). `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only). advisory only([STOP]·최종판정 Human), 저빈도 고위험만, non-blocking(스폰 실패해도 Human 진행).
 - **AMBIGUOUS 복잡도 버그의 advisor는 Lane A T1이 담당** — qa에서 중복 배선하지 않는다.
 
 상세 라우팅 코드 → `commands/forge-fix.md` (레거시 참조: `reference.md` §Phase E 상세)
@@ -308,6 +321,22 @@ qa 자체 Phase E는 폐지되었다(Phase D~F 위임, 위 §참조). 복잡도�
 - 실제 실행·화면·로그·HTTP 응답으로만 판정
 - "코드를 보면 이렇게 동작할 것 같다" = 즉시 중단, 실제 실행으로 검증
 - 코드 리뷰 필요 시 `/cr-double` 또는 `/code-review` 별도 실행
+
+### 검증 대상 빌드 명시 의무 (2026-08-02 harness-gaps M-2)
+
+**"실제 실행"이 dev 서버인지 프로덕션 빌드인지 항상 명시한다.** 이 공백이 실제로 오진을 냈다
+— home-page 세션에서 dev 온디맨드 컴파일 12.7초를 "내비게이션 취소"로, dev 전용 하이드레이션
+경고를 전 라우트 결함으로 오판했다(BUG-2/BUG-3, 둘 다 프로덕션 미재현으로 철회).
+
+- **시나리오 실행 전 빌드 모드를 선언한다**: Phase A에서 E2E 러너 설정(예: `playwright.config.ts`
+  의 `webServer.command`)이 `dev`(`next dev`/`pnpm dev` 등)인지 `prod`(`next build && next start` 등
+  프로덕션 산출물 기동)인지 확인해 리포트 서두에 `검증 대상 빌드: dev|prod`로 기재한다.
+- **프로덕션 영향 판정(배포 가부·버그 심각도)은 프로덕션 빌드 실측을 근거로 한다** — dev 전용 현상
+  (온디맨드 컴파일 지연·개발 경고·HMR 아티팩트)을 제품 결함으로 보고하지 않는다.
+- dev 서버로만 검증했다면 결과에 **"프로덕션 미검증"**을 명시한다 — 침묵 생략 금지.
+- E2E 러너가 dev 를 띄우는 프로젝트라면 그 사실 자체를 Phase A 에서 확인해 리포트에 남긴다.
+
+**폐기조건**: 프로젝트 표준이 "E2E = 프로덕션 빌드 대상"으로 통일되면 이 조항은 불필요해진다.
 
 ## 8축 가중 Health Score Rubric (LN-05)
 

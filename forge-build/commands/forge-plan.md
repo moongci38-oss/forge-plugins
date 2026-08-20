@@ -21,9 +21,9 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 | 기획 패키지 작성 | **Sonnet** | frontmatter `model: sonnet` |
 | 탐색(기존 spec/제품 인덱스·레포 확인) | **Haiku** | `Agent(model:"haiku")` subagent |
 | 기술 검토(7축 ADR) | (기존) | `cto-advisor` 에이전트/스킬 |
-| 비기술 전략 자문 | **Opus** | `advisor-strategist` |
+| 비기술 전략 자문 | **Fable 5**(대체 `gpt-5.6-sol`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
 
-근거: `$HOME/.claude/rules/model-routing.md`. advisor=Opus 고정(Fable 자동 없음).
+근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. ⚠️ 2026-08-12 부터 advisor 기본은 **Fable 5**다(구 "Opus 고정 · Fable 자동 없음" 폐기). 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
 
 ## 사용법
 
@@ -62,7 +62,19 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 
 → 공통 헬퍼: `/readiness-gate` 참조 (4-state 판정 + GUIDE-STOP 산출기 + ADAPT 규칙)
 
-forge-plan 진입 계약(A~D 요소) 기준으로 P2 아티팩트 스캔:
+**선행 Phase 게이트 (기계 검증, 선행 필수)**
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} P3-ENTRY
+```
+`exit 1` → **즉시 GUIDE-STOP**(P2 미완). 요소 스캔보다 **먼저** 돌린다.
+상세 규칙 → `/readiness-gate §선행 Phase 게이트`.
+
+forge-plan 진입 계약(**표에 있는 요소 전부** — 2026-08-11 현재 A~E 5요소, `E`=선행 Phase 상태)
+기준으로 P2 아티팩트 스캔:
+
+> ⚠️ **개수를 여기에 다시 적지 말고 `/readiness-gate` 표를 읽어 그 행 전부를 판정한다.**
+> 2026-08-11 실사고: 계약 표에 `E`/`I` 를 추가했는데 이 문장이 "A~D"로 고정돼 있어
+> 신설 항목이 조회되지 않을 뻔했다(적대적 검수 Critical). 표가 정본이고 이 문장은 요약이다.
 - 요소별 4-state 판정(ok/normalize/derive/absent)
 - 라우팅:
   - 전부 ok       → **PASS** (실행 흐름 Step 1 진행)
@@ -83,7 +95,7 @@ forge-plan 진입 계약(A~D 요소) 기준으로 P2 아티팩트 스캔:
   ├── 00-도메인개요.md           ← 개요(목적·범위·용어)
   ├── _registry.yaml             ← canonical manifest (Phase 3 M2에서 생성)
   ├── 기능명세/                  ← 기능별 분할 (api-정의서·sequences와 일관)
-  │   └── 01-{기능명}.md ...
+  │   └── F-01-{기능명}.md ...   ← 파일명은 반드시 {feature_id}- 로 시작(registry_gate 계약)
   ├── 10-화면정의.md             ← 고정번호 (화면 ID·레이아웃·상태)
   ├── 11-테이블명세.md           ← 고정번호 (스키마·관계)
   ├── 12-상세개발계획서.md       ← 고정번호 (세션 로드맵·기술스택·ADR)
@@ -126,8 +138,8 @@ features:
   - id: F-01
     name: {기능명}
     priority: Must|Should|Could|Won't   # PRD RICE / GDD MoSCoW
-    fr_refs: [FR-01, FR-02]             # 기능명세/01-{기능명}.md §FR
-    ac_refs: [AC-01, AC-02]             # 기능명세/01-{기능명}.md §AC
+    fr_refs: [FR-01, FR-02]             # 기능명세/F-01-{기능명}.md §FR
+    ac_refs: [AC-01, AC-02]             # 기능명세/F-01-{기능명}.md §AC
     pages: [page-id-1, page-id-2]       # 10-화면정의.md 화면 ID
     spec_ref: .specify/specs/YYYY-MM-DD-{slug}.md
     # ── P1 신규 필드 (additive, 모두 선택적) ──────────────────────────────
@@ -181,7 +193,9 @@ domains:
 `_registry.yaml` 생성·갱신 직후 실행:
 
 **① orphan 체크 (계층 매핑)**:
-- `_registry.yaml` features 전수 → 기능명세/ 파일 1:1 매핑 (누락 = 기능 orphan → **FAIL**)
+- `_registry.yaml` features 전수 → `기능명세/{feature_id}-*.md` 1:1 매핑 (누락 = 기능 orphan → **FAIL**)
+  ⚠️ **파일명은 `F-01-…` 처럼 feature_id 로 시작해야 한다.** `01-…` 로 지으면 Must 기능 전건이
+  orphan FAIL 로 잡힌다(2026-08-11 실측: 백점 7건 전부 FAIL → `F-` 접두 후 즉시 PASS).
 - `_registry.yaml` pages 전수 → `s4-pages/{화면ID}/` 디렉토리 1:1 매핑 (누락 = visual asset orphan → **WARN**)
 - 기능명세/에 있는 sub-flow FR → 부모 feature `fr_refs`로 전수 역매핑 (미연결 = FR orphan → **WARN**)
 
@@ -274,6 +288,7 @@ domains:
 
 ## 미결 항목
 - (없음)
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```
 
 **`_STATUS.md` 읽기/쓰기 규약**:
@@ -310,11 +325,15 @@ domains:
 - ② `cto-advisor` 에이전트 Subagent: `s4-development-plan.md` 7축(아키텍처·API·데이터모델·보안·성능·테스트전략·기술부채) 검토 — 부적절한 보안 `N/A`도 검토 → `{project-root}/docs/reviews/wave3-cto-{date}.md`
 - ③ `/forge-check-ui`: `s4-pages/`(또는 기존 `s4-ui-source/`) UI 품질. 초기 1회 + `critical_count` ≥1 시 `/visual-loop` 재시도 최대 2회(총 3회). 3회 후 잔존 → [STOP] → `{project-root}/docs/reviews/ui-check-{date}.json`
 
-**전략 advisor (조건부, advisory-only — cto-advisor 기술축과 별개)**: 비-기술 전략 분기에서 advisor-strategist(Opus) 자문 — 트리거: MVP 범위 결정 분기 / L(대규모) 제품 순서·리소스 배분 / 타임라인-스코프 충돌. `Agent(subagent_type="advisor-strategist", prompt="<계획 맥락+전략 분기 500토큰> 범위·순서·리소스 권고 + trade-off 1~2개")`. 단순 계획(단일 제품·명확 범위)은 스폰 X. advisory only, non-blocking. 기술 결정(아키텍처·스택·보안)은 cto-advisor가 담당 — 중복 스폰 금지. 중첩 시 [→Lead 위임].
+**전략 advisor (조건부, advisory-only — cto-advisor 기술축과 별개)**: 비-기술 전략 분기에서 advisor-strategist(리졸버 기본 = Fable 5) 자문 — 트리거: MVP 범위 결정 분기 / L(대규모) 제품 순서·리소스 배분 / 타임라인-스코프 충돌. `Agent(subagent_type="advisor-strategist", prompt="<계획 맥락+전략 분기 500토큰> 범위·순서·리소스 권고 + trade-off 1~2개")`. 단순 계획(단일 제품·명확 범위)은 스폰 X. advisory only, non-blocking. 기술 결정(아키텍처·스택·보안)은 cto-advisor가 담당 — 중복 스폰 금지. 중첩 시 [→Lead 위임].
 
 ### Step 5 — 게이트 판정 (Check 4 — 모두 충족. 리포트 = 패턴 매칭 중 mtime 최신 1개 `ls -t {dir}/{pattern} | head -1`. 매칭 0개 = FAIL)
 <!-- mtime 기준 선정 이유: `-r2`/`-r3` 재시도 접미사는 사전순 정렬을 깨뜨림 (`-` 0x2D < `.` 0x2E → `...-r2.md`가 `....md`보다 사전순 앞섬), 따라서 `sort | tail -1`은 원본(stale) 리포트를 오선택할 수 있음 -->
-1. `bash $HOME/.claude/scripts/forge-gate-check.sh {project} S4` → PASS (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
+1. `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} S4` → PASS
+   ⚠️ **`$HOME/.claude/scripts/forge-gate-check.sh` 를 쓰지 않는다** — 그 경로의 사본은 의존 파일
+   (`forge-paths.sh`·`json-get.sh`·`artifact-resolver.sh`)이 없어 `No such file` 3연발 후
+   `FAIL: forge-workspace.json not found` 를 내며, 이 메시지가 **의존 결손을 프로젝트 설정
+   문제로 오진하게 만든다**(2026-08-11 실측). 4개 파일은 `shared/scripts/` 에 함께 있다. (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
 2. `wave2-verification-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Missing: 0$'` && `grep '^Critical: 0$'`
 3. `wave3-cto-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Critical: 0$'`
 4. `ui-check-*.json` mtime 최신: `jq '.verdict == "PASS" and .critical_count == 0'` == true

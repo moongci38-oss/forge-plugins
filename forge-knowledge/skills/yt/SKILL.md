@@ -45,9 +45,18 @@ model: sonnet
 
 $ARGUMENTS
 
-## 출력 형식 (Artifact)
+## 출력 형식 (파일 저장 = 정본 · Artifact XML = 파생)
 
-모든 분석 리포트는 **Artifact XML 형식만**으로 stdout에 출력합니다. 파일 저장 불필요.
+<!-- root-cause(2026-08-10): 이 절은 "Artifact XML 형식만 / 파일 저장 불필요"라고 지시했으나,
+     실제 파이프라인은 `01-research/videos/analyses/{date}-{id}-{slug}-analysis.md` 저장을 전제로
+     한다 — 비교분석·적용계획서·학습노트·대시보드·텔레그램 발송·아티팩트 발행이 전부 그 저장 파일을
+     Read 해 동작한다(실측: 해당 디렉토리에 -analysis/-summary/-study-notes/-dashboard 4종이 실재).
+     지시대로 "저장 불필요"를 따르면 파이프라인이 끊긴다. article·daily-system-review 는 2026-08-03
+     에 같은 결함을 정정했고 yt·weekly-research 만 남아 있었다(2026-08-10 실측 후 함께 정정).
+     ⚠️ 아래 "Artifact XML"은 claude.ai 아티팩트가 **아니다** — stdout 표시용 `<artifact>` 태그일 뿐
+     공유 URL이 생기지 않는다. 이름이 같아 "이미 아티팩트로 나가고 있다"고 오독하기 쉽다. 실제 발행은
+     대화형 세션의 `/forge-publish-report` 만 할 수 있다(헤드리스엔 Artifact 도구 부재 — L-68). -->
+§산출물대로 **파일 저장이 정본**입니다. Artifact XML 발행은 저장 후 선택적 파생 출력(stdout 표시용)이며 파일 저장을 대체하지 않습니다.
 
 ```xml
 <artifact type="markdown" id="yt-{video_id}" title="{영상 제목}">
@@ -212,13 +221,25 @@ Agent(haiku) ×N (핵심 주장별 1개): "이 주장의 반박·대안·한계�
 - Glob: `.github/workflows/*.yml` (GitHub Actions)
 - **Grep(내용 검색) 필수 — Glob(파일명 목록)만으로 "미적용" 단정 금지**: 각 제안 역량의 키워드로 `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `.claude/scripts/**`, `${FORGE_ROOT:-$HOME/forge}/shared/scripts/**`, `$HOME/.claude/rules*/*.md` **내용**을 Grep한다. (근본원인: 스킬명만 보고 역량을 놓치는 false gap — 실사례 2026-07-03 playwright-parallel-test/visual-loop/healer, promote-learnings.sh 누락)
 - **증거 원장(evidence ledger) 강제**: 비교 매트릭스의 어떤 행을 `미적용/부재/갭`으로 라벨하려면 그 행마다 기록 — `검색 위치` / `grep 쿼리` / `검토한 히트` / `왜 불충분` / `최종 라벨`. 원장 없는 `미적용` 행 금지. grep 히트 있으면 `기구현` 또는 `부분적용(차이 명시)`로 라벨.
+- **`미적용` 라벨은 3축 중 2축 이상을 통과해야 한다 (2026-08-18 추가)**: 원장 5칸이 다 차 있어도 **쿼리가 상류 어휘 하나뿐이면 결론이 틀릴 수 있다.** 우리가 그 역량을 **다른 이름으로 부르고 있으면** 그 이름으로는 아무것도 안 잡히기 때문이다. 그래서 아래 셋 중 **둘 이상**에서 0건일 때만 `미적용`으로 라벨한다.
+  | 축 | 무엇을 찾나 | 이름을 몰라도 되나 |
+  |---|---|---|
+  | ① 상류·영상 어휘 | 그쪽이 쓰는 용어 그대로 | ✅ |
+  | ② **행동 계약 문구** | 그 역량이 *하는 일*의 서술로 검색(예: "결정만 묻는다"·"합의 전 실행 금지") | ✅ **이름 불필요** |
+  | ③ **레지스트리·소비처 역인덱스** | `.claude/brain/registry/` 분류 · `rules-on-demand/` 목록 · 커맨드가 참조하는 룰 파일 전량 | ✅ **이름 불필요** |
+  - **②③이 핵심**이다 — 우리 이름을 몰라도 역량에 도달하는 경로이기 때문이다. ⚠️ *"우리 명칭으로도 grep 한다"* 같은 규칙은 **순환이라 쓰지 않는다**: 이름을 모르는 것이 바로 실패 원인인데 그 이름을 입력으로 요구하면 다음 사례에서 똑같이 실패한다.
+  - 우리 이름을 모르겠으면 **그것부터가 조사 대상**이지 `미적용`의 근거가 아니다.
+  - 근거: 2026-08-18 — 한 분석이 `grill` 패턴을 "미도입"으로 판정했으나 `grilling-protocol.md` 가 **2026-07-10 에 이미 흡수돼 소비처 7곳**에 배선돼 있었다. 상류 어휘(`fog|answer.key|decision.ticket`)로만 검색해서 놓쳤고, ③이었으면 `brain/registry/behavior/grilling-protocol.json` 실존으로 즉시 잡혔다.
+  - 재현(**`git grep` 을 쓴다 — `grep -r` 은 흔들린다**): `git -C "${FORGE_ROOT:-$HOME/forge}" grep -lie grill -- '.claude/*.md' '.claude/**/*.md' 'dev/global-rules/*.md' | wc -l` → **12건**(이 규칙 문서 자신 포함 — 이 항 추가 전엔 11건. 2026-08-19 관측).
+    ⚠️ **`grep -rli ... --include='*.md'` 를 쓰면 안 된다.** `.claude/worktrees/` 안에 워크트리가 하나라도 있으면 **같은 파일을 중복으로 세서** 수가 부풀고(2026-08-19 실측: 워크트리 안 12 · 메인 체크아웃 **25** · `--exclude-dir=worktrees` **11** — 한 명령이 세 값을 낸다), 그 불일치가 다음 세션에 갭으로 오판된다. `git grep` 은 **추적 파일만** 보므로 워크트리 유무와 무관하게 같은 값을 낸다.
+    이 규칙이 경고하는 것이 바로 "검색 범위가 달라 결론이 흔들린다"인데 **1차 재현 명령 자신이 그 병을 앓고 있었다**(PR #296 cr-final Codex 지적, 실측 확인 후 교체).
+  - 폐기조건: 이 3축을 적용한 뒤에도 false gap 이 2건 이상 나오면 축 구성을 재설계한다.
 - **[자가검증 게이트]** 시스템 비교 테이블 출력 직전, 각 갭 행에 grep 증거가 첨부됐는지 자가 확인. 누락 시 테이블 생성 중단 후 grep 선행(인라인 자동 수정 — Human [STOP] 아님).
 - **이미 구현된 기능을 개선 제안하는 경우** → 비교 매트릭스에서 "기구현" 표기, 제안 목록에서 제거
 
 **GTC-3: 핵심 커버리지** — Forge/Forge Dev 파이프라인 현황을 실제 파일에서 확인
 - Read: `forge-workspace.json` → 활성 프로젝트 + gate-log.md 위치
 - Read: 각 프로젝트의 `gate-log.md` → 현재 Gate 위치
-- Read: `docs/planning/active/forge/todo.md` → Forge Dev Spec 진행
 - **"컨텍스트에서 자동 참조" 대신 실제 파일 Read 결과를 Step 2.9의 입력으로 사용**
 
 **GTC-4: 영향도 검증 (P1 승격 게이트)** — P1 이상 항목이 아래 기준 중 하나 이상 충족하는지 확인
@@ -248,7 +269,7 @@ Agent(haiku) ×N (핵심 주장별 1개): "이 주장의 반박·대안·한계�
 우리 시스템 현황과 영상/리서치 내용을 비교하여 개선 제안을 생성합니다.
 
 **우리 시스템 현황 파악 (GTC-3에서 수집된 실제 파일 데이터 사용):**
-- Forge Dev/Forge 파이프라인 (GTC-3 Read 결과: gate-log, todo.md, 세션 상태)
+- Forge Dev/Forge 파이프라인 (GTC-3 Read 결과: gate-log, 세션 상태)
 - 현재 적용 중인 도구/기술 (GTC-1/2 Read 결과: MCP, skills, agents, workflows)
 - 진행 중인 프로젝트 (GTC-3 Read 결과: forge-workspace.json)
 
@@ -272,6 +293,42 @@ Agent(haiku) ×N (핵심 주장별 1개): "이 주장의 반박·대안·한계�
 
 > **파일명 규칙**: `{date}-{video_id}-{title-slug}-analysis.md`
 > 예: `2026-03-22-dT3ambz7NXk-claude-channels-openclaw-압도-analysis.md`
+
+### Step 3.5 — 타임스탬프 검증 게이트 (필수, 파생물 생성 **전**)
+
+쉽게 말하면 **책 인용에 적은 페이지 번호를 책을 펴서 맞춰보는 단계**다. 이 스킬은 오래
+`[🕐 MM:SS](…?t=N)` 링크를 붙이면서 그 숫자를 트랜스크립트와 한 번도 대조하지 않았다.
+실측 오차 최대 **-5573초(92분)** — 드리프트가 아니라 그냥 깨진 인용이다.
+
+```bash
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-timestamp-verify.py \
+  "{outputsRoot}/01-research/videos/analyses/{date}-{video_id}-{slug}-analysis.md" --apply
+```
+
+- 필요한 데이터는 이미 로컬에 있다(같은 접두어 `.json` 의 `segments`) — **외부 호출 0회**.
+- **여기서 돌리는 이유**: 대시보드·학습노트 같은 파생물이 아직 안 만들어졌기 때문이다.
+  정본을 먼저 고쳐야 파생물이 맞는 값을 물려받는다. 순서가 바뀌면 정본만 고치고
+  사용자가 보는 화면은 옛 값으로 남는다(2026-08-18 실사고).
+- 도구는 **인용으로 시작하는 줄만 자동 정정**한다. 한국어 의역 요약은 문자열 매칭이 안 되므로
+  `unverified-paraphrase` 로 남기고 손대지 않는다 — 억지로 고치는 것보다 안 고치는 쪽이 안전하다.
+- 의역 줄 **안에** 원어 인용이 박혀 있으면 `quote-in-paraphrase` 로 **후보만 알려 주고 고치지 않는다.**
+  그 링크는 인용이 아니라 항목 전체를 가리키므로, 인용 위치로 옮기면 링크의 의미가 조용히 바뀐다.
+  옮길지는 사람이 판단한다.
+- `out-of-range`(영상 길이를 넘는 링크)가 나오면 **자동 정정 대상이 아니다.** 정답을 알 수 없으니
+  사람이 그 링크를 지우거나 다시 찾아야 한다.
+- `label-mismatch` = 링크(`?t=`)가 **자막 대조로 맞다고 확인됐는데** 보이는 글자(MM:SS)만 다른 경우.
+  이때만 라벨을 고친다 — 링크가 정답이라는 근거가 있기 때문이다.
+  ⚠️ **확인되지 않은 레인(의역 등)에서는 고치지 않는다.** 링크가 오타이고 라벨이 옳았을 수도 있어서,
+  라벨을 링크에 맞추면 **맞는 정보를 지우는 것**이 된다. 그런 건 `label_discrepancy_secs` 로
+  기록만 하고 사람에게 넘긴다(2026-08-18 실사고 — 12건을 자동으로 고쳤다가 되돌렸다).
+  자릿수 표기 차이(`0:42` vs `00:42`)나 1~2초 반올림은 결함이 아니라서 잡지 않는다(허용오차 적용).
+- `unverified-multi-t` = URL 에 `t=` 가 둘 이상. **건드리지 않는다** — 브라우저는 마지막 것을 쓰는데
+  어느 쪽이 의도인지 알 수 없다.
+- **종료코드로 판정한다** — `0`=정상 · `1`=사용법·대상 경로 오류 · `2`=대상을 못 읽었거나 계약 위반.
+  ⚠️ `2` 를 "고칠 게 없었다"로 읽지 말 것. **안 본 것과 통과한 것은 다르다.**
+  `2` 가 나오면 타임스탬프를 그대로 두되 완료 보고에 `타임스탬프 미검증` 을 적는다 — 침묵 금지.
+
+재현(도구 자체 회귀): `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-timestamp-verify.test.sh` → PASS 99 / FAIL 0
 
 ### Step 4: 비교 분석 & 적용 계획서 (기술 영상인 경우)
 
@@ -345,6 +402,10 @@ stale 여부 확인: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analy
 2. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh <위 절대경로 전부>`
 3. 스크립트 출력 표를 **그대로** 완료 보고로 사용. 표 밖에서 "완료" 임의 서술 금지.
 4. exit 2면 "완료" 선언 금지 — 누락 산출물 재생성 후 재검증(exit 0)까지 Step 5(Notion 업로드) 진행 금지.
+5. **타임스탬프 게이트(Step 3.5) 결과 1줄을 보고에 포함한다** — `drift N / ok N / 미검증 N`.
+   이 줄이 없으면 미완료로 본다. 파일이 존재하는지(4.95)와 그 안의 링크가 맞는지는 다른 축이다:
+   verify-outputs.sh 는 "만들어졌나"만 보고 "가리키는 곳에 실물이 있나"는 보지 않는다.
+   재현: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-timestamp-verify.py <analysis.md>` (dry-run, 무변경)
 
 ### Step 4.97: 학습노트 생성 + 텔레그램 전달 (장문 안전, 영상당 정확히 1회)
 

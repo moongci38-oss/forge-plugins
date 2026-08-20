@@ -1,6 +1,7 @@
 ---
 name: gitnexus-refactoring
 description: "Use for safe rename/extract/split/move/restructure of code. Ex: \"Rename this function\", \"Extract into a module\", \"Move to separate file\""
+disable-model-invocation: true
 ---
 
 # Refactoring with GitNexus

@@ -1,6 +1,6 @@
 ---
 name: forge-check-ui
-description: UI 품질게이트 — workflow.js 4축(static/lighthouse/responsive/screen-mapping) 자동검증. WCAG AA·디자이너10카테고리·AI-Slop·3-Layer는 미구현(모델 수동판단용).
+description: UI 품질게이트 — workflow.js 5축(static/lighthouse/responsive/screen-mapping/source-quality) 자동검증. AI-Slop 19패턴·WCAG AA 임계값·디자이너 10카테고리·수치축 15개는 프롬프트로 주입돼 가동 중(2026-08-06 P1.1). 2026-08-11 로 6-Pillar adversarial(L3)·3-Layer 자동 심화 트리거까지 배선 완료 — 목표 스펙 전 항목 가동.
 model: sonnet
 arguments:
   url: "검증 대상 URL (기본: http://localhost:3000)"
@@ -22,8 +22,8 @@ arguments:
 | 수치축 15개 · 한글 조판 규격 | ✅ 주입됨 | static 축 (`shared/design-tokens/design-axes.json`) |
 | U-1~U-7 소스 레벨 검증 | ✅ 배선됨 | source-quality 축 (`ui-quality-checker` 에이전트) |
 | L1.5 결정론 메트릭 | ✅ 가동 중 | `playwright-devtools-capture.mjs` **단일 chokepoint** |
-| **6-Pillar adversarial (L3)** | ⛔ **여전히 미구현** | 모델 수동 판단용 참조 기준 |
-| **3-Layer 자동 심화 트리거** | ⛔ **여전히 미구현** | L1/L2 WARN 시 L3 자동 진입은 코드에 없다 |
+| **6-Pillar adversarial (L3)** | ✅ **주입 + 배선됨**(2026-08-11) | `RUBRIC_PILLARS` → `l3-pillars` 축(`ui-quality-checker`) |
+| **3-Layer 자동 심화 트리거** | ✅ **가동**(2026-08-11) | 5축 verdict ≠ PASS 시 L3 자동 스폰. L3 6.0 미만이면 FAIL 로 격상 |
 
 **주입은 코드가 보장한다.** `workflow.js` 의 `<design-rubric:start>` 생성 블록이 이 문서에서 추출된다:
 ```bash
@@ -46,7 +46,13 @@ node --test shared/scripts/design-rubric.test.mjs      # 주입을 지우면 FAI
 ## 역할
 
 UI 품질 자동 검증 게이트. 정적 분석 / Lighthouse / 반응형 / 화면명세 매핑 4축으로 PASS / WARN / FAIL 판정을 반환한다.
-(WCAG AA · 디자이너 10카테고리 · AI-Slop 블랙리스트 · 3-Layer 심층 감사 = 미구현 목표 스펙 — 위 §구현 현황 참조.)
+(AI-Slop 19패턴 · WCAG AA · 디자이너 10카테고리 · 6-Pillar(L3) · 3-Layer 자동 심화 = **전부 주입·배선 가동 중**(2026-08-11) — 위 §구현 현황 표가 정본.)
+
+> ⚠️ **이 설명문이 낡아 실제 오판을 낳았다**(2026-08-11): frontmatter description 이 "AI-Slop 미구현"으로
+> 남아 있어, 한 세션이 그것만 읽고 **"이 게이트를 돌렸어도 AI-Slop 은 못 잡았을 것"이라는 거짓 결론**을
+> 하네스 갭 리포트에 기재했다(G-DESIGN-06 초판). 본문 표는 ✅ 주입됨이라고 정확히 적고 있었다.
+> **설명문과 본문 표가 어긋나면 설명문이 먼저 읽힌다** — 구현 상태를 바꾸면 description 도 같이 고친다.
+> 재현: `node shared/scripts/build-design-rubric.mjs --check` → 상수 미소비 시 UNCONSUMED 로 실패한다.
 
 ---
 

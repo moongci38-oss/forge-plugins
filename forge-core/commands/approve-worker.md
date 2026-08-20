@@ -73,12 +73,26 @@ python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
   --tool "{tool_being_used}"
 ```
 
-## Step 5: multiagent-approval-verify.sh hook 확인
+## Step 5: multiagent-approval-verify.sh hook 확인 — **[STOP] 게이트**
 
 ```bash
-# hook이 settings.json에 등록되었는지 확인
-grep -q "multiagent-approval-verify" $HOME/.claude/settings.json && echo "hook 등록됨" || echo "hook 미등록"
+# 이 훅이 없으면 위에서 발행한 토큰을 **아무도 검증하지 않는다** — 승인 절차가 형식만 남는다.
+if grep -q "multiagent-approval-verify" $HOME/.claude/settings.json; then
+  echo "hook 등록됨 — 토큰 검증이 실제로 걸린다"
+else
+  echo "[STOP] multiagent-approval-verify.sh 미등록 — 발행한 승인 토큰을 검증하는 주체가 없다."
+  echo "       이 상태로 WRITE 권한 워커를 스폰하면 승인 게이트는 **연극**이다."
+  echo "       재등록 후 진행하라(설정 편집은 Human): $HOME/.claude/settings.json PreToolUse"
+  exit 1
+fi
 ```
+
+> ⚠️ **2026-08-09 실사고**: 훅 감산 작업에서 이 훅을 등록 해제했는데, 종전 Step 5 는 결과를
+> `echo` 로 **출력만** 했다. 그래서 "hook 미등록" 한 줄이 찍혀도 절차가 그대로 진행됐다.
+> 확인은 했는데 **멈추지 않는 확인은 확인이 아니다** — `exit 1` 로 승격한다.
+> approve-worker 를 참조하는 스킬 4종(site-deep-analyze · system-audit ·
+> visual-loop)이 모두 이 게이트 위에 서 있다.
+> 폐기조건: 토큰 검증 주체가 다른 방식(예: 런타임 권한 시스템)으로 대체되면 이 절을 지운다.
 
 ## Step 6: 토큰 만료 처리
 

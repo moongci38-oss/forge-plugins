@@ -10,7 +10,15 @@ STRIDE 체크리스트가 문서 선언만 보는 곳에서 이 scorer가 실행
 
 ## 컨텍스트
 
-opt-in 전용 — auth/payment/file-upload/Node 서버 경로에서 `forge-check-security` 완료 후 HIGH 이상 발견 시 수동 호출한다. 자동 파이프라인 default-on 배선 금지(enforcement-theater 회피).
+opt-in 전용 — auth/payment/file-upload/Node 서버 경로에서 `forge-check-security` 완료 후 HIGH 이상 발견 시 수동 호출한다.
+**default-on 배선 금지**(enforcement-theater 회피) — 모든 PR 에 돌리면 무관한 변경까지 붙잡아 게이트가 소음이 되고, 소음이 된 게이트는 아무도 안 본다.
+
+⚠️ **2026-08-11 정정 — Human 승인 하 조건부 자동 호출을 추가했다.** `/forge-pr` 이 diff 경로로
+판정해 **보안 민감 경로 또는 이 게이트 자신**을 건드린 PR 에서만 호출한다(`§실행 기반 보안 게이트`).
+이는 위 "default-on 금지" 의 예외가 아니라 **그 opt-in 조건을 기계화한 것**이다 — 조건이 넓어져
+모든 PR 에서 돌기 시작하면 그때는 위 금지 위반이다. 조건식을 넓힐 때 이 문단을 다시 읽을 것.
+판정 근거: cr-final 이 "path 기반 자동 호출은 수동 opt-in 이 아니다" 라고 지적했고(THEATER),
+Human 이 "PR 올릴 시 호출해서 보안 검증용으로 사용" 을 지시했다. 지시가 이기되 **범위를 좁게** 둔다.
 
 ## 출력
 

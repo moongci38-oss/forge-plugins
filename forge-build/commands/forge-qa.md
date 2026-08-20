@@ -11,6 +11,24 @@ group: implement
 옛 pipeline Check 5.8에서 승격된 독립 P6 QA phase입니다.
 내부적으로 `qa` **스킬**을 호출합니다 (qa 스킬 자체는 무변경).
 
+## Step 0.1 — 라우팅 승격 게이트 (WARN 전용, 비차단)
+
+QA 범위를 한 번 재서 "이거 한 번에 하기엔 큰데요?" 를 최대 1줄 듣는 단계다. **막지 않는다.**
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
+  --cmd forge-qa --fr <시나리오·FR 수> --files <대상 파일 수> --domains <도메인 수>
+```
+
+권고가 나오면 `forge-core.md §병렬 실행` **라우팅 3분법 표**로 레인을 정하고, **정한 뒤 1줄 기록**한다
+(미기록은 skip 이 아니라 **결측** — 이 줄이 없으면 P6 오탐률의 분자를 계산할 수 없다):
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
+  decision --rec-id <권고에 찍힌 rec_id> --decision <wave|teams|workflow|main>
+```
+
+끄기 `FORGE_ESCALATION_GATE=off` · 스크립트 부재·실패는 무시하고 진행(fail-open).
 
 ## Phase 0 — Readiness 판정 (P5 구현 완료 확인)
 

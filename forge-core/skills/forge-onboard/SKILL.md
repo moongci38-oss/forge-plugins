@@ -172,7 +172,7 @@ node $HOME/.claude/scripts/forge-sync.mjs sync --target <project-name> --include
 
 | 카테고리 | 경로 | 내용 |
 |---------|------|------|
-| Dev Rules | `.claude/rules/forge-*.md` | 워크플로, 세션, 테스트, 성능 등 14개 |
+| Dev Rules | `$HOME/.claude/rules/`(global) | 이미 auto-load 됨 — 프로젝트 사본 불필요(2026-07-21 이중로드 방지) |
 | 공통 Rules | `.claude/rules/` | frontend-standards, plan-mode, pr-code-review-gate |
 | Templates | `.specify/templates/` | Spec·Walkthrough 템플릿 (+ game: element-task) — Plan/Task는 Spec §8/§11 서브섹션 |
 | GitHub Spec Kit | `.github/` + `scripts/` | CI 워크플로, 이슈/PR 템플릿 |
@@ -471,7 +471,7 @@ mv <outputs-file> <project-path>/docs/_handover/  # 또는 문서 성격에 맞�
 ```
 [ ] manifest.json에 타겟 등록 확인
 [ ] .specify/config.json 존재 + Notion DB 연결
-[ ] .claude/rules/forge-*.md 14개 배포 확인
+[ ] 필수 rules 는 $HOME/.claude/rules/(global)에 이미 auto-load 됨 확인 (프로젝트 사본 불필요)
 [ ] .specify/templates/ 배포 확인
 [ ] CLAUDE.md 존재 + Forge 참조 포함
 [ ] .specify/constitution.md 존재

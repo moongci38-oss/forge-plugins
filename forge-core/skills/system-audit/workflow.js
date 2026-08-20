@@ -137,9 +137,30 @@ function checkBudget(phase) {
   return true
 }
 
-const basePrompt = (axis) =>
-  `${axis} 축 감사. 프로젝트: ${projectRoot}. ` +
-  `점수 0-100, maturity L1~L5, findings 목록, top_recommendation 반환.`
+// G-4 수리(2026-08-16, harness-gaps/2026-08-15-system-audit-axis-agents-still-broken.md):
+//   구 basePrompt 는 두 줄짜리라 기본 경로 감사가 fallback(SKILL.md Wave 1)보다 얕았다.
+//   Wave 1 수준으로 보강 — 정의서 참조·기법 목록·엄격성·N/A 규약을 축별로 주입한다.
+//   사전측정 주입은 넣지 않는다: 그것은 축 에이전트에 Bash 가 없던 시절의 우회책이고,
+//   같은 수리(axis-*.md tools+=Bash, maxTurns 40)로 에이전트가 직접 실측할 수 있게 됐다.
+//   ⚠️ 이 보강이 무력화되는 입력: 아래 AXIS_DETAIL 키와 호출부 라벨의 첫 단어가 어긋나면
+//   해당 축은 공통 지시만 받는다(fail-open — 감사는 계속되나 얕아진다).
+const AXIS_DETAIL = {
+  'Agentic':  `반드시 shared/docs/2026-03-30-four-engineering-disciplines.md 의 §4 Agentic Engineering 섹션을 Read 한 후 정의서 기법 목록 기준으로만 체크하라(정의서에 없는 항목은 감사하지 않는다). Composable Patterns 수준, ACI 설계, Agent Evals, Multi-Agent Coordination, Memory Architecture, AgentOps 를 점검한다.`,
+  'Context':  `반드시 shared/docs/2026-03-30-four-engineering-disciplines.md 의 §2 Context Engineering 섹션을 Read 한 후 정의서 기법 목록 기준으로만 체크하라(정의서에 없는 항목은 감사하지 않는다). System Prompt Design(§2-1)~Structured Note-Taking(§2-9) 9개 기법과 프롬프트 구조 3요소 포함률을 점검한다.`,
+  'Harness':  `반드시 shared/docs/2026-03-30-four-engineering-disciplines.md 의 §3 Harness Engineering 섹션을 Read 한 후 정의서 기법 목록 기준으로만 체크하라(정의서에 없는 항목은 감사하지 않는다). Check Chain(§3-1), Guardrails 5 Rail Types(§3-2), OWASP Agentic Top 10(§3-3), Hooks(§3-4), AI Evals(§3-5), Observability(§3-6), Rollback(§3-7), Maintenance Agents(§3-8) 8개 구성요소를 점검한다.`,
+  'Cost':     `모델 라우팅 3계층(Opus/Sonnet/Haiku) 문서화와 실배선, 컨텍스트 절약 패턴, MCP→CLI 전환 현황, 비용 최적화 패턴(캐싱/라우팅/배치/길이제어) 적용 여부, 낭비 패턴을 점검한다.`,
+  'Human-AI': `5-Level Autonomy 매핑, [STOP]/[AUTO-PASS] 게이트 적절성, 에스컬레이션 트리거 5유형 커버리지, 안티패턴(Quasi-Automation/Rubber Stamping/Alert Fatigue), Override Rate 추적을 점검한다.`,
+}
+const basePrompt = (axis) => {
+  const detail = AXIS_DETAIL[axis.split(' ')[0]] || ''
+  // cr-final PR269 반영(3레그 합의): 미매치 fail-open 을 침묵에서 가시로 — 감사는 계속되나 얕아짐을 알린다.
+  if (!detail) log(`[WARN] AXIS_DETAIL 미매치: "${axis}" — 축별 상세 지시 없이 공통 지시만 적용(감사 얕아짐). 호출부 라벨 첫 단어와 AXIS_DETAIL 키를 대조하라.`)
+  return `${axis} 축 감사. 프로젝트: ${projectRoot}. ${detail} ` +
+    `정량 지표는 Bash 도구로 직접 실측하라(wc·grep -c·ls 등, 항상 절대경로) — 주관적 판단 금지, ` +
+    `모든 점수는 실측 데이터 기반이어야 한다. "존재(파일·문서 있음)"와 "발효(등록·실행됨)"를 구분해 세라. ` +
+    `측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. ` +
+    `점수 0-100, maturity L1~L5, findings 목록, top_recommendation 반환.`
+}
 
 // root-cause: P0-3 GitNexus 구조 분석 → harness 축 hook 커버리지 보강
 const harnessPrompt =
@@ -179,21 +200,35 @@ const redundancyPrompt =
 
 // ── Phase 1: Audit (6축 parallel()) ──────────────────────────────────────────
 phase('Audit')
-const [agentic, context, harness, cost, humanAi, redundancy] = await parallel([
-  () => agent(basePrompt('Agentic (자율성·도구·멀티에이전트)'),
-    { label: 'axis-agentic', phase: 'Audit', schema: AXIS_SCHEMA, agentType: 'axis-agentic' }),
-  () => agent(basePrompt('Context (RAG·메모리·컨텍스트 윈도우)'),
-    { label: 'axis-context', phase: 'Audit', schema: AXIS_SCHEMA, agentType: 'axis-context' }),
+// cr-final PR269 반영(Codex HIGH): SKILL.md fallback 레인의 "빈손 종료 회수 절차"를 기본
+//   경로에도 동형 구현한다 — null 축은 1회 재시도(탐색 축소 지시) 후, 그래도 null 이면
+//   축 이름을 명시한 WARN 을 남기고 부분 진행(기존 fail-open 유지, 침묵 결측 금지).
+const AXIS_SPECS = [
+  { key: 'agentic', label: 'axis-agentic',  agentType: 'axis-agentic',  prompt: () => basePrompt('Agentic (자율성·도구·멀티에이전트)') },
+  { key: 'context', label: 'axis-context',  agentType: 'axis-context',  prompt: () => basePrompt('Context (RAG·메모리·컨텍스트 윈도우)') },
   // root-cause: P0-3 harnessPrompt로 교체 (GitNexus 통합)
-  () => agent(harnessPrompt,
-    { label: 'axis-harness', phase: 'Audit', schema: AXIS_SCHEMA, agentType: 'axis-harness' }),
-  () => agent(basePrompt('Cost (토큰경제학·모델라우팅·캐싱)'),
-    { label: 'axis-cost', phase: 'Audit', schema: AXIS_SCHEMA, agentType: 'axis-cost' }),
-  () => agent(basePrompt('Human-AI (자율성 레벨·에스컬레이션·게이트)'),
-    { label: 'axis-human-ai', phase: 'Audit', schema: AXIS_SCHEMA, agentType: 'axis-human-ai' }),
+  { key: 'harness', label: 'axis-harness',  agentType: 'axis-harness',  prompt: () => harnessPrompt },
+  { key: 'cost',    label: 'axis-cost',     agentType: 'axis-cost',     prompt: () => basePrompt('Cost (토큰경제학·모델라우팅·캐싱)') },
+  { key: 'humanAi', label: 'axis-human-ai', agentType: 'axis-human-ai', prompt: () => basePrompt('Human-AI (자율성 레벨·에스컬레이션·게이트)') },
+]
+const axisResults = await parallel([
+  ...AXIS_SPECS.map(s => () => agent(s.prompt(),
+    { label: s.label, phase: 'Audit', schema: AXIS_SCHEMA, agentType: s.agentType })),
   () => agent(redundancyPrompt,
     { label: 'redundancy', phase: 'Audit', schema: REDUNDANCY_SCHEMA }),
 ])
+const redundancy = axisResults[AXIS_SPECS.length]
+if (AXIS_SPECS.some((s, i) => !axisResults[i])) {
+  const retried = await parallel(AXIS_SPECS.map((s, i) => axisResults[i]
+    ? (() => Promise.resolve(null))
+    : (() => agent(s.prompt() + ' [회수 재시도] 광범위 탐색 금지 — 지금까지의 최소 실측만으로 요구된 JSON 을 즉시 반환하라.',
+        { label: `${s.label}-retry`, phase: 'Audit', schema: AXIS_SCHEMA, agentType: s.agentType }))))
+  AXIS_SPECS.forEach((s, i) => {
+    if (!axisResults[i] && retried[i]) { axisResults[i] = retried[i]; log(`[INFO] ${s.label} 빈손 → 재시도 회수 성공`) }
+    else if (!axisResults[i]) log(`[WARN] ${s.label} 빈손 — 재시도에도 미반환. 부분 감사로 진행(이 축 점수 결측을 보고서에 명시할 것)`)
+  })
+}
+const [agentic, context, harness, cost, humanAi] = axisResults
 
 const axes = [agentic, context, harness, cost, humanAi].filter(Boolean)
 // root-cause: B-2 Codex MED — 전 axis 실패 시 avgScore=0으로 synthesize 진행 → 잘못된 보고서 생성

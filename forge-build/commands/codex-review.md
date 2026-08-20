@@ -65,7 +65,7 @@ codex   # /login → moongci38 ChatGPT 계정 OAuth
 | `final` | PR 전체 diff | 통합 검수 (스펙 추적성·롤백·UX) | **YES** |
 | `bugfix` | patch + 재현 케이스 | 근본 원인 vs 우회, 회귀 가능성 | NO |
 | `yt-apply-plan` | yt 스킬 `*-apply-plan.md` (개별/통합) | Forge 적용 가능성, 중복 제안, YAGNI, 근거 인용, 롤백 | **YES** |
-| `article-apply-plan` | article 스킬 `*-apply-plan.md` (개별/통합) | 동상 (article용 prompt = yt symlink) | **YES** |
+| `article-apply-plan` | article 스킬 `*-apply-plan.md` (개별/통합) | 동상 (stage 별칭으로 yt 프롬프트 사용 — 심링크 폐지 2026-08-20) | **YES** |
 | `phase1-validate` | `/forge-find-item` `validated-item.md` (Phase 1 사업 결정 게이트) | Reject 4·5 신호 근거·Moat·카테고리 옵션·Mike Hill 5·1인 규모 | **YES** |
 
 ---
@@ -185,7 +185,18 @@ EFFORT_LEVEL="${EFFORT:-medium}"
 [[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
 
 # 프롬프트 stage별 선택
-PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${STAGE}.md"
+# stage 별칭: article-apply-plan 은 yt-apply-plan 프롬프트를 그대로 쓴다
+#   (그 프롬프트 1행이 "--stage yt-apply-plan / --stage article-apply-plan" 겸용임을 스스로 명시).
+#   종전에는 codex-review-article-apply-plan.md 를 **절대경로 심볼릭 링크**로 뒀는데, 이 한 개가
+#   Windows/UNC(9p)에서 lstat 이 안 돼 세 가지를 동시에 일으켰다 — ①git 이 상시 "수정됨"으로 보고
+#   (갭 L-2) ②forge-sync 가 이 항목만 건너뛰어 Windows 미러에 파일이 아예 없고 ③바로 아래 -f 가
+#   실패해 default.md 로 **조용히 폴백**했다(= article 검수가 잘못된 프롬프트로 돌았다).
+#   파일시스템 마법 대신 별칭으로 바꿔 심링크 자체를 없앤다. (부록 Z L-2·L-5, 2026-08-20)
+# ⚠️ 이 별칭이 무력화되는 입력: 앞으로 article 전용 기준이 생겨 두 프롬프트가 갈라져야 하면
+#   별칭을 지우고 codex-review-article-apply-plan.md 를 **실제 파일로** 새로 만들어야 한다.
+PROMPT_STAGE="$STAGE"
+[[ "$PROMPT_STAGE" == "article-apply-plan" ]] && PROMPT_STAGE="yt-apply-plan"
+PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${PROMPT_STAGE}.md"
 [[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
 
 # 호출 (stdin = prompt + target)

@@ -503,13 +503,13 @@ Agent(
     """
 )
 ```
-이 게이트의 advisor는 **Opus**(비-Fable — T4 비가역 결정 아님, 통상 자문 등급).
+이 게이트의 advisor 모델은 `advisor-model-resolve.sh` 출력을 따른다(기본 **Fable 5** · 대체 `gpt-5.6-sol`). 2026-08-12 이전 "Opus(비-Fable)" 고정은 폐기.
 
 ---
 
 ## §qa advisor 자문 지점 (Q1/Q2) 상세
 
-버그 수정(Lane A `/forge-fix`)의 advisor T1~T4·위 Phase C.5 Reconciliation 게이트와 별개로, qa 자신의 **discovery 국면**(Phase B/C)에도 2개 저빈도 고위험 자문 지점이 있다. 공통 규약은 Phase C.5 절의 것과 동일 — Opus(비-Fable), advisory only, non-blocking, `[→Lead 위임]`(중첩 시).
+버그 수정(Lane A `/forge-fix`)의 advisor T1~T4·위 Phase C.5 Reconciliation 게이트와 별개로, qa 자신의 **discovery 국면**(Phase B/C)에도 2개 저빈도 고위험 자문 지점이 있다. 공통 규약은 Phase C.5 절의 것과 동일 — 모델은 `advisor-model-resolve.sh` 출력(기본 Fable 5), advisory only, non-blocking, `[→Lead 위임]`(중첩 시).
 
 ### Q1 — Phase B 테스트 커버리지 3건+ 동시 면제
 
@@ -545,7 +545,7 @@ Agent(
 
 ### 공통 규약 (Q1/Q2)
 
-- 모델 = Opus(비-Fable — `advisor-model-resolve.sh` 호출 불필요, `advisor-strategist` 기본이 Opus).
+- 모델 = `advisor-model-resolve.sh` 출력을 따른다(기본 Fable 5 · 대체 `gpt-5.6-sol`). 2026-08-12 이전 문구는 "Opus 고정(리졸버 호출 불필요)"이었으나 `advisor-strategist` 기본이 Fable 로 바뀌어 폐기했다. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
 - advisory only: `[STOP]` 해제·자동재시도·최종판정 불가.
 - 저빈도 고위험 지점에만 스폰 — 매 시나리오·매 버그마다 스폰 금지(비용 방지).
 - non-blocking: advisor 스폰 실패/미가용 시에도 해당 [STOP]·판단은 그대로 Human에게 진행(advisor는 augmentation, 하드 의존 아님).

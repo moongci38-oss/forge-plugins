@@ -108,6 +108,7 @@ Figma/이미지 시안을 다른 자산으로 대체하는 경우:
 | 스크린샷(.png/.webp) | 화면 ID 1:1 매핑 확인 | HIGH |
 | Figma export(.fig) | 화면 ID 포함 | HIGH |
 | 서술형 UI 명세 | 화면 레이아웃 항목 포함 | LOW |
+| 구현체(implemented screens) | 화면 ID 1:1 매핑 확인(구현 후 P3 소급 백필 사례) | HIGH |
 
 LOW 신뢰도 대체형 = 도메인 폴더 `_registry.yaml`에 `substitute: low` 태그 기록 → Phase 5 이후 실 시안으로 교체 권고.
 
@@ -127,7 +128,7 @@ LOW 신뢰도 대체형 = 도메인 폴더 `_registry.yaml`에 `substitute: low`
 
 ## 진입 계약 (단계별)
 
-### forge-plan 진입 계약 (P3 진입용)
+### forge-plan 진입 계약 (P3 진입용 — 5요소 A~E)
 
 > **적용 범위 (스코프 가드 — P5)**: **greenfield 한정** — brownfield(임의 legacy 코드/도메인 역설계·retrofit)는 본 파이프라인 범위 밖, 별도 `migration-audit` 트랙.
 > **단 기존 Forge P2/P3 산출물의 delta 검증·보강(M5)은 유효**(범위 내) — M5 검증·보강 모드가 이 경로를 처리한다.
@@ -139,8 +140,9 @@ LOW 신뢰도 대체형 = 도메인 폴더 `_registry.yaml`에 `substitute: low`
 | B | 스타일가이드 | 디자인 원칙·컬러·타이포 (s3-style-guide 또는 동등) |
 | C | 목업/와이어프레임 | 핵심 화면 레이아웃 (s3-mockup/ 또는 동등) |
 | D | 기능 기준선 | P2 FR 초안 또는 기능 목록 |
+| E | 선행 Phase 상태 | `{domain}/_STATUS.md` 의 `stage` 가 **P2 미완을 명시하지 않을 것** — 아래 §선행 Phase 게이트 |
 
-### forge-spec 진입 계약 (P4 진입용 — 8요소)
+### forge-spec 진입 계약 (P4 진입용 — 9요소 A~I)
 
 | ID | 요소 | ok 조건 |
 |----|------|---------|
@@ -152,6 +154,13 @@ LOW 신뢰도 대체형 = 도메인 폴더 `_registry.yaml`에 `substitute: low`
 | F | API 계약 | EP 목록 + 요청/응답 스키마 + **FE API 실측 근거 첨부** (기존 API 라우트 수정 시). 기존 라우트 구조 미확인 → `absent` |
 | G | 개발계획 | WBS + 세션 로드맵 또는 아키텍처 |
 | H | NFR | 성능·보안 수치 명시 (p95, TPS, RBAC) |
+| I | 선행 Phase 상태 | `{domain}/_STATUS.md` 의 `stage` 가 **P3 미완을 명시하지 않을 것** — 아래 §선행 Phase 게이트 |
+
+> **⚠️ A~H 는 전부 "재료가 있는가"만 본다 — "이전 공정이 끝났는가"는 묻지 않았다.**
+> 2026-08-11 백점(onehundred)에서 이 공백이 실사고로 드러났다: `_STATUS.md stage: P3_IN_PROGRESS`
+> (Step 3~6 미완 · Check 4 게이트 통과 0 · `forge-plan-exit-readiness-*.md` **부재**)인데
+> 8요소가 전부 `ok` 라 **P4 readiness 가 PASS** 를 냈고 `/forge-spec` 진입 가능으로 안내됐다.
+> 쉽게 말하면 **재료 검사만 하고 앞 공정의 완료 도장은 안 본 것**이다. I 항목이 그 도장을 본다.
 
 > **[스키마 실측 게이트 — E(데이터모델)]** DB 스키마 의존 기능: 스키마 SSoT 파일(Schema.cs / Prisma schema.prisma / TypeORM entity / Unity SO 등) 스니펫 또는 live query(`SHOW COLUMNS` / `DESCRIBE` / `\d`) 출력이 실측 근거로 첨부돼야 `ok`. 실측 근거 없으면 해당 항목 `absent` → GUIDE-STOP. 순수 UI·문서 Spec(DB 스키마 미의존)은 `ok` N/A 통과.
 > - **불완전 실측**(Spec 범위 테이블 중 일부만 읽음) → `normalize`(미커버 항목 자동 추가 실측). **stale 의심**(수동 마이그레이션 프로젝트) → `derive` [STOP] 1회.
@@ -198,6 +207,67 @@ LOW 신뢰도 대체형 = 도메인 폴더 `_registry.yaml`에 `substitute: low`
 | D | QA 스코프 | 테스트 대상 기능·범위 특정 가능 |
 
 P5(`forge-implement`) 미완료 → 구현코드 absent → GUIDE-STOP: "P5 구현 완료 후 재호출"
+
+## 선행 Phase 게이트 (P3 `E` · P4 `I` 항목의 판정 규칙)
+
+**한 줄**: 앞 공정이 **"안 끝났다"고 적혀 있으면** 막고, **아무 말도 없으면** 통과시킨다.
+
+> ### ✅ 이 절은 **기계가 강제한다** — 반드시 먼저 실행할 것 (2026-08-11)
+> ```bash
+> bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} P4-ENTRY   # P3→P4
+> bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} P3-ENTRY   # P2→P3
+> ```
+> `exit 1` = **GUIDE-STOP**(진입 불가) · `CONDITIONAL`(exit 0 + WARN) = 판정 불가로 통과 · `PASS` = 진입 가능.
+>
+> 아래 표는 그 스크립트가 구현하는 규칙의 서술이다. **표를 읽는 것으로 갈음하지 않는다** —
+> 종전에 이 절이 prose 로만 있어 "AI 가 표를 빠짐없이 읽는가"에 보호력이 걸려 있었고,
+> 그것이 원 사고(백점 P3→P4)의 재발 경로였다(적대적 검수 Opus·Codex 공통 지적).
+> **재현**: `bash "${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-gate-check-paths.test.sh"` (T5 6분기)
+
+판정 순서 — `{project-root}/{domain}/_STATUS.md` 의 `stage` 필드를 읽는다:
+
+| `_STATUS.md` 상태 | 판정 | 근거 |
+|---|---|---|
+| `stage: {선행}_IN_PROGRESS` 또는 `{선행}_BLOCKED` | **`absent` → GUIDE-STOP** | 미완이라고 **명시**돼 있다. 이게 이번 갭의 실제 케이스다 |
+| `stage: {선행}_DONE` 또는 `{선행}_READY` 또는 그 이후 Phase | `ok` (단 아래 교차확인 통과 시) | 완료 도장이 찍혀 있다 |
+| 파일 **부재**인데 **도메인 폴더는 존재** | **`derive` → [STOP] 1회 확인** | 파이프라인을 쓰는 프로젝트인데 원장만 없다 = **수상하다.** 원장을 지워 게이트를 우회하는 경로를 막는다 |
+| 파일 부재 + 도메인 폴더도 없음 · `stage` 필드 없음 · 파싱 실패 | **`normalize` (WARN 1줄, 차단 안 함)** | 파이프라인 밖 기존/외부 프로젝트를 소급 차단하지 않는다(fail-open) |
+
+WARN 문구(차단 아님): `⚠️ 선행 Phase 완료 여부 미확인 — {domain}/_STATUS.md 없음. 진행하되 앞 공정 산출물을 직접 확인할 것.`
+
+도메인 폴더 판정: `{project-root}/{domain}/_registry.yaml` 또는 `{project-root}/{domain}/` 하위 `.md` 1개 이상.
+
+### 교차확인 — `_DONE` 도장이 진짜인지 (§M7 와의 관계)
+
+**§M7 은 "exit-readiness 가 PASS 여야 다음 Phase 진입 허용"이라고 규정한다.** 이 절은 그 규정을
+**약화하지 않는다** — 아래처럼 강도만 나눈다(2026-08-11 적대적 검수가 지적한 내부 모순 해소).
+
+| `_STATUS.md` | `{선행stage}-exit-readiness-*.md` | 판정 |
+|---|---|---|
+| `_DONE`/`_READY` | `Verdict: PASS` | **`ok`** — 정상 |
+| `_DONE`/`_READY` | `Verdict: FAIL` | **`absent`** — 원장이 실제보다 앞서 있다 |
+| `_DONE`/`_READY` | **부재** | **`derive` → [STOP] 1회** — §M7 이 요구하는 증빙이 없다. 조용히 통과시키지 않는다 |
+| `_IN_PROGRESS`/`_BLOCKED` | (무관) | **`absent`** — 미완이 명시됐다 |
+
+> 종전 초안은 "보조 신호는 없다고 absent 아님"이라 적어 §M7 과 충돌했고, **exit-readiness 를
+> 아예 만들지 않고 `_STATUS.md` 만 `_DONE` 으로 적으면 통과**하는 구멍이 남았다 —
+> 백점 실사고(Check 4 통과 0건 · exit-readiness 부재)와 **같은 경로**다. `derive`([STOP] 확인)로
+> 격상해 막되, 하드 `absent` 로 하지 않는 이유는 exit-readiness 규약 도입 이전 프로젝트가
+> 존재하기 때문이다.
+
+**재현(이 갭이 되살아났는지 확인)**:
+```bash
+grep -n '선행 Phase 상태' "${FORGE_ROOT:-$HOME/forge}/.claude/commands/readiness-gate.md"   # → 2건(P3 E · P4 I)
+grep -n '^stage:' <project-root>/<domain>/_STATUS.md
+```
+
+> **근거**: 2026-08-11 백점 실사고 — P3 `_STATUS.md stage: P3_IN_PROGRESS`(Check 4 통과 0/4,
+> `forge-plan-exit-readiness-*.md` 부재) 상태에서 P4 readiness 가 8요소 전부 `ok` 로 **PASS** 를 냈다.
+> §M7 은 "exit-readiness 가 PASS 여야 다음 Phase 진입 허용"이라고 이미 규정하고 있었으나,
+> **진입 계약 표에 그 항목이 없어서 실제 판정에서 조회되지 않았다** — 규범과 체크리스트의 분리가 원인.
+> P5 진입 계약에는 같은 성격의 `H | Phase 상태`가 이미 있었다(P3·P4 만 빠져 있던 비대칭).
+> **폐기조건**: `_STATUS.md` 원장이 전 프로젝트에 정착해 `normalize` 폴백 발생이 2분기 연속 0건이면
+> 폴백을 없애고 전면 `absent` 로 승격한다.
 
 ## M7 단계 전이 게이트 (P2→P3→P4만 적용)
 

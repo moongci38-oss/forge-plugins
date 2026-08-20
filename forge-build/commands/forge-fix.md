@@ -52,8 +52,29 @@ group: implement
 
 **Spec-gap 판별 (F5, mock-unwired와 동형 — WARN-우선, 2026-07-16)**: Stage ① 진입 시 대상 기능에 Spec(`.specify/specs/`)이 있으면 관련 FR/AC를 대조한다. 증상이 코드 결함이 아니라 **미구현 AC(spec-gap)**(Spec의 공통 요구가 아예 구현 안 됨)면 증상 단위 국소 패치 금지 → **[STOP] + Spec 트랙(`/forge` P5) 라우팅 권고**. 근거: 증상별 별건 패치는 Spec의 공통 요구를 화면별로 유실시킨다(선례: 2026-07-16 던전 UI — 일반/균열/보스 3화면 동일 spec-gap이 각각 별건 처리됨). 판별 모호 시 기존 버그 경로(fail-open). 반대 보증: AC가 이미 구현돼 있으면(코드·화면에 존재) spec-gap 아님 — 일반 버그는 이 판별로 라우팅되지 않는다.
 
+## Step 0.1 — 라우팅 승격 게이트 (WARN 전용, 비차단 — 4-스테이지 루프 진입 직전 1회)
+
+버그 수·범위를 한 번 재서 "이거 한 번에 하기엔 큰데요?" 를 최대 1줄 듣는 단계다. **막지 않는다.**
+(`--scan` 모드처럼 버그가 무더기로 나오는 경로에서 특히 의미가 있다.)
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
+  --cmd forge-fix --bugs <버그 수> --files <대상 파일 수> --domains <도메인 수>
+```
+
+권고가 나오면 `forge-core.md §병렬 실행` **라우팅 3분법 표**로 레인을 정하고(충돌 판정 SSoT 는
+`fr-lanes.py` — healer §도메인 분류 B-1), **정한 뒤 1줄 기록**한다(미기록은 skip 이 아니라 **결측**):
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
+  decision --rec-id <권고에 찍힌 rec_id> --decision <wave|teams|workflow|main>
+```
+
+끄기 `FORGE_ESCALATION_GATE=off` · 스크립트 부재·실패는 무시하고 진행(fail-open).
+
 ## 4-스테이지 루프 (버그 1개든 N개든 동일 — 게이트로 강제)
 
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```
 ① 조사·재현 (RED)   [investigate 흡수]
     - 착수 시 `export LOG_HTTP=1 LOG_SOCKET=1 LOG_DB=1` — 앱 계측 로그(BE HTTP/소켓/DB) 활성화 (qa Phase A 패리티; 미지원 앱은 무시 = non-blocking). ④ 검수까지 동일 셸 유지해 BE·FE 로그를 RED/GREEN 오라클로 캡처.
@@ -83,13 +104,21 @@ group: implement
 
 ③ 수정   [healer a1~a3]
     - **아키텍처 영향 감지 시 advisor 자문(T2)**: multi-file 교차의존/인터페이스·계약 변경/healer MANUAL-ONLY 분류 감지 시 → 수정 착수 전 `Agent(subagent_type="advisor-strategist", prompt="<변경범위+교차의존+계약변경 요약 500토큰> 설계 정합·회귀위험·대안 조언 요청")` 스폰. 단일파일·명확 원인 버그는 스폰 생략.
-    - **고위험·비가역 감지 시 advisor 자문(T4)**: 수정 대상이 data migration/DELETE·삭제 경로/결제·billing 경로 중 하나면 → 착수 전 `Agent(subagent_type="advisor-strategist", prompt="<비가역 변경 요약+롤백 전략 현황 500토큰> 비가역 리스크·롤백 전략 조언 요청")` 스폰 + 사용자 [STOP] 게이트와 연계(조언을 승인 요청에 포함). 일반 수정은 스폰 생략. → 착수 전 `MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh" T4 2>/dev/null)` 실행. 출력에 `fable` 포함 시 `Agent(subagent_type="advisor-strategist", model:"fable", prompt="...")`, 아니면 `model:"opus"`로 스폰(리졸버가 kill-switch/일일캡/미가용 처리 — 출력만 신뢰). Fable 스폰이 미가용·크레딧으로 실패하면 즉시 `model:"opus"`로 재스폰(1회 폴백, 무한재시도 금지). **리졸버 출력 없음·스크립트 실행 실패(파일없음/권한없음)도 기본 `model:"opus"`로 진행 — 에러중단 금지(non-blocking).** **이 자동 Fable 분기는 T4 한정 — T1/T2/T3 및 advisor 외 경로(forge-pr/cr-*/자동게이트)엔 배선 금지(비용가드).**
+    - **고위험·비가역 감지 시 advisor 자문(T4)**: 수정 대상이 data migration/DELETE·삭제 경로/결제·billing 경로 중 하나면 → 착수 전 `Agent(subagent_type="advisor-strategist", prompt="<비가역 변경 요약+롤백 전략 현황 500토큰> 비가역 리스크·롤백 전략 조언 요청")` 스폰 + 사용자 [STOP] 게이트와 연계(조언을 승인 요청에 포함). 일반 수정은 스폰 생략. → 착수 전 `MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh" T4 2>/dev/null)` 실행. **리졸버 출력만 신뢰**하고 아래대로 스폰한다(리졸버가 kill-switch/캡/미가용을 이미 처리했다):
+      - `claude-fable-5` → `Agent(subagent_type="advisor-strategist", model:"fable", prompt="...")`
+      - `claude-opus-5` → 같은 Agent 를 `model:"opus"` 로
+      - `gpt-5.6-sol` → **Agent 아님** — `mcp__codex__codex`(sandbox=read-only)로 조언 레그 스폰. Agent 의 model 열거형에 codex 모델이 없어 그대로 넘기면 스폰이 실패한다.
+      스폰이 실패하면 **1회만** 대체 모델로 재시도하고, 그래도 실패하면 조언 없이 진행한다(무한재시도 금지). **리졸버 출력 없음·스크립트 실행 실패(파일없음/권한없음)도 `model:"opus"`로 진행 — 에러중단 금지(non-blocking).**
+      ⚠️ **2026-08-12**: advisor 기본 모델이 Fable 로 바뀌면서 이 경로의 `T4` 인자는 **모델을 가르지 않는다**(로그 기록용). 종전 "T4 한정 자동 Fable 분기"는 폐기 — 전 tier 가 Fable 이다. **다만 advisor 외 경로(forge-pr/cr-*/자동게이트)에 Fable 배선 금지는 그대로 유효하다.**
     - **③ 수정 실행자 라우팅 (--coder, DMC 트랙C — 2026-07-15)**: `--coder` 지정 시 **③ 수정(코드 편집)만** Claude/Codex/ab로 라우팅한다. **①RED·④GREEN은 항상 Claude 고정**(무변경) — 이유 2중: (a) RED/GREEN 오라클은 우리 세션 MCP(브라우저·DB)가 필요한데 Codex 샌드박스는 이 MCP에 접근 못 함, (b) **구현자≠검증자** — 수정한 모델이 자기 수정을 검증하면 oracle_independence 위반(게이트 G의 self-validating REJECT 사유와 동형). 즉 Codex는 재현도 검수도 소유하지 않는다(RED 독립성).
       - CODER_SPEC 파싱 → `MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")`. **미지정 = 기존 healer/Sonnet 수정(무변경, no-op)**.
       - **codex:tier** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=현재 워크트리, model=$MODEL)로 root-cause surgical fix. RED 오라클·리포트·확정된 근본원인 가설을 프롬프트에 주입(Codex 재탐색 방지). Codex diff는 표시·커밋 전 `secret-content-scan.sh` 경유(LN-03 마스킹).
       - **surface=game-engine 감지 → Claude 폴백**(forge-implement와 동일 — Unity Windows 전용, Codex Linux 샌드박스 batchmode 불가. 실측 확정 2026-07-15).
-      - **advisor tier-gate (2026-07-16)**: `GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")`. **`skip`**(구현자≥Opus: sol/terra/opus/fable) → T1/T2 strategic advisor **생략**(tier 역전 방지). **`advise`**(구현자<Opus) → advisor 발동 + **조언을 Codex 프롬프트에 주입**. ⚠️ **T3(plateau·thrash bounding)·T4(비가역) 자문은 tier 무관 항상 유지** — 제어 기능이라 구현자가 프런티어여도 필요.
-      - **--advisor 오버라이드 (2026-07-16)**: `--advisor <spec>`(sol/terra/opus/fable)로 advisor 모델을 경우별 선택. `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → gpt/codex 결과면 **`mcp__codex__codex`(sandbox=read-only)로 advisor 스폰**(sol/terra, Plus 정액=무료·독립 관점), claude면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`(opus/fable). 미지정=현행(Opus + tier-gate). ⚠️ **독립성: advisor 벤더 ≠ 구현자 벤더 권고**(같은 벤더=자기훈수 무의미 → Codex 구현엔 opus/fable, Claude 구현엔 sol/terra). fable은 **현재 구독 정액(종량 아님, 2026-07-16 확인)**이라 sol과 동급 자유선택 가능(advisor-model-resolve 가드=kill-switch·가용성 폴백만 유지).
+      - **advisor tier-gate (2026-07-16 · 2026-08-12 판정 기준 변경)**: `GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")`. **`skip`**(구현자 tier ≥ **현재 advisor tier**) → T1/T2 strategic advisor **생략**(tier 역전 방지). **`advise`**(구현자 tier < advisor tier) → advisor 발동 + **조언을 Codex 프롬프트에 주입**.
+        ⚠️ **구 서술 "skip=구현자≥Opus(sol/terra/opus/fable)" 는 폐기**(2026-08-12). advisor 기본이 Fable 5(max)라 기준선이 Opus 가 아니다 — **`opus`·`terra` 는 이제 `advise`** 이고, 기본 advisor 기준 `skip` 은 `fable`·`sol`·`gemini-2.5-pro` 뿐이다. advisor 가 내려가면 경계도 함께 내려간다(하드코딩 없음).
+        재현: `bash shared/scripts/advisor-tier-gate.sh opus` → `advise` · 전수 판정표는 `shared/scripts/test-advisor-tier-gate.sh` (33케이스).
+        ⚠️ **T3(plateau·thrash bounding)·T4(비가역) 자문은 tier 무관 항상 유지** — 제어 기능이라 구현자가 프런티어여도 필요.
+      - **--advisor 오버라이드 (2026-07-16)**: `--advisor <spec>`(sol/terra/opus/fable)로 advisor 모델을 경우별 선택. `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → gpt/codex 결과면 **`mcp__codex__codex`(sandbox=read-only)로 advisor 스폰**(sol/terra, Plus 정액=무료·독립 관점), claude면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`(opus/fable). 미지정=리졸버 기본(2026-08-12 부터 **Fable 5**, 못 쓰면 `gpt-5.6-sol` — 구 "Opus + tier-gate" 폐기). ⚠️ **독립성: advisor 벤더 ≠ 구현자 벤더 권고**(같은 벤더=자기훈수 무의미 → Codex 구현엔 opus/fable, Claude 구현엔 sol/terra). fable 은 **구독 정액**(Human 확인 2026-08-12)이라 sol(Plus 정액)과 **동급으로 자유 선택 가능**하다 — 호출당 추가 과금이 없다. 일일 캡은 기본 0(무제한)이며 필요하면 `FORGE_ADVISOR_FABLE_CAP=N` 으로 켠다. advisor-model-resolve 가드는 kill-switch·가용성 폴백만 상시 동작한다.
       - **coder-attribution (기계 강제)**: 수정 직후 `coder-attribution.sh write "$WORKTREE" "$MODEL"` → ④ 검수의 cr-code 진입 시 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")`를 `--cr $MODE`로 전달(codex 수정→`degrade`=codex 레그 배제 / 그 외→`on` / 무마커→`on` fail-open). 자기검수 방지 = 산문 아닌 스크립트 강제.
       - kill-switch `FORGE_DUAL_CODE=off` → codex 요청도 Claude(healer)로 대체. Codex 미가용 = Claude 폴백(로그+경고, fail-open). advisor T2/T4·게이트 R/G는 `--coder` 무관 유지. 모델 id = `model-registry.json` SSoT(버전무관).
     - root-cause surgical fix (인접 코드 무관 변경 금지)
@@ -230,6 +259,7 @@ node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
 
 종료조건 문자열 파싱 → `--scan` 또는 지정 소스로 버그 큐 생성 → 종료조건 충족까지 4-스테이지 루프 반복.
 전역 캡(qa Iron Laws 준용): 6사이클 초과 / same-issue 3회(`sha256({file}:{symbol}:{error_class})` 동일) / 회귀 감지 → 즉시 [STOP].
+⚠️ **hard-rule 통과 = 종료조건 충족일 뿐 품질 보장이 아니다** — 정성 품질(가독성·설계)은 별도 검수(④ 스테이지)가 판정한다. 루프 종료를 "품질 확인됨"으로 보고하지 말 것 (2026-08-17, Osmani Loop 기사 판정 #10).
 
 ## 자동 리뷰-수정 루프 (③→④ 재시도, iteration-cap: 3)
 

@@ -199,7 +199,6 @@ P0/P1 핵심 주장에 대한 독립 반박 에이전트를 Agent Teams로 병�
 **GTC-3: 핵심 커버리지** — Forge/Forge Dev 파이프라인 현황을 실제 파일로 확인:
 - Read: `${FORGE_ROOT:-$HOME/forge}/forge-workspace.json` → 활성 프로젝트 + gate-log 위치
 - Read: 각 프로젝트의 `gate-log.md` → 현재 Gate
-- Read: `${FORGE_ROOT:-$HOME/forge}/docs/planning/active/forge/todo.md` (존재 시)
 
 **GTC-4: 영향도 검증 (P1 승격 게이트)** — P1 이상 항목이 하나라도 충족하는지:
 - 현재 장애/에러 유발 중?

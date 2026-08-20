@@ -116,6 +116,92 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 
 ---
 
+### Step 0.6: 사전측정 (Pre-Measurement — 오케스트레이터 Bash 실측)
+
+> **왜 필요한가 (역사 + 현행)**: 이 Step 은 `axis-*` 5종에 Bash 가 없고 `maxTurns: 15` 로
+> 잘리던 시절(2026-08-03/13/15 — 3회 재발, `harness-gaps/2026-08-15-system-audit-axis-agents-still-broken.md`)의
+> 우회책으로 태어났다 — 오케스트레이터가 수치를 미리 재서 브리프에 주입하는 방식.
+> **2026-08-16 수리로 전제가 바뀌었다**: axis-* 5종은 이제 Bash 를 갖고(maxTurns 40) 직접
+> 실측한다. 이 Step 은 fallback 레인의 **교차검증 보조 수단**으로 유지한다 — 축이 직접 잰
+> 값과 여기 사전측정 값이 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적는다.
+> (구 서술 "권한 확대 없음·axis-* 파일은 수정하지 않음"은 그 시절 우회책의 설계 제약이었고,
+> 본 수리가 바로 그 권한을 의도적으로 확대했다 — 아래 §적용 범위 각주와 동일 사실.)
+
+Lead(이 세션 자체 — Bash 보유)가 Wave 1 스폰 **직전**에 아래를 실행해 축별 핵심 수치를
+먼저 잰다. `TP`는 Step 0 "대상 경로 매핑" 결과(`system` → `$FORGE_ROOT/.claude`, 프로젝트 →
+해당 `.claude/`)를 그대로 쓴다. 각 지표는 해당 축 에이전트(`.claude/agents/axis-*.md`)의
+"정량 측정" 표에서 축별 3~5개를 뽑은 것이다 — 축 정의가 바뀌면 이 목록도 그 표를 따라간다.
+
+```bash
+TP="${TARGET_PATH:-$FORGE_ROOT/.claude}"   # Step 0 대상 경로 매핑 결과
+RULES_DIR="$HOME/.claude/rules"
+RULES_OD_DIR="$HOME/.claude/rules-on-demand"
+
+# ── Agentic 축(axis-agentic 정량측정표: 도구커버리지·병렬실행·모델계층화·스킬성숙도) ──
+AG_SKILLS=$(find "$TP/skills" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+AG_AGENTS=$(find "$TP/agents" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)
+AG_MODEL_TIERED_AGENTS=$(grep -lE "^model:[[:space:]]*[\"']?(haiku|sonnet)" "$TP"/agents/*.md 2>/dev/null | wc -l)
+AG_EVAL_SKILLS=$(find "$TP/skills" -maxdepth 2 -iname "eval_cases.jsonl" 2>/dev/null | wc -l)
+AG_PARALLEL_SPAWN_MENTIONS=$(grep -rlE "parallel\(|병렬.{0,4}스폰" "$TP/skills" 2>/dev/null | wc -l)
+
+# ── Context 축(axis-context 정량측정표: 세션시작토큰·MEMORY항목·규칙중복률·조건부로딩률) ──
+CTX_RULES_BYTES=$(cat "$RULES_DIR"/*.md 2>/dev/null | wc -c)
+CTX_CORE_RULES=$(find "$RULES_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)
+CTX_ONDEMAND_RULES=$(find "$RULES_OD_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)
+MEMORY_PATH="$HOME/.claude/projects/$(echo "$FORGE_ROOT" | tr '/' '-')/memory/MEMORY.md"
+# cr-final pr267-chunk4(HIGH): `grep -c ... || echo 0` 는 0-매치(파일 존재) 때 grep 이 stdout
+# "0" + exit 1 을 내 `0\n0` 두 줄 값이 됐다(printf invalid-number 노이즈 재현됨). 실패 분리로 교정.
+CTX_MEMORY_ITEMS=$(grep -c "^## " "$MEMORY_PATH" 2>/dev/null || true)
+CTX_MEMORY_ITEMS=${CTX_MEMORY_ITEMS:-0}
+
+# ── Harness 축(axis-harness 정량측정표: Hook커버리지·OWASP커버리지·인젝션방어·롤백준비도) ──
+HN_HOOK_SCRIPTS=$(find "$TP/hooks" -maxdepth 1 -name "*.sh" 2>/dev/null | wc -l)
+# cr-final pr267-chunk4(HIGH): 경로 변수를 python 문자열에 직접 보간하지 않는다(작은따옴표
+# 포함 경로의 문자열 탈출 + LN-03 env 패턴 위반) — env 로 전달한다.
+HN_HOOK_EVENTS=$(SA_SETTINGS="$TP/settings.json" python3 -c "import json,os; d=json.load(open(os.environ['SA_SETTINGS'])); print(len(d.get('hooks',{})))" 2>/dev/null || echo 0)
+HN_ASI_REFS=$(grep -rhoE "ASI0[0-9]" "$TP" "$FORGE_ROOT/shared" 2>/dev/null | sort -u | wc -l)
+HN_INJECTION_GUARD=$(find "$TP/hooks" -iname "*injection*" 2>/dev/null | wc -l)
+HN_ROLLBACK_STAGES=$(grep -rlE "L1.{0,4}(프롬프트|Quick)|L2.{0,4}(모델|Release)|L3.{0,4}(안전모드|Hotfix)" "$TP" 2>/dev/null | wc -l)
+
+# ── Cost 축(axis-cost 정량측정표: 모델계층화율·조건부로딩률·세션시작토큰·MCP분산율) ──
+# cr-final pr267-chunk4(HIGH): 종전 CO_ 는 큰따옴표 포맷만, AG_ 는 무따옴표만 매칭해 서로
+# 다른 포맷 가정을 썼다(한쪽은 상시 과소측정). 둘 다 따옴표 유무 무관하게 매칭한다.
+CO_MODEL_MENTIONS_TOTAL=$(grep -rlE "model:[[:space:]]*[\"']?(opus|sonnet|haiku)[\"']?" "$TP" 2>/dev/null | wc -l)
+CO_MODEL_MENTIONS_CHEAP=$(grep -rlE "model:[[:space:]]*[\"']?(sonnet|haiku)[\"']?" "$TP" 2>/dev/null | wc -l)
+CO_MCP_SERVERS=$(SA_MCPJSON="$FORGE_ROOT/.mcp.json" python3 -c "import json,os; d=json.load(open(os.environ['SA_MCPJSON'])); print(len(d.get('mcpServers',{})))" 2>/dev/null || echo 0)
+
+# ── Human-AI 축(axis-human-ai 정량측정표: 게이트커버리지·하드코딩경로·Auto-Pass문서화·게이트우회) ──
+HA_STOP_GATES=$(grep -rl '\[STOP\]' "$TP" 2>/dev/null | wc -l)
+HA_AUTOPASS_MENTIONS=$(grep -rl 'AUTO-PASS\|Auto-Pass' "$TP" 2>/dev/null | wc -l)
+HA_HARDCODED_TILDE=$(grep -rc '~/' "$TP"/skills/*/SKILL.md 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+HA_NOVERIFY_MENTIONS=$(grep -rl -- '--no-verify' "$TP" 2>/dev/null | wc -l)
+
+# 각 축 브리프에 그대로 붙여넣을 JSON 한 줄(신뢰: 실측 — Glob/Grep/wc 직접 카운트)
+AGENTIC_METRICS_JSON=$(printf '{"skills":%d,"agents":%d,"tieredAgents":%d,"evalSkills":%d,"parallelMentions":%d}' "$AG_SKILLS" "$AG_AGENTS" "$AG_MODEL_TIERED_AGENTS" "$AG_EVAL_SKILLS" "$AG_PARALLEL_SPAWN_MENTIONS")
+CONTEXT_METRICS_JSON=$(printf '{"rulesBytes":%d,"coreRules":%d,"ondemandRules":%d,"memoryItems":%d}' "$CTX_RULES_BYTES" "$CTX_CORE_RULES" "$CTX_ONDEMAND_RULES" "$CTX_MEMORY_ITEMS")
+HARNESS_METRICS_JSON=$(printf '{"hookScripts":%d,"hookEvents":%d,"asiRefs":%d,"injectionGuardFiles":%d,"rollbackStageRefs":%d}' "$HN_HOOK_SCRIPTS" "$HN_HOOK_EVENTS" "$HN_ASI_REFS" "$HN_INJECTION_GUARD" "$HN_ROLLBACK_STAGES")
+COST_METRICS_JSON=$(printf '{"modelMentionsTotal":%d,"modelMentionsCheap":%d,"mcpServers":%d}' "$CO_MODEL_MENTIONS_TOTAL" "$CO_MODEL_MENTIONS_CHEAP" "$CO_MCP_SERVERS")
+HUMANAI_METRICS_JSON=$(printf '{"stopGateFiles":%d,"autoPassMentionFiles":%d,"hardcodedTildeCount":%d,"noVerifyMentionFiles":%d}' "$HA_STOP_GATES" "$HA_AUTOPASS_MENTIONS" "$HA_HARDCODED_TILDE" "$HA_NOVERIFY_MENTIONS")
+```
+
+> 경로 부재·파싱 실패는 `2>/dev/null` + `|| echo 0`로 fail-open한다(무블로킹 4원칙). 0이
+> 나온 지표는 "미측정"이 아니라 "실측 결과 0"일 수 있다는 점을 axis-* 프롬프트에서 함께
+> 전달한다(아래 Wave 1 프롬프트의 "사전측정" 문구 참조) — 축이 0을 임의로 해석해 점수를
+> 지어내지 않게 하기 위함이다.
+> ⚠️ **이 방어가 무력화되는 입력**: `grep -c '~/'` 류 지표는 파일 내 우연한 물결표(주석의
+> 근사값 표기 등)까지 세는 과대추정 휴리스틱이다 — axis-*가 "실측 근거"로 과신하지 않도록
+> 프롬프트에 "우선 근거로 삼되 맹신하지 말 것"을 명시한다(아래).
+
+⚠️ **적용 범위**: 이 Step은 `CLAUDE_CODE_DISABLE_WORKFLOWS=1`일 때 실행되는 아래 Wave 1~4
+fallback 경로에 적용된다. 기본 경로(위 Step 0.5 Workflow 위임 — `workflow.js`)는 **2026-08-16
+수리로 `basePrompt()`가 Wave 1 수준(정의서 참조·기법 목록·엄격성·N/A 규약)으로 보강됐고**,
+같은 수리에서 axis-* 에이전트 5종이 Bash 를 갖게 돼(tools+=Bash, maxTurns 15→40) 기본 경로는
+사전측정 주입 없이 **직접 실측**한다. 이 Step 0.6 은 fallback 레인의 보조 수단으로 유지한다
+(축이 직접 실측한 값과 사전측정 값이 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적는다).
+근거: `harness-gaps/2026-08-15-system-audit-axis-agents-still-broken.md` G-1·G-2·G-4.
+
+---
+
 ### Wave 1: 6개 축 에이전트 병렬 스폰 (단일 메시지, 동시 실행)
 
 아래 6개 Agent를 **한 번에** 병렬로 스폰한다. 각 에이전트는 독립적으로 실행되며 JSON만 반환한다.
@@ -125,36 +211,52 @@ Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 - 반환 JSON: `{ items: [{type, names, recommendation, risk, reason}], summary: {duplicates, orphans, deprecated, theater_hooks} }`
 
 **파일 소유권 선언:**
-- 5개 에이전트 모두 읽기 전용 (대상 경로 분석만)
+- 5개 에이전트 모두 **읽기 전용 감사 계약** — Bash 는 측정용 읽기 명령만(각 axis-*.md 상단
+  "Bash 사용 계약" 블록이 정본, 2026-08-16). 대상 경로를 바꾸는 어떤 명령도 금지
 - 보고서 쓰기는 Wave 3에서 Lead만 수행
+
+**빈손 종료 회수 절차 (표준 — 2026-08-15 실측 4/5 회수 성공)**: 축 에이전트가 에러 없이
+**최종 메시지를 비운 채** 종료하면(이름 없는 async 스폰에서도 발생 — turn 소진이 원인)
+그 축을 실패로 확정하기 전에 `SendMessage` 로 1회 재요청한다:
+`"탐색을 멈추고 지금까지 아는 것만으로 요구된 JSON 을 반환하라 — 추가 조사 금지."`
+재요청에도 미반환이면 그 축은 Lead 가 Bash 로 핵심 지표를 직접 재서 **대체 채점**하고,
+보고서에 `출처: Lead 대체 채점(축 에이전트 미반환)` 을 명기한다 — 침묵 결측 금지.
+
+**회수 반환의 JSON 검증 (2026-08-16 신설 — 스키마 이탈 실측 후)**: 회수로 받은 JSON 은
+합치기 전에 **필수 키 존재·임의 키 부재**를 검사한다(2026-08-16 실측: 회수 반환이
+`strengths` 배열 자리에 `strengths_2` 류 임의 키를 만들어 파싱이 깨졌다 — Wave 1 은
+SendMessage 텍스트 반환이라 워크플로 레인과 달리 스키마가 강제되지 않는다). 불일치면
+스키마를 재제시하며 **1회만** 더 요청하고, 그래도 불일치면 Lead 가 유효 필드만 발췌해
+쓰되 보고서에 `스키마 이탈(부분 발췌)` 을 명기한다 — 조용한 통짜 수용 금지.
+(기본 경로 `workflow.js` 는 StructuredOutput 스키마 강제라 이 검증이 불필요 — fallback 전용.)
 
 **에이전트 1 — axis-agentic (model: sonnet)**
 
-프롬프트: `{target} 경로의 에이전틱 역량을 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §4 Agentic Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. Anthropic Composable Patterns 수준, ACI 설계, Agent Evals, Multi-Agent Coordination, Memory Architecture, AgentOps를 점검한다. 반드시 Glob/Grep/Read 도구로 실제 파일을 탐색하여 정량 지표를 측정하라. 주관적 판단 금지 — 모든 점수는 실측 데이터 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
+프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${AGENTIC_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 에이전틱 역량을 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §4 Agentic Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. Anthropic Composable Patterns 수준, ACI 설계, Agent Evals, Multi-Agent Coordination, Memory Architecture, AgentOps를 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
 
 반환 JSON: `{ "axis": "agentic", "score": 0-100, "composable_pattern": "...", "issues": [...], "strengths": [...], "summary": "..." }`
 
 **에이전트 2 — axis-context (model: sonnet)**
 
-프롬프트: `{target} 경로의 컨텍스트 엔지니어링을 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §2 Context Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. System Prompt Design(§2-1), Short-Term Memory(§2-2), Long-Term Memory(§2-3), RAG(§2-4), Tool Definition(§2-5), Context Compaction(§2-6), Sub-Agent Architecture(§2-7), Progressive Disclosure(§2-8), Structured Note-Taking(§2-9) 9개 기법과 프롬프트 구조 3요소 포함률을 점검한다. 반드시 Glob/Grep/Read 도구로 실제 파일을 탐색하여 정량 지표를 측정하라. 주관적 판단 금지 — 모든 점수는 실측 데이터 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
+프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${CONTEXT_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 컨텍스트 엔지니어링을 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §2 Context Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. System Prompt Design(§2-1), Short-Term Memory(§2-2), Long-Term Memory(§2-3), RAG(§2-4), Tool Definition(§2-5), Context Compaction(§2-6), Sub-Agent Architecture(§2-7), Progressive Disclosure(§2-8), Structured Note-Taking(§2-9) 9개 기법과 프롬프트 구조 3요소 포함률을 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
 
 반환 JSON: `{ "axis": "context", "score": 0-100, "context_checklist": {...}, "failure_patterns": [...], "progressive_disclosure": true/false, "issues": [...], "strengths": [...], "summary": "..." }`
 
 **에이전트 3 — axis-harness (model: sonnet)**
 
-프롬프트: `{target} 경로의 AI 하네스를 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §3 Harness Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. Check Chain(§3-1), Guardrails 5 Rail Types(§3-2), OWASP Agentic Top 10(§3-3), Hooks(§3-4), AI Evals(§3-5), Observability(§3-6), Rollback(§3-7), Maintenance Agents(§3-8) 8개 구성요소를 점검한다. 반드시 Glob/Grep/Read 도구로 실제 파일을 탐색하여 정량 지표를 측정하라. 주관적 판단 금지 — 모든 점수는 실측 데이터 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
+프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${HARNESS_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 AI 하네스를 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §3 Harness Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. Check Chain(§3-1), Guardrails 5 Rail Types(§3-2), OWASP Agentic Top 10(§3-3), Hooks(§3-4), AI Evals(§3-5), Observability(§3-6), Rollback(§3-7), Maintenance Agents(§3-8) 8개 구성요소를 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
 
 반환 JSON: `{ "axis": "harness", "score": 0-100, "check_chain": {...}, "owasp_coverage": {...}, "issues": [...], "strengths": [...], "summary": "..." }`
 
 **에이전트 4 — axis-cost (model: haiku)**
 
-프롬프트: `{target} 경로의 비용 효율을 분석한다. 모델 라우팅 3계층(Opus/Sonnet/Haiku) 문서화, 컨텍스트 절약 패턴, MCP→CLI 전환 현황, 비용 최적화 패턴(캐싱/라우팅/배치/길이제어) 적용 여부, 낭비 패턴을 점검한다. 반드시 Glob/Grep/Read 도구로 실제 파일을 탐색하여 정량 지표를 측정하라. 주관적 판단 금지 — 모든 점수는 실측 데이터 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
+프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${COST_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 비용 효율을 분석한다. 모델 라우팅 3계층(Opus/Sonnet/Haiku) 문서화, 컨텍스트 절약 패턴, MCP→CLI 전환 현황, 비용 최적화 패턴(캐싱/라우팅/배치/길이제어) 적용 여부, 낭비 패턴을 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
 
 반환 JSON: `{ "axis": "cost", "score": 0-100, "model_routing": {...}, "context_savings": {...}, "optimization_gaps": [...], "waste_patterns": [...], "issues": [...], "strengths": [...], "summary": "..." }`
 
 **에이전트 5 — axis-human-ai (model: sonnet)**
 
-프롬프트: `{target} 경로의 Human-AI 경계 설계를 분석한다. 5-Level Autonomy 매핑, [STOP]/[AUTO-PASS] 게이트 적절성, 에스컬레이션 트리거 5유형 커버리지, 안티패턴(Quasi-Automation/Rubber Stamping/Alert Fatigue), Override Rate 추적을 점검한다. 반드시 Glob/Grep/Read 도구로 실제 파일을 탐색하여 정량 지표를 측정하라. 주관적 판단 금지 — 모든 점수는 실측 데이터 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
+프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${HUMANAI_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 Human-AI 경계 설계를 분석한다. 5-Level Autonomy 매핑, [STOP]/[AUTO-PASS] 게이트 적절성, 에스컬레이션 트리거 5유형 커버리지, 안티패턴(Quasi-Automation/Rubber Stamping/Alert Fatigue), Override Rate 추적을 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
 
 반환 JSON: `{ "axis": "human-ai", "score": 0-100, "autonomy_mapping": [...], "gate_analysis": [...], "anti_patterns": [...], "issues": [...], "strengths": [...], "summary": "..." }`
 
@@ -275,24 +377,29 @@ Wave3 통합 보고서 템플릿 → `references/report-template.md`
   "pages": [{
     "properties": {
       "제목": "{date} ACHCE 5축 통합 감사 [{target}]",
-      "축": "통합",
-      "대상": "{target}",
-      "전체점수": "{전체점수}",
-      "Agentic점수": "{A}",
-      "Context점수": "{C}",
-      "Harness점수": "{H}",
-      "Cost점수": "{Co}",
-      "HumanAI점수": "{E}",
+      "감사 유형": "통합",
+      "축": ["Agentic", "Context", "Harness", "Cost", "Human-AI"],
+      "대상": "System",
+      "종합 점수": "{전체점수}",
       "date:날짜:start": "{date}",
-      "상태": "완료",
-      "CRITICAL": "{전체 CRITICAL 이슈 수}",
-      "HIGH": "{전체 HIGH 이슈 수}",
-      "보고서 경로": "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"
+      "Critical": "{전체 CRITICAL 이슈 수}",
+      "High": "{전체 HIGH 이슈 수}",
+      "Medium": "{전체 MEDIUM 이슈 수}",
+      "Low": "{전체 LOW 이슈 수}",
+      "핵심 발견": "{한 줄 총평}",
+      "리포트 경로": "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"
     },
     "content": "{보고서 전체 내용}"
   }]
 }
 ```
+
+> ⚠️ 위 속성명은 **2026-08-15 실스키마 조회로 확보한 정답 매핑**이다(구 매핑은 13개 중 9개가
+> 틀려 항상 `400 validation_error` — 축별 점수 5개·`상태`는 스키마에 존재하지 않는 속성이었고,
+> `축: "통합"` 은 `감사 유형` 자리의 오기, `대상` 은 select 라 `System` 대소문자 정확히).
+> 재현(성공 선례): 2026-08-15 감사에서 이 매핑으로 등록 성공 — 페이지
+> `3bd178f4-99c8-81db-a3cf-f217003cd58e`. 근거: `harness-gaps/2026-08-15-system-audit-axis-agents-still-broken.md` G-5.
+> 속성이 또 안 맞으면 임의 추측 대신 데이터소스 스키마를 먼저 조회해 이 표를 갱신하라.
 
 > Notion MCP 미연결 시 경고 출력 후 스킵 (파이프라인 중단 안 함).
 

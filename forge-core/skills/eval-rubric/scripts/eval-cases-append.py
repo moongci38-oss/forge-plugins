@@ -103,6 +103,16 @@ def main():
     ap.add_argument("--target", required=True, help="평가 대상 파일 경로 또는 식별자")
     ap.add_argument("--verdict", required=True, choices=["PASS", "WARN", "FAIL"], help="1회 채점 최종 판정")
     ap.add_argument("--scores", default="{}", help="JSON 점수 맵 (clarity/consistency/completeness/safety)")
+    # v1.1 — negative_constraint 는 **scores 와 분리해서 받는다.**
+    #   scores 안에 넣으면 평균 분모가 4→5 가 되어 같은 산출물의 판정이 이동한다(E-3).
+    #   별도 필드로 받아 기록만 하고 verdict 계산에는 절대 넣지 않는다.
+    ap.add_argument(
+        "--negative-constraint",
+        default=None,
+        help='JSON, 예: \'{"level":1,"evidence":"...","prohibitions_checked":["git stash 금지"]}\' '
+             "— 명시적 금지사항 준수 축(0 위반 / 1 인지흔적 없음 / 2 인지하고 지킴). "
+             "scores 와 분리 기록되며 verdict 계산에 들어가지 않는다.",
+    )
     ap.add_argument("--rationale", default="{}", help="JSON 근거 맵")
     ap.add_argument("--input-context", default="", help="입력 컨텍스트 (dedupe key 산출용)")
     ap.add_argument("--added-by", default="auto", choices=["auto", "manual"], help="추가 주체")
@@ -133,6 +143,24 @@ def main():
     skill_dir.mkdir(parents=True, exist_ok=True)
     jsonl = skill_dir / "eval_cases.jsonl"
 
+    # v1.1 negative_constraint — **dedupe 분기보다 먼저** 해석·검증·고지한다.
+    #   왜 여기인가(2026-08-09 행동 테스트가 잡은 결함): 종전 판에서는 이 처리를 신규
+    #   레코드 조립부에 뒀는데, dedupe 히트 시 그 위에서 `return 0` 으로 빠져나가
+    #   ①잘못된 level 이 검증 없이 통과하고 ②금지사항 위반이 **조용히 사라졌다.**
+    #   위반 고지는 어느 경로로 들어와도 나와야 한다.
+    nc = None
+    if args.negative_constraint:
+        nc = json.loads(args.negative_constraint)
+        if nc.get("level") not in (0, 1, 2):
+            raise SystemExit(
+                "--negative-constraint 의 level 은 0/1/2 여야 한다 (받은 값: %r)" % (nc.get("level"),))
+        # 침묵 금지 — 채점(verdict)에 안 들어가는 대신 반드시 보이게 한다.
+        if nc["level"] == 0:
+            print("[금지사항 위반] %s — %s" % (args.target, nc.get("evidence", "근거 미기재")),
+                  file=sys.stderr)
+        elif nc["level"] == 1:
+            print("[금지사항 인지 흔적 없음] %s" % args.target, file=sys.stderr)
+
     key = dedupe_key(args.skill, args.input_context)
     existing = find_dedupe(jsonl, key)
 
@@ -150,6 +178,12 @@ def main():
         existing["record_type"] = "observation"
         if pass_at_k:
             existing["pass_at_k"] = pass_at_k
+        # 관측 레코드에도 이번 회차의 금지사항 판정을 싣는다 — 안 실으면 재발 사례가
+        #   최초 1회 기록에 묻혀 "몇 번째 관측에서 위반했는지"를 사후에 못 센다.
+        if nc is not None:
+            existing["negative_constraint"] = nc
+            if nc["level"] == 0:
+                existing["tags"] = sorted(set(existing.get("tags", []) + ["negative"]))
         with open(jsonl, "a") as f:
             f.write(json.dumps(existing, ensure_ascii=False) + "\n")
         print(f"DEDUPE_HIT: observed_count={existing['observed_count']} (record_type=observation)")
@@ -175,6 +209,15 @@ def main():
     }
     if pass_at_k:
         record["pass_at_k"] = pass_at_k
+
+    # 기록 전용 — verdict·scores 를 건드리지 않는다. 해석·검증·고지는 위(dedupe 앞)에서 끝냈다.
+    #   level 0(위반)이면 골든셋에서 찾아낼 수 있게 tags 에 negative 를 자동으로 단다
+    #   — 사람이 태그를 잊어도 위반 사례는 반드시 추적 가능해야 한다.
+    if nc is not None:
+        record["negative_constraint"] = nc
+        if nc["level"] == 0:
+            record["tags"] = sorted(set(record.get("tags", []) + ["negative"]))
+
     with open(jsonl, "a") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
     # E-4 (2026-07-29): 분모 명시 — pass_rate 단독표기는 k(재채점 횟수)를 숨긴다

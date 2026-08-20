@@ -26,18 +26,29 @@ from datetime import datetime
 from pathlib import Path
 
 FORGE_ROOT = Path(os.environ.get("FORGE_ROOT", Path.home() / "forge"))
-SKILLS_DIR = FORGE_ROOT / ".claude" / "skills"
 TMPL_DIR   = Path(__file__).resolve().parent.parent / "templates"
+# root-cause(2026-08-06 워크트리 격리 파괴, 옵션A 채택): SKILLS_DIR 이 FORGE_ROOT 고정이면
+#   워크트리 격리 세션(--project-cwd = 워크트리 경로)에서도 공유 체크아웃에 써서 격리가 깨진다.
+#   --project-cwd(미지정 시 os.getcwd())로부터 파생 — main() 에서 cwd 계산 직후 설정한다.
 
 # workflow.js.tmpl(골격) 안에서 패턴 본문이 주입되는 자리표시자.
 PATTERN_BODY_SLOT = "{{PATTERN_BODY}}"
+
+# root-cause(2026-08-06 항목2): 템플릿 상단의 "이 템플릿을 고칠 때 주의" 개발자 메모(HTML 주석)가
+#   생성물(SKILL.md 등) 본문에 그대로 복사돼 독자에게 노이즈를 준다. 마커 문구가 있는 주석 블록만
+#   걷어낸다 — 독자용 경고 주석(예: HUMAN-GATES.md.tmpl 의 wall-clock 안내)은 마커가 없어 보존된다.
+_DEV_COMMENT_RE = re.compile(
+    r"<!--\s*(?:root-cause:\s*)?forge-loop-maker scaffold 템플릿.*?-->\n?",
+    re.DOTALL,
+)
 
 
 def read_tmpl(name: str) -> str:
     p = TMPL_DIR / name
     if not p.exists():
         sys.exit(f"[scaffold] template not found: {p}")
-    return p.read_text(encoding="utf-8")
+    text = p.read_text(encoding="utf-8")
+    return _DEV_COMMENT_RE.sub("", text, count=1)
 
 
 def render(tmpl: str, ctx: dict) -> str:
@@ -75,6 +86,7 @@ def main():
               f"무시되고 {state_path} 에 그대로 생성됩니다. 프로젝트 하위에 두려면 상대경로를 주세요.",
               file=sys.stderr)
     cwd        = Path(args.project_cwd).resolve()
+    SKILLS_DIR = cwd / ".claude" / "skills"
     skill_dir  = SKILLS_DIR / loop_name
     state_file = cwd / state_path
     ts         = datetime.now().strftime("%Y-%m-%d %H:%M")
