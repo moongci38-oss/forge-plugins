@@ -481,6 +481,53 @@ else:
         shutil.rmtree(_d12, ignore_errors=True)
 
 print()
+print("== 13. G3 — 윈도우 드라이브 마커가 같은 줄의 사설 경로를 가리지 않는다 ==")
+# 종전에는 마커가 하나라도 있으면 **줄 전체**를 치환·유출검사에서 면제해,
+# 같은 줄에 섞인 진짜 사설 경로가 둘 다 통과했다(LEAK_BLOCKED=0 이 거짓 안심을 줬다).
+# 한 칸을 비켜 가려다 그 줄 전체를 눈감은 셈 → 면제 단위를 **드라이브 토큰**으로 좁혔다.
+_MIX = "linux /home/exampleuser/forge/private and windows C:/Program Files/Git/x"
+
+# ⑩-a 혼합 줄에서 리눅스 쪽이 **치환된다**
+_t = mod.transform_line(_MIX)
+if "/home/exampleuser/" not in _t:
+    ok("⑩-a 혼합 줄의 사설 경로가 치환된다")
+else:
+    ng("⑩-a 혼합 줄이 통째로 면제됐다 — 드라이브 마커가 방패로 쓰인다")
+
+# ⑩-b 혼합 줄에서 유출이 **탐지된다**(치환 전 원문 기준)
+if mod.find_leaks(_MIX):
+    ok("⑩-b 혼합 줄의 사설 경로가 유출로 탐지된다")
+else:
+    ng("⑩-b 혼합 줄의 유출이 0건으로 보고됐다 — LEAK_BLOCKED=0 이 보증하지 못한다")
+
+# ⑩-c 보호하려던 것은 **그대로 지켜진다**(윈도우 표기 원형 보존)
+if "C:/Program Files/Git/x" in _t:
+    ok("⑩-c 윈도우 드라이브 표기는 원형 그대로 남는다")
+else:
+    ng("⑩-c 윈도우 표기가 훼손됐다 — 원래 이 면제가 지키려던 것이다")
+
+# ⑩-d 역슬래시 표기도 보존 + 같은 줄 리눅스 경로는 처리
+_BS = r"path Z:\Users\me\forge and /home/exampleuser/x"
+_tb = mod.transform_line(_BS)
+if r"Z:\Users\me\forge" in _tb and "/home/exampleuser/" not in _tb:
+    ok("⑩-d 역슬래시 드라이브 보존 + 같은 줄 리눅스 경로 치환")
+else:
+    ng("⑩-d 역슬래시 혼합 줄 처리 실패", _tb)
+
+# ⑩-e 순수 윈도우 표 행은 **아무것도 바뀌지 않는다**(오탐 없음)
+_TBL = "| Windows | C:/Users/moongci/.claude | 미러 |"
+if mod.transform_line(_TBL) == _TBL and not mod.find_leaks(_TBL):
+    ok("⑩-e 순수 윈도우 표 행은 무변경·무탐지")
+else:
+    ng("⑩-e 표 행이 훼손되거나 오탐했다 — 오탐 내는 가드는 무시당한다")
+
+# ⑩-f 치환을 마친 뒤에는 잔여 유출이 0 이어야 한다(실제 파이프라인 순서)
+if not mod.find_leaks(mod.transform_content(_MIX)):
+    ok("⑩-f 치환 후 잔여 유출 0 — 파이프라인이 통과시킬 수 있다")
+else:
+    ng("⑩-f 치환 후에도 유출이 남는다 — sync 가 항상 막힌다")
+
+print()
 print("================================")
 print(f"PASS={PASS}  FAIL={FAIL}  SKIP={SKIP}")
 if SKIP:

@@ -72,6 +72,38 @@ RE_FORGE = re.compile(r'~/forge\b')
 RE_CLAUDE = re.compile(r'~/\.claude\b')
 DRIVE_MARK = re.compile(r'\b[A-Z]:[\\/~]')  # Windows drive-letter prose table lines
 
+# ⚠️ G3 (2026-08-20): 종전에는 이 마커가 **줄에 하나라도 있으면 그 줄 전체**를 치환·유출검사에서
+#   면제했다. 그래서 같은 줄에 진짜 사설 경로가 섞여 있으면 **둘 다 통과**했다 —
+#   즉 `LEAK_BLOCKED=0` 이 "유출 없음"을 보증하지 못했다.
+#   **한 칸을 비켜 가려다 그 줄 전체를 눈감은 셈**이다.
+#   실측(수정 전):
+#     transform_line('linux /home/exampleuser/forge/private and windows C:/Program Files/Git/x')
+#       → 원문 그대로(치환 없음) · find_leaks(같은 문자열) → []   ← 유출 0건으로 보고
+#     같은 문자열에서 `C:/…` 만 빼면 → 정상 치환되고 [(1, '/home/exampleuser/')] 로 탐지된다.
+#   조치: 면제 단위를 **줄 → 드라이브 경로 토큰**으로 좁힌다. 그 토큰만 자리표시자로 빼두고
+#   나머지는 평소대로 처리한 뒤 되돌린다. 보호하려던 것(윈도우 표기 원형 유지)은 그대로 지켜진다.
+#   ⚠️ 여전히 못 잡는 입력: 사설 경로가 드라이브 토큰 **안에** 들어 있는 형태
+#     (예: `C:/home/someuser/...`). 그건 윈도우 경로 자체라 원형 보존이 옳다고 본다.
+DRIVE_PATH = re.compile(r'\b[A-Z]:[\\/~][^\s`"\')\]\x00]*')
+_DRIVE_SLOT = '\x00DRV%d\x00'
+
+
+def _shield_drives(line: str):
+    """윈도우 드라이브 경로 토큰만 자리표시자로 빼둔다. (가려진 줄, 원본조각들) 반환."""
+    spans = []
+
+    def _stash(m):
+        spans.append(m.group(0))
+        return _DRIVE_SLOT % (len(spans) - 1)
+
+    return DRIVE_PATH.sub(_stash, line), spans
+
+
+def _unshield(line: str, spans) -> str:
+    for i, frag in enumerate(spans):
+        line = line.replace(_DRIVE_SLOT % i, frag)
+    return line
+
 # ⚠️ 이 레포는 PUBLIC 이고 forge SSoT 는 PRIVATE 다. 아래 규칙이 없으면 비공개 환경의
 #   절대경로·DB 식별자가 그대로 공개된다. 실사고(2026-08-06): `~/forge` 리터럴만 치환하던
 #   탓에 `/home/<user>/forge/.claude/worktrees/...` 8곳이 PR #42 로 공개 배포됐다.
@@ -122,14 +154,14 @@ def transform_line(line: str) -> str:
     for literal, replacement in REDACTIONS:
         line = line.replace(literal, replacement)
     line = RE_NOTION_ID.sub(r'\1${NOTION_DB_ID}', line)
-    if DRIVE_MARK.search(line):
-        return line  # preserve Windows drive-table prose untouched
+    # 윈도우 드라이브 경로 **토큰만** 보호한다(줄 전체 면제 금지 — 위 G3 주석 참조).
+    line, _drv = _shield_drives(line)
     line = RE_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', line)
     line = RE_CLAUDE.sub('$HOME/.claude', line)
     line = RE_HOME_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', line)
     line = RE_HOME_CLAUDE.sub('$HOME/.claude', line)
     line = RE_HOME_ANY.sub('$HOME', line)
-    return line
+    return _unshield(line, _drv)
 
 def transform_content(content: str) -> str:
     return ''.join(transform_line(l) for l in content.splitlines(keepends=True))
@@ -138,9 +170,9 @@ def find_leaks(content: str):
     """치환 후 남은 사설 절대경로를 (행번호, 매칭) 으로 돌려준다. 비어야 정상."""
     out = []
     for i, line in enumerate(content.splitlines(), 1):
-        if DRIVE_MARK.search(line):
-            continue
-        for m in RE_LEAK.findall(line):
+        # 드라이브 토큰만 가리고 **나머지는 검사한다**(줄 통째 건너뛰기 금지 — G3).
+        masked, _ = _shield_drives(line)
+        for m in RE_LEAK.findall(masked):
             out.append((i, m))
     return out
 
