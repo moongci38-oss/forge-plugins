@@ -79,9 +79,44 @@ mkdir -p "$CHECKPOINT_DIR"
 
 `CHECKPOINT_DIR`은 워크트리 여부와 무관하게 **`$FORGE_OUTPUTS/.claude/checkpoints`(논리 단일 위치)** 다 — 새 세션·다른 워크트리에서도 `/forge-start`가 회수할 수 있어야 하기 때문이다. 스크립트 부재 시 폴백 = `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/checkpoints`.
 
+### 2-b. 하네스 갭 후보 (신규) — W10, 2026-08-10
+
+직전 체크포인트 이후 훅이 BLOCK/WARN/BYPASS 로 조용히 막았던 것들 중 **아직 판정을 안 남긴 것만** 표시한다(세션 전체 재집계 아님 — 그건 `/forge-end` 몫). 리포트 파일은 쓰지 않는다(순수 표시·판정 스텝).
+
+```bash
+CP_PREV=$(ls -t "$CHECKPOINT_DIR"/*.md 2>/dev/null | grep -v '\.consumed$' | head -1 || true)
+if [ -n "$CP_PREV" ] && [ -f "$CP_PREV" ]; then
+  CP_SINCE=$(date -u -r "$CP_PREV" +%Y-%m-%dT%H:%M:%SZ)
+else
+  CP_SINCE="1970-01-01T00:00:00Z"
+fi
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.py" --gap-new-since "$CP_SINCE"
+```
+
+신규 0건이면 스크립트가 `🔧 하네스 갭 후보(신규): 0건`을 그대로 출력한다 — 그대로 사용자에게 보여준다(침묵 금지). 1건+ 이면 항목마다(id 있는 것만 처분 가능) `갭 — <한 줄> (재현: <명령>)` 또는 `정상동작 — <사유>`를 판정하고, 그 판정을 **같은 jsonl에** DISPOSED 이벤트로 append한다(새 파일 생성 금지 — 다음 실행부터 이 id는 다시 안 뜬다):
+
+```bash
+python3 -c "
+import json, os, sys, datetime
+outputs = os.environ.get('FORGE_OUTPUTS', os.path.expanduser('${FORGE_ROOT:-$HOME/forge}-outputs'))
+path = os.path.join(outputs, '.claude', 'audit', 'hook-fp-telemetry.jsonl')
+rec = {
+    'ts': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    'event': 'DISPOSED',
+    'id': sys.argv[1],
+    'verdict': sys.argv[2],
+    'note': sys.argv[3][:80],
+}
+with open(path, 'a', encoding='utf-8') as f:
+    f.write(json.dumps(rec, ensure_ascii=False) + chr(10))
+" "<id>" "gap|normal" "<한 줄 사유>"
+```
+
+`갭`으로 판정한 항목은 즉시 harness-gaps 리포트 대상이다(§하네스 갭 리포트 규약, `재현:` 명령 1줄 필수). id 없는 항목(구버전 writer 산출물)은 처분 불가 — 표시만 하고 넘어간다.
+
 ### 3. 파일 작성
 
-경로: `$CHECKPOINT_DIR/$(date +%Y-%m-%d-%H%M).md` — 파일명은 date 자동 생성만(사용자 입력 삽입 금지), append-only(덮어쓰기 금지).
+경로: `$CHECKPOINT_DIR/$(date +%Y-%m-%d-%H%M)-$(printf '%s' "${CLAUDE_SESSION_ID:-$$}" | tr -cd 'A-Za-z0-9-' | cut -c1-8).md` — 파일명은 date+세션ID(또는 PID) 앞 8자 자동 생성만(사용자 입력 삽입 금지), append-only(덮어쓰기 금지). 세션 접미사는 같은 분에 여러 세션이 저장할 때의 파일명 충돌을 막는다(M-1, 2026-08-15 — `session-recall.sh`의 파일명 파싱은 `YYYY-MM-DD(-HHMM)` **접두 매치**라 접미사가 붙어도 최신성 판정에 영향 없음, `key_for_file()` 확인 완료).
 
 사전 캡처: `git status --short` / `git diff --stat HEAD` / `git log --oneline -3`.
 
@@ -93,6 +128,7 @@ model: opus
 slug: checkpoint-{요약}
 status: open
 project: forge
+session: "${CLAUDE_SESSION_ID:-unknown}"   # 소유 세션 식별자 — §6 재개 시 대조용(M-1/G-08)
 type: human-verify        # human-verify | decision | human-action | tdd-review
 ---
 
@@ -115,7 +151,7 @@ branch: {브랜치} ({repo 경로})
 ## 백그라운드 워커 생존
 ```
 
-frontmatter는 handover와 같은 스키마를 쓴다 — 스캐너가 date로 최신성을 판정하기 때문이다(파일명 mtime 아님). 보안 정보(토큰·패스워드) 기록 절대 금지. 20~50줄 유지.
+frontmatter는 handover와 같은 스키마를 쓴다 — 스캐너가 date로 최신성을 판정하기 때문이다(파일명 mtime 아님). `session:` 필드는 소유 세션 식별자(`${CLAUDE_SESSION_ID:-unknown}`)를 기록한다 — §6 재개와 `/forge-end` §7이 이 값으로 소유 검증을 한다. `CLAUDE_SESSION_ID`가 비어 있으면 `unknown`을 그대로 쓴다(거짓 식별자로 채우지 않음 — 소유 검증 쪽이 `unknown`을 "판별 불가"로 처리해 fail-open한다). ⚠️ **이 필드는 실값으로 치환해 기록한다** — `${CLAUDE_SESSION_ID:-unknown}` 문자열을 리터럴로 옮겨 적으면 소유 검증이 전부 판별 불가로 떨어진다(작성 전 `echo "$CLAUDE_SESSION_ID"` 로 실값 확인, cr-final MEDIUM 반영 2026-08-15). 보안 정보(토큰·패스워드) 기록 절대 금지. 20~50줄 유지.
 
 ### 4. **[게이트] 자가 대조** (계약 ⑦(b))
 
@@ -153,10 +189,40 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-ind
 
 같은 세션 compact 직후든 새 세션 첫 메시지든 동일하게 동작한다.
 
-1. `session-recall.sh` 출력의 `CHECKPOINT_LATEST` read (`CHECKPOINT_UNCONSUMED=yes`면 미소비). 없으면 "체크포인트 없음 — 처음부터 시작".
+1. **[소유 검증]** (M-1/G-08, 2026-08-15) `session-recall.sh`의 `CHECKPOINT_LATEST`는 **전역 최신**(frontmatter `date:`/`time:` 기준 — mtime 아님, `key_for_file()`)일 뿐 내 세션 것인지 가리지 않는다 — 대조 없이 복원하면 **남의 체크포인트를 오복원**한다:
+   ```bash
+   eval "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-landing.sh" "$(pwd)")"
+   CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '^CHECKPOINT_LATEST=' | cut -d= -f2-)
+   MY_SID="${CLAUDE_SESSION_ID:-}"
+   if [ -n "$CP" ] && [ -f "$CP" ]; then
+     CP_SID=$(grep -m1 '^session:' "$CP" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
+     if [ -n "$MY_SID" ] && [ -n "$CP_SID" ] && [ "$CP_SID" != "unknown" ] && [ "$CP_SID" != "$MY_SID" ]; then
+       echo "타 세션 체크포인트 — 건너뜀 ($(basename "$CP"), session=$CP_SID)"
+       CP=""
+       while IFS= read -r f; do
+         [ -z "$f" ] && continue
+         # cr-final MEDIUM 반영(2026-08-15): 구 `grep -v '\.consumed$'` 는 죽은 필터였다 —
+         # 마커는 `X.md.consumed` 라 `*.md` glob 에 애초에 안 걸린다. 기소비 여부는 마커
+         # **존재**로 판정한다. (fallback 정렬은 mtime(ls -t) 근사 — 정본 최신성은
+         # session-recall 의 frontmatter 기준이지만, 자기 소유 후보 간 근사로 충분)
+         [ -f "${f}.consumed" ] && continue
+         fsid=$(grep -m1 '^session:' "$f" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
+         [ "$fsid" = "$MY_SID" ] && { CP="$f"; break; }
+       done < <(ls -t "$CHECKPOINT_DIR"/*.md 2>/dev/null)
+     elif [ -z "$MY_SID" ]; then
+       echo "WARN: CLAUDE_SESSION_ID 미설정 — 소유 검증 생략(fail-open, 기존 동작 유지)"
+     elif [ -z "$CP_SID" ] || [ "$CP_SID" = "unknown" ]; then
+       # cr-final MEDIUM 반영(2026-08-15): session 필드 부재·추출 실패를 침묵 통과시키지 않는다
+       # — fail-open 은 유지하되 판별 불가였음을 명시한다(구형 체크포인트 호환).
+       echo "WARN: 체크포인트 session 필드 없음/판독불가($(basename "$CP")) — 소유 판별 불가, fail-open 소비"
+     fi
+   fi
+   [ -z "$CP" ] && echo "체크포인트 없음 — 처음부터 시작(또는 자기 소유 체크포인트를 찾지 못함)"
+   ```
+   `CP`가 비어 있지 않으면(내 것으로 확정됐거나 fail-open으로 통과됐으면) 그 파일을 아래 스텝에서 사용한다. `CHECKPOINT_UNCONSUMED=yes`(session-recall.sh 원 출력)는 여전히 "미소비" 여부만 나타낸다 — 소유 여부는 위 대조가 별도로 판정한다.
 2. 브랜치 불일치 시 "⚠️ 브랜치 불일치" 경고 후 계속. uncommitted 변경 있으면 경고만(강제 덮어쓰기 금지).
 3. "다음 스텝" 1번부터 재개 — 항목 그대로 출력 후 실행.
-4. 복원 완료 시 `touch "{경로}.consumed"` (재안내 루프 방지).
+4. 복원 완료 시 `touch "${CP}.consumed"` (재안내 루프 방지).
 
 ## 체크리스트
 
@@ -164,6 +230,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-ind
 - [ ] `session-record-audit.sh collect` → 8 수집원 실측
 - [ ] 세션 버스 워커 로스터 대조 실행 (0기/실행실패도 각각 명시 — 침묵 금지)
 - [ ] 착지 = `$FORGE_OUTPUTS/.claude/checkpoints` (워크트리여도 동일)
+- [ ] 하네스 갭 후보(신규) 실행 — 0건도 명시 출력, 1건+ 이면 판정 후 DISPOSED append
 - [ ] frontmatter 5필드 + 8절 작성 ("없음" 명기)
 - [ ] 백그라운드 워커: 브리프 영속 경로 + 생존 실측 수치 + 재개 1줄 (미영속이면 영속화 후 저장)
 - [ ] `verify` PASS 후에만 compact 안내

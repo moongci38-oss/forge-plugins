@@ -1,30 +1,44 @@
 ---
-description: "Opus를 advisor로 Sonnet/Haiku 실행자와 결합 호출 (API + advisor_20260301 tool) MAS P1: +Codex critic 추가."
+description: "Fable 5(대체 gpt-5.6-sol)를 advisor로 Sonnet/Haiku 실행자와 결합 호출 (API + advisor_20260301 tool) MAS P1: +Codex critic 추가."
 argument-hint: "<task 설명> [파일 경로]"
 group: ops
 ---
 
 # /advisor
 
-Forge 하네스에서 **Opus advisor 패턴**을 간편히 호출하는 래퍼. 내부적으로 `shared/scripts/advisor-assist.py`를 Bash로 실행하고 결과를 받는다.
+Forge 하네스에서 **advisor 패턴**을 간편히 호출하는 래퍼. 내부적으로 `shared/scripts/advisor-assist.py`를 Bash로 실행하고 결과를 받는다.
 
-**핵심:** Executor(Sonnet/Haiku) 주도 + Opus(advisor) 판단 지점 조언 → Opus 단독 대비 30~85% 비용 절감하면서 품질 유지.
+**핵심:** Executor(Sonnet/Haiku) 주도 + advisor 판단 지점 조언 → 프런티어 모델 단독 대비 30~85% 비용 절감하면서 품질 유지.
 
-**비용:** Anthropic API 크레딧 필요 (Max 구독과 별개 과금). 월 $10~30 예상 (Tier 2 선택적 사용 시).
-**진입점 구분:** `/advisor`=**API 과금**(advisor-assist.py 경유). Max 구독 내 **무과금** 조언은 `Agent(subagent_type="advisor-strategist")` 사용 — 동일 Advisor Strategy(executor 주도 + Opus 컨설트) 패턴을 API 없이 구현.
+**비용:** Anthropic API 크레딧 필요 (Max 구독과 별개 과금). 월 $10~30 예상.
+**진입점 구분:** `/advisor`=**API 과금**(advisor-assist.py 경유). Max 구독 내 **무과금** 조언은 `Agent(subagent_type="advisor-strategist")` 사용 — 동일 Advisor Strategy(executor 주도 + advisor 컨설트) 패턴을 API 없이 구현.
 
-## Fable-advisor opt-in (Human 세션 스위치)
+## advisor 모델 (기본 Fable 5 · 대체 gpt-5.6-sol)
 
-영상 Advisor Strategy처럼 "이 세션은 Fable 5를 advisor로" 매끄럽게 쓰고 싶을 때 — 사람이 한 줄로 opt-in:
+**2026-08-12 Human 지시로 기본 조언자가 Opus → Fable 5 로 바뀌었다.** 쉽게 말하면 "물어보는 상대"가 바뀐 것이고, 일하는 모델(워커)은 그대로 저렴 tier다.
+
+모델 결정은 `shared/scripts/advisor-model-resolve.sh` **한 곳**이 한다 — 호출자는 그 출력만 믿는다.
 
 ```bash
-export FORGE_ADVISOR_FABLE=advisor   # 이 세션 advisor 조언 = Fable 5 (구현·워커는 그대로 저렴 모델)
+MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh")
+# claude-fable-5 (기본) | gpt-5.6-sol (대체) | claude-opus-5 (명시 요청 시)
 ```
 
-- 켜면 그 세션의 `advisor-strategist` 조언이 **tier 무관 Fable**로 해석된다(`shared/scripts/advisor-model-resolve.sh`). 조언만 Fable — 구현 노동은 위임된 워커(Sonnet/Opus)가 수행(영상 비용 원칙).
-- **가드(자동)**: 일일캡 `FORGE_ADVISOR_FABLE_CAP`(기본 5)·미가용 `FORGE_FABLE_AVAILABLE=0`·kill-switch `FORGE_ADVISOR_FABLE=off` 도달 시 Opus 강등. 캡 초과분·미출시(≤07-07)·크레딧 실패는 자동 Opus 폴백(non-blocking).
-- **Human 수동 전용 준수**: env를 사람이 export = Human opt-in. AI가 자율로 켜지 않는다. 미설정(기본)=Opus, forge-fix T4만 자동 Fable.
-- 끄기: `unset FORGE_ADVISOR_FABLE` 또는 `export FORGE_ADVISOR_FABLE=off`.
+| 상황 | 결과 |
+|---|---|
+| 기본(아무 설정 없음, 전 tier) | `claude-fable-5` |
+| `FORGE_ADVISOR_FABLE=off` (kill-switch) | `gpt-5.6-sol` |
+| `FORGE_FABLE_AVAILABLE=0` (미가용) | `gpt-5.6-sol` |
+| 사람이 켠 캡(`FORGE_ADVISOR_FABLE_CAP=N`) 초과 | `gpt-5.6-sol` (미설정 = 무제한) |
+| `FORGE_ADVISOR_MODEL=fable\|sol\|opus` | 그 값 (모든 가드보다 우선) |
+| `FORGE_ADVISOR_FALLBACK=opus` | 대체재를 sol 대신 Opus 로 (구현 경로용) |
+
+- ⚠️ **출력이 `gpt-*` 면 `Agent()` 로 스폰하면 안 된다** — Agent 의 model 열거형에 codex 모델이 없다. `mcp__codex__codex`(sandbox=read-only)로 조언 레그를 띄운다.
+- ⛔ **리졸버를 건너뛰고 `Agent(subagent_type="advisor-strategist")` 를 직접 부르면 가드가 안 걸린다** — frontmatter 기본값(Fable)으로 그냥 뜬다. kill-switch·캡·미가용이 전부 우회된다.
+- **tier 인자(T1~T4)는 더 이상 모델을 가르지 않는다**(로그 기록용). 기존 호출부가 `... T4` 로 넘기던 것을 그대로 둬도 안전하다.
+- 💰 **과금 = 구독 정액**(Human 확인 2026-08-12) → **일일 캡 기본 0(무제한)**. 호출당 추가 과금이 없어 횟수를 막을 근거가 없다. 토큰·지연을 조이고 싶으면 `FORGE_ADVISOR_FABLE_CAP=N`(초과분 sol). 과금이 흔들린 경위 → `model-routing-rationale.md §Fable 5 과금 이력`
+- 재현: `bash shared/scripts/test-advisor-model-resolve.sh` (52케이스 — peek 15 · 오타플래그 5 · stderr 청결 5 포함) · `bash shared/scripts/test-advisor-tier-gate.sh` (33케이스 — 역변조 3종 포함)
+
 **출처:** 2026-04-10 Advisor 전략 상세 분석 (`forge-outputs/01-research/ai-report/2026-04-10-advisor-strategy-detailed.md`)
 
 ## 사용법 (인자 파싱)
@@ -54,7 +68,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "{task}" \
   --input {file} \
   --executor claude-sonnet-5 \
-  --advisor claude-opus-5 \
+  --advisor claude-fable-5 \
   --max-uses 3 \
   2>/tmp/advisor-usage.log
 ```
@@ -73,61 +87,65 @@ EOF
 2. stderr (`/tmp/advisor-usage.log`)에서 비용 정보 추출 → 끝에 요약
 3. 결과를 저장해야 하는 경우 저장 경로 확인 후 Write
 
-## 사용 기준 (Tier 2 — 비용 통제)
+## 사용 기준 (2026-08-12 개정 — advisor 전략 상시 가동)
 
-**✅ 호출해도 되는 경우:**
-- 정부과제 본문 최종 전략 검토 (제출 3일 전)
-- 고위험 PR 리뷰 (결제·보안·멀티스레드)
-- Spec PASS/FAIL 경계 케이스 재판정
-- 중대 계약서 조항 검토 (외주·투자·M&A)
-- 복잡한 아키텍처 결정 분기점
+> 정본 = `rules/model-routing.md §Advisor 전략 상시 가동`. **실행자가 Opus·Sonnet·`gpt-5.6-terra`·`gpt-5.6-luna`·Gemini 면 판단 지점에서 advisor 조언을 받는 것이 기본**이다(Human 지시 2026-08-12). 종전의 "Tier 2 — 비용 통제"(아껴 쓰기) 기준은 폐기했다 — Fable 이 구독 정액이라 호출당 비용이 없다. **다만 토큰·지연은 든다** — 아래 "부르지 않는 경우" 목록은 그대로 유효하다.
+>
+> ⚠️ 단, **이 커맨드(`/advisor`)는 Anthropic API 종량 과금 경로다.** 상시 가동은 무과금 경로(`Agent(subagent_type="advisor-strategist")` / `mcp__codex__codex`)를 기본으로 하고, `/advisor` 는 API 툴(`advisor_20260301`)이 꼭 필요할 때 쓴다.
 
-**❌ 호출하지 말 것:**
-- 일상적 코드 리뷰 (Sonnet 단독으로 충분)
-- 단순 오타·포매팅 수정
-- 문서 초안 작성 (전략 단계 X)
-- 반복 패턴 적용 작업
+**✅ 부르는 지점 (기본 수행):**
+- 설계·구현 방식이 갈릴 때 (동등해 보이는 후보 2개 이상)
+- PASS/FAIL·승인/거부 **경계** 판정
+- 비가역·고위험 변경 착수 **직전** (마이그레이션·삭제·결제·보안·배포)
+- 검수 결론 **확정 직전** 적대적 2차 의견 1회
+- 워커가 **같은 실패 2회** 반복해 막혔을 때
+- 정부과제 본문 최종 전략 검토 · 중대 계약서 조항 (외주·투자·M&A)
 
-## Fable 5 에스컬레이션 (Human 수동 호출 전용 — 비가역·최고위험 결정)
+**❌ 부르지 않는 경우:**
+- 1~2줄 수정·단순 오타·포매팅 (조언 오버헤드 > 작업)
+- 기계적 반복 패턴 적용
+- 이미 명확한 판단 (경계가 아닌 경우)
 
-기본 advisor = `claude-opus-5`. Fable 5는 **Human이 명시적으로 요청할 때만** advisor 레그로 승격한다.
+## 호출 2경로 · 미가용 폴백
 
-> ⚠️ **발동 방식 = Human 수동 전용.** AI(오케스트레이터)가 자율 판단으로 Fable을 스폰하는 것 **금지**. 자동·이벤트·파이프라인 트리거 **없음**. AI는 "이 결정은 Fable 자문이 유용할 수 있다"고 **제안(권고)** 만 하고, 실제 실행은 **사용자가 "Fable로 자문/검수해"라고 지시한 후에만** 한다. 그 외 전 경로 AI 자율 Fable 발동 금지. **비용: 현재 구독 정액 사용(호출당 종량 아님, 2026-07-16 확인) — 사람이 명시 지시할 때는 비용 마찰 없이 사용.**
+**Agent 경로(무과금, 기본)**
+```
+MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh")
+# claude-* → Agent(subagent_type:"advisor-strategist", model:"fable"|"opus")
+# gpt-*    → mcp__codex__codex (sandbox=read-only)
+```
 
-**미가용 시 자동 폴백 (2026-07-03 추가):** Fable 미출시/미승인/접근거부 시 `advisor-assist.py`가 자동으로 `claude-opus-5`로 폴백하고 stderr에 표시한다(`[advisor] ⚠️ claude-fable-5 unavailable (...) → claude-opus-5 fallback`). 단 **크레딧 잔액 부족은 폴백 대상 아님**(Opus도 실패하므로 그대로 에러 표출). Human-수동 발동 원칙·자동게이트 배선 금지·비용가드는 이 폴백과 무관하게 불변. Agent 경로(`advisor-strategist`, model:"fable")는 이 폴백 로직과 별개 — 자동 승격 없음(변경 없음).
-
-**Human이 호출 여부를 판단하는 기준 (아래에 해당할 때 사용자가 요청):**
-1. 비가역(rollback 비용 큼) — ADR·아키텍처 분기·비가역 마이그레이션·결제/보안 비가역 변경·계약(외주·투자·M&A) 조항
-2. 고파급(틀리면 cascade 오염 — 전 파이프라인/전 프로젝트 영향)
-3. Opus 5 답변이 경계·상충으로 미덥지 않을 때
-4. 저빈도(월 소수 회) — 반복/일상 결정 아님
-
-**전제조건:** Fable 5 접근 가능한 구독/플랜(2026-07-16 구독 정액 사용 중) + 접근 자격. 미가용 시 `FORGE_FABLE_AVAILABLE=0` → Opus 폴백.
-
-**호출 (2경로 — 둘 다 Human 지시 후에만):**
+**API 경로(종량 과금)**
 ```bash
 python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
-  --task "{비가역 결정 요지 — 반대근거·실패시나리오 우선}" \
+  --task "{판단 요지 — 반대근거·실패시나리오 우선}" \
   --input {decision-doc.md} \
   --executor claude-sonnet-5 \
   --advisor claude-fable-5 \
   --max-uses 2 \
   2>/tmp/advisor-fable-usage.log
 ```
-- agent 경로: `Agent(subagent_type:"advisor-strategist", model:"fable")` — 역시 Human 지시 후에만.
-- **파일럿 규약:** default 라우팅 승격 아님(항상 명시 `--advisor claude-fable-5`만). **AI 자율 발동 금지(수동 전용).** `/tmp/advisor-fable-usage.log` 누적으로 1주 ROI(호출수·비용·결정 반영률) 리뷰 후 존치/폐기 판정. 예상 비용: advisor 레그 호출당 ~$0.5~2.
 
-### advisor 자동 분기 (T4 비가역 한정 — 2026-07-04 추가)
+**미가용 시 자동 폴백:** Fable 미승인·접근거부 시 `advisor-assist.py`가 `claude-opus-5`로 폴백하고 stderr에 표시한다(`[advisor] ⚠️ claude-fable-5 unavailable (...) → claude-opus-5 fallback`). **크레딧 잔액 부족은 폴백 대상 아님**(Opus도 실패하므로 그대로 에러 표출).
 
-Human 수동 전용 원칙의 **유일한 예외**: forge-fix 파이프라인의 **T4(비가역·최고위험: data migration / DELETE·삭제 / 결제·billing)** advisor 자문에 한해, `"${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh"`가 자동으로 Opus↔Fable5를 분기한다(오케스트레이터가 T4 스폰 직전 호출). 스크립트 파일 자체 위치는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/`(SSoT) 고정 — 커스텀 설치(FORGE_ROOT 오버라이드) 세션에서도 위 변수 패턴으로 절대경로 해석.
+> ⚠️ **API 경로의 폴백은 `gpt-5.6-sol` 이 될 수 없다.** 이 스크립트는 Anthropic Messages API + `advisor_20260301` tool 전용이라 Codex 모델을 호출할 수단이 없다. sol 을 조언자로 쓰려면 Agent 경로(`mcp__codex__codex`)를 쓴다.
 
-- **분기 규칙**: tier=T4 → Fable 후보 / T1·T2·T3 → 항상 Opus.
-- **비용 가드(3중, 하나라도 걸리면 Opus 강등)**:
-  1. kill-switch `FORGE_ADVISOR_FABLE=off` → 전 경로 즉시 Opus.
-  2. 일일 캡 `FORGE_ADVISOR_FABLE_CAP`(기본 5) → 당일 Fable 디스패치 초과분 Opus.
-  3. 미가용 `FORGE_FABLE_AVAILABLE=0` → Fable 미출시/미승인 기간 강제 Opus.
-- **집계**: Fable 디스패치 시 `/tmp/advisor-fable-usage.log`(또는 `FORGE_ADVISOR_FABLE_LOG`)에 기록 — 일일 캡 카운트 + 7-09 ROI 리뷰 겸용.
-- **불변 원칙**: 이 예외는 **advisor의 T4 자문에만** 적용. forge-pr / cr-* / 기타 자동게이트에 Fable 배선은 여전히 금지(per-PR 비용폭발 방지). advisor-strategist frontmatter는 `model:opus` 유지 — Agent 호출의 `model:"fable"` 오버라이드가 우선(도구 규약).
+### Fable 을 쓰지 않는 경우 (되돌리기)
+
+| 원하는 것 | 하는 법 |
+|---|---|
+| 이 세션만 Opus 조언 | `export FORGE_ADVISOR_MODEL=opus` |
+| 이 세션만 sol 조언(벤더 교차) | `export FORGE_ADVISOR_MODEL=sol` |
+| Fable 전면 차단(kill-switch) | `export FORGE_ADVISOR_FABLE=off` → sol 로 감 |
+| 하루 N회로 제한 | `export FORGE_ADVISOR_FABLE_CAP=N` (미설정=무제한, 초과분 sol) |
+
+⚠️ **캡 값에 오타를 내면 캡이 꺼지는 게 아니라 5 로 적용된다.** `CAP=5O`(영문 O) 같은 비숫자를 주면 무제한으로 뭉개지 않고 보수적 양수로 떨어뜨린다 — 변수를 준 것 자체가 "가드를 켜려는 의도"이기 때문이다. 정말 무제한을 원하면 `CAP=0` 을 명시하거나 변수를 지운다.
+
+- **집계**: Fable 디스패치 시 `/tmp/advisor-fable-usage.log`(또는 `FORGE_ADVISOR_FABLE_LOG`)에 기록 — 캡 카운트 + ROI 리뷰 겸용.
+- **범위 — 자문 레그 O, 검수 레그 X**: 승격된 것은 **advisor 자문 레그**다. `forge-pr`·`forge-plan` 의 advisor 자문도 이제 리졸버를 따른다(그 커맨드들의 "advisor = Opus 고정" 문구는 2026-08-12 폐기).
+  ⛔ 반대로 `cr-multi`/`cr-triple` 의 **검수 워커 레그**에 Fable 자동 배선은 **여전히 금지**(`--fable` = Human 수동 전용) — PR 마다 프런티어 모델로 전체 검수를 돌리면 비용이 폭발한다.
+  ✅ 반면 `forge-deploy`·`forge-rollback`·`forge-check-*`·`forge-milestone-close`·`forge-dev-undo` 는 **advisor 자문 레그가 실재한다** — 이 PR 에서 그 커맨드들의 "Fable 5 미배선 · 리졸버 호출 금지" 문구를 **폐기**하고 리졸버 경유로 바꿨다. (2026-08-12 이전에 "그 커맨드들은 advisor 를 안 쓴다"고 적혀 있던 것은 사실이 아니었다.)
+- **구현(coder) 경로 예외**: `coder-model-resolve.sh` 는 `FORGE_ADVISOR_FALLBACK=opus` 를 박아 넘긴다 — `--coder fable` 이 안 될 때 벤더를 말없이 Codex 로 바꾸지 않기 위해서다(그 스크립트의 기존 계약 유지).
 
 ## 비용 예시
 

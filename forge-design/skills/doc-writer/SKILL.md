@@ -1,6 +1,7 @@
 ---
 name: doc-writer
 description: "Write structured docs for code modules/APIs/functions/agents/skills/pipeline stages. Use for: 파일/모듈 문서화, API/함수 레퍼런스, 스킬/에이전트 문서, 파이프라인 단계 문서. SKIP: 인라인 코드주석(standalone .md만 생성)."
+disable-model-invocation: true
 ---
 
 # doc-writer

@@ -58,7 +58,7 @@ const gapsSignal = await agent(
 //   (forge-outputs/docs/reviews/audit/*.md)이 이 글롭에 안 걸려 다음 스캔에 한 건도 주입되지 않았다
 //   (실측 2026-08-03: harness-gaps 55건 중 head -8 컷으로 47건 미주입, audit 산출물은 0건 매칭).
 [Step 1] 최근 리포트 나열 (최신 8개 + 전체 매칭 수). 현행 SSoT는 pipelines/harness-gaps/ **단일 폴더**이고
-pipelines/reviews는 2026-07-22 이전 아카이브다(별개 폴더, 사문화 — 건드리지 않는다). docs/reviews/audit/ 는
+pipelines/reviews는 2026-07-22 이전 아카이브다(별개 폴더, 읽기 전용 레거시 입력 — 사문화 아님, 2026-08-11 정정. 건드리지 않는다). docs/reviews/audit/ 는
 /system-audit 산출물로 파일명이 *harness-gaps*가 아니라 별도 글롭이 필요하다 — 두 SSoT + audit 산출물을
 함께 훑어 최신순 8개를 고른다:
 // root-cause: 2026-08-04 — b24920ff 가 reviews/{main,local} 2분류를 폐지했는데 이 글롭이 그대로
@@ -847,11 +847,16 @@ diet_auto_low: ${dietAutoLow}
 adjusted_items: ${JSON.stringify(adjustedItems)}
 
 [저장 지시]
+0. Bash 1회: date '+%Y-%m-%d %H:%M' — 이 출력이 아래 '생성:' 값이다. 추측·'unknown' 금지.
+   (Workflow 스크립트는 Date.now() 를 못 쓰지만 에이전트인 너는 date 를 실행할 수 있다.
+   2026-08-16 실사고: 이 값이 'unknown' 으로 남자 후속 세션들이 mtime·파일명으로 실행
+   시각을 추측했고, "3주 방치"라는 거짓 결론이 리포트 2곳에 실렸다. 호출자 주입값
+   ${today} 가 'unknown' 이 아니면 날짜 부분 교차확인용으로만 쓴다 — 정본은 실측이다.)
 1. Bash: mkdir -p "${reportDir}"
 2. Write 도구로 ${reportPath} 저장 — 반드시 아래 10섹션 전부 포함:
 
 # Forge 하네스 레거시 스캔 리포트
-생성: ${today} | 도구: harness-legacy-scan
+생성: {0단계에서 실측한 시각} | 도구: harness-legacy-scan
 
 ## ① 전체 요약
 - 스킬 수 (실측): N개
@@ -919,14 +924,24 @@ telemetry_signal 데이터를 그대로 쓴다. source_found=false면 "텔레메
 AGENTS.md/.cursor/rules: N/A (존재하지 않음)
 
 3. Write 도구로 ${queuePath} 저장:
+아래 JSON 을 그대로 쓰되 **generated 값만 0단계에서 실측한 시각으로 교체**한다.
+(리포트 헤더와 같은 결함이다 — 이 필드가 'unknown' 이면 큐를 읽는 후속 세션이
+다시 mtime·파일명으로 생성 시각을 추측한다. cr-final PR#276 medium 지적 반영.)
 JSON 내용:
 ${JSON.stringify({
-  generated: today,
+  generated: '{0단계에서 실측한 시각}',
   scan_report: reportPath,
   items: queueItems,
 }, null, 2)}
 
-4. Read로 두 파일 존재 확인 후 "SAVED: 리포트 + diet-queue.json" 반환.`,
+4. Read로 두 파일 존재 확인.
+5. 저장 후 자가검증(cr-final PR#276 test-coverage 지적 반영) — Bash 1회:
+   grep -l "unknown\\|{0단계" "${reportPath}" "${queuePath}"
+   출력이 있으면 그 파일의 생성 시각이 **미치환**된 것이다. 0단계 실측값으로 고쳐 다시 저장한 뒤
+   같은 grep 이 빈 출력을 낼 때까지 반복한다. 미치환 상태로 완료 보고 금지.
+   ⚠️ 이 검사가 무력화되는 입력: 본문 어딘가에 'unknown' 이라는 단어가 정당하게 들어간 경우
+   (예: 어떤 항목의 근거가 'unknown') — 그때는 헤더·generated 필드만 눈으로 확인하고 진행한다.
+6. "SAVED: 리포트 + diet-queue.json (생성=<실측시각>)" 반환.`,
   { label: 'report', phase: 'Report' }
 )
 

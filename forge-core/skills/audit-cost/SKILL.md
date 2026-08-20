@@ -1,6 +1,7 @@
 ---
 name: audit-cost
 description: "AI 비용 효율(모델 라우팅·프롬프트 캐싱·배치·토큰 예산)을 감사한다. 비용 최적화 점검을 요청할 때 사용한다."
+disable-model-invocation: true
 argument-hint: "[target: system|{project-name}]"
 context: fork
 model: sonnet

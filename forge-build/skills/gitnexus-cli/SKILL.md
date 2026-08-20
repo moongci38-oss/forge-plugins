@@ -1,6 +1,7 @@
 ---
 name: gitnexus-cli
 description: "Use for GitNexus CLI commands — analyze/index a repo, check status, clean index, generate wiki, list repos. Ex: \"Index this repo\", \"Generate a wiki\""
+disable-model-invocation: true
 ---
 
 # GitNexus CLI Commands

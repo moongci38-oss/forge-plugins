@@ -1,6 +1,7 @@
 ---
 name: audit-agentic
 description: "에이전틱 역량(자율성·도구 사용·멀티에이전트 조정·성숙도)을 감사한다. 에이전트 설계 점검을 요청할 때 사용한다."
+disable-model-invocation: true
 argument-hint: "[target: system|{project-name}]"
 context: fork
 model: sonnet

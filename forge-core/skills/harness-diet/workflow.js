@@ -322,6 +322,23 @@ if (autoItems.length > 0) {
 
   if (applyFns.length > 0) {
     applyResults = await parallel(applyFns)
+    // schema 없는 agent()는 JSON "문자열"을 반환한다 — 객체로 정규화하지 않으면
+    // Verify 전달부의 r?.path 가 전부 undefined 로 걸러져 검증 목록이 빈다(2026-08-16 갭).
+    // 객체로 바꾸지 못하면 원문 문자열을 그대로 둔다 — filter(Boolean) 집계가 변하지 않아야
+    // 하므로 'null'·'false'·'0' 같은 falsy 리터럴을 파싱 결과로 승격시키지 않는다.
+    // 이 정규화가 무력화되는 입력: JSON 을 산문 사이에 두 덩어리 이상 섞어 반환하는 에이전트.
+    // 아래 정규식은 greedy 라 첫 `{` 부터 마지막 `}` 까지 통째로 잡고, 그 문자열은 JSON.parse 가
+    // 실패해 원문이 그대로 남는다(= 정규화 안 됨). '첫 블록만 파싱'되는 것이 아니다.
+    const parseAgentJson = (s) => {
+      for (const cand of [s, s.match(/\{[\s\S]*\}/)?.[0]]) {
+        if (!cand) continue
+        try { return JSON.parse(cand) } catch {}
+      }
+      return null
+    }
+    // `|| r` 이지 `?? r` 이 아니다 — 'false'·'0' 이 파싱돼 falsy 가 되면 filter(Boolean) 에서
+    // 사라져 성공 집계가 줄어든다. 파싱 결과가 falsy 면 원문 문자열을 그대로 남긴다.
+    applyResults = applyResults.map(r => (typeof r === 'string' ? (parseAgentJson(r) || r) : r))
     const success = applyResults.filter(Boolean).length
     log(`[Apply] ${success}/${applyFns.length} 성공`)
   }

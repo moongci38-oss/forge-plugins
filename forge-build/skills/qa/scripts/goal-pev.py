@@ -5,6 +5,9 @@ Usage: python3 goal-pev.py --condition "scope=auth 모든 시나리오 PASS" [--
 
 PEV (Plan → Execute → Verify) 루프 오케스트레이터.
 종료 조건 5종 중 하나 충족 시 즉시 종료.
+
+주의: 이 evaluator 는 조건(hard rule) 검증만 한다 — 정성적 품질(가독성·설계·유지보수성)은
+판정하지 않으므로 루프 종료를 품질 보장으로 읽지 말 것. 별도 review 필수 (2026-08-17, 기사판정 #10).
 """
 
 import argparse

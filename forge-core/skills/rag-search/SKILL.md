@@ -191,14 +191,33 @@ bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_
 | 구성 요소 | 선택 | 비고 |
 |----------|------|------|
 | 프레임워크 | LlamaIndex | 문서 로딩 + 인덱싱 |
-| 벡터 저장소 | FAISS (로컬) | 서버 불필요 |
-| 키워드 검색 | BM25Retriever | 하이브리드 병합 |
+| 벡터 저장소 | **T3 = Postgres + pgvector (공용)** / T2 = FAISS (로컬) | 기본은 T3 우선, 실패 시 T2 폴백 |
+| 키워드 검색 | T3 = Postgres FTS / T2 = BM25Retriever | 각 계층 안에서 하이브리드 병합 |
+| 엔진 선택 | `FORGE_RAG_ENGINE` = `auto`(기본) / `t2` / `t3` | auto=T3 후 폴백 · t2=로컬 전용(무출력) · t3=폴백 없음(진단, 실패 시 exit 1) |
+| 티어 판정 근거 | **stderr 계층 마커** (exit code 아님) | 아래 §검색 계층 마커 |
 | 임베딩 모델 | multilingual-e5-small (로컬) | 한국어 지원, 비용 0 |
 | 임베딩 차원 | 384 | |
 | 청크 크기 | 512 토큰 | overlap 50 |
 | 지원 파일 | md, txt, json, docx, pdf | hwp/pptx/이미지 제외 |
 | Graph RAG | Obsidian [[wikilink]] 그래프 | `obsidian_graph.json`, `--graph` 플래그 |
 | 그래프 빌더 | `graph_builder.py` | 노드=파일, 엣지=정/역 위키링크 |
+
+### 검색 계층 마커 (판정 근거 — exit 0 은 근거가 아니다)
+
+`search.py` 는 어느 계층에서 답했는지를 **stderr 한 줄**로 밝힌다. 쉽게 말하면 **"이 답이 팀 공용 서랍에서 나온 건지, 내 책상 위 사본에서 나온 건지"를 적어 주는 꼬리표**다. 두 경우 모두 종료코드는 0이라 **exit code 로는 구분할 수 없다.**
+
+| 계층 | stderr 마커 | 뜻 |
+|---|---|---|
+| T3 | `🔗 검색 계층: T3(공용 pgvector) — 팀 공유 인덱스` | 팀 공용 인덱스로 답함 |
+| T2 (강등) | `⚠️ 검색 계층: T2(로컬 FAISS) 강등 — 팀과 다른 결과일 수 있습니다.` | T3 미가용 → 로컬 사본. 팀과 다를 수 있음 |
+| T2 (의도) | (무출력) | `FORGE_RAG_ENGINE=t2` — 사용자가 로컬 전용을 고른 것이라 경고가 아니다 |
+| 폴백 사유 | `[rag-search] T3 미가용/비어있음 — 로컬 인덱스로 폴백` | 강등 직전에 원인 1줄(뒤 괄호에 예외 메시지) |
+| fail-closed | `[rag-search] ⚠️ 해석된 DB가 머신 로컬입니다(공용 T3 아님) — T3 시도 생략.` | 로컬 postgres 를 공용 T3 로 오인하지 않는다 |
+
+- **폴백 순서(`auto`)**: T3 시도 → 실패·스키마 부재·0건 → 로컬 FAISS(T2) + 강등 경고.
+- **정책 정본** = `${FORGE_ROOT:-$HOME/forge}/docs/RAG-SHARED-DB-POLICY.md` · **동작 정본은 코드**(`shared/scripts/rag/search.py`) — 이 표는 코드를 옮겨 적은 것이라 코드가 바뀌면 이 표가 낡는다.
+- 근거: 이 표가 없어서 문서는 `FAISS(로컬)` 만 적고 코드는 T3 우선이었다 — 문서 2개가 서로 다른 말을 하는 상태였다(2026-08-19 실측: `grep -cE 'pgvector|T3' SKILL.md` → 0). 재현: 같은 명령 → 수정 후 3+.
+- 폐기조건: T3 폴백 구조가 없어지고 계층이 하나로 단일화되면 이 절을 삭제한다.
 
 ## 환경 요구사항
 

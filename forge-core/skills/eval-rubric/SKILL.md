@@ -29,11 +29,48 @@ model: sonnet
 
 총점: 0-8점. 4축 평균이 통과선.
 
+**각 레벨의 구체 pass/warn/fail 예시** → `references/default-rubric.yaml` (v1.1, 2026-08-09 추가).
+레벨 설명만으로는 경계 케이스에서 채점이 흔들린다 — 판정 전에 해당 축 예시를 먼저 읽는다.
+
+### 5번째 축 — negative_constraint (보고 전용, 채점 제외)
+
+| 축 | 정의 | 0점 | 1점 | 2점 |
+|----|------|-----|-----|-----|
+| **negative_constraint** | **명시적 금지사항**을 인지하고 지켰는가 | 위반함 | 위반은 없으나 인지 흔적 없음 | 인지하고 지킨 근거 있음 |
+
+기존 4축은 "요구한 것을 했는가"를 본다. 사고는 반대편에서 난다 — **하지 말라고 한 것을 했을 때**다.
+그 둘은 같이 움직이지 않는다(요구를 100% 충족하면서 금지사항을 어길 수 있다). 그래서 별도 축이다.
+
+⚠️ **채점에 넣지 않는다**(`scored: false`). 평균에 넣으면 같은 산출물의 판정이 즉시 이동해,
+"판정이 왜 움직였나"를 지표 변경과 기준 변경으로 분리할 수 없다(E-3). 채점 편입은
+판정 무변경을 테스트로 고정한 뒤 **별도 커밋**으로 한다.
+
+대신 **침묵하지 않는다** — 0점이면 리포트 최상단에 `[금지사항 위반]` 배너 1줄,
+1점이면 `금지사항 인지 흔적 없음` 1줄을 낸다(판정 수치는 불변).
+
 ## 통과 기준 (default)
 
-- **PASS**: 평균 ≥ 1.5 + 모든 축 ≥ 1
-- **WARN**: 평균 1.0~1.5 또는 1개 축 = 0
-- **FAIL**: 평균 < 1.0 또는 2개 이상 축 = 0
+- **PASS**: 평균 ≥ 1.5 + 모든 **채점축** ≥ 1
+- **WARN**: 평균 1.0~1.5 또는 1개 채점축 = 0
+- **FAIL**: 평균 < 1.0 또는 2개 이상 채점축 = 0
+
+> "채점축" = `default-rubric.yaml` 의 `scored: true` 축(현재 4개). v1.1 에서 축이 5개가 됐지만
+> **통과 기준의 분모는 그대로 4** 다 — 이 문장이 없으면 다음 세션이 5로 나눠 판정을 어긋나게 한다.
+
+### 골든셋 네거티브 비중 추적 (선택)
+
+`eval_cases.jsonl` 에 네거티브 케이스(금지행동 미실행 검증)를 넣을 때 `"tags": ["negative"]` 를 붙인다.
+비중이 0 이면 이 루브릭은 "하라는 것"만 검증하고 있다는 뜻이다.
+
+```bash
+python3 - <<'PY'
+import json, os
+p = os.path.expanduser("$HOME/.claude/skills/eval-rubric/eval_cases.jsonl")
+rows = [json.loads(l) for l in open(p, encoding="utf-8") if l.strip()]
+neg = [r for r in rows if "negative" in (r.get("tags") or [])]
+print("네거티브 %d / 전체 %d (%.0f%%)" % (len(neg), len(rows), 100*len(neg)/max(len(rows),1)))
+PY
+```
 
 ## 호출 형식
 
@@ -102,10 +139,24 @@ target과 rubric을 별도 모델 호출(Sonnet)에 전달:
     "completeness": "...",
     "safety": "..."
   },
+  "negative_constraint": {
+    "level": 0,
+    "prohibitions_checked": ["브리프·룰에서 뽑은 금지형 문장들"],
+    "evidence": "위반 흔적 또는 준수 근거. 인지 흔적이 없으면 그 사실을 적는다."
+  },
   "verdict": "PASS|WARN|FAIL",
+  "banners": ["level 0 이면 '[금지사항 위반] …', level 1 이면 '금지사항 인지 흔적 없음'"],
   "improvement_priority": ["먼저 개선할 축"]
 }
 ```
+
+⚠️ **`negative_constraint` 는 `scores` 밖에 둔다.** `scores` 안에 넣으면 평균 분모가
+4→5 가 되어 같은 산출물의 `verdict` 가 즉시 이동한다(E-3). **verdict 계산에 넣지 않는다.**
+대신 `banners` 로 반드시 노출한다 — 판정을 안 바꾸는 대신 조용히 넘기지 않는다.
+
+판정자에게 주는 지시 1줄: *"브리프·룰에서 금지형 문장(금지/하지 않는다/절대/never/must not)을
+먼저 뽑고, 각각에 대해 위반 흔적을 찾아라. 위반이 0건이어도 대상 산출물이 그 금지사항을
+다룬 문장이 없으면 level 1 이다."*
 
 ### 3. Pass@k Reliability 측정 (선택, `--pass-at-k` 지정 시)
 
@@ -137,6 +188,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases
   --target "{평가 대상 경로 또는 식별자}" \
   --verdict {PASS|WARN|FAIL} \
   --scores '{"clarity":N,"consistency":N,"completeness":N,"safety":N}' \
+  --negative-constraint '{"level":0|1|2,"prohibitions_checked":["..."],"evidence":"..."}' \
   --rationale '{"clarity":"...","consistency":"...","completeness":"...","safety":"..."}' \
   [--pass-at-k-verdicts '["PASS","PASS","WARN",...]']
 ```

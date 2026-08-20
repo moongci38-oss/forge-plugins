@@ -164,6 +164,24 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/learnings.sh" append --global --
 
 하네스 결함·개선점은 별도로 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/harness-gaps/YYYY-MM-DD-{슬러그}-harness-gaps.md`에 저장한다 — **단일 폴더**다. 구 `main/`·`local/` 2분류는 2026-08-04 폐지됐고(`b24920ff`), 적용 범위는 폴더가 아니라 항목표의 **`적용` 열**(main=git 전파 / local=그 PC 한정)로 표현한다. 항목마다 **`재현:` 명령 1줄 필수** — 착수 전 `still-real.sh --plan` 게이트의 입력이 된다. 규약 SSoT → `rules-on-demand/forge-core-workflow-aux.md §하네스 갭 리포트 규약`
 
+#### 하네스 갭 후보 집계 (W10, 2026-08-10)
+
+세션 동안 훅이 BLOCK/WARN/BYPASS 로 조용히 막았던 것 전체를 집계한다. `since` 기준은 **직전 handover 파일의 mtime**이다 — checkpoint 파일이 아니다: `/forge-checkpoint`만 남기고 `/forge-end` 없이 죽은 세션은 handover 를 안 남기므로, 그 세션의 미처분 후보도 이 집계가 자동으로 소급해 잡는다(죽은 세션 회수 — 별도 배선 불필요, `/forge-start`는 handover 를 쓰지 않으므로 이 기준을 앞당기지 않는다).
+
+```bash
+HG_PREV=$(ls -t "$HANDOVER_DIR"/*.md 2>/dev/null | grep -v '\.consumed$' | head -1 || true)
+if [ -n "$HG_PREV" ] && [ -f "$HG_PREV" ]; then
+  HG_SINCE=$(date -u -r "$HG_PREV" +%Y-%m-%dT%H:%M:%SZ)
+else
+  HG_SINCE="1970-01-01T00:00:00Z"
+fi
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.py" --gap-total-since "$HG_SINCE"
+```
+
+0건이면 그대로 `🔧 하네스 갭 후보: 0건`을 출력한다(안 봄과 봤는데 없음을 구분 — 침묵 금지). 1건+ 이면:
+- `갭`으로 처분된 항목 → 위 harness-gaps 리포트에 `재현:` 명령과 함께 나열.
+- 판정이 안 남은 나머지("미처분") → handover 본문에 `## 하네스 갭 후보 (미처분)` 절을 만들어 **`미처분 N건`**만 박는다(0건이면 그 절에도 `0건`이라고 명시). 개별 항목을 여기서 강제로 지금 판정하지 않는다 — 종료를 막지 않는다(WARN-first, AD-168).
+
 ### 6. 팀 공유 동기화 (advisory·fail-open)
 
 ```bash
@@ -177,11 +195,40 @@ kill-switch: `FORGE_DEBUG_KNOWLEDGE_SYNC=off` / `FORGE_MEMORY_SYNC=off` / `FORGE
 
 ### 7. 미소비 체크포인트 정리
 
-이번 세션이 `/forge-checkpoint`를 남겼다면 handover가 그것을 대체하므로 소비 표시:
+이번 세션이 `/forge-checkpoint`를 남겼다면 handover가 그것을 대체하므로 소비 표시한다. 단, `CHECKPOINT_LATEST`는 **전체에서 mtime 최신**일 뿐 소유 세션을 가리지 않으므로(M-1/G-08, 2026-08-15 — 멀티세션 환경에서 남의 체크포인트에 `.consumed`를 찍어 그 세션의 복구 지점을 지우는 실사고가 있었다) **소유 검증 후에만** 소비 표시한다:
 ```bash
+eval "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-landing.sh" "$(pwd)")"
 CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '^CHECKPOINT_LATEST=' | cut -d= -f2-)
+MY_SID="${CLAUDE_SESSION_ID:-}"
+if [ -n "$CP" ] && [ -f "$CP" ]; then
+  CP_SID=$(grep -m1 '^session:' "$CP" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
+  if [ -n "$MY_SID" ] && [ -n "$CP_SID" ] && [ "$CP_SID" != "unknown" ] && [ "$CP_SID" != "$MY_SID" ]; then
+    echo "타 세션 체크포인트 — 건너뜀 ($(basename "$CP"), session=$CP_SID) — 소비 표시 안 함"
+    CP=""
+    while IFS= read -r f; do
+      [ -z "$f" ] && continue
+      # cr-final MEDIUM 반영(2026-08-15): 구 `grep -v '\.consumed$'` 는 죽은 필터였다 —
+      # 마커는 `X.md.consumed` 라 `*.md` glob 에 애초에 안 걸린다. 기소비 여부는 마커
+      # **존재**로 판정한다. (fallback 정렬은 mtime(ls -t) 근사 — 정본 최신성은
+      # session-recall 의 frontmatter 기준이지만, 자기 소유 후보 간 근사로 충분)
+      [ -f "${f}.consumed" ] && continue
+      fsid=$(grep -m1 '^session:' "$f" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
+      [ "$fsid" = "$MY_SID" ] && { CP="$f"; break; }
+    done < <(ls -t "$CHECKPOINT_DIR"/*.md 2>/dev/null)
+  elif [ -z "$MY_SID" ] || [ -z "$CP_SID" ] || [ "$CP_SID" = "unknown" ]; then
+    # 2026-08-16 (P3-B): 판별 불가면 **소비 표시를 하지 않는다.**
+    #   구 동작은 fail-open 소비였고, 그래서 남의 체크포인트에 .consumed 를 찍어
+    #   그 세션의 복구 지점을 지웠다(실사고 L-20260815T054053).
+    #   소비 표시는 비가역이고, 안 찍었을 때의 대가는 "다음 세션에 다시 안내됨"뿐이다 —
+    #   **지워지는 것보다 두 번 물어보는 편이 낫다.**
+    echo "WARN: 소유 판별 불가(SID 미설정 또는 구형 체크포인트: $(basename "$CP")) — 소비 표시 안 함"
+    echo "  → 내 것이 확실하면 직접: touch \"${CP}.consumed\""
+    CP=""
+  fi
+fi
 [ -n "$CP" ] && touch "${CP}.consumed"
 ```
+불일치로 건너뛴 경우 남의 체크포인트는 그대로 미소비 상태로 남는다 — 그 세션이 `/forge-start`·`/forge-checkpoint` §6에서 정상 회수한다.
 
 ## 체크리스트
 
@@ -193,8 +240,10 @@ CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '
 - [ ] `session-record-audit.sh verify` **PASS** (FAIL이면 종료 선언 금지)
 - [ ] `handover-manager.sh refresh-index-dir` 실행 (INDEX 기계 갱신, 수동 편집 금지)
 - [ ] learnings misfire 반영 (해당 시)
+- [ ] 하네스 갭 후보 집계 실행 — 0건도 명시, `## 하네스 갭 후보 (미처분)` 절에 `미처분 N건` 기입
 - [ ] 팀 공유 동기화 (advisory)
-- [ ] 미소비 체크포인트 `.consumed` 표시
+- [ ] 미소비 체크포인트 `.consumed` 표시 (**소유가 확인된 경우에만** — 타 세션 것이거나 **판별 불가면 건너뜀**, 2026-08-16 P3-B)
+- [ ] 미러(`$HOME/.claude/`)에 `*.retired-*`/`*.premote-*` 명명 규약으로 로컬 아카이브한 것이 있으면 → SSoT(`${FORGE_ROOT:-$HOME/forge}`)에도 반영됐는지 확인 (근거: `2026-08-01-mirror-orphan-triage.md` 권고-B — 로컬 아카이브만 하고 SSoT에 반영 안 하면 다음 세션이 다시 orphan으로 탐지)
 
 ## 경계
 

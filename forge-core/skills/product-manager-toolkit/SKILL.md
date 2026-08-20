@@ -1,6 +1,7 @@
 ---
 name: product-manager-toolkit
 description: "PM 프레임워크+자동화: RICE 우선순위화, 고객인터뷰 NLP 분석, PRD 템플릿(Standard/One-Page/Agile/Feature Brief), DORA 메트릭. 기능 우선순위화·유저리서치 종합·PRD작성·제품전략 수립 시 사용."
+disable-model-invocation: true
 context: fork
 model: sonnet
 ---

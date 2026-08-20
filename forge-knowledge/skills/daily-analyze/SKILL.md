@@ -68,7 +68,6 @@ raw-data.json의 `claude_search_needed` 항목에 대해 검색 수행:
 
 **Forge Dev 파이프라인 현황 (필수):**
 - Glob: `**/.claude/state/sessions/*.json` → 활성/미완료 세션 목록
-- Read: `docs/planning/active/forge/todo.md` → Spec별 진행 상태 (⬜/🔄/🧪/✅)
 - Glob: `docs/walkthroughs/` → 최근 작성된 walkthrough (완료 Spec 파악)
 
 ## Step 3.5: 주식 리서치 (analyst와 병렬 — 워치리스트 기반)

@@ -13,13 +13,40 @@ model: sonnet
 
 **역할**: 당신은 매주 기술·비즈니스 뉴스를 수집하고 사업 아이템을 제안하는 주간 리서치 전문가입니다.
 **컨텍스트**: 매주 자동 실행되거나 `/weekly-research` 호출 시 실행됩니다.
-**출력 형식**: 모든 분석 리포트는 **Artifact XML 형식**으로 stdout에 출력합니다. 파일 저장 불필요.
+<!-- root-cause(2026-08-10): 이 줄이 "파일 저장 불필요"라고 지시했으나, 아래 §산출물이 요구하는
+     `01-research/weekly/{date}/` 파일 저장을 전제로 후속 단계(Wave 0.5 carryover 수집, 대시보드
+     생성, 텔레그램 발송, 아티팩트 발행)가 전부 동작한다 — 지시대로 따르면 파이프라인이 끊긴다.
+     같은 결함을 article·daily-system-review 는 2026-08-03 에 정정했고 yt·weekly-research 두 곳이
+     남아 있었다(2026-08-10 실측 `grep -rn "파일 저장 불필요" ${FORGE_ROOT:-$HOME/forge}/.claude/skills/` → 2건,
+     둘 다 이번에 함께 정정). "파일 저장=정본, Artifact=파생"으로 단일화.
+     ⚠️ 아래 "Artifact XML"은 claude.ai 아티팩트가 **아니다** — stdout 표시용 `<artifact>` 태그일 뿐
+     공유 URL이 생기지 않는다. 이름이 같아 "발행됐다"고 오독하기 쉽다. 실제 발행은 대화형 세션의
+     `/forge-publish-report` 가 하며 헤드리스에서는 불가능하다(Artifact 도구 부재 — L-68). -->
+**출력 형식**: §산출물대로 **파일 저장이 정본**입니다. Artifact XML 발행은 저장 후 선택적 파생 출력(stdout 표시용)이며 파일 저장을 대체하지 않습니다.
   - `report-formatter.mjs`의 `formatAsArtifact(title, content, 'markdown', id, true)` 사용
   - `stripFirstHeading: true` 옵션으로 첫 # 제목 자동 제거
 
 # 주간 리서치 파이프라인
 
 > Forge S1 정기 리서치 채널. 3개 산출물을 Subagent 병렬로 생성한다.
+
+## ⛔ 우리 하네스 상태를 쓸 때 (CRITICAL — 2026-08-14 실사고)
+
+**"우리 시스템은 지금 이렇다"고 쓰려면 `harness_probe()` 를 호출하고 그 출력을 인용한다.**
+
+쉽게 말하면: **없는 폴더를 뒤져놓고 "양말이 없네"라고 말하지 않는다.**
+
+- 이 스킬은 **Managed Agent(클라우드)** 로도 실행된다. 그때 우리 머신에 대해 쓸 수 있는 도구는
+  `forge-outputs` 안 파일읽기 + 허용 스크립트 몇 개 + `harness_probe()` 뿐이다.
+  **임의 셸 명령·`${FORGE_ROOT:-$HOME/forge}` 밖 파일읽기·프로세스 조회는 존재하지 않는다.**
+- **실행하지 않은 명령을 근거로 적지 않는다.** 명령과 결과를 지어내면 리포트 전체가 무효다.
+- `harness_probe()` 가 답하지 못하는 항목은 **`측정 불가(도구 없음)`** 로 적는다 —
+  **못 본 것과 없는 것은 다르다.** "없음"·"미설정"으로 단정하지 않는다.
+- 우리 시스템과의 비교(§코드/설정 레벨 대조)는 이 규약이 특히 강하게 적용된다.
+
+근거: 2026-08-14 — 같은 계열 경로의 리포트가 `.env` 에 실재하는 DB 설정 6건을 "없음"으로,
+정상 가동 중인 공용 DB(pages 13,546건)를 "미완성"으로 단정했다.
+폐기조건: `harness_probe()` 가 임의 측정까지 대신하게 되면 이 절의 "측정 불가" 규약을 재검토한다.
 
 ## 인자
 
@@ -54,7 +81,9 @@ Publish 단계에서 갱신하는 `01-research/weekly/index.json`의 `files` 객
 ### Wave 0 (raw-data.json 존재 확인 — 최우선)
 
 ```
-RAW_JSON="01-research/weekly/{date}/raw-data.json"
+# cr-final pr267-chunk4(MEDIUM): 종전 상대경로는 cwd 가 FORGE_OUTPUTS 가 아니면 Wave 1.2 가
+# 절대경로로 저장한 파일을 못 찾았다(HG-3 미봉합 경로) — 저장측과 같은 절대경로로 정합.
+RAW_JSON="${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/raw-data.json"
 ```
 
 `Glob(RAW_JSON)` 으로 파일 존재 여부 확인:
@@ -165,9 +194,12 @@ Agent 도구로 3개 Subagent를 동시에 스폰한다. 의존성이 없으므�
 
 프롬프트에 아래를 포함하여 스폰:
 - 분석 기준 날짜: `$ARGUMENTS`
-- WebSearch: 시장 데이터, 경쟁사, 성공 사례
-- **Brave Search 활용**: `brave_web_search`로 시장 데이터/경쟁사 검색. 예: `TAM SAM SOM {아이템}`, `site:crunchbase.com`, `{아이템} market size 2026`
-- Forge S1 방법론 적용: 경쟁 가설 3개 → TAM/SAM/SOM → JTBD → 최종 1개 선정
+- **거래 시장 우선 (2026-08-19 Human 지시 — `/forge-find-item §제1원칙` 이식)**: 아이템은 **실제 거래가 일어나는 시장**에서 찾는다. **마켓 표면 체크리스트**(Play·App Store·Chrome·Shopify·WordPress·AppSumo·Product Hunt·업무툴 마켓·각국 로컬 스토어) 중 카테고리 해당 **3개+ 실제 조회**하고, 못 뒤진 표면은 `미조회(사유)`로 적는다. **어느 국가 스토어를 봤는지 명시**. 정본 표 → `$HOME/.claude/commands/forge-find-item.md §마켓 표면 체크리스트`
+- **거래 실증이 후보 입장권**: 가격 + 거래량 근사치(설치 수·리뷰 수·LTD 판매·랭킹) 중 **2개 이상을 마켓 리스팅에서 직접 실측(A등급)**하지 못한 아이템은 최종 선정 후보에 올리지 않는다.
+- ⛔ **기사·뉴스·리스티클은 아이템 근거 불인정** — 배경 맥락까지만. 기사에서 힌트를 얻었으면 **그 제품의 마켓 리스팅·리뷰로 내려가** 1·2차 증거를 직접 확보한 뒤 후보로 세운다(`§소스 우선순위`).
+- WebSearch/`brave_web_search`: 마켓 리스팅·리뷰 우선(`site:apps.shopify.com`, `site:play.google.com`, `site:appsumo.com`), 통증은 `site:reddit.com` 반복 스레드로 보완
+- ⛔ **TAM/SAM/SOM 금지** — `/forge-find-item §금지 사항`("광고비 0에서 무의미")과 정면 충돌하던 구 지시를 2026-08-19 제거했다. 대신 **JTBD → 경쟁 3 비교 → Moat 4종 중 1+ → MVP wedge → 거래 실증 기반 매출 산술**(단가 × 필요 고객 수, 최소 조합 명시)로 쓴다.
+- Forge S1 방법론 적용: 경쟁 가설 3개 → 위 항목들 → 최종 1개 선정
 - 실행 로드맵 (MVP, 기술 스택, 타임라인)
 - 선정 기준: **1인 개발자가 내달 1,000만원+ 수익 달성 가능성**
 - 프로젝트명 자동 결정 → `forge-workspace.json` 등록 확인
@@ -184,6 +216,48 @@ Agent 도구로 3개 Subagent를 동시에 스폰한다. 의존성이 없으므�
 - 파일 직접 저장: `01-research/weekly/{date}/stock-trends.md` (skip 시 파일 생성 생략)
 - 저장 완료 후 종료
 
+### Wave 1.2 (raw-data.json 영속화 — Wave 1 완료 직후, Wave 1.5 이전)
+
+> **HG-3(2026-07-23 cr-triple corpus review)**: weekly `raw-data.json`이 22개 폴더 중 21개에서
+> 부재해 `/weekly-analyze` 재분석 진입점이 사실상 작동 불능이었다. Wave 0가 raw-data.json 존재를
+> 전제로 재분석 분기를 타는데, Wave 1이 그 파일을 실제로 만든 적이 없었던 게 원인이다.
+> 재현: `find ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly -mindepth 2 -iname raw-data.json | wc -l`
+
+Wave 1의 4개 Subagent(A/B/C/D) 프롬프트에 아래를 추가 지시한다 — 최종 리포트(md) 저장과 별도로,
+**수집한 원시 소스 목록**(검색 쿼리, 방문 URL, 제목, 발행일, 신뢰도 판단 근거)을 반환값에 포함해 Lead에게
+전달할 것.
+
+Wave 1의 4개 Subagent가 모두 완료되면 Lead가 그 원시 소스 목록을 취합해 아래 스키마로 저장한다:
+
+```json
+{
+  "schema_version": "1.0",
+  "pipeline": "weekly-research",
+  "source": "wave1-agent-collected",
+  "target_date": "{date}",
+  "collected_at": "{ISO8601 UTC}",
+  "stats": { "tech_items": 0, "biz_items": 0, "s1_sources": 0, "stock_items": 0, "total": 0 },
+  "items": [
+    { "category": "tech|biz|s1|stock", "title": "...", "url": "...", "published": "YYYY-MM-DD|unknown", "confidence": "High|Medium|Low" }
+  ],
+  "claude_search_needed": []
+}
+```
+
+저장 위치(절대경로 고정 — 상대경로 금지): `${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/raw-data.json`
+
+> ⚠️ **생산자 2원화 주의(cr-final pr267-chunk4)**: 같은 경로에 `collector.py`(run.sh Step 1)도 쓰는데
+> 그쪽 스키마는 stats 키·category 열거값·필드셋이 이것과 **다르다**(둘 다 "1.0" 자칭). 소비자는 버전이
+> 아니라 **`source` 필드로 생산자를 구별**할 것(`wave1-agent-collected` = 이 스키마). collector.py 정비
+> (스키마 통일 + 오착지 수정)는 별건 갭 SF-3(`2026-08-15-w1w2-apply-side-findings-harness-gaps.md`) 소관.
+
+- **이미 존재하면 덮어쓰지 않는다** — `run.sh` Step 1(`collector.py`)이 먼저 저장했을 수 있다(Wave 0가
+  이미 그 존재를 확인했을 것이므로, 이 Wave까지 왔다는 것은 대개 미존재를 뜻한다. 그래도 착수 직전에
+  한 번 더 `Glob` 확인 후 존재하면 스킵).
+- **fail-open**: 이 스텝 실패는 파이프라인을 막지 않는다(WARN 1줄 후 Wave 1.5로 계속 진행) — raw-data.json은
+  재분석 편의를 위한 부산물이지 §산출물의 6종 필수 산출물이 아니다.
+- 목적: `/weekly-analyze {date}`가 이 파일을 읽어 수집을 재실행하지 않고 분석만 재개할 수 있게 한다.
+
 ### Wave 1.5 (커버리지 게이트 — Wave 1 완료 후, Wave 2 이전)
 
 > **(e) coverage loop** — deep-research 메커니즘. **cap 2라운드**, 무한루프 금지.
@@ -199,6 +273,9 @@ Wave 1 완료 후 각 토픽(`tech-trends.md`, `biz-trends.md`)을 Read하여 �
 | 소스 모달리티 | 논문·연구보고서 0건 | arxiv·연구소 사이트 타겟 재검색 |
 | 소스 모달리티 | 오픈소스 레포/GitHub 링크 0건 | GitHub·패키지 사이트 타겟 재검색 |
 | 소스 모달리티 | 뉴스·블로그 기사 0건 | 뉴스 미디어 타겟 재검색 |
+| **마켓 표면**(2026-08-19 신설 — **`biz-trends.md`·사업 아이템 산출물에만 적용**) | 마켓 리스팅(가격·리뷰수·설치수) 직접 실측 **0건** | 마켓 표면 체크리스트 3개+ 타겟 재검색 |
+
+> ⚠️ **마켓 표면 행의 적용 범위**: `tech-trends.md`·논문·모델 뉴스에는 **적용하지 않는다**(그쪽은 뉴스가 정당한 소스다). **아이템·수익화 판단이 걸린 산출물에만** 건다 — 거기서만 "기사 말고 거래 시장" 원칙이 유효하기 때문이다. 근거: 2026-08-19 Human 지시 + idea-hunt 실측(앱마켓 미조회 상태로 타깃 발굴 완료 보고될 뻔함). 폐기조건: 아이템 산출물이 weekly 에서 분리되면 이 행을 그 파이프라인으로 옮긴다.
 
 **재검색 절차 (cap 2라운드)**:
 
@@ -233,9 +310,12 @@ Round 2:
 1. 3종 파일 존재 여부를 실행 커맨드로 확인 (서술형 확인 금지):
    ```bash
    bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh \
-     "01-research/weekly/{date}/tech-trends.md" \
-     "01-research/weekly/{date}/biz-trends.md" \
-     "01-research/projects/{project}/{date}-s1-research.md"
+     "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/tech-trends.md" \
+     "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/biz-trends.md" \
+     "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/{project}/{date}-s1-research.md"
+   # 인자는 **절대경로**여야 한다 — 상대경로는 cwd 기준으로 해석돼 실재하는 파일도 ❌MISSING 으로
+   # 나오고, 그러면 3항(재스폰)이 발동해 멀쩡한 워커 3개를 매번 다시 돌린다(2026-08-10 실측).
+   # 조건부 산출물(stock-trends.md · 학습노트)은 **생성했을 때만** 인자에 추가한다.
    ```
    출력 표를 그대로 취합 보고에 사용. exit 2(MISSING/0바이트)면 해당 항목을 "완료"로 보고하지 않는다.
 2. 주간 요약 보고: 파일 경로, 사업 아이템 제목, 신뢰도 분포
@@ -265,12 +345,31 @@ model: sonnet
 |------|:------:|-----------|
 | 소스 커버리지 | 40% | 3종 파일 중 누락 1개 이상이면 즉시 FAIL; 필수 소스(Anthropic, Brave) 미참조 시 0점 |
 | 인사이트 품질 | 30% | 뉴스 나열만 있고 "우리에게 주는 시사점" 없으면 0점 |
-| 사업 아이템 완성도 | 20% | TAM/SAM/SOM 또는 JTBD 누락 시 감점 |
+| 사업 아이템 완성도 | 20% | **JTBD 누락 시 감점 · 거래 실증(가격 + 거래량 근사치 중 2개, 마켓 리스팅 직접 실측) 누락 시 감점 · 마켓 표면 조회 원장 누락 시 감점**. ⛔ TAM/SAM/SOM 은 채점 대상이 아니다(2026-08-19 제거 — 있으면 감점도 가점도 없음) |
 | 액션 실현 가능성 | 10% | 액션 아이템 없거나 모호하면 감점 |
 
 **PASS 기준**: 70점 이상.
 
-**FAIL 처리**: Evaluator가 감점 항목별 위치 + 이유 + 개선 방법을 구체적으로 작성하여 Lead에 반환. Lead는 해당 Subagent 재스폰 후 Evaluator 재실행 (1회 한정). 2회 연속 FAIL 시 [STOP] Human 에스컬레이션.
+**FAIL 처리**: Evaluator가 감점 항목별 위치 + 이유 + 개선 방법을 구체적으로 작성하여 Lead에 반환. Lead는 해당 Subagent 재스폰 후 Evaluator 재실행 (1회 한정).
+
+**2회 연속 FAIL — 무인 실행 원칙 (CRITICAL, G-2 2026-08-10 실사고 정정)**: 이 스킬은 사람이 답할 수 없는
+`claude -p` 헤드리스(cron)로도 실행된다. **선택지를 제시하고 사람의 답을 기다리지 않는다** — 답할 사람이
+없으면 그 턴에서 그대로 끝나고 Evaluator 판정이 영구히 미완으로 남는다(2026-08-10 실관측: 로그 마지막 줄이
+"A를 권합니다… 알려주시면 이어서 진행하겠습니다"였고, 산출물 존재 검증만 통과해 Exit 0을 냈다 — `/yt`의
+L-56·L-61과 같은 narration-not-execution 계열).
+
+대신 아래를 **그 자리에서 자율 실행**한다(질문·대기 금지):
+1. Evaluator 자신의 감점 사유를 근거로 **가장 타당한 기본안을 스스로 선정**한다 — Wave 2.5는 이미 독립
+   판단 주체이므로 사람에게 다시 묻지 않는다.
+2. `WR_EVAL.md`에 `## [STOP] 자동 선택 기록` 섹션을 추가해 ①선택한 안 ②선정 사유 ③기각한 대안을 남기고,
+   **판정 필드를 `FAIL(AUTO-PROCEED)` 로 갱신**한다 — FAIL 을 PASS 로 바꾸는 것이 아니다(판정 위조 금지).
+   자동 진행했다는 **사실**만 기록해, 아래 Wave 절들의 "PASS 후" 진입조건이 이 상태를 식별하게 한다
+   (cr-final pr267-chunk4: 갱신 지시가 없어 판정이 FAIL 로만 남아 하위 Wave 가 진행을 주저하는 재정체 경로).
+3. 선택안을 실행(필요 시 워커 재스폰으로 보강)한 뒤 Wave 2.6으로 계속 진행한다 — 실행을 멈추고 사람의
+   답을 기다리지 않는다.
+4. 그래도 사람 재검토가 필요한 결정(비가역·고위험)이라 판단되면, 실행 자체는 위 1~3대로 계속하되
+   `WR_EVAL.md` 최상단에 `[STOP] 승인 대기` 마커 한 줄을 남긴다 — 이 마커는 **다음 Human 세션이 읽는
+   표식**이지 이번 헤드리스 실행을 멈추는 신호가 아니다.
 
 **출력**: `${FORGE_ROOT:-$HOME/forge}/.claude/state/WR_EVAL.md`(절대경로 — 상대경로는 cwd에 따라 조용히 다른 곳에 쓰인다. root-cause: 2026-08-03 하네스 위생 조사, 앵커 없는 상대경로가 `shared/.claude/state/`에 산개해 있던 걸 실측)
 
@@ -291,10 +390,14 @@ model: sonnet
 ```
 
 PASS 확인 후 Wave 2.6(학습노트) → Wave 2.7(HTML 대시보드) → Wave 3(Notion 자동 등록 + 블로그 발행)으로 진행한다.
+⚠️ **진입조건 정합(cr-final pr267-chunk4)**: 이 문서에서 "PASS 후/PASS 확인 후"는 전부
+**`PASS` 또는 `FAIL(AUTO-PROCEED)`**(위 §2회 연속 FAIL 무인 실행 원칙의 자동 선택 완료 상태)를 뜻한다.
+순수 `FAIL`(자동 선택 미실행)만 진행 불가다 — 헤드리스 실행이 잔존 "PASS 후" 문구를 문자 그대로 읽고
+멈추는 재정체(G-2 재발)를 막는 정의 조항.
 
 ---
 
-### Wave 2.6 (학습노트 생성 — Evaluator PASS 후, Wave 2.7 이전)
+### Wave 2.6 (학습노트 생성 — Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 후, Wave 2.7 이전)
 
 ```
 subagent_type: general-purpose (agentType: concept-notes-writer)
@@ -307,7 +410,7 @@ model: sonnet
 
 ---
 
-### Wave 2.7 (HTML 대시보드 생성 — Evaluator PASS 후)
+### Wave 2.7 (HTML 대시보드 생성 — Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 후)
 
 주간 리포트 3종을 단일 HTML 대시보드로 변환한다 (조사 리포트 공통 — 시각적 가독성).
 
@@ -325,9 +428,9 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 
 ---
 
-### Wave 3 (Notion 자동 등록 + 블로그 발행 — Wave 2.5 PASS 후)
+### Wave 3 (Notion 자동 등록 + 블로그 발행 — Wave 2.5 PASS(또는 FAIL(AUTO-PROCEED)) 후)
 
-3종 파일 작성 완료 + Evaluator PASS 확인 후, 아래 2개를 순차 실행한다.
+3종 파일 작성 완료 + Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 확인 후, 아래 2개를 순차 실행한다.
 
 **Step 1: 블로그 자동 발행** (선택적)
 
@@ -436,6 +539,22 @@ Skill(skill="wiki-sync", args="--auto")
 - `[신뢰도: High]` = 다중 소스에서 일관 확인
 - `[신뢰도: Medium]` = 단일 신뢰 소스
 - `[신뢰도: Low]` = AI 추정 또는 비공식 소스
+
+### 직접 열람 축 (2026-08-19 신설 — 위 등급과 **독립된 두 번째 축**)
+
+신뢰도가 "소스가 얼마나 믿을 만한가"라면, 이 축은 **"내가 직접 봤는가"**다. 둘은 따로 논다 — 공식 소스라도 워커 보고만 받았으면 직접 열람이 아니다.
+
+- `[실측]` = 그 URL 을 **직접 열어** 수치·문장을 확인함(가격 페이지·마켓 리스팅·공식 문서)
+- `[스니펫]` = 검색 결과 스니펫으로만 확인(원문 전문 미확인). ⚠️ `reddit.com` 은 이 세션류 환경에서 **WebFetch 직접 열람이 막혀 있어** 기본적으로 여기 해당(2026-08-19 실측)
+- `[전언]` = 워커·타 문서 보고를 옮김 — **아래 spot-check 전까지 사실로 승격 금지**
+
+### spot-check 의무 (워커 보고 → 산출물 반영 전)
+
+Wave 1 워커 산출물을 Wave 2 에서 취합할 때, **결론·순위를 좌우하는 주장은 표본 3건+ 원출처를 Lead 가 직접 재확인**한다(가격·수치·"없다/미기재" 류 부재 주장 우선). 재확인 결과는 위 축으로 표기하고, 어긋나면 정정 이력을 산출물에 남긴다.
+
+- ⛔ **워커의 판정 라벨을 그대로 옮기지 않는다** — "KILL 이다"·"근거 미기재다" 같은 라벨은 관측이지 사실이 아니다.
+- 근거: `learnings` **L-20260819T081207** + 2026-08-19 idea-hunt 실측 — 워커 라벨 오보고 2건(Kill 근거 "미기재"·조건부 PASS 를 KILL 로 오분류)과 수치 오보고 2건(Dubsado 가격·InvoiceHome 유저수)이 **전부 spot-check 로만** 잡혔다. 4건 중 3건은 cr-triple 3레그도 통과했다.
+- 폐기조건: 2분기 연속 spot-check 적발 0건이면 표본 수 하향을 재검토한다.
 
 ## Forge 연동
 

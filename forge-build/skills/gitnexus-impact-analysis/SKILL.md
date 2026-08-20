@@ -1,6 +1,7 @@
 ---
 name: gitnexus-impact-analysis
 description: "Use for blast-radius/safety analysis before editing code. Ex: \"Is it safe to change X?\", \"What depends on this?\", \"What will break?\""
+disable-model-invocation: true
 ---
 
 # Impact Analysis with GitNexus

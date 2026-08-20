@@ -1,6 +1,7 @@
 ---
 name: audit-context
 description: "컨텍스트 엔지니어링 역량(7레이어·RAG 성숙도·메모리·Context Rot)을 감사한다. 컨텍스트 설계 점검을 요청할 때 사용한다."
+disable-model-invocation: true
 argument-hint: "[target: system|{project-name}]"
 context: fork
 model: sonnet
