@@ -71,7 +71,9 @@ bash -n "$HOOK"; check $? "문법 OK"
 #   같이 무시당한다. **경보는 울리는 것보다 믿기는 것이 중요하다.**
 #   지우기만 하면 "왜 없앴지"가 남으므로, 그 자리에 **성립하는 단정**을 넣는다:
 #   실행 비트가 필요 없는 이유 자체(= bash 로 호출된다)를 고정한다.
-grep -q 'bash \\"${CLAUDE_PLUGIN_ROOT}/hooks/'"$(basename "$HOOK")"'\\"' "$MANIFEST"
+#   ⚠️ `-F`(고정 문자열)로 찾는다. 정규식으로 두면 `.sh` 의 `.` 가 임의 문자로 읽혀
+#     `forge-onboardXsh` 같은 엉뚱한 항목에도 통과한다(2026-08-20 검수 LOW 실측).
+grep -qF 'bash \"${CLAUDE_PLUGIN_ROOT}/hooks/'"$(basename "$HOOK")"'\"' "$MANIFEST"
 check $? "매니페스트가 bash 로 호출한다(그래서 실행 비트가 불필요하다)"
 grep -q "trap 'exit 0' ERR" "$HOOK"; check $? "fail-open trap 존재"
 ! grep -qE '^\s*set -euo' "$HOOK"; check $? "set -e 로 중도 중단하지 않음"

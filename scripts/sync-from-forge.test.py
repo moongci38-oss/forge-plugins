@@ -521,6 +521,42 @@ if mod.transform_line(_TBL) == _TBL and not mod.find_leaks(_TBL):
 else:
     ng("⑩-e 표 행이 훼손되거나 오탐했다 — 오탐 내는 가드는 무시당한다")
 
+# ⑩-g 드라이브 토큰에 **공백 없이 이어붙은** 사설 경로도 탐지된다 (검수 HIGH)
+#   보존(치환 안 함)과 탐지는 다른 일이다 — 원형은 두되 "여기 있다"는 사실은 알려야 한다.
+#   콤마·세미콜론은 토큰을 끊지 않으므로 종전에는 통째로 숨었다.
+for _glued in ("win C:/tmp,/home/alice/forge/private",
+               "C:/a/mnt/e/private",
+               "see Z:/x;/home/bob/secret"):
+    if mod.find_leaks(_glued):
+        ok(f"⑩-g 이어붙은 사설 경로 탐지: {_glued[:34]}")
+    else:
+        ng(f"⑩-g 토큰에 붙은 사설 경로가 0건으로 보고됐다: {_glued}")
+
+# ⑩-h 정상 윈도우 경로는 여전히 오탐하지 않는다(⑩-g 가 소음이 되지 않게)
+for _win in ("C:/Users/moongci/.claude/skills", "| Z:\\Program Files\\Git |"):
+    if not mod.find_leaks(_win):
+        ok(f"⑩-h 정상 윈도우 경로 무탐지: {_win[:34]}")
+    else:
+        ng(f"⑩-h 정상 윈도우 경로를 유출로 오탐: {_win}")
+
+# ⑩-i 자리표시자 주입이 **불가능**하다 (검수 MEDIUM)
+#   종전 구현은 `\x00DRV0\x00` 를 자리표시자로 썼다 — 원본에 그 문자열이 있으면 복원이
+#   엉뚱한 값을 되살렸다(이 레포에 NUL 보유 파일이 실제로 추적 중이다).
+#   구간 분할로 바꿔 그 실패 모드 자체를 없앴다: 왕복이 원문과 같아야 한다.
+_INJ = "C:/tmp/home/alice/private then \x00DRV0\x00 tail"
+if mod.transform_line(_INJ) == _INJ:
+    ok("⑩-i 자리표시자 문자열이 있어도 왕복이 원문과 동일(주입 불가)")
+else:
+    ng("⑩-i 자리표시자 주입으로 내용이 바뀌었다", mod.transform_line(_INJ))
+
+# ⑩-j 드라이브 토큰이 10개 넘어도 안전(구 구현의 DRV1/DRV10 모호성 회귀)
+_MANY = " ".join(f"C:/p{i}" for i in range(12)) + " /home/alice/x"
+_tm = mod.transform_line(_MANY)
+if all(f"C:/p{i}" in _tm for i in range(12)) and "/home/alice/" not in _tm:
+    ok("⑩-j 드라이브 토큰 12개 + 사설 경로 혼재에서도 정확")
+else:
+    ng("⑩-j 다수 토큰 처리 실패", _tm)
+
 # ⑩-f 치환을 마친 뒤에는 잔여 유출이 0 이어야 한다(실제 파이프라인 순서)
 if not mod.find_leaks(mod.transform_content(_MIX)):
     ok("⑩-f 치환 후 잔여 유출 0 — 파이프라인이 통과시킬 수 있다")

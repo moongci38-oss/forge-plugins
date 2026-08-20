@@ -42,7 +42,7 @@ if { [ "$RECALL_RC" -eq 127 ] || [ "$RECALL_RC" -eq 124 ]; } && command -v wsl >
 fi
 ```
 
-- ⚠️ `MSYS2_ARG_CONV_EXCL='*'` 필수 — Git Bash 가 `/home/...`·`/mnt/...` 인자를 `C:/Program Files/Git/...` 로 자동 변환해 **조용히** 깨뜨린다(2026-08-16 실측: 가드 없이 `wsl -e cat /home/...` → No such file). WSL 사용자 홈이 다른 머신도 `$HOME` 참조라 그대로 동작한다.
+- ⚠️ `MSYS2_ARG_CONV_EXCL='*'` 필수 — Git Bash 가 `/home/<user>/…`·`/mnt/<drive>/…` 인자를 `C:/Program Files/Git/…` 로 자동 변환해 **조용히** 깨뜨린다(2026-08-16 실측: 가드 없이 `wsl -e cat /home/<user>/…` → No such file). WSL 사용자 홈이 다른 머신도 `$HOME` 참조라 그대로 동작한다.
 - 브리지 출력의 handover 목록은 WSL forge-outputs 전역이 섞인다 — `project` 필드로 현 프로젝트 항목을 우선 소비한다.
 - 근거: 갭 G3(2026-08-16 boardGames Windows 세션 — 매 세션 수동 폴백 반복, 브리지 가용 실측 SCAN_STATUS=ok).
   **124 확장 근거(2026-08-17)**: forge-0817 세션 — CWD 가 UNC(`\\wsl.localhost\...\forge`)면 스크립트가 실존해도 20s→60s 두 번 다 타임아웃했고, 같은 스캔을 WSL 네이티브로 돌리면 즉시 끝났다(`harness-gaps/2026-08-17-session-recall-unc-timeout.md`). 127만 받던 구 조건은 이 케이스를 (c) 무맥락 배너로 흘려보냈다.
