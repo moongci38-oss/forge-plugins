@@ -202,6 +202,29 @@ OUT_G4D="$(HOME="$G4D" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"; RC
 ! printf '%s' "$OUT_G4D" | grep -q '뒤처져'
 check $? "G4: 대조 불가일 때 경보하지 않는다(판정 불가 != 뒤처짐)"
 
+# ⚠️ 오탐 경계 — 자체 탐침에서 **5건이 잘못 경보**했다(2026-08-20). 경보가 한 번 거짓이면
+#   사람은 다음부터 안 읽는다 — 이 훅이 막으려는 병이 정확히 그거다.
+#   원칙: **판정 불가는 뒤처짐이 아니다.** 애매하면 조용히 넘어간다(오탐 0 우선).
+_g4_quiet() { # $1=라벨 $2=설치 $3=마켓
+  local h; h="$(mk_g4_home "$2" "$3")"
+  local o; o="$(HOME="$h" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
+  ! printf '%s' "$o" | grep -q '뒤처져'
+  check $? "G4 오탐금지: $1 ($2 vs $3)" "$(printf '%s' "$o" | grep 뒤처져 | head -1)"
+  rm -rf "$h" 2>/dev/null
+}
+_g4_quiet "자릿수 다름"   0.7        0.7.0
+_g4_quiet "자릿수 다름(역)" 0.7.0      0.7
+_g4_quiet "unknown"     unknown    0.7.11
+_g4_quiet "프리릴리스"     1.0.0-rc1  1.0.0
+_g4_quiet "빌드메타"      0.7.10+b   0.7.10
+
+# 반대로 **진짜 뒤처짐은 여전히 잡아야** 한다(오탐 0 을 무탐지로 사지 않는다)
+G4E="$(mk_g4_home 0.9.9 1.0.0)"
+OUT_G4E="$(HOME="$G4E" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK" 2>&1)"
+printf '%s' "$OUT_G4E" | grep -q '0.9.9→1.0.0'
+check $? "G4: 메이저 뒤처짐은 여전히 잡는다(무탐지로 도망가지 않음)" "$(printf '%s' "$OUT_G4E" | tail -1)"
+rm -rf "$G4E" 2>/dev/null
+
 rm -rf "$G4A" "$G4B" "$G4C" "$G4D" 2>/dev/null
 
 rm -rf "$FAKE_HOME" "$FAKE_HOME2" "$FAKE_HOME3" "$FAKE_HOME4" "$STUB" "$RO" 2>/dev/null

@@ -130,14 +130,33 @@ inst_path, mkt = sys.argv[1], sys.argv[2]
 
 
 def parts(v):
-    """'0.7.10' -> (0,7,10). 숫자가 아닌 조각은 -1 로 둔다(비교 가능하게)."""
+    """'0.7.10' -> (0,7,10). **순수 숫자 점표기만** 판정한다. 그 밖은 None.
+
+    ⚠️ 처음엔 숫자가 아닌 조각을 -1 로 뒀는데, 자체 탐침에서 **오탐 5건**이 나왔다:
+       '0.7' vs '0.7.0'(같은 버전인데 뒤처짐) · 'unknown' · '1.0.0-rc1' · '0.7.10+build'.
+       경보가 한 번 거짓이면 사람은 다음부터 안 읽는다 — 이 훅이 막으려는 병이 바로 그거다.
+       그래서 **판정 불가는 뒤처짐이 아니다**: 애매하면 조용히 넘어간다(오탐 0 우선).
+    """
+    ss = str(v).strip()
+    if not ss:
+        return None
     out = []
-    for x in str(v).split("."):
-        try:
-            out.append(int(x))
-        except ValueError:
-            out.append(-1)
+    for x in ss.split("."):
+        if not x.isdigit():
+            return None
+        out.append(int(x))
     return tuple(out)
+
+
+def behind_of(cur, latest):
+    """cur 가 latest 보다 낮은가. 판정 불가면 False(경보 안 함)."""
+    a, b = parts(cur), parts(latest)
+    if a is None or b is None:
+        return False
+    n = max(len(a), len(b))          # '0.7' 과 '0.7.0' 을 같게 본다
+    a += (0,) * (n - len(a))
+    b += (0,) * (n - len(b))
+    return a < b
 
 
 try:
@@ -159,11 +178,12 @@ for key, entries in (data.get("plugins") or {}).items():
             latest = json.load(f).get("version")
     except Exception:
         continue
-    cur = max((e.get("version") for e in entries if e.get("version")),
-              key=parts, default=None)
-    if not cur or not latest:
-        continue
-    if parts(cur) < parts(latest):
+    # 여러 항목(scope 별)이 있으면 **판정 가능한 것 중 최신**을 설치본으로 본다.
+    cands = [e.get("version") for e in entries if parts(e.get("version")) is not None]
+    if not cands or parts(latest) is None:
+        continue                      # 판정 불가 — 조용히 넘어간다
+    cur = max(cands, key=parts)
+    if behind_of(cur, latest):
         behind.append(f"{name} {cur}→{latest}")
 
 if behind:
