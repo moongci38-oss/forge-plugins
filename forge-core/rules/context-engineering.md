@@ -21,6 +21,7 @@
 - **70% 권장 / 90% 강제** `/compact` — Wave·Phase 전환이 자연 분할점, 세션 재개는 handover 선확인. 원문 → aux §토큰 관리 원문
 - **⚠️ /compact 한계**: 스킬 전문 **전량 재주입** → **대형 스킬(15KB+) 2개+ 세션은 `/compact` 반복 대신 `/forge-checkpoint` 저장 → 새 세션에서 재개**. 원문·실측 → aux §/compact 한계 실측 · §compact 한계 원문
 - 예산은 `session-context-budget.sh` 훅이 상시 측정(측정 하네스). 수동 audit 명령 → aux §측정 하네스
+- **무엇을 남길지도 지시한다**: 위 임계값은 "언제 줄일지"만 정한다. 압축할 때 **미해결·계약성 항목(요구사항·설계 결정·보안 제약·열린 blocker)은 오래됐어도 남기고, 나머지는 최근 작업 가중치를 높여** 줄이도록 지시한다. 예시 프롬프트·근거·폐기조건 → aux §압축 잔존 우선순위
 
 ## 도구 응답 관리 (Tool Response Pruning)
 
@@ -40,6 +41,10 @@ pruning 준수 — 최근 5회만 전문 유지 · 2,000자 초과 offload(`$HOM
 **`rules/`** = 모든 세션 필수(High)만. **`rules-on-demand/`** = Low/Medium 빈도. 1회용 → 미생성. 의심 시 `rules-on-demand/` 우선.
 
 CLAUDE.md 100줄 초과 시 → 인덱스(목차)만 유지 + 상세는 `rules*/` 분리(**예외**: Vitals는 카운트 제외). 원문·배치 판정·정책 포인터 → aux §On-demand 배치 판정 원문
+
+**L1 추가 게이트 (2026-08-22 신설)**: `rules/`(=L1, 매 세션 로드) 에 규범을 **새로 추가**할 때는 커밋 메시지에 ①왜 매 세션 필요한가 1줄 ②`bash shared/scripts/l1-budget.sh` 의 `L1_GROWTH_BYTES` 를 적는다. 둘 중 하나라도 없으면 `rules-on-demand/` 로 간다(기본값이 on-demand 다). 한도 재산정은 **사람만** 하고 `.claude/brain/l1-baseline.jsonl` 에 사유 1행을 남긴다 — 그래야 '넘치면 올린다'가 몇 번째인지 보인다(2026-08-10 · 2026-08-22 두 번 올렸다).
+근거: 한도를 올린 08-10 이후 12일 만에 L1 이 53,808→83,553B(+55%)로 자랐는데, 자라는 속도를 아무도 세지 않아 매번 '지울 게 없다'로 귀결됐다. 재현: `bash shared/scripts/l1-budget.sh | grep L1_GROWTH`.
+폐기조건: `L1_GROWTH_PCT` 가 2분기 연속 10% 미만이면 이 게이트를 재검토한다.
 
 ## Subtraction Review (감산 리뷰)
 

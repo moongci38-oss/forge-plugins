@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: "OpenAI Codex(gpt-5.6-terra) 경유 2차 리뷰 게이트 — Claude 1차 리뷰의 동일모델 맹점 보완. Stage 분기: plan/code/test/final/bugfix. P3~P7 자동 호출(spec/plan 작성 후, PR, E2E 시나리오, 머지 직전, 버그수정 patch 후)."
+description: "OpenAI Codex(gpt-5.6-sol, xhigh effort) 경유 2차 리뷰 게이트 — Claude 1차 리뷰의 동일모델 맹점 보완. Stage 분기: plan/code/test/final/bugfix. P3~P7 자동 호출(spec/plan 작성 후, PR, E2E 시나리오, 머지 직전, 버그수정 patch 후)."
 ---
 
 # Codex Review
@@ -11,11 +11,11 @@ Claude 1차 리뷰의 동일 모델 맹점 보완용 2차 게이트. SDD·PGE·F
 
 ## 역할
 
-Claude 1차 리뷰의 동일 모델 맹점을 보완하는 OpenAI Codex(gpt-5.6-terra) 경유 2차 리뷰 게이트. 대체가 아니라 추가 검증이며 stage(plan/code/test/final/bugfix)별로 차등 blocking을 적용한다.
+Claude 1차 리뷰의 동일 모델 맹점을 보완하는 OpenAI Codex(gpt-5.6-sol) 경유 2차 리뷰 게이트. 대체가 아니라 추가 검증이며 stage(plan/code/test/final/bugfix)별로 차등 blocking을 적용한다.
 
 ## 컨텍스트
 
-SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev 통합 지점은 P3/P4(plan, blocking) / P5 Check P5.7-X(code, 권고) / P6 Check 6-TX(test, 권고) / P7 Check 7-X(final, blocking high-effort) / 버그 patch 후(bugfix, 수동). `${FORGE_ROOT:-$HOME/forge}/.env`의 `CODEX_REVIEW_AUTO_STAGES`로 자동 발동 stage를 제어한다.
+SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev 통합 지점은 P3/P4(plan, blocking) / P5 Check P5.7-X(code, 권고) / P6 Check 6-TX(test, 권고) / P7 Check 7-X(final, blocking · effort=xhigh) / 버그 patch 후(bugfix, 수동). `${FORGE_ROOT:-$HOME/forge}/.env`의 `CODEX_REVIEW_AUTO_STAGES`로 자동 발동 stage를 제어한다.
 
 ## 출력
 
@@ -37,7 +37,7 @@ SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev �
 /codex-review --stage plan --target docs/spec/feature-x.md --blocking
 /codex-review --stage code --target src/auth.ts
 /codex-review --stage test --target tests/e2e/login.spec.ts
-/codex-review --stage final --target PR-1234 --effort high --blocking
+/codex-review --stage final --target PR-1234 --effort xhigh --blocking
 /codex-review --stage bugfix --target patches/fix-token-leak.diff
 ```
 
@@ -49,11 +49,11 @@ SDD·PGE·Forge Dev 파이프라인 전 단계에서 호출 가능. Forge Dev �
 
 | Stage | 호출 시점 | Effort | Blocking |
 |-------|---------|:------:|:-------:|
-| `plan` | Spec/PRD 작성 직후 | medium | YES |
-| `code` | P5 Check P5.7-X | medium | NO |
-| `test` | P6 Check 6-TX | medium | NO |
-| `final` | P7 Check 7-X (PR 직전) | **high** | YES |
-| `bugfix` | 버그 patch 작성 후 (수동) | medium | NO |
+| `plan` | Spec/PRD 작성 직후 | xhigh | YES |
+| `code` | P5 Check P5.7-X | xhigh | NO |
+| `test` | P6 Check 6-TX | xhigh | NO |
+| `final` | P7 Check 7-X (PR 직전) | **xhigh** | YES |
+| `bugfix` | 버그 patch 작성 후 (수동) | xhigh | NO |
 
 > **AUTO 발동 여부는 이 표에 없다** — `CODEX_REVIEW_AUTO_STAGES`(정본 = `commands/codex-review.md` Step 1.5, 기본값 **off**)로만 결정된다. Blocking 열은 "그 stage가 auto/수동으로 발동됐을 때" 결과가 [STOP]을 유발하는지를 뜻하며, 발동 자체를 보장하지 않는다.
 
@@ -87,11 +87,11 @@ ChatGPT OAuth (Plus/Pro 한도) → 모든 stage `$0.00`. API key fallback 시�
 
 | Stage | OAuth | API key fallback |
 |-------|:-----:|----------------|
-| plan | $0.00 | gpt-5.6-terra ~$0.01~0.03 |
-| code | $0.00 | gpt-5.6-terra ~$0.02~0.05 |
-| test | $0.00 | gpt-5.6-terra ~$0.01~0.03 |
-| final | $0.00 | gpt-5.6-terra high ~$0.10~0.30 |
-| bugfix | $0.00 | gpt-5.6-terra ~$0.02~0.05 |
+| plan | $0.00 | gpt-5.6-sol (xhigh) — 종량 시 상승 |
+| code | $0.00 | gpt-5.6-sol (xhigh) — 종량 시 상승 |
+| test | $0.00 | gpt-5.6-sol (xhigh) — 종량 시 상승 |
+| final | $0.00 | gpt-5.6-sol (xhigh) — 종량 시 상승 |
+| bugfix | $0.00 | gpt-5.6-sol (xhigh) — 종량 시 상승 |
 
 상세 정책 (스킵 패턴·다운그레이드·diff 처리): `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`.
 
@@ -158,12 +158,14 @@ auth fail vs timeout vs model_unavailable 구분 → 오류별 대응 경로 분
 | P3 (계획서) | `plan` | YES |
 | P5 Check P5.7-X (코드 리뷰 1차 후) | `code` | NO (default OFF) |
 | P6 Check 6-TX (QA Loop 후) | `test` | NO (default OFF) |
-| P7 Check 7-X (PR 직전 통합) | `final` | YES (effort=high) |
+| P7 Check 7-X (PR 직전 통합) | `final` | YES (effort=xhigh) |
 
 ## 핵심 원칙
 
 1. **이중 게이트**: Claude 1차는 항상 유지. Codex는 추가 (대체 X).
-2. **단계별 차등**: `final`은 high effort + blocking. `code`/`test`는 medium + 권고.
+2. **단계별 차등**: 2026-08-22 부로 **effort 는 전 단계 `xhigh` 로 통일**(구: final=high / code·test=medium).
+   차등이 남는 축은 **blocking 여부 하나**다 — `plan`·`final` 이 blocking, `code`·`test`·`bugfix` 는 권고.
+   (구 문장 "final만 blocking" 은 같은 파일의 stage 표·통합 표와 모순돼 2026-08-22 정정.)
 3. **비용 통제**: OAuth 모드 무빌링. API key 모드만 daily/monthly 한도 적용.
 4. **diff 자동 기록**: Claude 결과 존재 시 `delta_vs_claude` 자동 채움. 월별 통계 의사결정 입력.
 5. **검증 근거 역질문 (적대적 리뷰 고정 질문)**: 리뷰 대상에 "통과했다"고 보고된 테스트·검증이 있으면, 그 검증이 커버하지 않는 실패 시나리오를 최소 1개 명시하도록 요구한다(없으면 "없음"이라고 명시). 리뷰어 역할은 버그를 찾는 데 그치지 않고 검증 근거 자체에 되묻는 데까지 확장된다 — Codex 호출 프롬프트에 이 질문을 고정 포함한다.

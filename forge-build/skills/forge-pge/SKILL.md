@@ -48,7 +48,7 @@ AI 출력 품질의 핵심 변수는 모델이 아니라 **구조(하네스)**�
 ### 진입 트리아지 (fast-path — P1/P2, WARN-우선)
 PGE 기구(Rubric/Sprint Contract/Evaluator/Codex 2차)는 무겁다. 진입 시 아래를 먼저 판정한다:
 
-- **P0 harness-family 강제 판별 (2026-07-10)**: 사용자가 "미구현 = pge"로 지목했어도 그대로 진입하지 않는다 — `harness-family-map.md` 3분기(spec有→`/forge-implement` / spec無 생성→pge / 버그·증상→`/forge-fix`)를 **실측**(`.specify/specs/` 존재, 증상 문구 여부)으로 먼저 판정하고, 불일치 시 올바른 하네스로 재라우팅 제안. 실증: 2026-07-09 optool 세션 2/2가 pge 부적합(정산 4메뉴=implement, 시드=직접) — "미구현처럼 보임"의 다수는 미연동·미머지·설정 드리프트다.
+- **P0 harness-family 강제 판별 (2026-07-10)**: 사용자가 "미구현 = pge"로 지목했어도 그대로 진입하지 않는다 — `harness-family-map.md` 3분기(spec有→`/forge-implement` / spec無 생성→pge / 버그·증상→`/forge-fix`)를 **실측**으로 먼저 판정하고, 불일치 시 올바른 하네스로 재라우팅 제안. ⚠️ **spec 판정 축은 폴더가 아니라 "이 작업을 다루는 spec"이다**(2026-08-21 정정) — `.specify/specs/` 가 존재해도 그 안이 **다른 기능**의 spec 뿐이면 이 작업에는 spec 이 **없는** 것이고 PGE 가 맞다. 폴더 존재만 보면 작년에 끝난 다른 공사의 계약서를 근거로 이번 공사를 하라는 지시가 된다. 재현: `ls .specify/specs/` 로 파일명을 **열어 보고** 이번 요청의 대상 기능이 그 안에 있는지 확인한다 — 없으면 PGE 유지. 근거: 2026-08-21 arborAI 세션(폴더에 2026-07-30 관수판정 spec 1건만 존재, 요청은 수목 상세 제어 UI 재편). 폐기조건: `.specify/specs/` 가 태스크별 디렉터리로 바뀌어 경로만으로 판별되면 이 단서를 삭제한다. 실증: 2026-07-09 optool 세션 2/2가 pge 부적합(정산 4메뉴=implement, 시드=직접) — "미구현처럼 보임"의 다수는 미연동·미머지·설정 드리프트다.
 - **P0b 1회성 상태변경 차단**: QA 시드·데이터 백필 같은 1회성 작업은 PGE(반복 개선 루프) 부적합 — §적용 대상 표 기준으로 거부하고 직접 실행 or 스크립트를 제안한다.
 - **P0c pre-work branch sweep**: 착수 전 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/pre-work-branch-sweep.md` 실행 — 대상 도메인의 미머지 완성물이 있으면 재작성 금지.
 - **P1 사소 편집 fast-path**: 변경 예상 규모가 **1~2파일·수 줄**(콘텐츠 트윅·문구·상수 등)이면 → **"PGE 부적합 — 직접 외과 수정 권고" WARN** 후 경량 경로(직접 편집)로. 무거운 PGE를 돌리지 않는다(커맨드-행동 불일치 방지). 판정 모호·규모 초과 시 정상 PGE 진행(fail-open).
@@ -480,9 +480,21 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 
 **절차** (Phase 5 `SUCCESS` 판정 직후, PR 단계 진입 전):
 
-1. `test -d "{project_root}/.specify"` 확인.
-   - **부재 시**: "Phase 6 스킵 — 이 프로젝트는 SDD(.specify/)를 채택하지 않음" 1줄 명시 후 종료(fail-open — 모든 프로젝트가 SDD를 쓰는 건 아니다).
-   - **존재 시**: 아래 2~3 진행.
+1. **두 조건을 모두** 확인한다(2026-08-21 정정 — 구 규칙은 `test -d .specify` 하나만 봤다).
+   ① `test -d "{project_root}/.specify"` ② **CI 가 실제로 `.specify/specs/{branch}.md` 를 요구하는가**
+   (`grep -rl 'spec-validation\|specify/specs' {project_root}/.github/` → 1건 이상).
+   - **①만 충족(CI 요구 없음)**: "Phase 6 스킵 — `.specify/` 는 있으나 그것을 요구하는 CI 가 없음
+     (재현: 위 grep → 0건)" 1줄 명시 후 종료. 이 절의 존재 이유가 **CI 통과**이므로, 요구하는
+     CI 가 없으면 발행은 산출물이 아니라 **쓰레기**다 — 특히 브랜치명이 임시 워크트리명이면
+     머지 후 삭제될 이름으로 spec 이 남는다.
+   - **①② 모두 충족**: 아래 2~3 진행.
+   - **① 부재**: "Phase 6 스킵 — 이 프로젝트는 SDD(.specify/)를 채택하지 않음" 1줄 명시 후
+     종료(fail-open — 모든 프로젝트가 SDD를 쓰는 건 아니다).
+   > 근거: 2026-08-21 arborAI — `.specify/` 는 있는데 `.github/workflows/` 자체가 없어 spec 을
+   > 요구하는 CI 가 0건이었다. 구 규칙대로면 임시 브랜치명(`worktree-arborai-0821-…`)으로
+   > spec 을 발행할 뻔했다. **§P0 라우팅의 "폴더 존재 ≠ 이 작업의 spec"과 같은 계열의 결함**이다
+   > — 폴더가 있다는 사실에서 그 폴더의 목적이 살아 있다고 추론하면 안 된다.
+   > 폐기조건: Phase 6 이 CI 외의 이유(트레이서빌리티 자산 자체)로 재정의되면 이 항을 고쳐 쓴다.
 2. `.specify/specs/{branch-name}.md` 사후 Spec 발행 (현재 브랜치명 = `git rev-parse --abbrev-ref HEAD`로 기계적 산출). 기존 파일 있으면 덮어쓰지 않고 append 섹션 추가. 최소 포함 항목:
    - `## 구현된 FR` — Sprint Contract `done_criteria`/`eval_ids`를 FR 형태로 역변환
    - `## 변경 범위` — `git diff --name-only {base}...HEAD` 산출 파일 목록

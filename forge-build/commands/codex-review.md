@@ -1,6 +1,6 @@
 ---
 description: OpenAI Codex 경유 2차 리뷰 게이트 (Claude 1차 리뷰 후 추가 검증). 모든 개발 단계 (plan/code/test/final/bugfix) 지원.
-argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high] [--blocking] [--cr <on|degrade|off>] [--sol|--terra|--luna]"
+argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high|xhigh] [--blocking] [--cr <on|degrade|off>] [--sol|--terra|--luna]"
 group: verify
 ---
 
@@ -36,7 +36,7 @@ codex   # /login → moongci38 ChatGPT 계정 OAuth
 /codex-review --stage code --target src/auth.ts
 /codex-review --stage code --target PR-1234
 /codex-review --stage test --target tests/e2e/login.spec.ts
-/codex-review --stage final --target PR-1234 --effort high --blocking
+/codex-review --stage final --target PR-1234 --effort xhigh --blocking
 /codex-review --stage bugfix --target patches/fix-token-expiry.diff
 ```
 
@@ -50,7 +50,7 @@ codex   # /login → moongci38 ChatGPT 계정 OAuth
 |------|-----|--------|------|
 | `--stage` | `plan\|analysis\|code\|test\|final\|bugfix\|yt-apply-plan\|article-apply-plan\|phase1-validate` | (필수) | 리뷰 단계 |
 | `--target` | 파일 경로 또는 `PR-N` | (필수) | 리뷰 대상 |
-| `--effort` | `low\|medium\|high` | `medium` | 리뷰 강도 (high = adversarial) |
+| `--effort` | `low\|medium\|high\|xhigh` | **`xhigh`** | 리뷰 강도 (2026-08-22 기본 상향 — 구 `medium`) |
 | `--blocking` | 플래그 | stage별 자동 (아래 표) | FAIL 시 종료 코드 1 반환 |
 | `--cr` | `on\|degrade\|off` | (없으면 `FORGE_AUTO_CR` env → 기본 `on`) | Codex 호출 제어. `degrade`/`off` 모두 단일 Codex 경로 skip. `on`은 env off도 강제. `cr-mode.sh`로 resolve. |
 
@@ -170,19 +170,32 @@ fi
 ### Step 2 — Codex 호출
 
 ```bash
-# 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. config model=gpt-5.6-terra. codex 호출 $0.
-# apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 gpt-5.6-terra API 가격 과금.
-# --sol/--terra/--luna (Human opt-in, 2026-07-15): Codex 검수 레그 tier 승격 (model-registry SSoT).
-#   caller 인자 파싱: --sol→CODEX_TIER=max · --terra→high · --luna→low. 미지정 시 기본 gpt-5.6-terra 유지(no-op).
-#   resolve 실패 시 fail-open → gpt-5.6-terra 폴백. 버전무관: 모델 id는 model-registry.json이 소유.
-CODEX_TIER="${CODEX_TIER:-}"
-if [[ -n "$CODEX_TIER" ]]; then
-  MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) || MODEL="${CODEX_REVIEW_MODEL:-gpt-5.6-terra}"
+# 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. codex 호출 $0(구독 포함).
+# ⚠️ 2026-08-22 Human 지시로 **기본값 상향**: 모델 gpt-5.6-terra → gpt-5.6-sol · effort medium → xhigh.
+#   이 파일이 `/cr-final`·`/cr-plan`·`/cr-code`·`/cr-test`·`/cr-bug`·`/cr-analysis` 6개 래퍼의
+#   **실제 실행 경로**다 — 래퍼 문서만 고치면 값은 여기서 구 값으로 되돌아간다(PR #320 cr-final CRITICAL 실적발).
+# apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 API 가격 과금.
+# --sol/--terra/--luna: Codex 검수 레그 tier 선택 (model-registry SSoT).
+#   caller 인자 파싱: --sol→CODEX_TIER=max · --terra→high · --luna→low.
+#   미지정 시 기본 gpt-5.6-sol — 즉 `--sol` 은 no-op 이고 `--terra`/`--luna` 가 하향 스위치다.
+#   resolve 실패 시 fail-open → gpt-5.6-sol 폴백(하향하지 않는다). 모델 id SSoT = model-registry.json.
+# 기본 tier 도 registry 를 거친다 — 리터럴은 **resolve 실패 시 폴백**으로만 남는다.
+#   (구 코드는 CODEX_TIER 미지정 시 registry 를 건너뛰고 리터럴을 썼다. 그러면 registry 가
+#    max 티어 모델을 바꿔도 이 파일만 stale 해져 이번과 같은 드리프트가 재발한다 — PR #320 MEDIUM.)
+CODEX_TIER="${CODEX_TIER:-max}"
+# 우선순위: CODEX_REVIEW_MODEL(사람 명시) > registry(codex:$CODEX_TIER) > 리터럴 폴백.
+#   ⚠️ 구판은 `resolve || MODEL="${CODEX_REVIEW_MODEL:-...}"` 라 **resolve 가 성공하면 env 가 아예
+#   평가되지 않았다** — 문서는 "override" 라 안내하는데 실제로는 무시됐다(PR #320 r4 cr-final MEDIUM).
+if [[ -n "${CODEX_REVIEW_MODEL:-}" ]]; then
+  MODEL="$CODEX_REVIEW_MODEL"
 else
-  MODEL="${CODEX_REVIEW_MODEL:-gpt-5.6-terra}"
+  MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) \
+    || MODEL="gpt-5.6-sol"
 fi
-EFFORT_LEVEL="${EFFORT:-medium}"
-[[ "$STAGE" == "final" ]] && EFFORT_LEVEL="high"
+# effort: 2026-08-22 기본 xhigh. final 은 blocking 게이트라 **바닥값**을 xhigh 로 고정한다
+#   (구 코드는 여기서 "high" 로 덮어써서 --effort xhigh 를 조용히 무효화했다 — PR #320 CRITICAL).
+EFFORT_LEVEL="${EFFORT:-xhigh}"
+[[ "$STAGE" == "final" ]] && EFFORT_LEVEL="xhigh"
 
 # 프롬프트 stage별 선택
 # stage 별칭: article-apply-plan 은 yt-apply-plan 프롬프트를 그대로 쓴다
@@ -263,7 +276,7 @@ Codex 출력을 다음 스키마로 정규화:
   ],
   "suggestions": ["..."],
   "delta_vs_claude": "agreement|disagreement|extension|null",
-  "model": "gpt-5.6-terra",
+  "model": "gpt-5.6-sol",
   "cost_usd": 0.0,
   "ts": "2026-05-07T05:30:00Z"
 }
@@ -359,7 +372,7 @@ fi
 
 ```bash
 # 수정 후 1회 재호출 예시 (cap=1):
-/codex-review --stage final --target PR-1234 --effort high --blocking
+/codex-review --stage final --target PR-1234 --effort xhigh --blocking
 # 재호출에서도 FAIL → /cr-triple 에스컬레이션 (아래 B)
 ```
 
@@ -400,7 +413,7 @@ fi
 
 ### final (PR 머지 직전)
 ```bash
-/codex-review --stage final --target PR-1234 --effort high --blocking
+/codex-review --stage final --target PR-1234 --effort xhigh --blocking
 ```
 - 적대적 리뷰. FAIL → PR 차단.
 
@@ -438,21 +451,21 @@ fi
 
 ## 비용 통제
 
-**현재 설정 (2026-06-17 전환 완료)**: auth_mode=`chatgpt` (OAuth), model=`gpt-5.6-terra` (`~/.codex/config.toml`) → **ChatGPT Plus 구독 포함, API 과금 $0**. effort로 강도만 차등.
-> apikey 폴백: `~/.codex/auth.json.apikey-backup-20260617` 복원 시 gpt-5.6-terra API 가격 과금.
+**현재 설정**: auth_mode=`chatgpt` (OAuth), model=`gpt-5.6-sol` + `model_reasoning_effort="xhigh"` (`~/.codex/config.toml`, 2026-08-22 상향) → **구독 포함, API 과금 $0**.
+> apikey 폴백: `~/.codex/auth.json.apikey-backup-20260617` 복원 시 API 가격 과금(그때는 effort 도 비용에 직결).
 
 | Stage | 모델 | Reasoning Effort | 비용 (OAuth) | 비상 폴백 (apikey 시) |
 |-------|------|------------------|-------------|----------------------|
-| `plan` | gpt-5.6-terra | medium | **$0.00** | ~$0.01~0.03 |
-| `analysis` | gpt-5.6-terra | medium | **$0.00** | ~$0.01~0.03 |
-| `code` | gpt-5.6-terra | medium | **$0.00** | ~$0.02~0.05 |
-| `test` | gpt-5.6-terra | medium | **$0.00** | ~$0.01~0.03 |
-| `final` | **gpt-5.6-terra** | **high** | **$0.00** | ~$0.10~0.30 |
-| `bugfix` | gpt-5.6-terra | medium | **$0.00** | ~$0.02~0.05 |
+| `plan` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `analysis` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `code` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `test` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `final` | **gpt-5.6-sol** | **xhigh** | **$0.00** | 종량 시 상승 |
+| `bugfix` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
 
 모델 override (env):
 ```
-export CODEX_REVIEW_MODEL="gpt-5.6-terra"          # 현재 기본값
+export CODEX_REVIEW_MODEL="gpt-5.6-sol"            # 현재 기본값 (2026-08-22 상향)
 export CODEX_REVIEW_DAILY_LIMIT=20
 export CODEX_REVIEW_MONTHLY_BUDGET_USD=20
 ```

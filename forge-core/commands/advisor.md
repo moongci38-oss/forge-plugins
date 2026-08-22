@@ -142,8 +142,8 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 ⚠️ **캡 값에 오타를 내면 캡이 꺼지는 게 아니라 5 로 적용된다.** `CAP=5O`(영문 O) 같은 비숫자를 주면 무제한으로 뭉개지 않고 보수적 양수로 떨어뜨린다 — 변수를 준 것 자체가 "가드를 켜려는 의도"이기 때문이다. 정말 무제한을 원하면 `CAP=0` 을 명시하거나 변수를 지운다.
 
 - **집계**: Fable 디스패치 시 `/tmp/advisor-fable-usage.log`(또는 `FORGE_ADVISOR_FABLE_LOG`)에 기록 — 캡 카운트 + ROI 리뷰 겸용.
-- **범위 — 자문 레그 O, 검수 레그 X**: 승격된 것은 **advisor 자문 레그**다. `forge-pr`·`forge-plan` 의 advisor 자문도 이제 리졸버를 따른다(그 커맨드들의 "advisor = Opus 고정" 문구는 2026-08-12 폐기).
-  ⛔ 반대로 `cr-multi`/`cr-triple` 의 **검수 워커 레그**에 Fable 자동 배선은 **여전히 금지**(`--fable` = Human 수동 전용) — PR 마다 프런티어 모델로 전체 검수를 돌리면 비용이 폭발한다.
+- **범위 — 2026-08-22 부터 자문·검수 레그 모두 O**(구 제목 "검수 레그 X" 는 폐기): 2026-08-12 에 승격된 것은 **advisor 자문 레그**뿐이었다. `forge-pr`·`forge-plan` 의 advisor 자문도 이제 리졸버를 따른다(그 커맨드들의 "advisor = Opus 고정" 문구는 2026-08-12 폐기).
+  ✅ `cr-multi`/`cr-triple` 의 **검수 워커 레그**도 2026-08-22 부터 Fable 기본이다(구 금지 조항 폐기 — 2026-08-22 Human 지시로 해제(구독 3계정 정액 운용 — 호출당 비용 0)). 정본 → `model-routing.md §세션 운영 모델`.
   ✅ 반면 `forge-deploy`·`forge-rollback`·`forge-check-*`·`forge-milestone-close`·`forge-dev-undo` 는 **advisor 자문 레그가 실재한다** — 이 PR 에서 그 커맨드들의 "Fable 5 미배선 · 리졸버 호출 금지" 문구를 **폐기**하고 리졸버 경유로 바꿨다. (2026-08-12 이전에 "그 커맨드들은 advisor 를 안 쓴다"고 적혀 있던 것은 사실이 아니었다.)
 - **구현(coder) 경로 예외**: `coder-model-resolve.sh` 는 `FORGE_ADVISOR_FALLBACK=opus` 를 박아 넘긴다 — `--coder fable` 이 안 될 때 벤더를 말없이 Codex 로 바꾸지 않기 위해서다(그 스크립트의 기존 계약 유지).
 
