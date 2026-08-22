@@ -1,12 +1,12 @@
 ---
-description: Codex 적대적 최종 리뷰 — PR 머지 직전 (blocking, high effort)
+description: Codex 적대적 최종 리뷰 — PR 머지 직전 (blocking, xhigh effort)
 argument-hint: "<PR-N or branch> [--cr <on|degrade|off>]"
 group: verify
 ---
 
 # /cr-final
 
-`/codex-review --stage final --effort high` 단축 래퍼.
+`/codex-review --stage final --effort xhigh` 단축 래퍼.
 
 ## 사용
 
@@ -21,10 +21,10 @@ group: verify
 # --cr 파싱: $ARGUMENTS에서 --cr <mode> 추출 후 전달
 CR_ARG=$(echo "$ARGUMENTS" | grep -oP '(?<=--cr )\S+' || true)
 TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
-/codex-review --stage final --target "$TARGET" --effort high --blocking ${CR_ARG:+--cr "$CR_ARG"}
+/codex-review --stage final --target "$TARGET" --effort xhigh --blocking ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.6-terra (HIGH effort, 적대적) — ChatGPT OAuth 기본
+- 모델: gpt-5.6-sol (xhigh effort, 적대적) — 2026-08-22 상향(구: gpt-5.6-terra / high)
 - Blocking: YES (FAIL → PR 차단)
 - 결과: `forge-outputs/docs/reviews/final/{date}-{slug}.{md,json}`
 
@@ -40,7 +40,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT OAuth, gpt-5.6-terra) / 비상 폴백(apikey 시): ~$0.10~0.30 (high effort). 단순 변경은 자동 스킵.
+$0.00 (ChatGPT 구독 3계정, gpt-5.6-sol) / 비상 폴백(apikey 시): xhigh effort 는 종량. 단순 변경은 자동 스킵.
 
 ## Completeness Critic (P-6)
 
@@ -48,6 +48,6 @@ $0.00 (ChatGPT OAuth, gpt-5.6-terra) / 비상 폴백(apikey 시): ~$0.10~0.30 (h
 
 ## 관련
 
-- 본명령: `/codex-review --stage final --effort high --blocking`
+- 본명령: `/codex-review --stage final --effort xhigh --blocking`
 - Forge Dev P7 Check 7-X에서 자동 호출
 - 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`

@@ -203,26 +203,33 @@ phase('Audit')
 // cr-final PR269 반영(Codex HIGH): SKILL.md fallback 레인의 "빈손 종료 회수 절차"를 기본
 //   경로에도 동형 구현한다 — null 축은 1회 재시도(탐색 축소 지시) 후, 그래도 null 이면
 //   축 이름을 명시한 WARN 을 남기고 부분 진행(기존 fail-open 유지, 침묵 결측 금지).
+// ⚠️ model: 명시(2026-08-22, 감사 H-5/M-3 — 2주 연속 미해결분).
+//   미명시면 부모(세션) 모델을 상속해 6축 전부 Opus 로 뜰 수 있다 — model-routing.md 가
+//   '미명시 = 비용 누수' 라고 못박은 그 경우다. 값은 각 axis-*.md frontmatter 와 **동일**하게
+//   맞췄다(sonnet x4 / haiku x1) — 여기서 티어를 바꾸지 않는다. 두 곳이 어긋나면 그게 결함이다.
+//   재현: grep -cE "model: .(sonnet|haiku).|model: s[.]model" .claude/skills/system-audit/workflow.js  → 8 (직전 0)
+//   ⚠️ 이 명시가 무력화되는 입력: agentType 이 없는 호출(redundancy)은 frontmatter 가 없으므로
+//      여기 값이 유일한 근거다. 폐기조건: 런타임이 frontmatter model 을 확실히 상속하게 되면 삭제.
 const AXIS_SPECS = [
-  { key: 'agentic', label: 'axis-agentic',  agentType: 'axis-agentic',  prompt: () => basePrompt('Agentic (자율성·도구·멀티에이전트)') },
-  { key: 'context', label: 'axis-context',  agentType: 'axis-context',  prompt: () => basePrompt('Context (RAG·메모리·컨텍스트 윈도우)') },
+  { key: 'agentic', label: 'axis-agentic',  model: 'sonnet', agentType: 'axis-agentic',  prompt: () => basePrompt('Agentic (자율성·도구·멀티에이전트)') },
+  { key: 'context', label: 'axis-context',  model: 'sonnet', agentType: 'axis-context',  prompt: () => basePrompt('Context (RAG·메모리·컨텍스트 윈도우)') },
   // root-cause: P0-3 harnessPrompt로 교체 (GitNexus 통합)
-  { key: 'harness', label: 'axis-harness',  agentType: 'axis-harness',  prompt: () => harnessPrompt },
-  { key: 'cost',    label: 'axis-cost',     agentType: 'axis-cost',     prompt: () => basePrompt('Cost (토큰경제학·모델라우팅·캐싱)') },
-  { key: 'humanAi', label: 'axis-human-ai', agentType: 'axis-human-ai', prompt: () => basePrompt('Human-AI (자율성 레벨·에스컬레이션·게이트)') },
+  { key: 'harness', label: 'axis-harness',  model: 'sonnet', agentType: 'axis-harness',  prompt: () => harnessPrompt },
+  { key: 'cost',    label: 'axis-cost',     model: 'haiku', agentType: 'axis-cost',     prompt: () => basePrompt('Cost (토큰경제학·모델라우팅·캐싱)') },
+  { key: 'humanAi', label: 'axis-human-ai', model: 'sonnet', agentType: 'axis-human-ai', prompt: () => basePrompt('Human-AI (자율성 레벨·에스컬레이션·게이트)') },
 ]
 const axisResults = await parallel([
   ...AXIS_SPECS.map(s => () => agent(s.prompt(),
-    { label: s.label, phase: 'Audit', schema: AXIS_SCHEMA, agentType: s.agentType })),
+    { label: s.label, phase: 'Audit', schema: AXIS_SCHEMA, agentType: s.agentType, model: s.model })),
   () => agent(redundancyPrompt,
-    { label: 'redundancy', phase: 'Audit', schema: REDUNDANCY_SCHEMA }),
+    { label: 'redundancy', phase: 'Audit', schema: REDUNDANCY_SCHEMA, model: 'sonnet' }),
 ])
 const redundancy = axisResults[AXIS_SPECS.length]
 if (AXIS_SPECS.some((s, i) => !axisResults[i])) {
   const retried = await parallel(AXIS_SPECS.map((s, i) => axisResults[i]
     ? (() => Promise.resolve(null))
     : (() => agent(s.prompt() + ' [회수 재시도] 광범위 탐색 금지 — 지금까지의 최소 실측만으로 요구된 JSON 을 즉시 반환하라.',
-        { label: `${s.label}-retry`, phase: 'Audit', schema: AXIS_SCHEMA, agentType: s.agentType }))))
+        { label: `${s.label}-retry`, phase: 'Audit', schema: AXIS_SCHEMA, agentType: s.agentType, model: s.model }))))
   AXIS_SPECS.forEach((s, i) => {
     if (!axisResults[i] && retried[i]) { axisResults[i] = retried[i]; log(`[INFO] ${s.label} 빈손 → 재시도 회수 성공`) }
     else if (!axisResults[i]) log(`[WARN] ${s.label} 빈손 — 재시도에도 미반환. 부분 감사로 진행(이 축 점수 결측을 보고서에 명시할 것)`)

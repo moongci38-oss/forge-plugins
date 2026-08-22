@@ -86,6 +86,13 @@ declared` · `dev-workflow-rules.md` → 같은 절 2회 삽입. **머지마다 
 
 **체인**: `/spec-write` [STOP] → `/forge-implement` [STOP] → `/qa` → `/forge-pr`(cr-final+머지).
 
+⚠️ **이 체인은 P2·P3 산출물이 이미 있을 때 전용이다.** 기획서(PRD/GDD)만 있고 **P3 기획 패키지
+(spec-kernel·architecture·roadmap)가 없으면 `/forge-plan` 을 먼저 거친다** — 위 체인은 Spec 작성부터라
+P3 를 건너뛴다. 조건②의 "기획서 존재"가 곧 "P3 완료"를 뜻하지 않는다.
+근거: 2026-08-22 AgentTrust 세션 — 이 룰만 읽은 세션이 P2 다음을 `/forge-spec` 으로 안내했고,
+P3 산출물은 실측 0건이었다. 재현: `grep -c "forge-plan" ${FORGE_ROOT:-$HOME/forge}/dev/global-rules/dev-workflow-rules.md` → `0` 이면 이 단서가 유실된 것이다.
+폐기조건: 체인 자체에 `/forge-plan` 이 정식 편입되면 이 단서를 그 체인 표기로 교체한다.
+
 **예외 — 자동 발동 X**: 버그수정·긴급 hotfix → `/forge-fix`(또는 `/investigate`) · "리서치만/분석만/확인만" → 직접 응답 · 명시적 다른 슬래시 커맨드 → 그대로 따름.
 
 안내 문구·비활성 스위치 → `rules-on-demand/dev-workflow-detail.md §SDD 안내 문구`

@@ -29,6 +29,12 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 
 ## Phase 흐름 (Part B: P4~P7 + platform)
 
+⚠️ **전제: P3(`/forge-plan`) 산출물 보유.** 이 커맨드는 **P4 부터** 시작한다 — 기획 패키지가 없으면
+`/forge-design`(P2) → `/forge-plan`(P3) 을 **선행**한다. PRD 만 있는 상태로 여기 들어오면 P3 가 통째로 누락된다.
+근거: 2026-08-22 AgentTrust 세션 — 이 표가 P4 로 시작하는데 선행 단계 커맨드명이 어디에도 없어 P3 스킵 안내가 발생했다.
+재현: `grep -c "forge-plan" ${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge.md` → `0` 이면 이 전제가 유실된 것이다.
+폐기조건: `forge-gate-check.sh` 의 `P4-ENTRY` 게이트가 대화 서술 단계에서도 발동하게 되면 이 문단을 삭제한다.
+
 | Phase | 작업 | Check |
 |-------|------|-------|
 | P4 | Spec 작성 (복잡 시 Plan/Task = Spec §8/§11 섹션) → Codex `--stage plan` (blocking) → Human 승인 | Check P4 [STOP] |

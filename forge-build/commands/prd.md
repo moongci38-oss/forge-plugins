@@ -50,6 +50,11 @@ $ARGUMENTS
    - 검수: `/forge-check-ui` (**blocking** — CRITICAL ≥1 시 `/visual-loop` 1사이클 후 재검수, 최대 2사이클, 이후 잔존 → [STOP])
 9. **(Human 요청 시만) PPT 변환**: `/pptx` 스킬로 .pptx 생성
 10. **저장**: `forge-outputs/02-product/{project}/YYYY-MM-DD-s3-prd.md` (+ s3-style-guide.md, s3-design-prompt.md, s3-mockup/) 저장
+11. **다음 단계 안내(필수 출력)**: `다음 단계: /forge-plan <project-slug> — P3 상세 기획 패키지 3종(spec-kernel·architecture·roadmap)`
+    ⚠️ **P2 다음은 P4(`/forge-spec`) 가 아니라 P3(`/forge-plan`) 다.** 이 줄이 없던 동안 P2 를 끝낸 세션이
+    P3 를 건너뛰고 P4 를 안내한 사고가 실제로 있었다(2026-08-22 AgentTrust — 산출물 실측 0건).
+    재현: `grep -c "forge-plan" ${FORGE_ROOT:-$HOME/forge}/.claude/commands/prd.md` → `0` 이면 이 안내가 유실된 것이다.
+    폐기조건: 파이프라인이 단계 전이를 자동 판정·강제하게 되면 이 항을 삭제한다.
 
 ## 출력 형식
 

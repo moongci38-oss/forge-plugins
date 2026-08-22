@@ -96,13 +96,29 @@ def validate_skill(skill_path):
         print(f"⚠️ WARN [AD-115]: eval_cases.jsonl 미생성 — 시드 케이스 3개 권장 (PASS/WARN/FAIL)", file=sys.stderr)
         print(f"   스킵: frontmatter에 'eval_cases: off' 추가 또는 eval_cases.jsonl 생성", file=sys.stderr)
 
-    # 감사 HIGH #9 (2026-07-06 system-audit): 프롬프트 3요소(역할/컨텍스트/출력) 구조화 WARN
-    # BLOCK X — 기존 스킬 58개 미충족을 즉시 실패시키지 않는다(§enforcement-theater-prevention).
+    # 감사 HIGH #9 (2026-07-06 system-audit): 프롬프트 3요소(역할/컨텍스트/출력) 구조화.
+    #
+    # M-8 (2026-08-22 감사): 4회에 걸쳐 "권장"으로 두었더니 채택률이 49%(34/70)에서 멎었다.
+    #   권장은 신규 스킬에서도 무시된다 — 아무도 지키지 않는 권장은 규범이 아니라 장식이다.
+    #   그래서 **신규 스킬에 한해** 게이트로 올린다.
+    #
+    # ⚠️ 기존 스킬은 계속 WARN 이다. 36개를 소급해 실패시키면 그게 바로
+    #   §enforcement-theater-prevention 이 경계하는 상황이다 — 사람이 검증을 통째로 끄게 된다.
+    #
+    # "신규" 판정 = **git 이 아직 추적하지 않는 파일**. 스캐폴딩 직후가 정확히 그 상태다.
+    #   판정 불가(git 없음·레포 밖)면 **WARN 으로 강등**한다(fail-open) — 판정 못 하는 상황에서
+    #   막으면 레포 밖 스킬 작성이 통째로 불가능해진다.
+    # kill-switch: FORGE_SKILL3_GATE=off → 신규도 WARN 으로 되돌린다.
+    # 재현: bash shared/scripts/tests/test-skill3-gate.sh
+    # 폐기조건: 3요소 채택률이 2분기 연속 90% 이상이면 게이트를 걷고 WARN 으로 되돌린다.
     body = content[match.end():]
     missing_elements = check_prompt_three_elements(body)
     if missing_elements:
+        is_new = _is_untracked(skill_path / 'SKILL.md')
+        gate_on = os.environ.get('FORGE_SKILL3_GATE', 'on') != 'off' and is_new is True
+        level = "BLOCK" if gate_on else "WARN"
         print(
-            f"⚠️ WARN [감사#9]: 프롬프트 3요소 미충족 — 누락: {', '.join(missing_elements)}",
+            f"⚠️ {level} [감사#9/M-8]: 프롬프트 3요소 미충족 — 누락: {', '.join(missing_elements)}",
             file=sys.stderr,
         )
         print(
@@ -110,8 +126,52 @@ def validate_skill(skill_path):
             "(또는 '## Role' / '## Context' / '## Output') 형식으로 명시",
             file=sys.stderr,
         )
+        if gate_on:
+            print(
+                "   신규 스킬이라 게이트가 적용됐습니다(기존 스킬은 WARN 유지). "
+                "끄기: FORGE_SKILL3_GATE=off",
+                file=sys.stderr,
+            )
+            return False, "프롬프트 3요소 미충족 (신규 스킬 게이트, M-8)"
 
     return True, "Skill is valid!"
+
+
+def _is_untracked(path):
+    """git 이 추적하지 않는 파일이면 True, 추적 중이면 False, 판정 불가면 None.
+
+    판정 불가(None)는 **게이트를 켜지 않는다**(fail-open) — git 이 없거나 레포 밖인
+    환경에서 스킬 작성을 통째로 막아버리는 것이 이 게이트의 목적이 아니다.
+
+    ⚠️ **초안의 결함 2건을 2026-08-22 r2 에 수리했다.** 둘 다 검수가 실행으로 잡았다:
+
+    1. **레포 밖이 fail-open 이 아니라 BLOCK 이었다.** git 저장소 밖에서
+       `git ls-files --error-unmatch` 는 예외를 던지지 않고 **exit 128** 로 정상 반환한다.
+       `except Exception` 에 안 걸리므로 `returncode != 0` 이 True(신규)가 되어,
+       위 docstring 이 약속한 WARN 강등 대신 조용히 exit 1 로 막혔다.
+       → 종료코드를 **구분**한다: 0=추적중(False) · 1=미추적(True) · 그 외=판정불가(None).
+
+    2. **상대경로 인자에서 기존 스킬도 신규로 오판했다.** `cwd` 를 스킬 디렉터리로 옮기면서
+       인자는 호출자 기준 상대경로를 그대로 넘겨, git 이 `<skill-dir>/<상대경로>` 를 찾아 실패했다.
+       SKILL.md 가 안내하는 **공식 호출이 레포 루트 기준 상대경로**라 표준 경로에서 계약이 깨졌다.
+       → `resolve()` 로 **절대경로**를 넘긴다.
+
+    재현: `bash shared/scripts/tests/test-skill3-gate.sh` (레포 밖·상대경로 케이스 포함)
+    """
+    try:
+        import subprocess
+        ap = path.resolve()
+        r = subprocess.run(
+            ['git', 'ls-files', '--error-unmatch', str(ap)],
+            cwd=str(ap.parent), capture_output=True, timeout=5,
+        )
+        if r.returncode == 0:
+            return False    # 추적 중 = 기존 스킬
+        if r.returncode == 1:
+            return True     # 레포 안인데 미추적 = 신규 스킬
+        return None         # 128 등 = 레포 밖·git 부재 → 판정 불가(fail-open)
+    except Exception:
+        return None
 
 
 def check_prompt_three_elements(body):

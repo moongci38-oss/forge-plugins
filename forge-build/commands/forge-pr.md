@@ -15,12 +15,15 @@ PR 생성 단독 실행. `/sdd` Phase 5 분리 명령 (AD-46).
 |------|------|------|
 | PR 작업(diff 요약·PR body·봇리뷰 해소) | **Sonnet** | 커맨드 frontmatter `model: sonnet`(실행자 계층) |
 | git ops(checkout·merge·push·worktree) | **Haiku** | `Agent(model:"haiku")` subagent |
-| cr-final(Step 3) | **Opus**+Codex+Gemini | Claude 레그 Sonnet 고정(degrade=Opus+Gemini) |
+| cr-final(Step 3) | **Fable 5**+Codex(sol)+Gemini(3.6-pro) | 2026-08-22 상향 · effort=xhigh · `--no-frontier` 로 일괄 하향(degrade=Codex 제외) |
 | 고위험 결정 advisor(BOUNDARY·scope-drift·봇충돌) | **Fable 5**(대체 `gpt-5.6-sol`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력. advisory only |
 
 근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`.
 ⚠️ **2026-08-12 정정**: 구 문구는 "forge-pr advisor 는 Opus 고정 — Fable 자동분기 없음"이었다. advisor 기본이 Fable 로 바뀌면서 **advisor 자문 레그는 리졸버를 따른다**. 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
-⚠️ **여전히 유효한 금지 — 범위가 좁아졌을 뿐이다**: `cr-multi`/`cr-triple` 의 **검수 워커 레그**(Claude 레그)에 Fable 자동 배선은 금지다(`--fable` = Human 수동 전용). 바뀐 것은 **advisor 자문**이고, **검수 레그**가 아니다. 둘을 섞지 말 것 — PR 마다 프런티어 모델로 전체 검수를 돌리면 비용이 폭발한다.
+✅ **2026-08-22 Human 지시로 이 금지는 해제됐다.** `cr-multi`/`cr-triple` 의 **검수 워커 레그**도 이제 기본이
+**Fable 5 + gpt-5.6-sol + gemini-3.6-pro(effort=xhigh)** 다. 즉 `/forge-pr` 이 부르는 cr-final·cr-triple 은
+별도 플래그 없이 프런티어 모델로 돈다. 구 조항의 근거("매 PR 프런티어 = 비용 폭발")는 구독 3계정 정액
+운용이라 성립하지 않는다. 정본 → `model-routing.md §세션 운영 모델`.
 
 ## 선적 전 체크리스트 (Pre-ship) — AI-instruction 전용 (기계적 강제 없음)
 

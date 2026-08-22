@@ -24,7 +24,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage plan --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.6-terra (medium effort) — ChatGPT OAuth 기본
+- 모델: gpt-5.6-sol (xhigh effort) — 2026-08-22 상향(구: gpt-5.6-terra / medium)
 - Blocking: NO (권고 — AD-50. FAIL 시 Human 판단으로 진행 가능)
 - 결과: `forge-outputs/docs/reviews/plan/{date}-{slug}.{md,json}`
 
@@ -37,7 +37,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT OAuth, gpt-5.6-terra) / 비상 폴백(apikey 시): ~$0.01~0.03
+$0.00 (ChatGPT 구독, gpt-5.6-sol) / 비상 폴백(apikey 시): xhigh effort 는 종량
 
 ## 관련
 
