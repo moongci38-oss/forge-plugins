@@ -72,17 +72,26 @@ workflow args 로도 릴레이한다(두 경로가 같은 값을 받는다).
 
 **`--gemini-max`** (Human opt-in — 2026-08-19): **Gemini 검수 레그 모델 승격**(Claude·Codex 불변).
 쉽게 말하면 **세 검수자 중 Gemini 한 명만 상급자로 바꿔 앉히는 스위치**다.
-- **미지정 시 기본 = `gemini-3.6-pro`**(2026-08-22 Human 지시(구독 3계정·비용 제약 없음)로 기본값 상향). 구 "no-op → 서버 env → 서버 기본(3.5 계열)" 층은 폐기됐다.
-  `--gemini-max` 는 `gemini:max`(**gemini-3.6-pro**)로 올린다.
+- **미지정 시 기본 = `gemini-3.6-flash`**(2026-08-22 Human 지시(구독 3계정·비용 제약 없음)로 기본값 상향). 구 "no-op → 서버 env → 서버 기본(3.5 계열)" 층은 폐기됐다.
+  ⚠️ **정정(2026-08-22 저녁)**: 종전 기본값 `gemini-3.6-pro` 는 서버에 없는 id 였다(실측 404).
+    지시 원문이 'gemini 3.6 flash or pro' 였으므로 **실존하는 쪽**으로 확정한다.
+    재현: `mcp__gemini-text__generate_text(model='gemini-3.6-pro')` → 404 · `'gemini-3.6-flash'` → 정상.
+  ⛔ `--gemini-max` 는 `gemini:max`(**gemini-3.6-pro**)로 올리는데 **지금은 켜지 마라** — 그 id 가
+    서버에 없어서 레그가 죽는다. 리졸버가 stderr 로 경고하고, `FORGE_MODEL_STRICT=1` 이면 아예 멈춘다.
+    404 이후의 갈래·응답 원문 → `model-registry.json` `_note_2026_08_22` **한 곳**(여기 옮겨 적지 않는다).
 - 지정 시 `geminiModel` = `model-registry-resolve.sh gemini:max` 결과(**버전무관** — registry SSoT 가 해석).
   ⚠️ 모델 id 를 이 문서에 적지 않는다. `--sol` 과 같은 규약이다.
+  ⚠️ **위 `gemini-3.6-pro` 리터럴은 그 규약의 예외다** — **부재가 확인된 id 를 경고하는 목적**이라
+    값 자체가 경고의 내용이다(승격 대상 id 를 적는 것과 다르다). `cr-multi.md` 에 같은 해명이
+    있는데 이 파일에만 없어 형제 문서 간 서술이 비대칭이었다 — 검수 지적 반영.
 - ⚠️ **"자동 배선 금지" 구 제약은 2026-08-22 Human 지시로 해제됐다.** 기본을 pro 가 아닌 flash 로 둔 이유는
-  비용이 아니라 **id 실재 확인 여부**다 — flash 는 릴리스 노트로 확인됐고 pro 는 미확인이다.
+  비용이 아니라 **id 실재**다 — flash 는 실호출로 응답을 받았고, pro 는 **없는 것이 확인됐다**(404).
+  ⚠️ 구 표기 "pro 는 미확인" 은 폐기(2026-08-23) — 미확인과 부재 확정은 다르다.
   서버가 id 를 거부하면 그건 검수 실패가 아니라 **검수 미수행**이니 PASS 로 집계하지 말 것.
-- resolve 실패 시 `null` → workflow.js 내장 기본값(`gemini-3.6-pro`)으로 떨어진다(fail-open, **하향 아님**).
+- resolve 실패 시 `null` → workflow.js 내장 기본값(`gemini-3.6-flash`)으로 떨어진다(fail-open, **하향 아님**).
   ⚠️ 구 서술 "서버 기본 유지"는 폐기 — 서버 기본값 층은 2026-08-22 부로 도달하지 않는다.
 - 근거 ①(배선 실재): `workflow.js` 가 `geminiModel` arg 를 수용한다 — 파싱
-  `const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.6-pro' : null)`, 주입 `geminiModelDirective`.
+  `const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.6-flash' : null)`, 주입 `geminiModelDirective`.
   ⚠️ 구 인용 `|| null` 은 **2026-08-22 이전 코드**다(PR #320 C1 검수 HIGH 실적발 — 문서가 없는 코드를 인용하고 있었다).
   재현: `grep -n 'geminiModel' ${FORGE_ROOT:-$HOME/forge}/.claude/skills/cr-multi/workflow.js`
   ⚠️ 줄번호는 편집마다 밀리므로 적지 않는다(구 표기 `:327,1386` 은 diff 적용 **전** 기준이라
@@ -109,7 +118,7 @@ workflow args 로도 릴레이한다(두 경로가 같은 값을 받는다).
 //   CODEX_MODEL = Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:${CODEX_TIER:-max}`) 결과
 //     → registry가 버전무관 해석(codex:max→gpt-5.6-sol). resolve 실패 시 null → workflow.js 내장 폴백(sol)로 떨어진다(fail-open, 하향 아님).
 // --gemini-max 파싱 (Gemini 검수 레그 승격, model-registry SSoT — Human opt-in):
-//   GEMINI_MODEL = '--gemini-max' 있으면 Bash(`... gemini:max`) 결과, 없으면 Bash(`... gemini:default`) 결과(=gemini-3.6-pro)
+//   GEMINI_MODEL = '--gemini-max' 있으면 Bash(`... gemini:max`) 결과, 없으면 Bash(`... gemini:default`) 결과(=gemini-3.6-flash)
 //     → null 이면 args 에서 생략한다.
 //       ⚠️ 생략 · 명시적 null · 빈 문자열 · false 는 workflow.js 에서 **전부 동치**다
 //         (`_a?.geminiModel || null` — 넷 다 falsy 라 같은 null 로 떨어진다). 즉 생략은 계약이 아니라
@@ -145,7 +154,7 @@ Workflow({
 args 를 아예 안 넘기는 경로(직접 Workflow 호출)에서도 workflow.js 내장 기본값이 `gpt-5.6-sol` 이라 하향되지 않는다.
 
 `GEMINI_MODEL` 은 설정됐을 때만 args 에 실린다 — 안 실어도 workflow.js 내장 기본값
-(`gemini-3.6-pro`)이 채우므로 **하향되지 않는다**. 조건부 생략은 표기 취향이다.
+(`gemini-3.6-flash`)이 채우므로 **하향되지 않는다**. 조건부 생략은 표기 취향이다.
 ⚠️ **구 서술 폐기**: "키 부재와 null 을 똑같이 다뤄 서버 기본값 경로로 간다"는 2026-08-22 이전 동작이다.
 이제 그 경로는 `frontier:false`(= `--no-frontier`)일 때만 열린다.
 `REPO_ROOT` 는 workflow.js 가 레그 프롬프트에 pin 으로 주입하고 `reviewedSha` 취득 근거로 쓴다. null 이면 레그 자기보고 모드로 떨어진다(차단 아님).

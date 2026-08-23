@@ -91,12 +91,12 @@ Evaluator가 사용할 평가 기준을 Generator 실행 **전**에 명시한다
 
 **PASS 기준**: 합산 70점 이상 + 요구사항 즉시 FAIL 없음
 
-## Sprint Contract (Generator ↔ Evaluator 합의 형식)
+### Sprint Contract (Generator ↔ Evaluator 합의 형식)
 
 PGE Workflow 시작 시 Planner가 다음 contract를 작성. Generator·Evaluator 양쪽이 참조.
 
 ```yaml
-sprint키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:
+sprint_contract:
   scope: "이번 반복에서 다룰 것 (구체적 기능 / 파일 / 출력)"
   out_of_scope: "명시적 제외 (다음 반복에서 다룸 또는 영구 제외)"
   done_criteria: "Evaluator가 PASS 판정하는 객관적 조건"

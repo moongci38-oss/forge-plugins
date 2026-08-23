@@ -52,7 +52,8 @@ raw-data.json의 `claude_search_needed` 항목에 대해 검색 수행:
 - TechCrunch AI, VentureBeat, Product Hunt AI 카테고리
 - a16z AI Blog
 
-검색 도구 우선순위: `mcp__brave-search__brave_web_search` → WebSearch → WebFetch
+검색 도구 우선순위(정책 SSoT = `rules-on-demand/web-search-policy.md`): `mcp__tavily__tavily_search` → `mcp__brave-search__brave_web_search`(fallback) → WebFetch
+⚠️ 2026-08-20 정정: 종전엔 Brave 가 1순위로 적혀 있었다. 정책은 줄곧 Tavily 우선이었는데 **배선이 정책과 반대**였고, 그래서 Brave 7일 장애(2026-08-17)가 fallback 이 아니라 본진을 멈췄다. 재현: `grep -rl brave_web_search .claude/agents .claude/skills | wc -l`
 
 ## Step 3: 우리 시스템 현황 스냅샷
 

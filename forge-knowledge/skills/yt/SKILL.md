@@ -2,7 +2,7 @@
 name: yt
 description: "YouTube 영상을 트랜스크립트·댓글·설명란까지 수집해 비판적 분석·팩트체크·시스템 개선안 생성. URL 전송 또는 영상분석 요청 시 사용."
 argument-hint: <YouTube-URL> [--format summary|timeline|mindmap|full|blog] [--deep]
-allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, mcp__brave-search__brave_web_search
+allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search
 model: sonnet
 ---
 
@@ -162,7 +162,8 @@ JSON의 `is_generated_subtitle` 필드를 기반으로 자막 신뢰도 등급�
 영상 핵심 주제 3-5개를 추출한 후, 각 주제를 검색합니다.
 
 **검색 도구 우선순위:**
-1. `mcp__brave-search__brave_web_search` (기본 — 광고 없는 독립 인덱스)
+1. `mcp__tavily__tavily_search` (기본 — 정책 1순위)
+1b. `mcp__brave-search__brave_web_search` (fallback — 광고 없는 독립 인덱스)
 2. WebSearch (Brave MCP 실패 시 fallback)
 3. WebFetch (특정 URL 직접 조회 시)
 

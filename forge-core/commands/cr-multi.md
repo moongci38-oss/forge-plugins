@@ -67,13 +67,14 @@ Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/.claude/skills/cr-multi/workf
 
 **`--gemini-max`** — Gemini 검수 레그를 `gemini:max`(**gemini-3.6-pro**)로 승격(Claude·Codex 불변).
 `GEMINI_MODEL = Bash("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh gemini:max")` → args `geminiModel`.
-- **미지정 시 기본 = `gemini-3.6-pro`**(2026-08-22 상향 — 구 서버 기본값 3.5 계열 추종은 폐기).
-  즉 서버 env(`GEMINI_REVIEW_MODEL`)·서버 기본 층은 더 이상 도달하지 않는다.
+- **미지정 시 기본 = `gemini-3.6-flash`**(실호출 확인). 서버 env(`GEMINI_REVIEW_MODEL`)·서버 기본 층은 도달하지 않는다.
+- ⛔ **지금은 켜지 마라** — `gemini-3.6-pro` 가 **서버에 없어서**(실측 404) 그 레그가 죽는다.
+  리졸버가 stderr 로 경고한다(`model-registry-resolve.sh gemini:max` → WARN). 아예 막으려면 `FORGE_MODEL_STRICT=1`.
+- 404 이후의 갈래·응답 원문·재현 명령·이 기본값이 뒤집혔던 경위 → `model-registry.json` `_note_2026_08_22` **한 곳**.
+  여기 옮겨 적지 않는다 — 복사본이 갈라져 같은 사실이 세 번 연속 자기모순이 났다.
 - ⚠️ **구 서술 폐기**: "과금 미확인이라 기본값 무변경이 계약"·"자동 배선 금지"는 **2026-08-22 Human 지시로 해제**됐다.
-  ⚠️ **구 서술 폐기(2026-08-22 재확인)**: 한때 "기본을 3.6-flash 로 두고 pro 는 선택" 이라 적었으나,
-  지시 원문('gemini 3.6 flash or pro')의 확정값은 **pro** 였다. 기본이 곧 pro 이므로 `--gemini-max` 는 no-op 이다.
-  ⚠️ **pro 는 id 실재가 실호출로 확인되지 않았다** — 서버가 거부하면 그것은 검수 실패가 아니라
-  **검수 미수행**이니 PASS 로 집계하지 말고 degrade 처리한다(거부 시 registry `gemini` tier 한 곳만 되돌리면 된다).
+- ⚠️ 이 항목이 `gemini-3.6-pro` 리터럴을 적는 것은 "모델 id 는 registry 가 SSoT" 규약의 **예외**다 —
+  **부재가 확인된 id 를 경고**하는 목적이라 값 자체가 경고의 내용이다(승격 대상 id 를 적는 것과 다르다).
 
 ⚠️ **이 세 묶음은 `/cr-triple` 과 동일 의미여야 한다.** 한쪽에만 플래그가 생기면 폴백 경로에서
 조용히 사라진다 — `shared/scripts/cr-multi-flag-parity.test.sh` 가 그 드리프트를 고정한다.

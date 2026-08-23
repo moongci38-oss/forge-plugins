@@ -148,7 +148,7 @@ features:
     stack: next.js      # 이 feature의 주 기술 스택
     mockup_refs:        # 연관 목업 파일 (key: 화면ID, value: 경로)
       {page-id}: s3-mockup/{page-id}.png
-    api키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:       # 핵심 API 계약 (EP + 응답 1줄)
+    api_contract:       # 핵심 API 계약 (EP + 응답 1줄)
       - "POST /endpoint → 201 {resultId}"
     aggregate: null     # DDD 집합체 (P3 기능명세 DDD 섹션 작성 후 채움 — 2차)
 ```

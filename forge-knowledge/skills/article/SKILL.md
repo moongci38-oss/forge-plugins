@@ -2,7 +2,7 @@
 name: article
 description: "웹 기사 URL 심층분석→구조화 리포트(TL;DR·핵심포인트·비판적분석·팩트체크). 기사 URL 전송/분석요청 시 사용."
 argument-hint: <article-URL> [--deep] [--skip-research] [--skip-cr-plan]
-allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, WebSearch, mcp__brave-search__brave_web_search, Agent
+allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, WebSearch, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search, Agent
 model: sonnet
 ---
 
@@ -99,7 +99,7 @@ $ARGUMENTS
 
 5. WebFetch 실패 시 (paywall/robot block/SSR 필요):
    - 명확한 실패 사유 출력
-   - `mcp__brave-search__brave_web_search`로 기사 제목 검색해 2차 소스 탐색
+   - `mcp__tavily__tavily_search`로 기사 제목 검색해 2차 소스 탐색(실패 시 `mcp__brave-search__brave_web_search` fallback)
    - 그래도 실패하면 사용자에게 보고 + 스킬 종료
 
 ### Step 1.5 — 내부 링크 우선순위화
@@ -399,75 +399,11 @@ yt·daily와 동일 규약 (2026-07-18 배선):
 
 ## 출력 형식 (analysis.md)
 
-```markdown
-# {title}
-> {domain} | {author} | {published}
-> 원본: {url}
-> 카테고리: {category} | 태그: #{tag1} #{tag2}
+리포트 본문 템플릿 전문(TL;DR·핵심 포인트·비판적 분석·팩트체크·관련성·인용 등 18개 절)은
+**`reference.md` 로 분리**했다 — 진입 판단에는 쓰이지 않고 **산출물을 쓸 때만** 필요한 형식이라,
+매 호출마다 적재할 이유가 없다(progressive disclosure).
 
-## TL;DR
-(1-2문장)
-
-## 핵심 포인트
-1. **포인트 내용**
-2. ...
-
-## 비판적 분석
-
-### 주장 1: "{핵심 주장}" [출처: URL] | [미검증] (검증 소스 없을 때)
-- **제시된 근거**: ...
-- **근거 유형**: 실증/경험/의견
-- **한계**: ...
-- **반론/대안**: ...
-
-## 팩트체크 대상
-- **주장**: "..." | **검증 필요 이유**: ... | **검증 방법**: ...
-
-## 팩트체크 결과
-| # | 주장 | 판정 | 근거 |
-|:-:|------|:----:|------|
-| 1 | "..." | ✅/⚠️/❌/❓ | 출처 + 요약 |
-
-## 관련 링크 분석
-| # | 링크 | 유형 | 핵심 내용 | 기사와의 관계 |
-|:-:|------|:----:|---------|:-----------:|
-| 1 | [제목](url) | 공식/블로그/논문/GitHub | ... | 보강/반박/확장 |
-
-## 웹 리서치 결과
-| 주제 | 출처 | 핵심 인사이트 | 기사와의 관계 |
-|------|------|-------------|:-----------:|
-| ... | [제목](url) | ... | 일치/보완/반박 |
-
-## 시스템 비교 분석
-| 기사 제안 | 우리 현황 | 갭 | 영향도 | 난이도 |
-|----------|---------|:--:|:----:|:----:|
-| ... | 이미 적용/부분/미적용 | 구체적 갭 | H/M/L | H/M/L |
-
-## 필수 개선 제안
-
-### P0 — 즉시 적용
-- **[시스템]** 내용: 현황 → 제안 → 기대 효과
-
-### P1 — 이번 주
-- ...
-
-### P2 — 이번 달
-- ...
-
-## 실행 가능 항목
-- [ ] 항목 (담당: 프로젝트명)
-
-## 관련성
-- **Portfolio**: N/5 — 이유
-- **GodBlade**: N/5 — 이유
-- **비즈니스**: N/5 — 이유
-
-## 핵심 인용
-> "원문" — 출처
-
-## 추가 리서치 필요
-- 주제 (검색 키워드: `keyword1`, `keyword2`)
-```
+→ **작성 직전 `reference.md` 를 Read 한 뒤 그 형식 그대로 채운다.**
 
 ## 파일명 컨벤션 (wiki-sync 호환 필수)
 

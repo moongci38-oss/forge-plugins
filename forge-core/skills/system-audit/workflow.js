@@ -146,7 +146,7 @@ function checkBudget(phase) {
 //   해당 축은 공통 지시만 받는다(fail-open — 감사는 계속되나 얕아진다).
 const AXIS_DETAIL = {
   'Agentic':  `반드시 shared/docs/2026-03-30-four-engineering-disciplines.md 의 §4 Agentic Engineering 섹션을 Read 한 후 정의서 기법 목록 기준으로만 체크하라(정의서에 없는 항목은 감사하지 않는다). Composable Patterns 수준, ACI 설계, Agent Evals, Multi-Agent Coordination, Memory Architecture, AgentOps 를 점검한다.`,
-  'Context':  `반드시 shared/docs/2026-03-30-four-engineering-disciplines.md 의 §2 Context Engineering 섹션을 Read 한 후 정의서 기법 목록 기준으로만 체크하라(정의서에 없는 항목은 감사하지 않는다). System Prompt Design(§2-1)~Structured Note-Taking(§2-9) 9개 기법과 프롬프트 구조 3요소 포함률을 점검한다.`,
+  'Context':  `반드시 shared/docs/2026-03-30-four-engineering-disciplines.md 의 §2 Context Engineering 섹션을 Read 한 후 정의서 기법 목록 기준으로만 체크하라(정의서에 없는 항목은 감사하지 않는다). System Prompt Design(§2-1)~Structured Note-Taking(§2-9) 9개 기법과 프롬프트 구조 3요소 포함률을 점검한다. 3요소 포함률은 직접 정의해 세지 말고 shared/scripts/harness-metrics.sh 출력의 SKILL3_PCT 를 그대로 인용한다 — 회차마다 자를 새로 만들면 개선인지 자가 바뀐 것인지 구분할 수 없다(M-2).`,
   'Harness':  `반드시 shared/docs/2026-03-30-four-engineering-disciplines.md 의 §3 Harness Engineering 섹션을 Read 한 후 정의서 기법 목록 기준으로만 체크하라(정의서에 없는 항목은 감사하지 않는다). Check Chain(§3-1), Guardrails 5 Rail Types(§3-2), OWASP Agentic Top 10(§3-3), Hooks(§3-4), AI Evals(§3-5), Observability(§3-6), Rollback(§3-7), Maintenance Agents(§3-8) 8개 구성요소를 점검한다.`,
   'Cost':     `모델 라우팅 3계층(Opus/Sonnet/Haiku) 문서화와 실배선, 컨텍스트 절약 패턴, MCP→CLI 전환 현황, 비용 최적화 패턴(캐싱/라우팅/배치/길이제어) 적용 여부, 낭비 패턴을 점검한다.`,
   'Human-AI': `5-Level Autonomy 매핑, [STOP]/[AUTO-PASS] 게이트 적절성, 에스컬레이션 트리거 5유형 커버리지, 안티패턴(Quasi-Automation/Rubber Stamping/Alert Fatigue), Override Rate 추적을 점검한다.`,

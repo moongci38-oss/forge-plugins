@@ -1,6 +1,6 @@
 ---
 name: style-forge
-description: 5-10개 에셋에서 스타일 추출→style-guide.md 생성(Mode A) 또는 Replicate LoRA 파인튜닝(Mode B). /game-asset-generate 실행 전 필수 선행 스킬 — 시각적 일관성 기준 정립.
+description: "5-10개 에셋에서 스타일 추출→style-guide.md 생성(Mode A) 또는 Replicate LoRA 파인튜닝(Mode B). /game-asset-generate 실행 전 필수 선행 스킬 — 시각적 일관성 기준 정립. SKIP: 시각 에셋 작업이 아닐 때, 참조 이미지 없이 스타일만 논의할 때, 유효한 style-guide.md 가 이미 있을 때."
 context: fork
 model: sonnet
 ---
@@ -8,6 +8,16 @@ model: sonnet
 # Style Forge
 
 프로젝트의 시각적 일관성을 위한 스타일 정의 도구. 두 가지 모드를 지원한다.
+
+## 사용하지 말아야 할 때 (When NOT to use)
+
+아래 중 하나라도 해당하면 이 스킬을 호출하지 않는다.
+
+- **시각 에셋 작업이 아님** — 코드·문서·기획 등 이미지 스타일과 무관한 작업.
+- **참조 에셋 0개** — 이미지 없이 스타일을 "상의"만 하는 단계(아래 §환경 요구사항 입력 검증의 [STOP] 조건과 동일).
+- **이미지 1~2장** — 공통 스타일 추출이 성립하지 않는다. `/screenshot-analyze` 를 직접 쓴다.
+- **유효한 style-guide.md 존재** — 갱신이 필요할 때만 재실행한다. 그대로 쓰면 되는 경우 재추출 불필요.
+- **웹/앱 UI 디자인** — 이 스킬은 게임 에셋 파이프라인 P0 전용이다. UI 는 `tool-rules.md §디자인 도구 순위` 를 따른다.
 
 ## 모드
 

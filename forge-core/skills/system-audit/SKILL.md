@@ -173,7 +173,15 @@ GX="--exclude-dir=worktrees --exclude-dir=logs --exclude-dir=.git --exclude-dir=
 AG_SKILLS=$(find "$TP/skills" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
 AG_AGENTS=$(find "$TP/agents" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)
 AG_MODEL_TIERED_AGENTS=$(grep -lE "^model:[[:space:]]*[\"']?(haiku|sonnet)" "$TP"/agents/*.md 2>/dev/null | wc -l)
-AG_EVAL_SKILLS=$(find "$TP/skills" -maxdepth 2 -iname "eval_cases.jsonl" 2>/dev/null | wc -l)
+# 지표 SSoT (M-2·M-3, 2026-08-22) — 이 두 지표를 여기서 다시 정의하지 않는다.
+#   같은 질문에 답이 여러 개면 회차 비교가 영원히 불가능해진다. evals 보유율 하나에
+#   48/70 · 16/70 · 51/70 세 답이 나왔던 것이 M-3 이고, 3요소 포함률이 49% 와 56% 로
+#   갈렸던 것이 M-2 다(그 차이는 품질이 아니라 자의 차이였다).
+#   정의를 바꾸려면 shared/scripts/harness-metrics.sh 를 고치고 그 회차를 리포트에 명시할 것.
+#   재현: bash shared/scripts/harness-metrics.sh
+AGM_JSON=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-metrics.sh" --json --root "$(dirname "$TP")" 2>/dev/null)
+AG_EVAL_SKILLS=$(printf %s "$AGM_JSON" | python3 -c "import json,sys;print(json.load(sys.stdin)['evals']['ok'])" 2>/dev/null || echo 0)
+AG_SKILL3_PCT=$(printf %s "$AGM_JSON" | python3 -c "import json,sys;print(json.load(sys.stdin)['skill3']['pct'])" 2>/dev/null || echo 0)
 AG_PARALLEL_SPAWN_MENTIONS=$(grep -rlE $GX "parallel\(|병렬.{0,4}스폰" "$TP/skills" 2>/dev/null | wc -l)
 
 # ── Context 축(axis-context 정량측정표: 세션시작토큰·MEMORY항목·규칙중복률·조건부로딩률) ──
