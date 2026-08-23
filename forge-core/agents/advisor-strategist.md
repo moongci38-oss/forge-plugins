@@ -6,6 +6,7 @@ description: >
   최종 결과물을 생성하지 않는다. 설계 분기, 경계 판정, 비가역 변경, 검수 결론 확정,
   grants 전략, 보안 리스크 등 판단이 갈리는 지점 지원.
 model: fable
+effort: xhigh
 tools: Read, Grep, Glob
 ---
 

@@ -21,7 +21,7 @@ PR 생성 단독 실행. `/sdd` Phase 5 분리 명령 (AD-46).
 근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`.
 ⚠️ **2026-08-12 정정**: 구 문구는 "forge-pr advisor 는 Opus 고정 — Fable 자동분기 없음"이었다. advisor 기본이 Fable 로 바뀌면서 **advisor 자문 레그는 리졸버를 따른다**. 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
 ✅ **2026-08-22 Human 지시로 이 금지는 해제됐다.** `cr-multi`/`cr-triple` 의 **검수 워커 레그**도 이제 기본이
-**Fable 5 + gpt-5.6-sol + gemini-3.6-pro(effort=xhigh)** 다. 즉 `/forge-pr` 이 부르는 cr-final·cr-triple 은
+**Fable 5 + gpt-5.6-sol + gemini-3.6-flash(effort=xhigh)** 다. 즉 `/forge-pr` 이 부르는 cr-final·cr-triple 은
 별도 플래그 없이 프런티어 모델로 돈다. 구 조항의 근거("매 PR 프런티어 = 비용 폭발")는 구독 3계정 정액
 운용이라 성립하지 않는다. 정본 → `model-routing.md §세션 운영 모델`.
 
@@ -170,6 +170,30 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
    ```
    갱신 후 `gh pr view --json body`로 재확인해 5필드 반영을 재실측한다.
 2.5. **`bash .claude/skills/qa/scripts/ci-wait.sh {branch}`** — PR CI 통과 대기 (gh pr checks 폴링). FAIL → `docs/qa/ci-trigger.jsonl` append → **[STOP]** Human 에스컬레이션
+2.6. **CI 가 아예 못 도는 상황이면 로컬로 같은 검사를 돌린다 (2026-08-22 신설)** —
+   위 2.5 는 CI 가 **돌긴 돈다**는 전제 위에 있다. 잡이 시작조차 못 하면 폴링은 영원히 끝나지 않는다.
+   `gh pr checks` 결과가 전부 몇 초 만에 `fail` 이고 run 주석에 아래 같은 문구가 있으면 그 상황이다:
+   - `The job was not started because recent account payments have failed…` (결제·한도)
+   - 러너 부족·서비스 장애로 큐에서 잡이 잡히지 않는 경우
+
+   그때는 **기다리지 말고 실행 장소를 옮긴다.** 검사를 없애는 게 아니라 여기서 돌리는 것이다:
+   ```bash
+   bash shared/scripts/local-ci.sh --base origin/develop
+   ```
+   - 워크플로가 쓰는 **그 명령을 그 환경값으로** 돌린다(`FORGE_EVALS_STRICT=0` 등 포함).
+   - 결과는 `.claude/state/local-ci-latest.txt` 에 커밋 SHA 와 함께 남는다 —
+     **PR 본문·머지 보고에 CI 대신 이 증거를 인용**한다. 인용 없이 "검증됨"이라 쓰지 않는다.
+   - ⚠️ **SKIP 은 통과가 아니다.** LLM Judge·behavioral regression 은 로컬에서 안 돈다 —
+     그 항목들은 SKIP 사유를 보고에 그대로 옮기고, 통과 건수에 합산하지 않는다.
+   - ⚠️ 로컬은 더티 트리일 수 있어 깨끗한 체크아웃인 CI 와 결과가 다를 수 있다.
+     러너가 더티 파일 수를 경고로 출력하니 그 줄도 함께 인용한다.
+   - 이 러너가 YAML 과 어긋나면 검증이 아니라 위안이 된다 — 정합은
+     `bash shared/scripts/tests/local-ci-parity.test.sh` 가 고정한다(드리프트 시 FAIL).
+
+   ⛔ **`--no-verify`·게이트 비활성화로 넘어가는 것은 이 절이 허용하는 우회가 아니다.**
+   여기서 허용하는 것은 **실행 위치 변경**뿐이고, 통과 기준은 그대로다.
+   CI 자체의 복구(결제·한도)는 사람 몫이며 `human-queue.md` 에 [STOP] 으로 남긴다.
+
 2.7. **VERSION drift 감지 (GS-B11)** — PR 생성 후 머지 전, 머지 대상 브랜치가 PR 생성 시점 이후 새 커밋을 받았는지 확인:
    ```bash
    # ⚠️ `--json baseRefSha` 는 gh 에 없는 필드였다(2026-07-31 실측: `Unknown JSON field`).

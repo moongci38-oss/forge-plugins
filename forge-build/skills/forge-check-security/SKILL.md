@@ -125,6 +125,41 @@ FAIL: 파일 부재 / phase 결과 대부분 누락 / CRITICAL 발견인데 근�
 
 판정 결과를 `$HOME/.claude/skills/forge-check-security/eval_cases.jsonl`에 `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL", "note":"..."}` 형태로 이어서 기록한다(자동 훅 없음 — 이 스텝에서 직접 append). 통합 패턴 정본 → `eval-rubric/references/skill-integration.md`.
 
+## STRIDE 선언 대비 구현 대조 (phase-security-auditor 배선 — 2026-08-22)
+
+S11 은 위협을 **열거**한다. 그런데 계획서가 이미 선언해 둔 STRIDE 표가 실제 코드로 구현됐는지는
+아무도 보지 않았다. 그 대조가 `phase-security-auditor` 의 일이다.
+
+쉽게 말하면 **"위험 목록을 새로 쓰는 일"과 "약속한 자물쇠가 진짜 달렸는지 확인하는 일"은 다르다.**
+지금까지는 뒤쪽이 통째로 비어 있었다.
+
+**발동 조건**: 대상에 STRIDE 선언 표(`| T-{slug}-NN | ... | Disposition |`)를 가진 계획서·spec 이
+있을 때만. 없으면 건너뛴다 — 선언이 없으면 대조할 대상도 없다.
+
+```python
+stride_docs = Grep(pattern=r"T-[a-z0-9-]+-\d\d\s*\|", glob="**/*.md")   # 선언 탐지
+if stride_docs:
+    Agent(
+      subagent_type="phase-security-auditor",
+      model="sonnet",   # 선언↔코드 대조 = 중간 난도 (model-routing.md §워커 tier)
+      prompt=f"""아래 STRIDE 선언 표와 실제 구현을 대조하라.
+선언 문서: {stride_docs}
+보안 리포트: {report_path}
+Threat ID 별로 PASS(완화 코드 실존) / MISMATCH(선언과 다름) / MISSING(구현 없음) 3판정과
+각 판정의 근거 `파일:라인` 을 낸다. Disposition=accept·transfer 는 근거 문장 존재 여부만 본다.
+"""
+    )
+```
+
+판정 결과는 위 Evaluator 와 같은 `eval_cases.jsonl` 에 이어 기록한다.
+
+⚠️ **이 배선이 무력화되는 입력**: 계획서가 STRIDE 를 표가 아니라 **산문으로만** 적으면 위 Grep 이
+못 잡고 조용히 건너뛴다 — 표 형식을 지키는 것이 이 배선의 나머지 절반이다.
+
+근거: 2026-08-22 ACHCE 감사 M-11 — 이 에이전트 언급은 4곳인데 실제 `Agent(subagent_type=)` 호출은
+**0건**이었다(배선 전 재현: `grep -rn "subagent_type.*phase-security-auditor" ${FORGE_ROOT:-$HOME/forge}` → 0).
+폐기조건: STRIDE 선언 관행 자체가 폐지되면 이 절과 에이전트를 함께 아카이브한다.
+
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() S1~S7 7종 보안 스캔 → 집계.
 실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/forge-check-security/workflow.js"), args: { target } })`

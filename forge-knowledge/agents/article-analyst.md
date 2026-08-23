@@ -1,7 +1,7 @@
 ---
 name: article-analyst
 description: 웹 기사 본문 JSON을 분석하여 구조화된 Markdown 리포트를 생성하는 에이전트. /article 스킬 Wave 2에서 병렬 스폰되며, TL;DR·카테고리·핵심 포인트·비판적 분석·팩트체크 대상·시스템 관련성을 도출한다.
-tools: Read, Write, Glob, Grep, WebFetch, mcp__brave-search__brave_web_search
+tools: Read, Write, Glob, Grep, WebFetch, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search
 model: sonnet
 ---
 

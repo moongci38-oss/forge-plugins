@@ -7,7 +7,7 @@ argument-hint: "[YYYY-MM-DD]"
 disable-model-invocation: true
 context: fork
 agent: general-purpose
-allowed-tools: Agent, Bash, WebSearch, WebFetch, Write, Read, Glob, Grep, mcp__brave-search__brave_web_search
+allowed-tools: Agent, Bash, WebSearch, WebFetch, Write, Read, Glob, Grep, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search
 model: sonnet
 ---
 
@@ -121,20 +121,20 @@ Workflow({ script: Bash("cat $HOME/.claude/skills/daily-system-review/workflow.j
 - Tier 1 전체 (13개 공식 소스) — WebFetch로 직접 확인
 - Tier 2 전체 (GitHub 릴리즈, 트렌딩)
 - 전날 날짜 기준 신규 콘텐츠만 필터
-- **Brave Search 활용**: `brave_web_search`로 공식 소스 도메인 필터링 검색 (예: `site:anthropic.com`, `site:openai.com`). WebFetch 접근 실패 시 Brave Search를 fallback으로 사용하여 최신 발표 감지
+- **웹 검색 활용**(1순위 `tavily_search` · 실패 시 `brave_web_search`): `tavily_search`(또는 fallback `brave_web_search`)로 공식 소스 도메인 필터링 검색 (예: `site:anthropic.com`, `site:openai.com`). WebFetch 접근 실패 시 Brave Search를 fallback으로 사용하여 최신 발표 감지
 - 출력: 구조화된 JSON 요약 → Lead에게 반환
 
 **Teammate B (Haiku): 개발자 커뮤니티 + 미디어**
 - Tier 3 전체 (HN, Reddit, Twitter, Discord)
 - Tier 6 전체 (TechCrunch, VentureBeat, Product Hunt)
 - WebSearch 날짜 필터: 전날~오늘
-- **Brave Search 활용**: `brave_web_search`로 커뮤니티/미디어 검색 (HN, Reddit, TechCrunch 등). WebSearch 실패 시 Brave Search를 fallback으로 사용
+- **웹 검색 활용**(1순위 `tavily_search` · 실패 시 `brave_web_search`): `tavily_search`(또는 fallback `brave_web_search`)로 커뮤니티/미디어 검색 (HN, Reddit, TechCrunch 등). WebSearch 실패 시 Brave Search를 fallback으로 사용
 - 출력: 구조화된 JSON 요약 → Lead에게 반환
 
 **Teammate C (Haiku): YouTube 영상 탐색**
 - Tier 4 전체
 - WebSearch: 채널별 최신 업로드 + 키워드 검색
-- **Brave Search 활용**: `brave_web_search`로 채널별 최신 업로드 검색. 예: `site:youtube.com "Fireship" AI 2026`
+- **웹 검색 활용**(1순위 `tavily_search` · 실패 시 `brave_web_search`): `tavily_search`(또는 fallback `brave_web_search`)로 채널별 최신 업로드 검색. 예: `site:youtube.com "Fireship" AI 2026`
 - 영상 제목, URL, 예상 내용 요약, 조회수/반응
 - 심층 분석 필요 영상은 "추천 시청" 목록으로 분리
 - 출력: 영상 목록 + 요약 → Lead에게 반환
@@ -143,7 +143,7 @@ Workflow({ script: Bash("cat $HOME/.claude/skills/daily-system-review/workflow.j
 - Tier 5 전체 — academic-researcher 에이전트 타입 활용
 - arXiv 전날 신규 제출 (cs.AI, cs.CL, cs.SE, cs.MA)
 - Papers With Code 트렌딩
-- **Brave Search 활용**: `brave_web_search`로 arXiv 최신 논문 검색. 예: `site:arxiv.org cs.AI 2026` + `site:paperswithcode.com trending`
+- **웹 검색 활용**(1순위 `tavily_search` · 실패 시 `brave_web_search`): `tavily_search`(또는 fallback `brave_web_search`)로 arXiv 최신 논문 검색. 예: `site:arxiv.org cs.AI 2026` + `site:paperswithcode.com trending`
 - 실무 적용 가능성 높은 논문 Top 5 선별
 - 출력: 논문 목록 + 핵심 요약 → Lead에게 반환
 

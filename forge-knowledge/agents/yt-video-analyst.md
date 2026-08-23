@@ -1,7 +1,7 @@
 ---
 name: yt-video-analyst
 description: YouTube 영상 트랜스크립트를 분석하여 구조화 요약을 생성하는 에이전트. Agent Teams로 여러 영상을 병렬 분석할 때 사용.
-tools: Read, Write, Glob, Grep, WebFetch, WebSearch, mcp__brave-search__brave_web_search
+tools: Read, Write, Glob, Grep, WebFetch, WebSearch, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search
 model: sonnet
 ---
 
@@ -90,7 +90,8 @@ JSON의 `is_generated_subtitle` 필드를 기반으로 자막 신뢰도 등급�
 영상 핵심 주제 3개를 추출한 후 검색한다.
 
 **검색 도구 우선순위:**
-1. `mcp__brave-search__brave_web_search` (기본)
+1. `mcp__tavily__tavily_search` (기본 — 정책 1순위)
+1b. `mcp__brave-search__brave_web_search` (fallback)
 2. WebSearch (fallback)
 3. WebFetch (특정 URL 직접 조회)
 

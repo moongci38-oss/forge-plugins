@@ -7,7 +7,7 @@ argument-hint: "[YYYY-MM-DD]"
 disable-model-invocation: true
 context: fork
 agent: general-purpose
-allowed-tools: Agent, Bash, WebSearch, WebFetch, Write, Read, Glob, Grep, mcp__brave-search__brave_web_search, mcp__notion__notion-create-pages
+allowed-tools: Agent, Bash, WebSearch, WebFetch, Write, Read, Glob, Grep, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search, mcp__notion__notion-create-pages
 model: sonnet
 ---
 

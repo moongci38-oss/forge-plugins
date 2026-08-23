@@ -208,7 +208,7 @@ node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
 ```
 → 스냅샷 3종 + `console.json`/`network.json`(**hard-gate**) + WARN-우선 세부필드 재방출. a0에서 `--actions`로 재현했다면 a4도 **동일 액션 시퀀스**로 재실행해 각 스텝 스냅샷+`actions-trace.json`을 남기고, 그 스텝 스냅샷을 Vision evaluator에 넘겨 "정적 로드"가 아니라 "실제 인터랙션 이후 상태"가 기대값대로 바뀌었는지 판정한다(healer 자가판정 금지 원칙 그대로 — 판정은 evaluator, healer는 캡처만). **RED대비 diff**(RED에 있던 error/exception/실패요청이 GREEN에서 소멸했는지 대조, 신규 에러 0 확인). `console_clean` = **RED 대비 신규 error/exception 0 + 실패요청(status≥400) 소멸**(단순 "빈 콘솔" 아님). 헬퍼 exit 3(playwright 미설치) 시 → **먼저** 그 stderr 출력을 `docs/qa/artifacts/bug-{N}-green-playwright-unavailable.log`에 저장한 뒤에만 fop.json에 `green.playwright_unavailable: "사유"`를 기록한다(증거 로그 없이 flag 단독 기록 금지 — Gate G가 동일 방식으로 이 로그를 corroborating 증거로 재검증). 저장 후 GUIDE-STOP. 신규 세부필드(js-errors/failed-resources/trace/har/aria/actions-trace)는 WARN-우선 non-blocking — 기존 하드게이트(스크린샷+console+network) 무변경.
 
-> 미해결 debt·carve-out 한계(playwright 부재 self-report 신뢰 한계, pixel-diff 옵션 절차 등) 상세 → `healer-reference.md §a4 미해결 debt / carve-out 한계` (필요 시 Read)
+> 미해결 debt·carve-out 한계(playwright 부재 self-report 신뢰 한계, pixel-diff 옵션 절차 등) 상세 → `.claude/rules-on-demand/healer-reference.md §a4 미해결 debt / carve-out 한계` (필요 시 Read)
 
 > **신선도(§4.2) 강조**: green 스크린샷·오라클(api_response/log_evidence 포함)은 **매 수정 사이클마다 fresh 생성**해야 한다 — 게이트가 `mtime > fix_started_at` 신선도를 요구하므로, 이전 사이클이나 다른 버그의 잔존 아티팩트 재사용은 게이트 BLOCK 대상이 된다.
 
@@ -412,7 +412,7 @@ KERNEL_RC=$?
 
 plateau·oscillation·max_cycles는 kernel 함수를 그대로 재사용하지 않는다 — same_issue만 kernel 실호출, 나머지 3종은 입력 타입 불일치/개념 부재/설계상 caller-소유 이유로 healer가 하드코딩 유지(의도적 미배선, 누락 아님).
 
-> 미배선 사유 상세(plateau 입력타입 불일치·oscillation 상위게이트 선행트립·max_cycles caller-소유 원칙) + 병렬 레인 독립성 근거 → `healer-reference.md §loop-kernel.js 대응 경계 상세` (필요 시 Read)
+> 미배선 사유 상세(plateau 입력타입 불일치·oscillation 상위게이트 선행트립·max_cycles caller-소유 원칙) + 병렬 레인 독립성 근거 → `.claude/rules-on-demand/healer-reference.md §loop-kernel.js 대응 경계 상세` (필요 시 Read)
 
 ---
 
@@ -536,7 +536,7 @@ tags: [qa, bug-fix, {에러타입}]
 
 `isolation: "worktree"` 로 병렬 스폰될 때만 적용(순차/단일 버그 모드는 해당 없음). 도메인 분류(같은 도메인=순차 강제/다른 도메인=병렬 허용) → worktree 절대경로·cwd-drift 가드 준수 → 완료 후 오케스트레이터가 develop에 순차 머지하며 직렬 회귀 게이트(머지마다 seed 재주입+verify.sh 전체 실행, 회귀 시 해당 healer worktree 롤백) 수행.
 
-> 도메인 분류 기준·worktree 제약 전체·HEAD/branch guard 코드·직렬 회귀 게이트 절차 → `healer-reference.md §Worktree 격리 컨텍스트` (병렬 스폰 시 Read)
+> 도메인 분류 기준·worktree 제약 전체·HEAD/branch guard 코드·직렬 회귀 게이트 절차 → `.claude/rules-on-demand/healer-reference.md §Worktree 격리 컨텍스트` (병렬 스폰 시 Read)
 
 ---
 
@@ -544,4 +544,4 @@ tags: [qa, bug-fix, {에러타입}]
 
 batch qa/audit 결과 일괄 처리 시에만 적용(단일 버그리포트 통상 사이클은 불필요). AUTO-FIX(단일파일·확실한 원인)는 즉시 수정, MANUAL-ONLY(다중파일 교차의존·원인불확실)는 [STOP] + Human 위임.
 
-> 4-rule taxonomy 전체·Audit-Fix 파이프라인·Crash-safe 정리 절차 → `healer-reference.md §Auto-Fix 분류` (batch audit 처리 시 Read)
+> 4-rule taxonomy 전체·Audit-Fix 파이프라인·Crash-safe 정리 절차 → `.claude/rules-on-demand/healer-reference.md §Auto-Fix 분류` (batch audit 처리 시 Read)
