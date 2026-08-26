@@ -165,7 +165,7 @@ node "$S/market-chart.mjs" revenue --chart=<차트json>             # 차트 전
 
 요약(상세는 위 파일 — 이 요약만 보고 구현하지 않는다):
 1. 지식자산 3레인을 엔진을 명시해 각각 호출한다 — L1 Raw(Glob/Grep 전수 열거) · L2 로컬(FAISS+Wiki 위키링크, `FORGE_RAG_ENGINE=t2`) · L3 공용 pgvector(`FORGE_RAG_ENGINE=t3`). L3 사용 판정은 exit code 가 아니라 **stderr 마커**로만 한다.
-2. 스캔은 `Agent(model:"haiku")` 2개 병렬(L1 / L2+L3) — **이 Step만 fan-out 허용**. AgentTool 금지 세션이면 메인이 순차 실행하고 `병렬 미사용(세션 설정)` 1줄을 남긴다.
+2. 스캔은 `Agent(model:"haiku")` 2개 병렬(L1 / L2+L3) — **이 Step만 fan-out 허용**. fan-out 을 쓰지 않기로 판단했으면(4축 판단) 메인이 순차 실행한다 — "세션 설정" 을 사유로 적지 않는다(`forge-core.md §병렬 실행`, 2026-08-26).
 3. 허용 도메인(§evidence/ 보안 정책의 허용 도메인) 안에서만 `Agent(model:"sonnet")` 로 외부 검색 — brave→tavily→exa→WebSearch 순 폴백, 전부 실패 시 FAIL 보고(조용한 skip 금지).
 4. 후보 3개를 커맨드 어휘(JTBD·Reject4·수요근거·경쟁3+Moat 1+·MVP wedge)로 산출한다. **TAM/SAM/SOM 금지**(아래 §금지 사항과 동일 근거). 배제 목록은 무엇을·왜·어느 레인인지 명시한다.
 5. 산출물: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/idea-hunt/{YYYY-MM-DD}-{HHMM}-{topic-slug}.md` + 같은 폴더 `gate-log.md` 에 run-id 선두로 1줄 append. `items/` 에는 쓰지 않는다.
