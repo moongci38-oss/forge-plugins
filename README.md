@@ -56,11 +56,11 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 
 | 플러그인 | 버전 | 설명 | 의존성 |
 |---------|------|------|--------|
-| **forge-core** | v0.7.9 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
-| **forge-build** | v0.4.20 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
-| **forge-knowledge** | v0.2.18 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
-| **forge-design** | v0.2.13 | 디자인·에셋 — image-orchestrate/visual-loop/figma-screen-capture | forge-core |
-| **forge-game** | v0.1.15 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
+| **forge-core** | v0.7.14 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
+| **forge-build** | v0.4.21 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
+| **forge-knowledge** | v0.2.19 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
+| **forge-design** | v0.2.14 | 디자인·에셋 — image-orchestrate/visual-loop/figma-screen-capture | forge-core |
+| **forge-game** | v0.1.16 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
 
 ---
 
@@ -294,7 +294,7 @@ cd ~/forge-plugins-repo && git pull
 
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
-| `/cr-triple` | `/cr-triple <파일>` | Opus+Codex+Gemini 3중 검수 (중요 Spec/PR) |
+| `/cr-triple` | `/cr-triple <파일>` | 3중 검수 (중요 Spec/PR) — Fable 5 + gpt-5.6-sol + gemini-3.6-flash |
 | `/cr-double` | `/cr-double <파일>` | Codex+Gemini 2중 검수 (기본) |
 | `/cr-multi` | `/cr-multi <파일>` | 멀티 검수 오케스트레이터 (double/triple 통합) |
 | `/cr-code` | `/cr-code <파일>` | 코드 전용 검수 |
@@ -478,7 +478,7 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 ```
 forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
-├── forge-core/                        — (v0.7.9) 기반 + 하네스 정리 + AI 감사 흡수
+├── forge-core/                        — (v0.7.14) 기반 + 하네스 정리 + AI 감사 흡수
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 23개
 │   │   ├── approve-worker/            — forge 승인 워커
@@ -496,23 +496,28 @@ forge-plugins-repo/
 │       ├── forge-core.md              — forge 전역 규칙
 │       ├── behavior-core.md           — 자율실행·외과적변경·존댓말 등
 │       └── tool-rules.md              — 도구 사용 정책
-├── forge-build/                       — (v0.4.20) 구 forge-dev + forge-plan 통합
+├── forge-build/                       — (v0.4.21) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 30개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
+│   ├── skills/                        — 32개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan
+│   │                                    + forge-check-docs/forge-check-security-exec/code-quality-rules/frontend-design 등)
 │   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
 │   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
-├── forge-knowledge/                   — (v0.2.18) 구 forge-brain 개명 + forge-research 통합
+├── forge-knowledge/                   — (v0.2.19) 구 forge-brain 개명 + forge-research 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — learn/memory-manage/wiki-sync/site-deep-analyze/yt
-│   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item/learn/memory-manage/wiki-sync
+│   ├── skills/                        — 15개 (learn/memory-manage/wiki-sync/site-deep-analyze/yt
+│   │                                    + docx/pdf/pptx/multiformat-image + daily-analyze/daily-system-review/weekly-analyze 등)
+│   ├── commands/                      — 7개 (article/yt/site-deep-analyze/weekly-research/forge-find-item/learn/memory-manage)
 │   ├── agents/                        — 6개 (academic-researcher/article-analyst/fact-checker/yt-cross-analyst/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
-├── forge-design/                      — (v0.2.13)
-│   ├── skills/                        — image-orchestrate/visual-loop/figma-screen-capture
-│   └── agents/                        — doc-writer/gemini
-└── forge-game/                        — (v0.1.15)
-    ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
-    └── agents/                        — gdd-writer
+├── forge-design/                      — (v0.2.14)
+│   ├── skills/                        — 7개 (image-orchestrate/visual-loop/figma-screen-capture
+│   │                                    + asset-critic/design-plan-closeout/doc-writer/style-forge)
+│   ├── commands/                      — 4개
+│   └── agents/                        — 2개 (doc-writer/gemini)
+└── forge-game/                        — (v0.1.16)
+    ├── skills/                        — 10개 (gdd/game-qa/game-asset-pipeline/asset-extract 외 6종)
+    ├── commands/                      — 1개
+    └── agents/                        — 1개 (gdd-writer)
 ```
 
 ---
