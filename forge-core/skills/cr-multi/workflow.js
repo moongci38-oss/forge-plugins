@@ -362,7 +362,7 @@ const reqMode = _a?.mode || 'triple'
 const mode = reqMode
 const crMode = (['on','degrade','off'].includes(_a?.crMode)) ? _a.crMode : 'on'
 const codexEnabled = crMode === 'on'
-// root-cause: 2026-08-22 — 구 cost-opt(gemini-3.5-flash 서버 기본 추종) 폐기. 기본값 = gemini-3.6-flash 명시.
+// root-cause: 2026-08-22 — 구 cost-opt(gemini-3.5-flash 서버 기본 추종) 폐기. 기본값 = gemini-3.8-flash 명시.
 //   ⚠️ `gemini-3.6-pro` 는 서버에 없다(404). 사유·응답 원문·404 이후 갈래·재현 명령은
 //     **정본 한 곳**에만 있다 → `shared/config/model-registry.json` 의 `_note_2026_08_22`.
 //     여기 옮겨 적지 않는다 — 그렇게 했다가 세 번 연속 자기모순이 났다(검수 HIGH 3회).
@@ -373,7 +373,7 @@ const codexEnabled = crMode === 'on'
 //    2026-08-19 정정: 이 줄에 특정 모델 id 가 하드코딩돼 있었고 그 값은 registry 와 어긋난
 //    낡은 값이었다. **여기에 현재 값을 다시 적지 않는다** — 적는 순간 같은 드리프트가 재발한다.
 //    지금 값이 궁금하면: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh gemini:max`
-// 우선순위(2026-08-22 개정): per-run arg > 코드 기본값(gemini-3.6-flash). 서버 env/기본 층은 더 이상 도달하지 않는다.
+// 우선순위(2026-08-22 개정): per-run arg > 코드 기본값(gemini-3.8-flash). 서버 env/기본 층은 더 이상 도달하지 않는다.
 // Workflow sandbox has no process.env, so env layer is applied by the MCP server when we OMIT the model param.
 // When _a.geminiModel is provided, pass it explicitly to override; otherwise omit → server governs.
 // root-cause: PR #320 cr-final(codex 레그) HIGH — 검수 3레그를 동시에 프런티어로 올리면서
@@ -386,14 +386,14 @@ const codexEnabled = crMode === 'on'
 //      읽어 args 로 릴레이한다(`--no-frontier`).
 const frontierOn = _a?.frontier !== false
 
-// root-cause: 2026-08-22 Human 지시 — 서버 기본값(3.5 계열) 추종을 그만두고 **gemini-3.6-flash** 를 명시한다.
+// root-cause: 2026-08-22 Human 지시 — 서버 기본값(3.5 계열) 추종을 그만두고 **gemini-3.8-flash** 를 명시한다.
 //   ⚠️ `--gemini-max`(= registry `gemini:max`)는 켜지 말 것 — 사유는 정본(위 블록이 가리키는 곳) 참조.
 //     리졸버(`model-registry-resolve.sh`)가 그 id 에 stderr 경고를 낸다(`FORGE_MODEL_STRICT=1` 이면 중단).
 //   ⚠️ 이 리터럴은 registry `gemini.tiers.default` 와 **이중 유지**다 — 샌드박스에 fs 가 없어
 //     런타임 참조가 불가능하기 때문이다. 대신 테스트가 둘을 대조한다
 //     (`tests/model-defaults.test.mjs` — "코드 기본값이 registry 의 gemini:default 와 일치한다").
 //   구 T1 우선순위(arg > 서버 env > 서버 기본)에서 마지막 층이 사라졌다 — 이제 arg 미지정 = 이 상수.
-const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.6-flash' : null)
+const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.8-flash' : null)
 // root-cause: 2026-08-22 Human 지시 — Claude 검수 레그 기본값을 Sonnet -> **Fable 5** 로 승격하고
 //   '--fable = Human 수동 전용' 제약을 해제한다(구독 3계정 운용, 비용 제약 없음).
 //   이제 `fable` 은 opt-**out** 이다: 명시적 `fable:false` 일 때만 Sonnet 으로 내려간다.
@@ -1543,7 +1543,7 @@ Codex 응답(JSON) 파싱 → StructuredOutput(score/issues/summary).${provenanc
   { label: 'codex-review', phase: 'Review', schema: REVIEW_SCHEMA, agentType: 'codex-critic' })
 // root-cause: gemini-text-mcp — 텍스트 리뷰 가능, input isolation + Claude Code convention 주입.
 // root-cause: Bug 2 fix — basePrompt "[파일 내용]" 섹션 사용. 재Read/git diff 금지.
-// 우선순위(2026-08-22 개정): arg > 코드 기본값(gemini-3.6-flash). 서버 env/기본 층 미도달.
+// 우선순위(2026-08-22 개정): arg > 코드 기본값(gemini-3.8-flash). 서버 env/기본 층 미도달.
 // When geminiModel is null (no arg given), OMIT the model param so the MCP server applies GEMINI_REVIEW_MODEL||default.
 // When geminiModel is set (explicit per-run arg), pass it to override the server's env/default.
 const geminiModelDirective = geminiModel

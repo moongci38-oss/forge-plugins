@@ -56,10 +56,10 @@ group: review
 - 값 = `model-registry-resolve.sh gemini:max`(버전무관 — 모델 id 를 문서에 적지 않는다).
 - ⚠️ **구 문장 폐기(2026-08-22)**: "미지정 시 no-op(서버 env→기본값 경로)"·"resolve 실패 시 null" 은
   더 이상 사실이 아니다 — 아래 새 계약을 따른다. resolve 가 실패해 args 에서 키가 빠져도
-  `frontier` 가 켜져 있으면 workflow.js 내장 기본값(`gemini-3.6-flash`)이 채운다(**하향 아님**).
+  `frontier` 가 켜져 있으면 workflow.js 내장 기본값(`gemini-3.8-flash`)이 채운다(**하향 아님**).
   (한때 형제 문서만 교체돼 이 파일이 모순 상태였다 — 2026-08-22 해소. 경위만 남긴다.)
 - ⚠️ **"자동 배선 금지"·"과금 미확인이라 기본값 무변경이 계약" 은 2026-08-22 Human 지시로 해제.**
-  미지정 시 기본 = **gemini-3.6-flash**.
+  미지정 시 기본 = **gemini-3.8-flash**.
   ⛔ `--gemini-max` 는 `gemini:max`(gemini-3.6-pro)로 올리는데 **지금은 켜지 마라** — 그 id 가 서버에
   없어서(실측 404) 레그가 죽는다. 리졸버가 stderr 로 경고하고, `FORGE_MODEL_STRICT=1` 이면 멈춘다.
   404 이후의 갈래·응답 원문 → `model-registry.json` `_note_2026_08_22` **한 곳**(여기 옮겨 적지 않는다).
@@ -79,8 +79,8 @@ group: review
 ```js
 // CR_MODE = (--no-codex 있으면 'degrade') || (--cr 값) || 'on'
 // --repo-root 파싱: REPO_ROOT = (args 중 '--repo-root <path>') || Bash(`git rev-parse --show-toplevel`) || null (fail-open)
-// --gemini-max 파싱: GEMINI_MODEL = '--gemini-max' 있으면 Bash(`... gemini:max`), 없으면 Bash(`... gemini:default`)(=gemini-3.6-flash)
-//   안 실어도 workflow.js 내장 기본값(gemini-3.6-flash)이 채운다 — 생략은 표기 취향이고 하향되지 않는다.
+// --gemini-max 파싱: GEMINI_MODEL = '--gemini-max' 있으면 Bash(`... gemini:max`), 없으면 Bash(`... gemini:default`)(=gemini-3.8-flash)
+//   안 실어도 workflow.js 내장 기본값(gemini-3.8-flash)이 채운다 — 생략은 표기 취향이고 하향되지 않는다.
 //   ⚠️ 구 서술 '서버 기본값 경로' 는 2026-08-22 이전 동작이다(그 경로는 이제 --no-frontier 일 때만 열린다).
 // --sol/--terra/--luna 파싱: CODEX_TIER = sol→max·terra→high·luna→low.
 //   CODEX_MODEL = Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:${CODEX_TIER:-max}`) — 기본 codex:max(2026-08-22 상향). resolve 실패 시 null → workflow.js 내장 폴백(sol).

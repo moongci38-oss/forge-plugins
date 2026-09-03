@@ -67,7 +67,7 @@ Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/.claude/skills/cr-multi/workf
 
 **`--gemini-max`** — Gemini 검수 레그를 `gemini:max`(**gemini-3.6-pro**)로 승격(Claude·Codex 불변).
 `GEMINI_MODEL = Bash("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh gemini:max")` → args `geminiModel`.
-- **미지정 시 기본 = `gemini-3.6-flash`**(실호출 확인). 서버 env(`GEMINI_REVIEW_MODEL`)·서버 기본 층은 도달하지 않는다.
+- **미지정 시 기본 = `gemini-3.8-flash`**(2026-09-03 상향. ⚠️ `mcp__gemini-text__` 릴레이 경유 실호출은 **미검증** — 확인된 것은 Vertex AI `global` 엔드포인트 `generateContent` 200 응답뿐이다. 릴레이가 이 id 를 거부하면 검수 실패가 아니라 **검수 미수행**이다). 서버 env(`GEMINI_REVIEW_MODEL`)·서버 기본 층은 도달하지 않는다.
 - ⛔ **지금은 켜지 마라** — `gemini-3.6-pro` 가 **서버에 없어서**(실측 404) 그 레그가 죽는다.
   리졸버가 stderr 로 경고한다(`model-registry-resolve.sh gemini:max` → WARN). 아예 막으려면 `FORGE_MODEL_STRICT=1`.
 - 404 이후의 갈래·응답 원문·재현 명령·이 기본값이 뒤집혔던 경위 → `model-registry.json` `_note_2026_08_22` **한 곳**.
