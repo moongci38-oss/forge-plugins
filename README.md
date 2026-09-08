@@ -199,20 +199,39 @@ reasoning **effort = xhigh**.
 > 모델은 자주 바뀌므로, 이 표와 정본이 어긋나면 **정본이 이깁니다**.
 > ⚠️ **2026-09-07 Gemini 전면 철수로 검수는 2벤더(Claude·Codex)가 되었습니다.**
 > 구 표기 "Codex MCP + **Gemini MCP** 필수 · 벤더가 다른 **세** 모델 · `| Gemini | gemini-3.8-flash | Gemini MCP |`"
-> 는 폐기했습니다. 모든 모델을 **구독으로만** 호출하기로 하면서 종량 과금 API 키 벤더를 끊었습니다.
+> 는 폐기했습니다. **종량 과금(API 키 과금) 벤더인 Gemini 를 끊고, 남은 레그는 구독 인증으로 씁니다.**
+> ⚠️ 이 말은 *"어떤 API 키도 안 쓴다"* 가 아닙니다 — 범위는 **Gemini 철수**입니다.
+> Codex 레그 인증은 아래 [Step 1](#step-1--codex-인증) 참고.
 > ⚠️ 구 표기 `Claude=Opus · Codex=gpt-5.6-sol · Gemini=gemini-3.5-flash` 는 2026-09-08 폐기했습니다
 > (근거: `model-routing.md §세션 운영 모델` — Codex 레그는 2026-09-06 에 `gpt-6-astra` 로 올라갔습니다).
 > ⚠️ `--sol`·`--terra`·`--luna` 는 이제 **셋 다 하향 스위치**입니다(예전엔 `--sol` 이 기본과 같아 아무 일도 안 했습니다).
 > `--fable` 은 이미 기본이라 no-op 입니다.
 
-### Step 1 — API 키 환경변수 설정
+### Step 1 — Codex 인증
+
+**권장 — 구독 로그인(API 키 불필요)**
+
+```bash
+codex login          # ChatGPT OAuth 로그인
+codex login status   # → "Logged in using ChatGPT" 면 완료
+```
+
+**대안 — API 키(종량 과금)**
 
 ```bash
 # ~/.bashrc 또는 ~/.zshrc 에 추가
-export OPENAI_API_KEY="sk-..."       # Codex MCP용
+export OPENAI_API_KEY="sk-..."       # 구독 로그인을 쓰지 않을 때만
 ```
 
+> **둘 중 하나만** 하면 됩니다. 구독 로그인이 권장입니다 — 쓴 만큼 돈이 나가는 종량 과금을 피하려고
+> Gemini 를 끊은 것이라, 같은 이유로 Codex 도 구독 쪽이 결이 맞습니다.
+> 실측(2026-09-08): 개발 머신에서 `OPENAI_API_KEY` 가 **미설정**이고
+> `~/.codex/auth.json` 의 `OPENAI_API_KEY` 가 **null** 인 상태로 `codex login status` 가
+> `Logged in using ChatGPT` 를 반환하며 Codex MCP 가 정상 동작합니다 — **키 없이 도는 것이 확인된 구성입니다.**
+> 재현: `codex login status` · `python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.codex/auth.json')))['auth_mode'])"`
+>
 > ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `export GEMINI_API_KEY="AIza..."  # Gemini MCP용`.
+> ⚠️ 구 표기 "Step 1 — API 키 환경변수 설정"(키가 유일한 방법인 것처럼 읽혔음)도 같은 날 정정했습니다.
 
 ### Step 2 — MCP 서버 설치
 
@@ -241,6 +260,18 @@ npm install -g @openai/codex
 ```
 
 > ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `"gemini"` 블록(`@fre4x/gemini` + `GEMINI_API_KEY`).
+>
+> 🔁 **이미 예전 `setup.sh` 로 세팅한 분**은 `~/.claude.json` 에 `gemini`·`gemini-text` 가
+> **전역 등록된 채로 남아 있습니다** — 이번 변경은 앞으로 등록하지 않게 막았을 뿐이라 기존 등록은 안 지워집니다.
+> 확인·제거 절차는 `ONBOARDING.md` **§5-2-B (이미 쓰던 분은 이것도 지우세요)** 를 보세요.
+> 먼저 이 명령으로 남아 있는지부터 확인하시면 됩니다:
+> ```bash
+> python3 -c "
+> import json,os
+> ks=list(json.load(open(os.path.expanduser('~/.claude.json'))).get('mcpServers',{}).keys())
+> print('gemini 계열:', [k for k in ks if 'gemini' in k.lower()] or '(없음)')
+> "
+> ```
 
 ### Step 4 — Claude Code 재시작
 
@@ -256,14 +287,18 @@ MCP 등록 후 재시작해야 적용됩니다.
 
 ---
 
-## MCP API 키 설정 (선택)
+## MCP 인증 설정 (선택)
 
-`forge-core`는 Codex MCP를 포함. 사용하려면 환경변수 설정:
+`forge-core`는 Codex MCP를 포함합니다. 인증은 **구독 로그인이 권장**입니다:
 
 ```bash
-# ~/.bashrc 또는 ~/.zshrc 에 추가
+codex login                          # 권장 — API 키 불필요
+# 또는 (대안, 종량 과금)
 export OPENAI_API_KEY="sk-..."       # Codex MCP (cr-triple 2차 검수)
 ```
+
+> 상세·실측 근거는 위 [Step 1 — Codex 인증](#step-1--codex-인증) 참고.
+> ⚠️ 구 제목 "MCP **API 키** 설정"은 키가 유일한 방법인 것처럼 읽혀 2026-09-08 정정했습니다.
 
 > ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`forge-core`는 Codex/**Gemini** MCP를 포함" 과
 > `export GEMINI_API_KEY="AIza..."  # Gemini MCP (vision 분석)`.

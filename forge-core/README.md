@@ -125,7 +125,8 @@ Codex(GPT)를 세션 밖에서 병렬 실행하여 단일 모델 맹점을 보�
 > ⚠️ **2026-09-07 Gemini 전면 철수.** 구 표기 "Codex(GPT) + **Gemini**를 병렬로 실행 ·
 > `double = Codex + Gemini` · `triple = Opus + Codex + Gemini` · 가중 스코어 `Opus 0.35 / Codex 0.35 / Gemini 0.3` ·
 > 필수 조건 `GEMINI_API_KEY` 환경변수" 는 폐기했습니다.
-> 모든 모델을 **구독으로만** 호출하기로 하면서 종량 과금 API 키 벤더를 끊었습니다.
+> **종량 과금(API 키 과금) 벤더인 Gemini 를 끊고, 남은 레그는 구독 인증으로 씁니다.**
+> ⚠️ *"어떤 API 키도 안 쓴다"* 는 뜻이 아닙니다 — 범위는 **Gemini 철수**입니다.
 > (`triple` 의 Claude 레그는 2026-08-22 부터 Opus 가 아니라 **Fable 5.1** 입니다.)
 
 ### rag-search
@@ -274,14 +275,29 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 
 ## MCP 설정 (cr-* 사용 시 필수)
 
-### Step 1 — API 키 설정
+### Step 1 — Codex 인증
+
+**권장 — 구독 로그인(API 키 불필요)**
+
+```bash
+codex login          # ChatGPT OAuth 로그인
+codex login status   # → "Logged in using ChatGPT" 면 완료
+```
+
+**대안 — API 키(종량 과금)**
 
 ```bash
 # ~/.bashrc 또는 ~/.zshrc
-export OPENAI_API_KEY="sk-..."   # Codex MCP용
+export OPENAI_API_KEY="sk-..."   # 구독 로그인을 쓰지 않을 때만
 ```
 
+> **둘 중 하나만** 하면 됩니다. 구독 로그인이 권장입니다.
+> 실측(2026-09-08): 개발 머신에서 `OPENAI_API_KEY` 미설정 + `~/.codex/auth.json` 의
+> `OPENAI_API_KEY` 가 `null` 인 상태로 `codex login status` 가 `Logged in using ChatGPT` 를
+> 반환하며 정상 동작합니다. 재현: `codex login status`
+>
 > ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `export GEMINI_API_KEY="AIza..."`.
+> ⚠️ 구 제목 "Step 1 — **API 키** 설정" 은 2026-09-08 정정(키가 유일한 방법이 아닙니다).
 
 ### Step 2 — ~/.claude.json MCP 등록
 
