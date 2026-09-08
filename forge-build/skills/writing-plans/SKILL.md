@@ -65,7 +65,18 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
-**Save plans to:** `.specify/plans/` or `docs/plans/YYYY-MM-DD-<feature-name>.md`
+**Save to:** `.specify/tasks/YYYY-MM-DD-<feature-name>.md`
+
+> ⚠️ **2026-08-31 SDD 4단계 재편 — 이 스킬은 Plan 이 아니라 Tasks 를 만든다.**
+> 이 스킬이 내는 것은 2~5분 단위 TDD 스텝(RED 테스트 코드·정확한 실행 명령)이고,
+> 새 모델에서 그건 **4단계 Tasks** 다. 3단계 Plan(기술 스택·버전 핀·ADR·데이터 모델·
+> API 설계)은 다른 산출물이다.
+> 종전 `.specify/plans/` 로 저장하던 것이 **이름만 Plan 이고 내용은 Tasks 였다** —
+> 그 이중 레인을 여기서 끊는다.
+> ⚠️ 설계 계약(§4-6)은 이 스킬을 "Plan 정본 생산자로 승격"하라고 했으나 **실측이 반대였다.**
+> 그대로 승격하면 이 산출물은 Plan 게이트(버전 핀·ADR·Spec 참조)를 원리적으로 통과할 수 없다 —
+> 담고 있는 게 그런 내용이 아니기 때문이다. 계약보다 실측을 따랐다(2026-09-01 총괄 결정).
+> 템플릿: `dev/templates/task-template-base.md` · 게이트: `forge-gate-check.sh <repo> SDD`
 
 ## Bite-Sized Task Granularity
 

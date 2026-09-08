@@ -3,7 +3,7 @@ name: code-reviewer
 description: 코드 변경사항 리뷰. 코드 작성 후 자동으로 사용.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit, NotebookEdit
-model: sonnet
+model: opus
 memory: project
 skills:
   - code-quality-rules
@@ -36,7 +36,7 @@ skills:
 ⚠️ **증거 인용 시 마스킹 필수(LN-03)**: 명령 출력·로그·스택트레이스를 근거로 붙일 때
 토큰·API 키·비밀번호·내부 URL이 섞이면 `***`로 치환한 뒤 인용한다. 증거를 요구하는
 규칙이 곧 시크릿 유출 경로가 되지 않게 한다.
-(cr-multi §⑩ 미커버 실패 시나리오 명시 의무와 대칭 — 0차 리뷰어에도 동일 기준 적용)
+(cr-multi §리뷰 워커 출력 요건 "미커버 실패 시나리오 명시 의무"와 대칭 — 0차 리뷰어에도 동일 기준 적용)
 
 ### 관대함 방지
 

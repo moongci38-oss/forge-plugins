@@ -40,11 +40,20 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect
 | 미완료 태스크 | `PLAN_TODO_FILES` + 세션 태스크 목록 | `## 미완료 태스크` |
 | [STOP]·승인 대기 | `STOP_PENDING*` | `## 승인 대기([STOP])` |
 | 미커밋 변경 | `UNCOMMITTED_COUNT`/`UNCOMMITTED_FILE` | `## 미커밋 변경` |
-| 열린 PR·브랜치 | `OPEN_PR_COUNT`·`BRANCH`·`UNPUSHED_COMMITS` | `## 열린 PR·브랜치` |
+| 열린 PR·브랜치 | `OPEN_PR_COUNT`·`BRANCH`·`UNPUSHED_COMMITS`·**`UNPUSHED_REPO_N`·`UNPUSHED_TOTAL`**(다중 레포, 아래 §6b)·**`OPEN_PR_REPO_N`·`OPEN_PR_COUNT_SCOPE`·`OPEN_PR_COUNT_CWD`·`OPEN_PR_COUNT_PARTIAL`**(2026-09-03 신설) | `## 열린 PR·브랜치` |
+
+> ⚠️ **`OPEN_PR_COUNT` 의 의미가 2026-09-03 에 바뀌었다** — 종전에는 cwd 레포 하나였고 지금은
+> 워크스페이스 여러 레포의 **합계**다(cwd·FORGE_ROOT·FORGE_OUTPUTS·중첩 repo). 종전 의미의 값이
+> 필요하면 `OPEN_PR_COUNT_CWD` 를 읽는다. 범위는 `OPEN_PR_COUNT_SCOPE` 가 밝힌다.
+> 🔴 **`OPEN_PR_COUNT_PARTIAL=yes` 면 그 숫자를 전량으로 읽지 마라** — 일부 레포를 재지 못했다는
+> 뜻이다(gh 실패·중첩 탐색 절단·타임아웃). 레포별 내역은 `OPEN_PR_REPO_N` 에 `경로|건수` 로 있고,
+> 못 잰 레포는 건수가 `?` 이며 `_REASON` 이 사유를 적는다.
+> 근거: 중첩 repo 를 못 봐서 PR 4건이 열려 있는데 `OPEN_PR_COUNT=0` 이 handover 에 실린 실사고.
 | 진행 중 백그라운드 작업 | 세션 이력(도구 호출) | `## 진행 중 백그라운드 작업` |
 | learnings 미기록 misfire | `LEARNINGS_LAST`·`LEARNINGS_PARSE_BAD` + 세션 misfire 회고 | `## learnings 미기록 misfire` |
 | 사용자 지시 미이행 | 세션 이력(사용자 발화) | `## 사용자 지시 미이행` |
 | **백그라운드 워커 생존** | `WORKER_BRIEF*`·`WORKER_WORKTREE*`·`RECENT_CHANGES_CWD` | `## 백그라운드 워커 생존` |
+| **팀장 위임 기록** | 아래 §2 회수 블록의 `BUS_WORKER_N`(dormant)·`WORKER_WORKTREE`(live) | `## 팀장 위임 기록` |
 
 **[STOP] 해소 판정 + 마커 정리** — `STOP_PENDING*`는 마커를 **탐지만 하고 정리하지 않아**, 이미 해결된 게이트가 다음 세션까지 "대기 중"으로 남는다(누적되면 어느 것이 진짜 대기인지 구분 불가). 종료 시 각 마커에 대해 **STOP 해소** 여부를 판정한다 — 그 승인이 이뤄졌거나 해당 작업이 완료·기각됐으면 원 문서의 마커를 제거하거나 `[STOP-RESOLVED: {날짜} {사유}]`로 치환하고, handover `## 승인 대기([STOP])` 절에는 **미해소분만** 남긴다. 판정 근거 없이 지우지 않는다 — 애매하면 미해소로 둔다.
 
@@ -94,7 +103,7 @@ fi
 
 ### 3. handover 작성
 
-`$HANDOVER_DIR/YYYY-MM-DD-HHMM-{slug}.md`, frontmatter 필수 5필드 고정:
+`$HANDOVER_DIR/YYYY-MM-DD-HHMM-{slug}.md`, frontmatter 필수 **8필드** 고정:
 
 ```markdown
 ---
@@ -103,9 +112,35 @@ time: "1830"
 model: opus            # 세션 모델 자동 감지 (opus|sonnet|fable|...)
 slug: kebab-case-summary
 status: open           # open | closed
-project: forge         # repo 이름으로 정규화
+project: forge         # repo 이름으로 정규화 (워크트리도 **주 체크아웃** 이름으로)
+worktree: ${FORGE_ROOT:-$HOME/forge}/.claude/worktrees/foo   # 소유 축 — 이 세션의 작업 폴더 절대경로
+session: 561052-b1c2d3e4                              # 추적용 sid (소유 판정에는 안 씀)
 ---
 ```
+
+**`worktree`·`session` 은 2026-08-24 신설 — 소유권 필드다.** 아래 명령으로 **기계 산출**한다
+(손으로 적지 않는다 — 손으로 적으면 그게 곧 오기다):
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/worktree-scope.sh" | grep '^WORKTREE=' | sed 's/^WORKTREE=/worktree: /'
+echo "session: ${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}"
+```
+
+> 구 표기 "필수 5필드"는 실제로 6개(`date·time·model·slug·status·project`)를 나열한
+> **오기**였다(2026-08-24 정정). 신설 2개를 더해 지금은 8개다.
+
+왜 두 개인가: **소유 판정 축은 `worktree`(작업 폴더) 하나**다. 같은 폴더를 이어받은 다음
+세션은 그 작업의 정당한 상속자라서 sid 로 끊으면 오히려 연속성이 깨진다. `session` 은
+"누가 썼나"를 되짚기 위한 추적용이다.
+
+⛔ **공유 체크아웃에서는 이 필드의 판별력이 없다** — `${FORGE_ROOT:-$HOME/forge}` 본체에서 도는 모든 세션이
+같은 값을 적으므로 서로를 `MINE` 으로 본다. 승계(같은 폴더를 이어받는 다음 세션)에는 맞지만
+**동시 세션에는 적용되지 않는다.** 소유를 실제로 가르려면 `EnterWorktree` 로 자기 폴더에서
+일해야 한다(2026-08-24 cr-final 지적 — 알려진 잔여 한계).
+
+⚠️ **`project` 로는 부족하다.** `${FORGE_ROOT:-$HOME/forge}` 를 만지는 모든 세션이 똑같이 `project: forge` 라고
+적으므로, 그것만으로는 **내 작업과 남의 작업이 구분되지 않는다.** 이 필드가 없던 시절에는
+사람이 매 세션 눈으로 판정해 handover 본문에 적었고, 다음 세션은 그 판정을 그대로 믿었다.
 
 본문 = §2의 8절 + 아래 서술형 필수 절:
 
@@ -113,8 +148,93 @@ project: forge         # repo 이름으로 정규화
 - `## 결정과 근거` — 결정 + 기각한 대안(AD-N)
 - `## 실패한 시도와 이유` — `시도: {무엇} → 실패: {증상} → 이유: {원인} → 교훈: {다음 세션 지침}` (**부재 시 WARN** — 암묵지 표면화 카논)
 - `## 사용자 제약·지시 (DO / DON'T)` — `- [DON'T] {내용} (근거)` / `- [DO] {내용}`
-- `## 다음 세션이 이어받을 것` — 우선순위 순
+- `## 다음 세션이 이어받을 것` — 우선순위 순. ⚠️ **이번 세션에 만들어진 적용계획의 미완 `P0` 항목을 여기 옮겨 적는다**(아래 절).
 - `## 열린 질문` — 미결 트레이드오프
+- `## 팀장 위임 기록` — 이번 세션이 팀장에게 보낸 일과 받은 답. 없으면 **`없음`** 이라고 적는다(침묵 금지)
+
+#### 적용계획 P0 를 인계 목록에 올린다 (2026-09-01 신설)
+
+**이번 세션에 적용계획(`apply-plan`)이 만들어졌으면, 그 안의 미완 `P0` 항목을
+`## 다음 세션이 이어받을 것` 에 그대로 옮겨 적는다.**
+
+쉽게 말하면 **계획서를 서랍에 넣고 끝내지 말고, 할 일 쪽지를 문에 붙여 두는 것**이다.
+계획서는 계획서 폴더에 남고 다음 세션은 그 폴더를 열어 보지 않는다.
+
+- **왜 생겼나(2026-09-01 실측)**: 2026-08-30 영상 3건의 적용 항목 6개 중 **착지 0건**.
+  그중 하나는 계획서가 스스로 *"5분 작업"* 이라 적고 검증 명령까지 써 둔 README 1줄이었다.
+  그런데 그날부터 09-01 까지 handover **5건 어디에도 실리지 않았다** — 이월된 게 아니라
+  **애초에 인계 목록에 오르지 못했다.** 실행 능력이 아니라 **배선의 부재**였다.
+  같은 날 README 3개를 실제로 최신화한 세션조차 이 1줄은 몰랐다.
+- **무엇을 적나**: `- {한 줄 요약} (계획: {파일명})`. 계획서 경로를 함께 적어야
+  다음 세션이 맥락을 찾아간다.
+- **P1·P2 는 옮기지 않는다.** 그건 세션 시작 회수의 숫자(`ITEMS_OPEN`)로 보이면 된다 —
+  전부 옮기면 인계 목록이 곧 계획서 사본이 되고, 그러면 아무도 안 읽는다.
+- **이번 세션에 만든 계획이 없으면 이 절은 건너뛴다.** 남의 계획을 끌어오지 않는다.
+- 재현(지금 미완 P0 이 몇 건인지): `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/apply-plan-closure.sh" | grep ^P0_`
+- ⚠️ **이것은 독촉 장치가 아니다.** 옮겨 적는 것까지가 이 절의 일이고, 하라고 재촉하거나
+  일괄 체크하지 않는다(계측기 설계 §5 — 일괄 체크는 종결이 아니라 증거 위조다).
+- 폐기조건: 적용계획 P0 의 세션 간 착지율이 2분기 연속 80% 를 넘으면 이 절을 재검토한다.
+
+#### `## 팀장 위임 기록` 작성법 (2026-08-26 신설 — 팀 라우팅)
+
+총괄 세션이 팀장에게 무엇을 시켰고 무엇을 돌려받았는지를 **다음 세션이 이어받을 수 있게** 남긴다.
+쉽게 말하면 **부서에 넘긴 일의 인수인계 쪽지**다 — 이게 없으면 다음 세션은 그 일이 진행 중인지
+끝났는지 몰라서 **처음부터 다시 시킨다**.
+
+방 상태는 저장 직전에 실측한다(문서 기억으로 적지 않는다). **출처는 위 §2 회수 블록이다** —
+`BUS_WORKER_N=name|sid8|cwd|age|dormant` 가 dormant 방을, `WORKER_WORKTREE=` 가 live 프로세스를
+가리킨다. 두 목록을 겹쳐 보고 그 방이 어느 쪽인지 적는다.
+
+⚠️ **`forge-session-bus.sh list` 만 보고 적지 마라.** 그 출력에는 STATE 열이 없다 —
+등록된 방과 마지막 응답 시각만 보여 주므로, 거기서 dormant/live 를 읽으면 **추측**이다
+(버스 방은 등록만 돼 있고 프로세스가 없는 것이 정상이라 전부 dormant 로 보인다).
+
+```markdown
+## 팀장 위임 기록
+| 팀slug | 보낸 브리프(요약) | 수신 응답(요약) | 방 상태 |
+|---|---|---|---|
+| {slug} | {한 줄 요약} | {한 줄 요약 또는 미수신} | dormant / live |
+```
+
+- **방 상태**: `dormant` = 버스에 등록만 돼 있고 실행 중 프로세스가 없는 정상 상태 ·
+  `live` = 지금 돌고 있는 프로세스가 있다. **dormant 를 사망으로 읽지 않는다**(위 §2 핵심 구분과 같은 축).
+- 응답을 못 받은 위임은 `미수신` 으로 적고 `## 다음 세션이 이어받을 것` 에도 1줄 올린다 —
+  표에만 적히면 다음 세션이 안 본다.
+- 위임 규약·팀 목록 전문 → `rules-on-demand/team-routing.md`
+
+#### 결정과 의문을 같은 절에 섞지 않는다 (2026-08-24 신설)
+
+**사용자가 내린 결정은 `## 사용자 제약·지시` 에 결정문 그대로 적는다.** AI 쪽 유보·의문은
+`## 열린 질문` 에만 적는다. 둘을 섞으면 **결정이 질문으로 녹아 사라진다.**
+
+쉽게 말하면: 사장이 "이 방향으로 간다"고 정한 걸 회의록에 *"이 방향이 맞을까요?"* 라고 적으면,
+다음 회의는 실행이 아니라 **재논의**로 시작한다.
+
+- ✅ `- [DO] 에이전트를 팀원 구성으로 전환한다 (사용자 결정 2026-08-24)`
+  + `## 열린 질문` 에 따로: `팀 전환 시 결과 자동 반환 문제를 어떻게 푸나`
+- ❌ `## 열린 질문` 에만: `팀 전환의 실익이 무엇인가 — 저울이 아직 없다`
+  ← 결정이 통째로 증발했다. 다음 세션은 **할지 말지부터** 다시 묻는다.
+
+판정: 사용자가 **명령형·의지형**으로 말했으면(“~하겠다/~해줘/~로 간다”) 그것은 결정이다.
+AI 가 그 결정에 이견이 있으면 **결정을 지우지 말고** `## 열린 질문` 에 이견을 병기한다.
+
+근거: 2026-08-24 실사고 — 사용자의 "에이전트를 팀원으로 구성하겠다"가 handover 에서
+"팀 전환의 실익이 무엇인가"로 격하돼, 다음 세션이 그것을 **열린 판단**으로 읽고 재논의를 제안했다.
+폐기조건: 결정→질문 격하가 2분기 연속 0건이면 이 항을 재검토한다.
+
+#### 남의 작업 상태를 내 handover 본문에 적지 않는다 (2026-08-24 신설)
+
+`## 미커밋 변경`·`## 열린 PR·브랜치` 에는 **이 작업 폴더(`worktree:`) 소유분만** 적는다.
+공유 체크아웃의 dirty 파일 수·타 세션 브랜치를 본문에 섞으면 다음 세션이 그것을 **자기 상태로**
+읽는다. 굳이 남겨야 하면 별도 절 `## 타 세션 상태 (참고 — 내 소유 아님)` 에 격리하고,
+**판정 근거(폴더 경로)를 함께 적는다.**
+
+- ✅ `## 타 세션 상태 (참고 — 내 소유 아님)` / `- ${FORGE_ROOT:-$HOME/forge} (공유 체크아웃): dirty 81건, 브랜치 feat/x`
+- ❌ `## 미커밋 변경` / `- ⚠️ ${FORGE_ROOT:-$HOME/forge} dirty 85건 = 타 세션 작업, 손대지 않음`
+
+근거: 2026-08-24 — 직전 handover 가 타 세션의 dirty 85건을 `## 미커밋 변경` 에 적었고,
+다음 세션이 그 브랜치를 자기 오리엔테이션에 포함해 보고했다.
+폐기조건: 회수기 소유 라벨(`HANDOVER_MINE`/`OTHER`)이 안정화돼 본문 서술이 불필요해지면 삭제.
 
 > `*-auto.md`(훅 자동생성 스텁)와 구분되도록 파일명에 `-auto` 접미를 쓰지 않는다 — 회수 시 서술형/auto는 파일명·헤더 수로 판정된다.
 
@@ -193,13 +313,42 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/index-refresh.sh" 2>/dev/null ||
 
 kill-switch: `FORGE_DEBUG_KNOWLEDGE_SYNC=off` / `FORGE_MEMORY_SYNC=off` / `FORGE_AUTOSYNC=off` / `FORGE_AUTO_REINDEX=off`. 실패해도 세션 종료를 막지 않는다.
 
+### 6b. 미푸시 커밋 게이트 (WARN — 2026-09-02 신설)
+
+§2 `collect` 출력의 **`UNPUSHED_TOTAL`이 `0`이 아니면** 아래를 그대로 출력한다. 레포마다 1줄:
+
+```
+⚠️ 미푸시 {UNPUSHED_TOTAL}커밋 — 이 머신에만 있다.
+   {repo}: {branch} +{n}  →  git -C {repo} push
+```
+
+`{repo}·{branch}·{n}` 은 `UNPUSHED_REPO_N={경로}|{브랜치}|{개수}` 를 그대로 옮긴다(추정·반올림 금지). 개수가 `?` 인 레포는 같은 줄에 `_REASON` 을 붙여 적고 **0으로 세지 않는다** — `UNPUSHED_TOTAL_PARTIAL=yes` 면 합계 뒤에 `(일부 미측정)` 을 붙인다.
+
+그리고 handover **`## 열린 PR·브랜치` 절에 레포별로 1줄씩** 적는다. 여기 안 적으면 다음 세션이 또 못 본다.
+
+```markdown
+- 미푸시: ${FORGE_ROOT:-$HOME/forge}-outputs (develop) +35 — 사유: {아래 셋 중 하나}
+```
+
+**push 하지 않고 끝낼 거면 그 사유를 반드시 함께 적는다.** 이 레포 규범은 *"작업은 머지까지가 완료다"* 이고 보류가 정당한 경우를 셋으로 못박아 뒀다 — ①검수 FAIL 로 고쳐야 함 ②`[STOP]` 승인 대기 ③명시적 인계. **이 셋이 아니면 보류가 아니라 미완료**이므로 그렇게 적는다.
+
+- ⛔ **자동으로 push 하지 않는다.** push 는 외부로 나가는 행위다 — 게이트는 **보여주고 명령을 주는 것**까지다. 실행은 사람이 한다.
+- ⛔ **BLOCK 이 아니다**(AD-168 WARN-first). 미푸시가 있어도 세션 종료를 막지 않는다.
+- ⛔ **새 독촉 알림을 만들지 않는다.** 세션 종료 시 1회 출력이고, 훅·배너에 배선하지 않는다.
+- ⚠️ **공유 체크아웃이면 미푸시 커밋에 다른 세션이 만든 것이 섞일 수 있다.** 같은 사람의 커밋이라 push 대상인 것은 맞지만, **내가 만든 것인 양 보고하지 않는다** — 애매하면 `(작성자 미분류)` 를 붙인다.
+- ⚠️ 이 수치는 `git fetch` 없이 로컬 원격추적 ref 로 잰다. 낡았으면 **과대보고**될 수 있다(있는 걸 없다고 하지는 않는다). 정확한 수가 필요하면 `git -C {repo} fetch` 후 재측정한다.
+
+근거: 2026-09-02 실사고 — `${FORGE_ROOT:-$HOME/forge}-outputs` 가 로컬 35 / 원격 44 커밋으로 **4일간(08-29~09-02) 갈라져** 있었는데, 계측기가 cwd 레포(`${FORGE_ROOT:-$HOME/forge}`)만 봐서 `UNPUSHED_COMMITS=0` 을 냈고 그 0 이 handover 에 "미푸시 없음"으로 적혔다. 쉽게 말하면 **집 안 거실만 보고 "집에 쓰레기 없다"고 한 것**이다 — 쓰레기는 부엌에 있었다. 사람이 물어보고 나서야 발견됐다. 틀린 안심은 측정 없음보다 나쁘다.
+재현: `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect "$(pwd)" | grep -E '^UNPUSHED_(REPO|TOTAL|REPOS)'`
+폐기조건: 미푸시 적체가 2분기 연속 0건이거나, push 를 강제하는 별도 훅이 배선되면 이 절을 재검토한다.
+
 ### 7. 미소비 체크포인트 정리
 
 이번 세션이 `/forge-checkpoint`를 남겼다면 handover가 그것을 대체하므로 소비 표시한다. 단, `CHECKPOINT_LATEST`는 **전체에서 mtime 최신**일 뿐 소유 세션을 가리지 않으므로(M-1/G-08, 2026-08-15 — 멀티세션 환경에서 남의 체크포인트에 `.consumed`를 찍어 그 세션의 복구 지점을 지우는 실사고가 있었다) **소유 검증 후에만** 소비 표시한다:
 ```bash
 eval "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-landing.sh" "$(pwd)")"
 CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '^CHECKPOINT_LATEST=' | cut -d= -f2-)
-MY_SID="${CLAUDE_SESSION_ID:-}"
+MY_SID="${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
 if [ -n "$CP" ] && [ -f "$CP" ]; then
   CP_SID=$(grep -m1 '^session:' "$CP" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
   if [ -n "$MY_SID" ] && [ -n "$CP_SID" ] && [ "$CP_SID" != "unknown" ] && [ "$CP_SID" != "$MY_SID" ]; then
@@ -234,13 +383,14 @@ fi
 
 - [ ] 착지 경로 확인 (워크트리면 FORGE_OUTPUTS 논리 경로)
 - [ ] `session-record-audit.sh collect` 실행 → 8 수집원 실측
-- [ ] frontmatter 5필드(`date·time·model·slug·status·project`) 기입
+- [ ] frontmatter **8필드**(`date·time·model·slug·status·project·worktree·session`) 기입 — `worktree`·`session` 은 위 명령으로 **기계 산출**
 - [ ] 8절 + 서술형 필수 절 작성 ("없음"도 명기) — 백그라운드 워커 절은 생존 실측 수치·브리프 경로·재개 1줄 포함
 - [ ] 세션 버스 워커 로스터 대조 실행 (0기/실행실패도 각각 명시 — 침묵 금지)
 - [ ] `session-record-audit.sh verify` **PASS** (FAIL이면 종료 선언 금지)
 - [ ] `handover-manager.sh refresh-index-dir` 실행 (INDEX 기계 갱신, 수동 편집 금지)
 - [ ] learnings misfire 반영 (해당 시)
 - [ ] 하네스 갭 후보 집계 실행 — 0건도 명시, `## 하네스 갭 후보 (미처분)` 절에 `미처분 N건` 기입
+- [ ] **미푸시 게이트(§6b)** — `UNPUSHED_TOTAL`≠0 이면 WARN 출력 + `## 열린 PR·브랜치` 에 레포별 1줄 + 미push 사유 기입 (자동 push 금지, 종료는 막지 않음)
 - [ ] 팀 공유 동기화 (advisory)
 - [ ] 미소비 체크포인트 `.consumed` 표시 (**소유가 확인된 경우에만** — 타 세션 것이거나 **판별 불가면 건너뜀**, 2026-08-16 P3-B)
 - [ ] 미러(`$HOME/.claude/`)에 `*.retired-*`/`*.premote-*` 명명 규약으로 로컬 아카이브한 것이 있으면 → SSoT(`${FORGE_ROOT:-$HOME/forge}`)에도 반영됐는지 확인 (근거: `2026-08-01-mirror-orphan-triage.md` 권고-B — 로컬 아카이브만 하고 SSoT에 반영 안 하면 다음 세션이 다시 orphan으로 탐지)

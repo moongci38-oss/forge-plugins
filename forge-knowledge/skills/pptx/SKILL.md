@@ -1,8 +1,9 @@
 ---
 name: pptx
-description: "Use whenever a .pptx file is involved: creating/editing decks, pitch decks, presentations; reading/extracting text; combining/splitting slides; templates, layouts, speaker notes, comments. Triggers: \"deck\", \"slides\", \"presentation\", .pptx filename."
+description: "Manual-invocation only (/pptx) — automatic triggering is disabled. Handles .pptx work when explicitly called: creating/editing decks, pitch decks, presentations; reading/extracting text; combining/splitting slides; templates, layouts, speaker notes, comments."
 context: fork
 model: sonnet
+disable-model-invocation: true   # 자동 발동 차단(2026-08-27) — 사용자 명시 호출(/pptx)은 그대로 동작
 paths:
   - "**/*.pptx"
   - "**/*.ppt"

@@ -3,7 +3,7 @@ name: performance-checker
 description: 백엔드 API 성능 품질을 정적 분석으로 검증하는 에이전트. Check 8.7과 병렬 실행.
 tools: Read, Grep, Glob
 disallowedTools: Write, Edit, NotebookEdit, Bash
-model: sonnet
+model: opus
 ---
 
 ## Evaluator 핵심 원칙: 절대 관대하게 보지 마라

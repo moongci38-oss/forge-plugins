@@ -15,13 +15,13 @@ PR 생성 단독 실행. `/sdd` Phase 5 분리 명령 (AD-46).
 |------|------|------|
 | PR 작업(diff 요약·PR body·봇리뷰 해소) | **Sonnet** | 커맨드 frontmatter `model: sonnet`(실행자 계층) |
 | git ops(checkout·merge·push·worktree) | **Haiku** | `Agent(model:"haiku")` subagent |
-| cr-final(Step 3) | **Fable 5**+Codex(sol)+Gemini(3.6-pro) | 2026-08-22 상향 · effort=xhigh · `--no-frontier` 로 일괄 하향(degrade=Codex 제외) |
-| 고위험 결정 advisor(BOUNDARY·scope-drift·봇충돌) | **Fable 5**(대체 `gpt-5.6-sol`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력. advisory only |
+| cr-final(Step 3) | **Fable 5.1**+Codex(sol)+Gemini(3.8-flash) | 2026-08-22 상향 · effort=xhigh · `--no-frontier` 로 일괄 하향(degrade=Codex 제외) |
+| 고위험 결정 advisor(BOUNDARY·scope-drift·봇충돌) | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력. advisory only |
 
 근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`.
 ⚠️ **2026-08-12 정정**: 구 문구는 "forge-pr advisor 는 Opus 고정 — Fable 자동분기 없음"이었다. advisor 기본이 Fable 로 바뀌면서 **advisor 자문 레그는 리졸버를 따른다**. 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
 ✅ **2026-08-22 Human 지시로 이 금지는 해제됐다.** `cr-multi`/`cr-triple` 의 **검수 워커 레그**도 이제 기본이
-**Fable 5 + gpt-5.6-sol + gemini-3.6-flash(effort=xhigh)** 다. 즉 `/forge-pr` 이 부르는 cr-final·cr-triple 은
+**Fable 5.1 + gpt-6-astra + gemini-3.8-flash(effort=xhigh)** 다(⚠️ 구 표기 "gpt-5.6-sol" 은 2026-09-06 폐기 — Codex 레그가 astra 로 올라갔다. sol 은 정식 지원 중이며 `--sol` 하향 스위치로 남는다). 즉 `/forge-pr` 이 부르는 cr-final·cr-triple 은
 별도 플래그 없이 프런티어 모델로 돈다. 구 조항의 근거("매 PR 프런티어 = 비용 폭발")는 구독 3계정 정액
 운용이라 성립하지 않는다. 정본 → `model-routing.md §세션 운영 모델`.
 
@@ -351,7 +351,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
   - 봇 ~33% 부정확 (arXiv 2604.24525). must-fix만 수정, 반박가능은 근거 답글.
   - 봇이 옳고 agent 반박이 틀릴 수도 있음 → 보안/데이터손실 won't-fix 자체해소 금지.
   - escalation: same-thread 3회 재발 / 봇↔cr-triple 충돌 / N라운드 초과 → human [STOP].
-   - 봇↔cr-triple 충돌 시: human [STOP] 전 advisor-strategist(리졸버 기본 = Fable 5) 자문 — `Agent(subagent_type="advisor-strategist", prompt="<봇 판정 vs cr-triple 판정 요약 500토큰> 어느 판정이 옳은지·근거 평가 조언 요청")`. advisory only — 최종 결정 Human.
+   - 봇↔cr-triple 충돌 시: human [STOP] 전 advisor-strategist(리졸버 기본 = Fable 5.1) 자문 — `Agent(subagent_type="advisor-strategist", prompt="<봇 판정 vs cr-triple 판정 요약 500토큰> 어느 판정이 옳은지·근거 평가 조언 요청")`. advisory only — 최종 결정 Human.
 
   **초기 모드 (enforcement-theater 방지)**: WARN + 면제≤2종(hotfix/BYPASS_BOT_REVIEW=1). 1주 metrics 후 hard BLOCK 승격 검토.
 
@@ -370,7 +370,56 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
    - **on** (기본): 풀 cr-triple (Opus+Codex+Gemini)
    - **degrade**: Codex 레그 제외 (Opus+Gemini만) — Codex 비용/응답지연 회피 시
    - **off**: cr-final 자동 호출 생략 — 긴급 머지 or `--no-cr-final` 대체
-   - PASS/WARN → **develop 자동 머지(기본)**. 승인 요청 없이 `gh pr merge --squash --delete-branch`를 실행한다 — 커맨드 계약이 "develop 머지까지 자동"이다. 실제로 권한 분류기에 차단됐을 때만 §(d) 폴백으로 내려간다(차단을 *예상*해 미리 멈추는 것 금지). `--auto-merge` 플래그는 이 기본 동작의 명시 표기일 뿐 no-op.
+   - **PASS → develop 자동 머지(기본).** 승인 요청 없이 `gh pr merge --squash --delete-branch`를 실행한다
+     — 커맨드 계약이 "develop 머지까지 자동"이다. 실제로 권한 분류기에 차단됐을 때만 §(d) 폴백으로
+     내려간다(차단을 *예상*해 미리 멈추는 것 금지). `--auto-merge` 플래그는 이 기본 동작의 명시 표기일 뿐 no-op.
+   - ⛔ **WARN → 자동 머지하지 않는다 (2026-08-31 신설).** PR 은 열어 둔 채 **사람 결정을 기다린다.**
+     보고에 `WARN 사유` 를 그대로 싣고 머지 명령 블록(§(d) 형식)을 함께 출력한다.
+
+     **왜 바꿨나 — 이 파일이 이미 답을 적어 두고 있었다.** 아래 `content_integrity` 절의 마지막
+     문단이 그것이다: *"`cr-multi` 가 `lost` 일 때 `PASS→WARN` 으로 낮추지만, 바로 위 줄이 WARN 도
+     자동 머지하므로 그 강등은 게이트에 전혀 닿지 않는다."* 즉 **강등이라는 안전장치를 만들어
+     놓고 그 아래 줄이 무력화**하고 있었다. 쉽게 말하면 **경보를 울리게 해 놓고 문은 그대로
+     열어 둔 것**이다. 이제 강등이 실제로 문을 닫는다.
+
+     ⚠️ 이것은 속도를 늦추는 변경이 **아니다** — 진짜로 통과한 PR(PASS)의 경로는 그대로다.
+     닫는 것은 **"검수가 제대로 못 돌았을 때"** 뿐이다.
+
+   - ⛔ **무인 세션 → verdict 무관하게 자동 머지하지 않는다 (2026-08-31 신설).**
+     아무도 안 보는 새벽에 develop 이 바뀌는 것을 막는다. 머지 실행 **직전** 아래를 평가한다:
+
+     ```bash
+     UNATTENDED=0
+     [ -n "${CLAUDE_JOB_DIR:-}" ]   && UNATTENDED=1   # 백그라운드 잡
+     [ -n "${FORGE_LOOP:-}" ]       && UNATTENDED=1   # /forge-loop-maker 루프
+     [ -n "${FORGE_CRON:-}" ]       && UNATTENDED=1   # 크론
+     # 탈출구는 **마지막에** 평가한다 — 위 어떤 조건보다 뒤여야 실제로 이긴다.
+     [ "${FORGE_PR_ALLOW_UNATTENDED_MERGE:-0}" = "1" ] && UNATTENDED=0
+     ```
+     `UNATTENDED=1` 이면 **PR 개설까지만** 하고 §(d) 형식의 머지 명령 블록을 출력한 뒤 끝낸다.
+     사람이 그 세션에서 굳이 진행하려면 `FORGE_PR_ALLOW_UNATTENDED_MERGE=1` 을 **사람이** 켠다.
+
+     ⚠️ **`FORGE_BUS_FROM` 은 이 목록에서 뺐다 (2026-08-31 cr-final 반영).** 그 변수는
+     **모든 버스 자식 세션**에 붙는데, 팀방 상당수는 사람이 보고 있는 앞에서 돈다.
+     넣어 두면 *"사람이 지켜보는데도 무인으로 분류돼 파이프라인이 서는"* 2026-08-01 정체 회귀가
+     그 경로에서 재발한다. **버스에서 왔다는 사실은 무인의 증거가 아니다** — 그 방을 누가
+     띄웠는지는 그 변수가 말해 주지 않는다. 버스 경유 무인 실행을 막고 싶으면 그 호출자가
+     `FORGE_LOOP`·`FORGE_CRON` 을 켜거나 `CLAUDE_JOB_DIR` 아래에서 돈다(둘 다 위에 있다).
+
+     ⚠️ **이 감지는 완전하지 않다** — 위 세 변수를 쓰지 않는 무인 경로는 못 잡는다. 그러니
+     "감지 안 됐다 = 사람이 보고 있다"로 읽지 마라. 이건 **알려진 무인 경로를 닫는 것**이지
+     유인(有人)을 증명하는 장치가 아니다.
+
+     ⚠️ **`FORGE_LOOP`·`FORGE_CRON` 은 현재 레포에 setter 가 0건이다**(2026-08-31 실측:
+     `grep -rn 'FORGE_LOOP=\|FORGE_CRON=' --include='*.sh' --include='*.js' .` → 0).
+     즉 **지금 실효가 있는 것은 `CLAUDE_JOB_DIR` 하나**다. 나머지 둘은 앞으로 무인 경로를
+     만들 때 켜라는 **계약**이지 이미 도는 방어가 아니다 — 그것을 "3중으로 막았다"고 읽지 마라.
+     야간 루프를 배선할 때 `FORGE_LOOP=1` 을 켜는 것이 그 계약의 이행이다.
+
+     근거: `/forge-pr` 을 부르는 **모든** 자동 경로가 이 성질을 갖는다(2026-08-31 harness 조사 —
+     야간 이슈 큐 루프를 설계하다 발견). `pipeline.md` 다이어그램은 P7 앞에 `[STOP]` 을 그려 두는데
+     실제 계약은 정반대였다 — **자동문 앞에 "노크하세요" 팻말만 붙어 있던 셈**이다.
+     폐기조건: 무인 실행이 별도 권한 프로파일을 갖게 되면(그쪽에서 머지 권한을 빼면) 이 항을 삭제한다.
    - ⛔ **원문 확보 게이트 — `content_integrity` 확인 의무 (2026-08-18 신설)**:
      Step 3 이 돌려준 **결과 payload 의 `content_integrity` 필드**를 읽는다(위 `inconclusive_legs` 확인과 같은 방식 — `/cr-triple` 은 `Workflow(...)` **도구 호출**이라 결과가 구조화 객체로 직접 반환된다. 셸 서브프로세스가 아니므로 `$(...)` 로 캡처할 수 없다).
 
@@ -384,7 +433,12 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
      `lost` 일 때 출력할 문구: `[STOP] 검수가 대상 원문을 확보하지 못했다(content_integrity=lost: <content_integrity_reason>). 이 판정은 '코드가 괜찮다'가 아니라 '우리가 못 읽었다'이다 — 대상을 나눠 재호출하라.`
 
-     **왜 verdict 만으로는 안 되나**: `cr-multi` 가 `lost` 일 때 `PASS→WARN` 으로 낮추지만, **바로 위 줄이 WARN 도 자동 머지**하므로 그 강등은 게이트에 전혀 닿지 않는다. 즉 "원문 없이 낸 판정"이 라벨만 바뀐 채 그대로 develop 에 들어간다 — base64 차단 갭이 경고한 바로 그 사고다.
+     **왜 verdict 만으로는 안 되나**: `cr-multi` 가 `lost` 일 때 `PASS→WARN` 으로 낮추는데,
+     **2026-08-31 이전에는 바로 위 줄이 WARN 도 자동 머지**해서 그 강등이 게이트에 전혀 닿지 않았다.
+     "원문 없이 낸 판정"이 라벨만 바뀐 채 그대로 develop 에 들어갔다 — base64 차단 갭이 경고한 그 사고다.
+     ✅ **2026-08-31 에 위 §Step 3 에서 `WARN 자동 머지 금지` 로 닫았다.** 그래도 이 표를 남기는 이유는
+     `content_integrity` 가 **verdict 와 독립인 축**이기 때문이다 — `lost`/`unchecked`/필드없음은
+     verdict 가 PASS 여도 `[STOP]` 이다. 강등에만 기대지 않는다(안전장치는 겹쳐야 한다).
 
      ⚠️ **이 절은 처음에 `$CR_RESULT_JSON` 이라는 셸 변수를 쓰는 bash 블록으로 작성됐다가 2026-08-18 재검수에서 HIGH 로 적발돼 교체됐다.** 그 변수는 레포 어디에서도 할당되지 않아(`grep -rn 'CR_RESULT_JSON=' → 0건`) **게이트가 절대 발동하지 않았다** — 고치려던 결함(선언만 있고 실효 없음)을 새 게이트에서 그대로 재현한 것이다. 교훈: 이 파일의 실제 bash 게이트(`LOCAL_REMOTE`·`PR_HEAD_SHA` 등)는 **예외 없이 같은 파일 안에서 `gh`/`git` 으로 먼저 할당**된다. 그 관례를 따르지 못하는 값은 bash 로 위장하지 말고 **산문 지시**로 쓴다.
 
@@ -464,7 +518,12 @@ CURRENT=$(git rev-parse --abbrev-ref HEAD)
 
 ### (d) 자동 머지 차단 시 — 사람 실행 명령 블록 제공
 
-**이 절은 폴백이지 기본 경로가 아니다.** 기본은 §Step 3 그대로 **develop 자동 머지**다 — 먼저 `gh pr merge`를 실제로 시도하고, **거부 응답을 실제로 받았을 때만** 아래로 내려온다. 차단을 예상해 시도 없이 명령 블록만 출력하고 멈추는 것은 계약 위반이다(2026-08-01 실발화: CI PASS·검수완료·unresolved 0 상태에서 시도조차 없이 승인 대기해 파이프라인이 정지했다).
+**이 절은 폴백이지 기본 경로가 아니다.** 기본은 §Step 3 그대로 **PASS 면 develop 자동 머지**다 — 먼저 `gh pr merge`를 실제로 시도하고, **거부 응답을 실제로 받았을 때만** 아래로 내려온다. 차단을 예상해 시도 없이 명령 블록만 출력하고 멈추는 것은 계약 위반이다(2026-08-01 실발화: CI PASS·검수완료·unresolved 0 상태에서 시도조차 없이 승인 대기해 파이프라인이 정지했다).
+
+⚠️ **다만 2026-08-31 부터 이 절은 폴백이 아닌 정규 착지점이 되는 경우가 둘 있다** — §Step 3 의
+`WARN` 과 `UNATTENDED=1`. 그 둘은 **시도 자체를 하지 않고** 곧장 아래 명령 블록을 낸다.
+위 "시도 없이 멈추면 계약 위반"은 **PASS + 유인(有人)** 경로에 대한 규정이고, 그 둘에는 적용되지 않는다
+(적용하면 방금 닫은 구멍이 다시 열린다).
 
 권한 분류기가 AI 자체 작성 PR의 무인 머지를 차단할 수는 있다(정상 안전장치 — 이 커맨드가 우회하지 않는다). 무인 자동 머지를 원하면 `gh pr merge` 권한을 사전등록(allowlist)해 분류기 차단 자체를 없애는 옵션도 있다 — Human이 리스크를 감수하고 명시 설정한 경우에 한한다. 실제 차단 감지 시 다음 형식으로 **복사-실행 가능한 명령 블록 + 사전 상태 가드**를 함께 출력하고 Human 실행을 요청한다.
 
@@ -606,7 +665,7 @@ Scope Creep (미요청 추가):
    재도출하지 말 것 — 집계 오류의 상습 지점이다. 파일·필드 부재 시에만 위 audit 표에서 도출.
 3. NOT DONE / UNVERIFIABLE 1건 이상 → **[STOP]** 해소 전 머지 금지
 4. PARTIAL / CHANGED → WARN + 사용자 확인 후 진행 허용
-   - **CHANGED 1건+ 시**: human 승인 전 advisor-strategist(리졸버 기본 = Fable 5) 자문 — `Agent(subagent_type="advisor-strategist", prompt="<CHANGED 항목+범위/인터페이스 변경 요약 500토큰> 변경 타당성·회귀 위험·대안 조언 요청")`. advisory only, non-blocking.
+   - **CHANGED 1건+ 시**: human 승인 전 advisor-strategist(리졸버 기본 = Fable 5.1) 자문 — `Agent(subagent_type="advisor-strategist", prompt="<CHANGED 항목+범위/인터페이스 변경 요약 500토큰> 변경 타당성·회귀 위험·대안 조언 요청")`. advisory only, non-blocking.
 5. Scope Creep 발견 → WARN + 추가 이유 명시 (의도적 추가면 사용자 승인 기록)
 
 ### Override 선언 (WI-31)
@@ -654,10 +713,10 @@ BOUNDARY 감지 → WARN 출력 → human 확인 대기 → 승인 후 진행
 1주 metrics 후 hard BLOCK 승격 검토
 ```
 
-**advisor 자문 (고위험 결정 보강)**: BOUNDARY 감지 시 human 확인 전 advisor-strategist(리졸버 기본 = Fable 5) 자문 — advisory only, non-blocking(advisor 스폰 실패/미가용해도 기존 WARN+human 확인 그대로 진행):
+**advisor 자문 (고위험 결정 보강)**: BOUNDARY 감지 시 human 확인 전 advisor-strategist(리졸버 기본 = Fable 5.1) 자문 — advisory only, non-blocking(advisor 스폰 실패/미가용해도 기존 WARN+human 확인 그대로 진행):
 - **B1(DB스키마)/B2(마이그레이션)/B4(결제·금융)** = 비가역·최고위험 → `Agent(subagent_type="advisor-strategist", prompt="<BOUNDARY 범주+변경 요약+롤백 현황 500토큰> 비가역 리스크·롤백 전략 조언 요청")` + Human [STOP] 연계(advisor 조언을 승인 요청에 포함).
 - **B3(권한)/B5(scope확대)/B6(의존성)** → `Agent(subagent_type="advisor-strategist", prompt="<BOUNDARY 범주+변경 요약 500토큰> 설계 정합·회귀·대안 조언 요청")`.
-- 모델=`advisor-model-resolve.sh` 출력(**기본 Fable 5**, 대체 `gpt-5.6-sol`, 명시 시 Opus). 2026-08-12 이전의 "Opus 고정" 문구는 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only). 중첩 시 [→Lead 위임]. 최종 승인=Human.
+- 모델=`advisor-model-resolve.sh` 출력(**기본 Fable 5.1**, 대체 `gpt-6-astra`, 명시 시 Opus). 2026-08-12 이전의 "Opus 고정" 문구는 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only). 중첩 시 [→Lead 위임]. 최종 승인=Human.
 
 **위험도 기반 검수 강도 상향 권고 (B1/B2/B4 한정, AD-168 준수 — hard-block 금지)**: B1(DB스키마)/B2(마이그레이션)/B4(결제·금융) 감지 시, 위 advisor-strategist 자문과 병행해 검수 강도 상향을 **WARN 권고**한다(권고 출력일 뿐 차단 아님).
 

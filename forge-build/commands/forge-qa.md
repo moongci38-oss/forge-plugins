@@ -20,7 +20,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
   --cmd forge-qa --fr <시나리오·FR 수> --files <대상 파일 수> --domains <도메인 수>
 ```
 
-권고가 나오면 `forge-core.md §병렬 실행` **라우팅 3분법 표**로 레인을 정하고, **정한 뒤 1줄 기록**한다
+권고가 나오면 `forge-core.md §병렬 실행` **라우팅 4분법 표**로 레인을 정하고, **정한 뒤 1줄 기록**한다
 (미기록은 skip 이 아니라 **결측** — 이 줄이 없으면 P6 오탐률의 분자를 계산할 수 없다):
 
 ```bash

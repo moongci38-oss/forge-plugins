@@ -86,7 +86,7 @@ model: sonnet
 > 스킬 문서의 출력 규격과 Gemini에 보내는 프롬프트가 일치해야 한다.
 
 > **모델**: `--extract` 모드 → `GEMINI_MODEL=gemini-3.1-pro-preview` 고정 (정밀도 최우선)
-> 기본 분석 → `gemini-3.5-flash` (기존 유지)
+> 기본 분석 → `gemini-3.8-flash` (2026-09-03 상향 — PNG 1장 실호출 확인 후 핀)
 
 공통 분해 규칙 블록·필수 출력 형식(3테이블+트리+가이드)·분석 유형별 프롬프트 전문(Game/Web/App UI·HUD·아이콘·이펙트·경쟁작 비교·구현 검증)·`--extract` 모드 bbox JSON 스키마 상세 → `references/output-format.md`
 
@@ -139,7 +139,7 @@ bash $HOME/.claude/scripts/analyze-screenshot.sh \
 
 **모델 선택** (환경변수 `GEMINI_MODEL`):
 ```bash
-# 기본: gemini-3.5-flash (빠르고 저렴)
+# 기본: gemini-3.8-flash (빠르고 저렴)
 # 고품질: gemini-2.5-pro (정밀 분해, 복잡한 UI)
 GEMINI_MODEL=gemini-2.5-pro bash $HOME/.claude/scripts/analyze-screenshot.sh ...
 ```

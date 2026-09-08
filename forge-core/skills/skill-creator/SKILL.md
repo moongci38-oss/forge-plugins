@@ -197,6 +197,11 @@ To establish the skill's contents, analyze each concrete example to create a lis
 
 At this point, it is time to actually create the skill.
 
+**먼저 배치를 정한다 — 전역인가 로컬인가.** 30초 판정: *"이 스킬이 두 번째 프로젝트에서도 그대로 쓰이나?"*
+예 → 전역(`${FORGE_ROOT:-$HOME/forge}/.claude/skills/`, `forge-sync sync` 로 미러·팀원 전파) · 아니오/모르겠다 → 로컬(그 레포 `.claude/skills/`).
+전역 스킬은 `description` 이 **모든 세션에 상시 로드**되고 강등이 승격보다 비싸므로, 애매하면 로컬에서 시작한다.
+그레이존 5사례·되돌리는 법 → `references/placement-global-vs-local.md` Read.
+
 Skip this step only if the skill being developed already exists, and iteration or validation is needed. In this case, continue to the next step.
 
 <!-- root-cause(cross-layer/X-06, 2026-08-03 관측): 이 스텝이 가리키던 `scripts/init_skill.py`는 이 저장소 히스토리 전체에 존재한 적이 없다(`git log --all -- .claude/skills/skill-creator/scripts/init_skill.py` → 0건 — "복원"이 아니라 애초에 없던 스크립트). 검증 안 된 스캐폴딩 스크립트를 지금 급조하는 대신(선택 b — 판단 근거는 배정 브리프 X-06 보고 참조), 아래 인라인 절차로 대체한다. 실제 존재하는 `scripts/quick_validate.py`는 Step 5에서 그대로 사용한다. -->

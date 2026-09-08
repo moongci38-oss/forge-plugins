@@ -100,13 +100,22 @@ cp ${FORGE_ROOT:-$HOME/forge}/forge-workspace.example.json ${FORGE_ROOT:-$HOME/f
 | `GEMINI_API_KEY` | Gemini MCP (cr-triple) | ✅ |
 | `TAVILY_API_KEY` | 웹 검색 MCP | ✅ |
 | `BRAVE_API_KEY` | Brave Search MCP | ✅ |
-| `FIGMA_API_KEY` | Figma MCP | 디자인 작업 시 |
-| `OPENAI_API_KEY` | Codex (GPT-5.5, cr-triple) | cr-triple 사용 시 |
+| `FIGMA_API_KEY` | Figma MCP | ⛔ 신규 권장 안 함 (아래 주 참고) |
+| `OPENAI_API_KEY` | Codex (`gpt-6-astra`, cr-triple) | cr-triple 사용 시 |
 | `GITHUB_TOKEN` | GitHub API | PR/이슈 작업 시 |
 | `REPLICATE_API_TOKEN` | 이미지 생성 | 게임/디자인 트랙 |
 | `FORGE_DB_URL` | forge-knowledge RAG (pgvector) | RAG 검색 사용 시 |
 
 > **Notion 인증**: Notion MCP는 API 토큰이 아닌 **브라우저 OAuth** 방식입니다. Claude Code 첫 실행 시 자동으로 로그인 창이 열립니다.
+
+> ⚠️ **UI/UX 도구 순서가 바뀌었습니다 (2026-09-08 반영).** 지금 디자인 작업의 **시작점은 Claude Design**
+> (`claude.ai/design`, 커맨드 `/forge-claude-design`)이고, 보조가 **Stitch**(`/forge-stitch`, 사람이 명시 호출할 때만),
+> **Figma 는 신규 사용 중단**입니다. 이미 Figma 로 굴러가는 작업이 있으면 위 키를 그대로 두어도 되지만,
+> **새로 세팅하는 분은 `FIGMA_API_KEY` 를 건너뛰어도 됩니다.**
+> 정본: `$HOME/.claude/rules/tool-rules.md §UI/UX 작업`.
+> ⚠️ 구 표기 "`FIGMA_API_KEY` — 디자인 작업 시 (필수급)" 은 2026-09-08 폐기했습니다.
+> ⚠️ 구 표기 "Codex = **GPT-5.5**" 도 같은 날 폐기 — 현행 Codex 레그는 `gpt-6-astra` 입니다
+> (근거: `$HOME/.claude/rules/model-routing.md §세션 운영 모델`, 2026-09-06 상향).
 
 Gemini API 키는 별도 파일에도 저장 (gemini-text MCP가 읽음):
 ```bash
@@ -202,9 +211,9 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
 | `notion` | Notion DB/페이지 | 브라우저 OAuth (첫 사용 시) |
 | `tavily` | 웹 검색 | `TAVILY_API_KEY` |
 | `gitnexus` | 코드 그래프 | 없음 (로컬) |
-| `figma` | Figma 컴포넌트 | `FIGMA_API_KEY` |
-| `codex` | GPT-5.5 리뷰 | `codex login` |
-| `gemini-text` | Gemini 리뷰 | `~/.gemini-api-key` |
+| `figma` | Figma 컴포넌트 | `FIGMA_API_KEY` — ⛔ 신규 권장 안 함 (위 UI/UX 주 참고) |
+| `codex` | `gpt-6-astra` 리뷰 | `codex login` |
+| `gemini-text` | `gemini-3.8-flash` 리뷰 | `~/.gemini-api-key` |
 | `brave-search` | 웹 검색 (보조) | `BRAVE_API_KEY` |
 
 `~/.claude.json` → `mcpServers`에 없는 항목 수동 추가:

@@ -17,9 +17,9 @@ Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 |------|------|------|
 | Spec 본체 작성 | **Sonnet** | frontmatter `model: sonnet` |
 | 탐색(기존 spec/ADR 충돌·데이터 스키마 확인) | **Haiku** | `Agent(model:"haiku")` |
-| 고위험 전략 자문(범위/NFR) | **Fable 5**(대체 `gpt-5.6-sol`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
+| 고위험 전략 자문(범위/NFR) | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
 
-근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. advisor 모델 = `advisor-model-resolve.sh` 출력(기본 Fable 5 · 대체 `gpt-5.6-sol`) — 구 "Opus 고정(Fable 자동 없음 — forge-fix T4 한정)" 은 2026-08-12 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
+근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. advisor 모델 = `advisor-model-resolve.sh` 출력(기본 Fable 5.1 · 대체 `gpt-6-astra`) — 구 "Opus 고정(Fable 자동 없음 — forge-fix T4 한정)" 은 2026-08-12 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
 
 ## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
 
@@ -45,7 +45,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
   --cmd forge-spec --fr <FR 수> --files <대상 파일 수> --domains <도메인 수>
 ```
 
-권고가 나오면 `forge-core.md §병렬 실행` **라우팅 3분법 표**로 레인을 정하고, **정한 뒤 1줄 기록**한다
+권고가 나오면 `forge-core.md §병렬 실행` **라우팅 4분법 표**로 레인을 정하고, **정한 뒤 1줄 기록**한다
 (미기록은 skip 이 아니라 **결측** — 이 줄이 없으면 P6 오탐률의 분자를 계산할 수 없다):
 
 ```bash
@@ -180,7 +180,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-contract-lint.py" <�
   경로와 워커 프롬프트에 그대로 들어가므로, 슬래시·`..`·제어문자는 **에이전트를 띄우기 전에** 거부한다
   (`status:"stop"` + `invalidNames`/`duplicateNames`). 재현: 위 Workflow 를 `name:"../../evil"` 로 호출 → 0 에이전트 stop.
 - **실행 레인 = Workflow**(Agent Teams 아님). 근거: 3단계+ barrier 구조 + 주관 판단 검증이 섞여
-  AD-114 두 축에 걸친다 → `forge-core.md §병렬 실행` 라우팅 3분법 표 **각주 ①(상위 승격)**.
+  AD-114 두 축에 걸친다 → `forge-core.md §병렬 실행` 라우팅 4분법 표 **각주 ①(상위 승격)**.
   ```
   Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-spec-waves.workflow.js",
              args: { specDir: ".specify/specs", domains: [{name, brief}, …], requestId } })

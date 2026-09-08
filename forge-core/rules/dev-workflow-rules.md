@@ -2,12 +2,22 @@
 
 ## Git — Forge
 - **"dev" 중의어 감지**: 사용자가 "dev"라고만 말하면 dev 서버(실행 환경)와 develop 브랜치(git) 둘 다 해석 가능하다 — 애매하면 어느 쪽인지 확인 후 진행한다. 근거: "dev에 적용됐어?"를 dev 서버로 해석해 1왕복 낭비(실의도=develop 브랜치). 폐기조건: 없음(경량 행동 가이드, 상시 적용).
-- develop 브랜치에 먼저 커밋/푸시. main 직접 커밋 금지.
-- **첫 커밋 전 `git branch -a`로 develop 실존 확인.** 없으면 만들고 시작한다 — "없으니 main에"로 흘러가는 것이 실제 사고 경로였다(2026-07-26 telegram-workspace).
-- main 머지 시 develop도 동기화 유지 (둘 다 최신). develop 방치 금지.
+- **통합 브랜치(`develop`)에 먼저 커밋/푸시한다. 배포 브랜치에 직접 커밋하지 않는다.**
+  ⚠️ **배포 브랜치는 이름이 아니라 역할이다** — 레포마다 이름이 다르다(forge 계열 `main` · pikla 5개 `production`).
+  그 레포의 이름이 무엇인지는 아래 §정본 판정 SSoT 가 가리키는 **그 레포 CLAUDE.md** 가 정한다.
+  ⛔ 이 문장을 "**정본** 브랜치 직접 커밋 금지"로 바꾸지 마라 — `${FORGE_ROOT:-$HOME/forge}`·`${FORGE_ROOT:-$HOME/forge}-outputs` 는 **develop 이 정본**이라
+  그 순간 "develop 커밋 금지"가 되어 바로 윗줄과 충돌한다(2026-08-13 검토에서 걸러낸 오답).
+  근거: 전역 지침이 배포 브랜치를 `main` 이라는 **이름**으로 적어서, 그 자리가 `production` 인 pikla 가 자기
+  CLAUDE.md 에 예외 선언을 달아 덮어야 했다. 예외가 두 곳에 흩어져 매 세션 어느 쪽이 정본인지 다시 확인했다.
+  폐기조건: 모든 레포의 배포 브랜치 이름이 실제로 하나로 통일되면 이 절을 그 이름으로 되돌린다.
+- **첫 커밋 전 `git branch -a`로 develop 실존 확인.** 없으면 만들고 시작한다 — "없으니 배포 브랜치에"로 흘러가는 것이 실제 사고 경로였다(2026-07-26 telegram-workspace).
+- 배포 브랜치로 머지한 뒤에는 develop도 동기화 유지 (둘 다 최신). develop 방치 금지.
 - **레포별 "정본" 판정 SSoT = `CLAUDE.md §브랜치 / 배포`** — `${FORGE_ROOT:-$HOME/forge}`·`${FORGE_ROOT:-$HOME/forge}-outputs` = develop 정본, `${FORGE_ROOT:-$HOME/forge}-plugins-repo` = main 정본. "정본"이라 쓸 때는 항상 레포를 명시한다. 릴리스 흐름·근거 → `rules-on-demand/dev-workflow-detail.md §정본 판정 근거`
-- 신규 브랜치는 항상 develop에서 분기(예외: `hotfix/*`만 라이브 브랜치에서 분기). ⚠️ **등록은 확정, 차단은 미측정 — 차단을 믿지 말고 규율로 지킨다.** `grep -c branch-base-develop $HOME/.claude/settings.json` → **1**(전역) · `grep -c branch-base-develop ${FORGE_ROOT:-$HOME/forge}/.claude/settings.json` → **1**(프로젝트, 2026-08-12 등록). **2026-08-11 까지의 "프로젝트 레인 0" 서술은 폐기한다** — 그때는 참이었고 지금은 아니다. 따라서 **팀원 환경에도 이 가드가 도달한다**(git 배포 — `git pull` 후 발효). 여전히 참인 것은 하나뿐이다: **등록돼 있다는 것과 실제로 `exit 2` 로 막는다는 것은 다른 주장이고, 차단 여부는 아직 아무도 실측하지 않았다.** 재현 방법·kill-switch `FORGE_BRANCH_BASE=off` → `rules-on-demand/dev-workflow-detail.md §branch-base-develop 실측`
-  폐기조건: 차단 실효가 실측되면 "미측정" 문구를 그 결과로 교체한다.
+- 신규 브랜치는 항상 develop에서 분기(예외: `hotfix/*`만 라이브 브랜치에서 분기). ✅ **차단이 실제로 작동한다(2026-08-29 실측)** — develop 이 아닌 base 로 브랜치를 만들려 하자 훅이 `BLOCKED (branch-base-develop)` 로 **거부**했다(`git worktree add ... -b feat/x <비-develop-sha>` → 브랜치 미생성). 즉 이건 규율이 아니라 **집행선**이다. 전역·프로젝트 레인에 각 1건 등록돼 **팀원 환경에도 도달한다**(git 배포 — `git pull` 후 발효). kill-switch `FORGE_BRANCH_BASE=off`.
+  ⚠️ 구 서술 **"등록은 확정, 차단은 미측정 — 차단을 믿지 말고 규율로 지킨다"** 는 **폐기**한다(2026-08-29). 그때는 참이었다 — 등록만 확인됐고 아무도 차단을 재보지 않았다. 이제 재봤다.
+  ⚠️ **여전히 참인 것**: 실측한 것은 *이 머신·이 경로*의 1건이다. 팀원 머신에서의 발효는 `git pull` 여부에 달렸고 그건 별개 축이다.
+  재현(⚠️ 실제로 브랜치를 만들려 시도한다 — 성공하면 지워라): `git worktree add /tmp/bbd-probe -b probe/base-check <develop 아닌 sha>` → `BLOCKED` 면 집행 중.
+  등록 실측치·상세 → `rules-on-demand/dev-workflow-detail.md §branch-base-develop — 등록 실측치` · `§branch-base-develop 실측`
 - git push / git merge → allow (ask 금지). 파이프라인 흐름 유지.
 - **`/dev/null` 은 리다이렉트로만 쓴다 — 인자로 전달 금지**(2026-07-31): Windows/MSYS 에서 인자 위치의 `/dev/null` 은 경로 변환돼 **조용히 실패**한다(`2>/dev/null` 은 안전, `--output /dev/null` 은 아님). 변환 경로·사례 → `rules-on-demand/windows-msys-pitfalls.md`
 - CI PASS + 리뷰 완료 시 자동 머지 후 다음 작업 진행.
@@ -33,35 +43,16 @@
 - **세션 종료 게이트**: `/forge-end` 전에 이 세션이 만든 브랜치가 전부 (머지 | 아카이브 |
   위 3 사유 중 하나로 기록됨) 인지 확인한다.
 
-⚠️ **"충돌 없음"을 "안전함"으로 읽지 마라**(2026-08-10 실사고). git 이 clean 이라 해도
-같은 변경이 **다른 줄 위치**로 이미 들어와 있으면 양쪽이 다 삽입돼 결과물이 깨진다.
-실측: `forge-sync.mjs` → `SyntaxError: Identifier 'SIBLING_SKIP_ACCOUNTS' has already been
-declared` · `dev-workflow-rules.md` → 같은 절 2회 삽입. **머지마다 커밋 전에 검증**한다 —
+⚠️ **"충돌 없음"을 "안전함"으로 읽지 마라.** git 이 clean 이라 해도 같은 변경이 **다른 줄 위치**로
+이미 들어와 있으면 양쪽이 다 삽입돼 결과물이 깨진다. **머지마다 커밋 전에 검증**한다 —
 `.sh` `bash -n` · `.py` `py_compile` · `.mjs/.js` `node --check` · `.json` 파싱 ·
 `.md` **두 검사를 다 돌린다** — ①중복 헤딩 `grep -E '^#{2,4} ' f | sort | uniq -d`
 ②본문 연속 중복 줄 `awk 'NF && $0==prev {print FILENAME": "FNR": "$0} {prev=$0}' f`.
 실패하면 `git merge --abort` (`reset --hard` 금지 — 파괴적 명령 가드에 걸리고 남의 작업을 날린다).
+⚠️ **①만으로는 이 절이 경고하는 바로 그 사고를 못 잡는다** — 중복이 헤딩이 아니라 본문 줄이면 ①은 0건으로 통과시킨다. 그래서 ②를 2026-08-12 에 추가했다.
+실측 사례·무력화 입력(연속되지 않은 중복은 못 잡는다)·폐기조건 → `rules-on-demand/dev-workflow-detail.md §머지 후 중복 삽입 검사 — 근거`
 
-⚠️ **②는 2026-08-12 에 추가했다. ①만으로는 이 절이 경고하는 바로 그 사고를 못 잡는다.**
-같은 날 PR #246 이 이 파일에 `폐기조건:` 줄을 한 줄 더 넣었는데, 중복된 것이 헤딩이 아니라
-**본문 줄**이라 ①은 0건으로 통과시켰다(PR #247 로 사후 수정). 검사를 건너뛴 게 아니라
-**검사가 그 결함을 볼 수 없었다** — 쉽게 말하면 지붕만 보는 점검표로 마루가 꺼진 걸 놓친 것이다.
-⚠️ 이 검사가 무력화되는 입력: **연속되지 않은** 중복(같은 문장이 파일의 떨어진 두 위치에)은
-못 잡는다. 문단 단위 중복은 여전히 사람이 diff 를 읽어야 보인다.
-폐기조건: 머지 후 중복 삽입 사고가 2분기 연속 0건이면 ②를 재검토한다.
-
-- **재현(지금 방치분이 몇 개인지)**:
-  ```bash
-  for X in forge forge-outputs forge-plugins-repo; do
-    git -C ~/$X fetch --prune origin >/dev/null 2>&1
-    echo "$X: $(git -C ~/$X for-each-ref --format='%(refname:short)' refs/remotes/origin/ \
-      | grep -vE 'origin/(HEAD|develop|main|staging)$' | wc -l)"
-  done
-  ```
-- 근거: 2026-08-10 실측 — 미머지 브랜치 **134개** 누적. 전수 조사해보니 **106개는 내용이
-  이미 develop 에 있거나 자동 생성분**이었다. 즉 실제 미반영은 소수인데 방치된 이름표가
-  그것을 가려서, 매 세션 "미머지 있음"이 늑대소년이 돼 있었다.
-- 폐기조건: 미머지 브랜치가 2분기 연속 상시 10개 미만으로 유지되면 이 절을 재검토한다.
+- 재현(지금 방치분이 몇 개인지)·근거(2026-08-10 실측 — 미머지 134개 중 106개가 이미 반영분이라 "미머지 있음"이 늑대소년이 돼 있었다)·폐기조건 → `rules-on-demand/dev-workflow-detail.md §브랜치 방치 금지 — 근거·재현`
 
 ### 지표·기준 분리 게이트 (Metric/Criteria Separation, E-3)
 
@@ -82,16 +73,14 @@ declared` · `dev-workflow-rules.md` → 같은 절 2회 삽입. **머지마다 
 ## SDD 자동 진입
 
 **3조건 동시 충족** → 사용자 명시 요청 없어도 SDD 체인 자동 진입:
-①개발 의도("구현해줘/만들어줘/개발해줘/추가해줘") ②기획서·Spec 존재(`**/docs/planning/active/*.md` · `.specify/specs/*.md` · `--plan|--spec` 인자 중 1+ — 2026-08-15 경로 확장: 플랫폼 레인(`forge-outputs/docs/planning/active/`)뿐 아니라 제품 레포 자체 경로도 포함. 근거: `harness-gaps/2026-08-09-sdd-auto-entry-unenforced.md` 조치1 — 제품 레포 기획서가 옛 경로 밖에 있어 조건②가 문자 그대로 불충족으로 오판될 여지가 있었다) ③변경 범위 ≥ 단일 파일(오타·1줄 수정 제외).
+①개발 의도("구현해줘/만들어줘/개발해줘/추가해줘") ②기획서·Spec 존재(`**/docs/planning/active/*.md` · `.specify/specs/*.md` · `--plan|--spec` 인자 중 1+ — 플랫폼 레인(`forge-outputs/docs/planning/active/`)뿐 아니라 **제품 레포 자체 경로도 포함**한다, 2026-08-15 확장) ③변경 범위 ≥ 단일 파일(오타·1줄 수정 제외). 경로 확장 근거 → `rules-on-demand/dev-workflow-detail.md §SDD 자동 진입 — 경로 확장·P3 선행 근거`
 
 **체인**: `/spec-write` [STOP] → `/forge-implement` [STOP] → `/qa` → `/forge-pr`(cr-final+머지).
 
 ⚠️ **이 체인은 P2·P3 산출물이 이미 있을 때 전용이다.** 기획서(PRD/GDD)만 있고 **P3 기획 패키지
 (spec-kernel·architecture·roadmap)가 없으면 `/forge-plan` 을 먼저 거친다** — 위 체인은 Spec 작성부터라
 P3 를 건너뛴다. 조건②의 "기획서 존재"가 곧 "P3 완료"를 뜻하지 않는다.
-근거: 2026-08-22 AgentTrust 세션 — 이 룰만 읽은 세션이 P2 다음을 `/forge-spec` 으로 안내했고,
-P3 산출물은 실측 0건이었다. 재현: `grep -c "forge-plan" ${FORGE_ROOT:-$HOME/forge}/dev/global-rules/dev-workflow-rules.md` → `0` 이면 이 단서가 유실된 것이다.
-폐기조건: 체인 자체에 `/forge-plan` 이 정식 편입되면 이 단서를 그 체인 표기로 교체한다.
+근거·재현·폐기조건 → `rules-on-demand/dev-workflow-detail.md §SDD 자동 진입 — 경로 확장·P3 선행 근거`
 
 **예외 — 자동 발동 X**: 버그수정·긴급 hotfix → `/forge-fix`(또는 `/investigate`) · "리서치만/분석만/확인만" → 직접 응답 · 명시적 다른 슬래시 커맨드 → 그대로 따름.
 
@@ -122,6 +111,27 @@ P3 산출물은 실측 0건이었다. 재현: `grep -c "forge-plan" ${FORGE_ROOT
 - 레인별 함정("forge 에 없다"≠"지워도 된다") · 등록 제거 전파법(`DEPRECATED` 목록) · 근거 실측치·정정 이력 → `rules-on-demand/dev-workflow-detail.md §팀 전파 판정 의무 상세`
 
 폐기조건: 훅 등록이 레포 한 곳으로 단일화되고 `forge-sync sync` 가 삭제까지 반영하면 이 절의 ④·삭제 항을 재검토한다.
+
+## 리포트 사이트 — 발행·수정 전 동기화 (Human 지시 2026-09-06)
+
+**`forge-reports.pages.dev` 에 발행하기 전, 그리고 사이트 기능·카테고리를 고치기 전에 `git pull` 로 최신을 받고 내 변경은 커밋한 뒤에 올린다.**
+
+쉽게 말하면 이 사이트는 **매번 통째로 다시 찍어내는 인쇄물**이다. 낡은 원고로 찍으면 그 사이 팀원이 넣은 페이지가 **충돌 없이 조용히 사라진다.**
+
+- **콘텐츠 발행** = `report-site-publish.sh` 의 `_sync_sources()` 가 **자동 집행**한다(2026-09-06 배선). `$FORGE_OUTPUTS` 가 뒤처지면 ff-only pull, 못 당기면 **배포 중단**. 끄기 `FORGE_PUBLISH_ALLOW_STALE=1`.
+- **사이트 기능·카테고리 수정**(`shared/scripts/report-site-build.py` · `.site/functions/`) = **사람·에이전트가 지킨다.** 편집 **전에** `git -C "$FORGE_ROOT" pull` — 안 하면 팀원이 추가한 카테고리를 덮어써 없앤다. 실행 중 스크립트 교체는 그 자체가 사고라 스크립트는 경고만 하고 자동 pull 하지 않는다.
+- ⚠️ pull 이 막히면 **`git stash` 로 밀어내지 말 것**(남의 미커밋을 흡수한다 — §D-2). 막는 변경을 **커밋**하고 다시 pull 한다. 훅 append 파일(`learnings.jsonl` 등)이 막으면 백업 → `git show HEAD:<경로> > <경로>` → pull → 고유 줄 재append 로 분기 없이 푼다.
+- ⚠️ **발행 성공을 HTTP 401 로 판정하지 마라** — 게이트가 모든 경로를 401 로 받아 **없는 페이지도 401** 이다. 정본 증거 = `발행 완료` 로그 + `.site-state/entries.tsv` 갱신 + wrangler `Deployment complete`.
+- ⚠️ **`FORGE_SITE_ALLOW_EMPTY=1` 로 뚫지 마라.** 구획이 0 건이면 그 머신의 원본이 불완전하다는 신호다. **비교 기준은 "직전 배포"가 아니라 "마지막 온전한 배포"** — 직전이 이미 깎여 있으면 "차이 없음"이 정상으로 보인다. 2026-09-05 에 그 함정에 빠져(직전 스냅샷만 대조) 이미 깎인 사이트(위키 139→119·아티팩트 24→0)를 override 로 다시 굳혔다. 구획이 비었으면 **원본이 온전한 머신에서 발행**한다.
+- **구획 가드는 이름을 모른다(2026-09-07 갱신).** 구판은 `wiki`·`artifact` **두 이름만** 0 인지 봤다 — 팀원이 새 탭을 추가하면(「지원사업」 등) 보호 대상이 아니라 조용히 사라졌다. 지금은 마지막 온전한 배포의 **구획별 최대치**를 `.site-state/section-highwater.tsv` 에 적어두고 그보다 줄면 막는다. **새 카테고리는 한 번 배포되면 그 머신에서 자동으로 보호된다.**
+  - ⚠️ **팀 전파는 자동이 아니다** — 기준선 갱신은 로컬 파일에만 쓰인다. 그 파일(`section-highwater.tsv`)을 **사람이 커밋**해야 팀원에게 도달한다. 발행 자동 커밋 레인에 넣지 않는 이유는 그렇게 하면 **성공 배포가 다음 배포의 ff-only pull 을 막기** 때문이다(공유 체크아웃은 dirty 로 남는데 origin 만 바뀐다).
+  - 소폭 감소(기본 2건)는 통과 + 경고. 상한 = `FORGE_SITE_SHRINK_TOLERANCE`.
+  - 의도적 삭제·리네임은 `FORGE_SITE_ACCEPT_SHRINK=1` 로 승인한다 — ⚠️ **env 라 1회성이 아니다.** 매 회차 로그에 그 경고가 보이면 지우지 않은 것이고, 그대로 두면 기준선이 깎여 **가드가 스스로 풀린다**.
+  - ⚠️ **빌더가 뒤처지면 새 카테고리는 애초에 생기지 않는다** — 가드는 "사라지는 것"만 막는다. 발행 전 `git -C "$FORGE_ROOT" pull` 은 여전히 사람 몫이고, 로그의 `빌더(...)가 N 커밋 뒤처짐` 경고를 발행과 무관한 것으로 읽지 마라(2026-09-07 실사고: 25커밋 뒤처진 빌더가 「지원사업」 3건을 통째로 빠뜨렸다).
+- **발행 머신은 1대다 — WSL `Ubuntu-C` (2026-09-07 결정).** 사이트는 매 회차 통째로 다시 찍으므로 발행자가 N대면 사이트는 "가장 좋은 쪽"이 아니라 **가장 낡은 쪽으로 수렴**한다. ⛔ 다른 머신에 발행 cron 을 새로 걸지 마라. ⚠️ **`hostname` 으로 발행 머신을 판별하지 마라 — 두 배포판이 같다.** 대수 확인·판별 함정·단일 발행기의 대가 → `rules-on-demand/dev-workflow-detail.md §발행 머신 1대 — 근거·재현`
+
+근거: 2026-09-05 원본 없는 머신이 발행해 위키 139·아티팩트 24건 소실(롤백 복구) · 2026-09-06 실측에서 `forge-outputs` 2커밋·`${FORGE_ROOT:-$HOME/forge}` 24커밋 뒤처진 채 발행 직전이었다 · 2026-09-07 176커밋 뒤처진 `Ubuntu-22.04` 가 매시 :25 에 사이트를 1,873→1,623건으로 덮었다.
+폐기조건: 사이트가 증분 발행(전체 재생성 아님)으로 바뀌면 이 절을 재검토한다.
 
 ## 컨펌 공유 워크플로
 

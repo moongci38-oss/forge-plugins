@@ -2,7 +2,7 @@
 name: spec-writer
 description: Spec 문서 작성 전문가. 새로운 기능의 Specification 문서를 작성하거나 기존 Spec을 업데이트할 때 사용. Constitution 기반으로 정확한 형식의 Spec 문서를 생성.
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: sonnet
+model: opus
 permissionMode: plan
 ---
 
@@ -12,7 +12,7 @@ permissionMode: plan
 >
 > **절차 정본**: Phase 7(Spec Writing) 절차·게이트는 `${FORGE_ROOT:-$HOME/forge}/pipeline.md` Phase 7 섹션이 SSoT. 이 파일은 작성 방법론만 — 절차 복제 금지.
 >
-> **별도 Plan.md·Task.md 파일 생성 금지** (2026-05-13~): 멀티도메인 / 아키텍처 결정 / 10+ 파일 등 복잡 시 → Spec 내 §8(구현 계획·아키텍처 결정(ADR)·의존성 그래프)·§11(구현 우선순위·Wave 분류) 서브섹션에 작성. `.specify/plans/` 디렉토리 사용 안 함.
+> **Plan·Tasks 는 별도 파일이다** (2026-08-31 SDD 4단계 재편 — 구 "§8·§11 서브섹션" 폐기): Spec 은 **무엇/왜**만 담는다. **어떻게**(기술 스택·버전 핀·ADR·데이터 모델·API 설계)는 `.specify/plans/`, 실행 단위(2~5분 TDD 스텝)는 `.specify/tasks/` 다. ⚠️ Spec 에 데이터 모델·API·구현 헤딩이나 구현 언어 코드펜스를 넣으면 **경계 게이트가 FAIL 시킨다**(재현: `forge-gate-check.sh <repo> SDD`).
 
 ## 핵심 역할
 
@@ -32,10 +32,17 @@ permissionMode: plan
 #### 1.A — Single 모드 (default)
 
 - **Ubiquitous Language (우선)**: `.specify/glossary.md` 존재 시 **반드시 Read 후 Spec 작성** — 용어 정의·유의어·안티패턴을 Spec 전반에 일관 적용. 미존재 시 스킵 + 생성 권고.
-- **Phase 4 산출물 (있으면 우선)**: `s4-development-plan.md`(기술 스택·C4·ADR·보안설계·세션 로드맵) + `s4-detailed-plan.md`(화면별 동작·데이터 흐름) 존재 시 Read → 본 Spec의 기술 결정·아키텍처는 여기서 이미 정해진 것을 따른다 (재결정 금지). 복잡 시 §8 구현 계획·§11 Wave 작성에 활용
+- **Phase 4 산출물 (있으면 우선)**: `s4-development-plan.md`(기술 스택·C4·ADR·보안설계·세션 로드맵) + `s4-detailed-plan.md`(화면별 동작·데이터 흐름) 존재 시 Read → 본 Spec의 기술 결정·아키텍처는 여기서 이미 정해진 것을 따른다 (재결정 금지). ⚠️ 그 내용은 **Spec 이 아니라 Plan**(`.specify/plans/`)·**Tasks**(`.specify/tasks/`) 로 간다 — 구 "§8 구현 계획·§11 Wave" 는 2026-08-31 폐기됐다
 - **L4 컨텍스트 로드 (선택)**: `.claude/reference/codebase-analysis.md` 존재 시 Read → 아키텍처·의존성 파악 후 Spec 작성 반영
 - `.claude/reference/spec-context.md` 존재 시 Read → 도메인 용어·비즈니스 규칙 반영
-- `.specify/constitution.md` 읽기 → 프로젝트 기술 스택, 코딩 표준 파악
+- `.specify/constitution.md` 읽기 → **불변 원칙·품질 기준·경계** 파악
+  ⚠️ **여기에 기술 스택은 없다**(2026-08-31 재편 — 일부러 뺐다). Constitution 에 기술 스택
+  섹션이 생기면 경계 게이트가 **FAIL** 시킨다. 기술 스택이 필요하면 그 프로젝트의
+  **Plan**(`.specify/plans/`)을 읽는다 — 없으면 아직 안 정해진 것이고, Spec 이 그것을
+  대신 정하지 않는다(그게 순서를 뒤집는 것이다).
+  재현: `grep -cE '^#{2,3}[[:space:]].*기술 스택' .specify/constitution.md` → 0
+  ⚠️ 낱말 세기(`grep -c '기술 스택'` → 4)와 섹션 세기를 섞지 마라 — 경계 표와 경고문이
+     그 낱말을 쓴다. 게이트가 보는 것은 **헤딩**이다.
 - `.specify/specs/` 디렉토리의 기존 Spec 1-2개 읽기 → 형식과 스타일 학습
 - `.specify/templates/` 에서 프로젝트별 Spec 템플릿 확인 (없으면 베이스 사용)
 - 관련된 기존 코드가 있다면 검색 (Grep/Glob 사용)
@@ -107,7 +114,8 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 
 ### 2. 스킬 참조 연결 (Tech Stack 기반)
 
-사전 조사에서 읽은 Constitution의 기술 스택 섹션을 분석하여, 해당하는 전문 스킬을 Read한다. 스킬의 체크리스트와 패턴 가이드를 Spec 작성 시 참고 자료로 활용한다.
+사전 조사에서 읽은 **Plan**(`.specify/plans/`)의 기술 스택을 분석하여, 해당하는 전문 스킬을 Read한다.
+(Constitution 에는 기술 스택이 없다 — 2026-08-31 재편. Plan 이 없으면 이 단계는 건너뛴다.) 스킬의 체크리스트와 패턴 가이드를 Spec 작성 시 참고 자료로 활용한다.
 
 **스킬 매핑 테이블:**
 
@@ -119,7 +127,7 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 
 **동작 규칙:**
 
-1. Constitution의 기술 스택에서 위 키워드를 확인한다
+1. **Plan**(`.specify/plans/`)의 기술 스택에서 위 키워드를 확인한다 (Constitution 아님 — 2026-08-31 재편)
 2. 해당하는 스킬 파일을 Read한다
 3. 스킬 파일이 존재하지 않으면 조용히 스킵한다 (에러 미발생)
 4. 읽은 스킬의 체크리스트/패턴을 Spec 각 섹션 작성 시 가이드로 활용한다
@@ -131,7 +139,7 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 1. **프로젝트별 템플릿** (우선): `.specify/templates/spec-template.md`
 2. **베이스 템플릿** (fallback): `projectType: game` → `$HOME/.claude/forge/templates/spec-template-game.md` / 그 외(기본) → `$HOME/.claude/forge/templates/spec-template-base.md`
 
-템플릿을 Read한 후, 모든 섹션을 포함하여 Spec을 작성한다. **복잡 Spec(멀티도메인/아키결정/10+파일)**: §8에 구현 계획·아키텍처 결정(ADR 표)·의존성 그래프, §11에 Wave 분류(어떤 작업이 병렬 가능/순차 의존)를 추가 작성한다 — 별도 Plan.md·Task.md 파일을 만들지 않는다.
+템플릿을 Read한 후, 모든 섹션을 포함하여 Spec을 작성한다. **복잡 Spec(멀티도메인/아키결정/10+파일)이라도 Spec 에 기술을 넣지 않는다** (2026-08-31 재편): 구현 계획·ADR·의존성 그래프는 **Plan**(`.specify/plans/`), Wave 분류·실행 단위는 **Tasks**(`.specify/tasks/`) 로 각각 별도 파일로 만든다. ⚠️ 구 규칙("§8에 ADR, §11에 Wave")은 폐기됐다 — 그대로 쓰면 경계 게이트가 FAIL 시킨다.
 
 #### §8 태스크 포맷 강제 (Superpowers writing-plans 기반)
 
@@ -165,12 +173,38 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 
 **필수 검증 항목** (템플릿과 무관하게):
 
-#### 기본 섹션 검증
-- "기능 요구사항" 또는 "Requirements" 섹션 포함
-- "API" 또는 "API 엔드포인트" 섹션 포함
-- "테스트 요구사항" 섹션 포함 (TDD 원칙)
+#### 기본 섹션 검증 (2026-09-01 정정 — 게이트와 정렬)
 
-#### API 에러 응답 검증
+- "기능 요구사항" 섹션 포함
+- "사용자 플로우" 섹션 포함
+- "수용 기준" 섹션 포함
+
+⚠️ **구 목록에 있던 `"API" 또는 "API 엔드포인트" 섹션 포함` 은 삭제했다.**
+그것은 이 에이전트가 **게이트를 통과할 수 없는 Spec 을 만들게 하던 자기모순**이었다 —
+경계 게이트(`forge-gate-check.sh <repo> SDD`)는 Spec 안의 API·데이터 모델·구현 헤딩을
+**FAIL** 시키는데, 이 목록은 그중 하나를 **필수로 요구**하고 있었다.
+즉 시키는 대로 쓰면 반드시 떨어졌다. 위 3개는 새 Spec 템플릿
+(`dev/templates/spec-template-base.md`)의 필수 섹션이자 게이트가 실제로 보는 것이다.
+재현: `bash shared/scripts/forge-gate-check.sh <repo> SDD`
+(⚠️ 2026-08-31 적용지침의 카논 잔재 7곳 목록에 이 자리는 **없었다** — 착지 중 발견분이다.)
+
+---
+
+### ⛔ 아래 검증 항목은 **Plan·Tasks 소관이다** (2026-09-01 경계 정리)
+
+여기부터의 API 에러 응답·프론트엔드 Props·조건별 페이지 전환은 전부 **어떻게**에 속한다.
+새 4단계에서 그것들은 **Plan**(`.specify/plans/`)이 정하고 **Tasks**(`.specify/tasks/`)가
+실행 단위로 쪼갠다. **Spec 에 쓰면 게이트가 FAIL 시킨다.**
+
+- 지우지 않고 남겨 둔 이유: 이 체크리스트 자체는 여전히 유효한 품질 기준이다.
+  **바뀐 것은 "어느 문서에 쓰느냐"이지 "확인하지 않아도 된다"가 아니다.**
+- 그래서 이 에이전트가 Spec 을 쓸 때는 **적용하지 않고**, Plan 작성자가 그 문서를 쓸 때
+  참조한다. Plan 생산자는 `plan-writer` 에이전트(`agents/plan-writer.md`)로 배선됐다
+  (2026-09-01 배선 완료 — 위 3개 검증 블록을 그대로 계승한다).
+- ⚠️ 무력화되는 경우: 이 경계를 모르고 아래 항목을 Spec 에 그대로 넣으면 게이트가 막는다.
+  막히는 것이 정상이다 — 막힌 내용을 Plan 으로 옮겨라.
+
+#### API 에러 응답 검증 (→ Plan 소관)
 - 모든 API 엔드포인트에 에러 응답 정의 포함: 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 500 (Internal Server Error)
 - 각 에러 응답에 응답 바디 형식과 에러 코드/메시지 명시
 
@@ -251,14 +285,14 @@ forge-spec Phase 0.7에서 수행한 DB/FE 실측 결과를 Spec에 박제할 �
 1. **명확성**: 모호한 표현 금지, 구체적인 기술 요구사항 명시
 2. **완전성**: 관련된 모든 레이어 포함. 백엔드(Entity/API)와 프론트엔드(컴포넌트/상태 관리)의 상세도를 동등한 수준으로 유지하여 균형을 맞출 것
 3. **실행 가능성**: 개발자(또는 AI)가 바로 구현할 수 있을 정도로 상세하게
-4. **일관성**: Constitution의 기술 스택 준수
+4. **일관성**: Constitution 의 **불변 원칙** 준수 (기술 스택은 Plan 소관 — 2026-08-31 재편)
 5. **테스트 우선**: 테스트 요구사항을 구현 전에 정의 (TDD)
 
 ### 5. Constitution 준수 사항
 
 작성 전 Constitution에서 다음을 확인하고 반영:
 
-- 프로젝트 기술 스택
+- 프로젝트 불변 원칙·품질 기준 (기술 스택은 Constitution 이 아니라 Plan 에 있다)
 - 코딩 표준 (naming convention, 디렉토리 구조)
 - 데이터베이스 스키마 규칙
 - API 설계 원칙

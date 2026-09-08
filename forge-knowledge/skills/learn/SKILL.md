@@ -111,15 +111,24 @@ code-reviewer / forge-pge / investigate / forge-fix / codebase-analyzer 가 만�
 - `category=="review-pattern"` 이면 `fingerprint` 필수 (형식 `^(logic|security|performance|spec|test|architecture|unknown):.+$`).
 - `summary`·`evidence` = 1줄 (개행 금지 — 스택트레이스 등은 caller가 1줄 압축 후 append).
 - `status` 영구 삭제 X — 마킹 또는 GC archive 이관(move)만.
+- `retention` = 보존등급 3종 `permanent|ttl|session` (기본 `ttl`, 대소문자 무관). 쉽게 말하면
+  반찬통에 붙이는 "안 버림 / 유통기한 있음 / 오늘만" 스티커다. 두 경우를 다르게 다룬다 —
+  **미기재**(플래그 없음)면 WARN 1줄(stderr) 후 `ttl` 로 저장(차단 X — 기록 유실이 더 비싸다),
+  **오값**(`permanant` 같은 오타)이면 **exit 3 으로 거부**한다(영구 보존 의도가 조용히 90일짜리로
+  저장되는 것을 막는다). `permanent` 는 **자동 삭제 금지**.
+  정본: `OPS-PATTERNS.md §learnings retention 3등급` · 점검: `learnings-retention-check.sh <jsonl>`
 
 ### 헬퍼 cmd
 ```bash
 LEARN_BY=<comp> bash $HOME/.claude/scripts/learnings.sh load <category>     # active만 stdout, learnings 변경 0, access.log 기록
 bash $HOME/.claude/scripts/learnings.sh append [--global] [--replaces <old-id>] \
-  --category <c> --summary <s> --apply <a> [--trigger <t>] [--evidence <e>] [--fingerprint <fp>]   # 필드 인자만 — shell JSON 조합 금지. sanitize+validate+collision-id+중복가드 자동. exit: 0 성공 / 2 secret 차단 / 3 검증실패 / 4 git repo 아님 / 6 review-pattern 중복
+  --category <c> --summary <s> --apply <a> [--trigger <t>] [--evidence <e>] [--fingerprint <fp>] [--retention permanent|ttl|session]   # 필드 인자만 — shell JSON 조합 금지. sanitize+validate+collision-id+중복가드 자동. exit: 0 성공 / 2 secret 차단 / 3 검증실패 / 4 git repo 아님 / 6 review-pattern 중복
 bash $HOME/.claude/scripts/learnings.sh supersede-current <old-id> <new-id>  # global/project에서 old-id 찾아 status:superseded (패턴 해소 시)
 bash $HOME/.claude/scripts/learnings.sh next-id | sanitize-check | validate <json>
-/learn gc [--apply]   → learn-gc.sh (dry-run 기본; --apply 시 stale/dormant 마킹·archive move)
+/learn gc [--apply] [--legacy-ok]  → learn-gc.sh. **--dry-run 이 기본**(리포트만).
+#   --apply = stale/dormant 마킹 + stale 90일+ archive move + **retention=ttl/session 만료 삭제**까지 수행.
+#             삭제분은 30-archive/learnings-expired-<날짜>.jsonl 로 옮겨져 `--restore <id>` 로 되돌릴 수 있다.
+#   --legacy-ok = retention 미기재 레코드가 남아 있어도 apply 강행(가드 해제). 없으면 apply 는 exit 2 로 거부한다.
 ```
 
 ### 컴포넌트 표준 패턴
@@ -130,7 +139,7 @@ bash $HOME/.claude/scripts/learnings.sh next-id | sanitize-check | validate <jso
 ### 큐레이션 (트리거 기반 반자동 — 완전 자율 X)
 1. **stale** = learning `evidence`/`apply`의 `path:line`·`fn()`가 무효 → `learn-gc.sh`만 마킹 (load는 변경 안 함).
 2. **replaces / supersede** = append `--replaces` 또는 컴포넌트가 결정론적 패턴해소 감지 시 `supersede-current`.
-3. **주기 GC** = `/learn gc` (dry-run 리포트 기본; `--apply` 시 stale 90일+ archive move·dormant 마킹). cron 등록은 사용자 `/schedule` 결정.
+3. **주기 GC** = `/learn gc` (dry-run 리포트 기본; `--apply` 시 stale 90일+ archive move·dormant 마킹 + **retention 만료 삭제**(ttl 기본 90일·session 기본 1일 — EXPIRED archive 로 옮기므로 `--restore` 가능). 미기재 잔존 시 `--legacy-ok` 없으면 apply 거부). cron 등록은 사용자 `/schedule` 결정.
 
 ### 팀 공유
 learnings.jsonl = git-tracked 필수 (sensitive 값 금지 — `sanitize-check`가 강제). 작업 후 commit+push → 동료 `git pull` 후 자동 로드. 멀티 브랜치 동시 append = `.gitattributes` `merge=union`로 충돌 없이 병합. (단순 숫자 `L-NN` 폐기 — collision-safe id 사용; 레거시는 유지.)

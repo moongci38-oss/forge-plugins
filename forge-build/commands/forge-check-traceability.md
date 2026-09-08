@@ -60,11 +60,11 @@ Agent(subagent_type="test-quality-checker",
 
 인자: `--spec <spec-name>` (선택) — 미입력 시 스킬 내부 자동 탐지.
 
-## Advisor 자문 (advisory-only · non-blocking · 리졸버 기본 = Fable 5)
+## Advisor 자문 (advisory-only · non-blocking · 리졸버 기본 = Fable 5.1)
 
-traceability gap이 구현미달(코드결함) vs 스펙노후 중 무엇인지 모호할 때 `advisor-strategist` 조언을 구한다(모델 = `advisor-model-resolve.sh` 출력, 기본 Fable 5). **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+traceability gap이 구현미달(코드결함) vs 스펙노후 중 무엇인지 모호할 때 `advisor-strategist` 조언을 구한다(모델 = `advisor-model-resolve.sh` 출력, 기본 Fable 5.1). **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
 
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```python
 Agent(subagent_type="advisor-strategist",
       prompt="gap 내용·spec-code-discriminate 결과(AMBIGUOUS/SPEC_STALE_CANDIDATE)·git provenance 맥락 3-5줄. 질문: 이 gap이 구현미달(코드수정) vs 스펙노후(스펙정정) 중 무엇인지 판단 근거는? 코드결함 자동단정 금지.")
@@ -72,9 +72,9 @@ Agent(subagent_type="advisor-strategist",
 
 - 트리거: spec-code-discriminate AMBIGUOUS / SPEC_STALE_CANDIDATE 판정 시
 - 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 Human [STOP] Reconciliation 게이트)가 수행.
-- **advisor 모델 = `advisor-model-resolve.sh` 출력**(기본 Fable 5 · 대체 `gpt-5.6-sol` · `FORGE_ADVISOR_MODEL=opus` 로 Opus 고정). 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)로 스폰한다.
+- **advisor 모델 = `advisor-model-resolve.sh` 출력**(기본 Fable 5.1 · 대체 `gpt-6-astra` · `FORGE_ADVISOR_MODEL=opus` 로 Opus 고정). 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)로 스폰한다.
   ⚠️ 2026-08-12 이전 문구 **"Fable 5 미배선 — Human 수동 에스컬레이션 전용 · `advisor-model-resolve` 호출 금지"는 폐기**했다 — 이 커맨드에 advisor 자문 레그가 실재하는데 리졸버 호출을 금지해 라우팅이 서로 어긋났다(cr-final HIGH). 정본 → `rules/model-routing.md §Advisor 전략 상시 가동`
-- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor=`advisor-model-resolve.sh` 출력(기본 Fable 5 · 대체 `gpt-5.6-sol`).
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor=`advisor-model-resolve.sh` 출력(기본 Fable 5.1 · 대체 `gpt-6-astra`).
 
 ## Override 경로
 

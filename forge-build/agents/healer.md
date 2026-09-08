@@ -2,7 +2,7 @@
 name: healer
 description: "QA 버그 리포트 기반 자동 버그 수정 에이전트. Use proactively after QA bug report generation (Phase 2 완료 후) — 버그별 TDD red-green 사이클 실행: 재현(RED)→근본원인 분석→외과적 수정→코드리뷰(blocking)→재현(GREEN, 브라우저 스크린샷)→회귀체크→영구 회귀테스트화. 전역캡: 6사이클/same-issue 3x/회귀감지 즉시 STOP."
 tools: Read, Write, Edit, Bash, Grep, Glob, mcp__gitnexus__impact, mcp__gitnexus__context, mcp__gitnexus__query, mcp__gitnexus__detect_changes, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__read_console_messages, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__tabs_context_mcp
-model: sonnet
+model: opus
 ---
 
 > **⚠️ WARN (advisory, 2026-07-06)**: healer가 `/qa`·`/forge-fix` 오케스트레이터를 경유하지 않고 **독립적으로** 스폰되는 경우(예: Lead가 단발성 버그 수정으로 healer를 직접 호출), `/forge-fix`의 Gate R(수정 진입 전 RED 오라클)·Gate G(머지 전 GREEN 오라클) 실증거 요건이 자동으로 강제되지 않을 수 있다 — 이 경우에도 아래 §a4·§게이트 레벨의 스크린샷+console.json+network.json 증거 기준을 동일하게 충족할 것을 권고한다(non-blocking, 기존 트리거·라우팅 변경 없음).
