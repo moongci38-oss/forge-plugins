@@ -40,8 +40,12 @@ Claude Code를 열고, 아래 회색 상자 안 내용을 **통째로 복사해�
    claude plugin install forge-design@forge-plugins
    claude plugin install forge-game@forge-plugins
 
-3. 5개 모두 활성화해줘:
-   claude plugin enable forge-core forge-knowledge forge-build forge-design forge-game
+3. 5개 모두 활성화해줘 (한 번에 하나씩 — 이름을 몰아 쓰면 오류가 납니다):
+   claude plugin enable forge-core
+   claude plugin enable forge-knowledge
+   claude plugin enable forge-build
+   claude plugin enable forge-design
+   claude plugin enable forge-game
 
 4. 설치가 끝나면, "Claude Code를 껐다 켜라"고 한국어로 안내해줘.
 ```
@@ -77,10 +81,18 @@ Claude Code에서 아래를 그대로 말하면 됩니다.
 
 ```
 설치된 forge 플러그인을 전부 업데이트하고, 끝나면 재시작하라고 알려줘:
-claude plugin update forge-core forge-knowledge forge-build forge-design forge-game
+
+for p in forge-core forge-knowledge forge-build forge-design forge-game; do
+  claude plugin update ${p}@forge-plugins
+done
 ```
 
 업데이트 후에도 **Claude Code를 껐다 켜야** 새 버전이 로드됩니다.
+
+> ⚠️ **한 줄에 이름 5개를 몰아 쓰면 안 됩니다.** `claude plugin update` 는 플러그인을 **한 번에 하나만** 받습니다.
+> 재현: `claude plugin update --help | head -1` → `Usage: claude plugin update [options] <plugin>` (2026-09-08 관측).
+> `install`·`enable` 도 똑같이 단수입니다. 그래서 이 저장소의 `install-plugins.sh` 와
+> `ONBOARDING.md` §6-4 는 처음부터 **반복문**으로 돌고 있습니다 — 위 블록도 거기에 맞췄습니다.
 
 > 💡 "이미 최신입니다"라고 나오면 정말 최신인 게 맞습니다 — 버전 번호가 바뀌어야만 새로 받아옵니다.
 

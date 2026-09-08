@@ -251,6 +251,12 @@ npm install -g @openai/codex
 MCP 등록 후 재시작해야 적용됩니다.
 
 > MCP 없이도 forge-core 나머지 스킬과 forge-build/forge-knowledge/forge-design/forge-game 정상 동작.
+>
+> ⚠️ **단, `cr-*` 계열과 `/forge-pr` 은 예외입니다.** `/forge-pr` 은 기본값이 `--cr on` 이라 PR 을 열기 전에
+> `cr-final`(3레그 적대적 검수)을 **먼저 통과**시킵니다 — MCP 가 없으면 그 게이트에서 막힙니다.
+> 급하면 `--cr degrade`(Codex 레그 제외) 또는 `--cr off`·`--no-cr-final` 로 **명시적으로 낮춰야** 합니다.
+> 쉽게 말하면 **"검수 없이 통과"가 조용히 일어나지는 않습니다** — 낮추려면 본인이 그렇게 적어야 합니다.
+> 재현: `grep -n 'cr <on|degrade|off>' forge-build/commands/forge-pr.md` (2026-09-08 관측).
 
 > ⚠️ **위 Gemini 블록의 `@fre4x/gemini` 는 이 레포가 검증한 값이 아닙니다.** 이 저장소 어디에서도
 > 그 패키지를 참조하지 않습니다(재현: `grep -rn 'fre4x' .` → 이 README 줄 외 0건, 2026-09-08 관측).
@@ -271,6 +277,8 @@ export GEMINI_API_KEY="AIza..."      # Gemini MCP (vision 분석)
 ```
 
 > MCP 없이도 forge-core/forge-build 기본 스킬 정상 동작.
+> **예외는 위와 같습니다** — `cr-*` 계열과 `/forge-pr` 의 기본 검수 게이트는 MCP 를 요구합니다
+> ([cr-* 커맨드 사전 조건](#cr--커맨드-사전-조건)).
 
 ---
 
@@ -583,20 +591,45 @@ claude plugin install forge-core
 
 훅 파일의 위치는 설치 방식에 따라 다릅니다. **경로를 외우지 말고 찾아서 실행하십시오.**
 
-```bash
-# 1) 훅 찾기 (마켓플레이스 설치본·버전 캐시 어디에 있든 잡힙니다)
-find "$HOME/.claude/plugins" -name forge-onboard.sh 2>/dev/null
+**1) 먼저 어디 있는지 봅니다** — 실행하지 말고 목록만 확인하십시오.
 
-# 2) 나온 경로로 실행 — 여러 개가 나오면 경로에 `marketplaces/` 가 들어간 쪽이 최신입니다
-bash "$(find "$HOME/.claude/plugins" -path '*marketplaces*' -name forge-onboard.sh 2>/dev/null | head -1)"
+```bash
+find "$HOME/.claude/plugins" -name forge-onboard.sh 2>/dev/null | sort
+echo "찾은 개수: $(find "$HOME/.claude/plugins" -name forge-onboard.sh 2>/dev/null | wc -l)"
 ```
 
-> ⚠️ 구 표기 `bash $HOME/.claude/plugins/forge-core/hooks/forge-onboard.sh` 는 2026-09-08 폐기했습니다.
-> **그 경로에는 아무것도 없습니다.** 없는 폴더를 뒤져 놓고 "훅이 없네"라고 결론 내리게 만드는 안내였습니다.
-> 실제 위치는 `~/.claude/plugins/marketplaces/forge-plugins/forge-core/hooks/` 또는
-> `~/.claude/plugins/cache/forge-plugins/forge-core/<버전>/hooks/` 입니다.
-> 재현: `ls "$HOME/.claude/plugins/forge-core"` → `No such file or directory` ·
-> `find "$HOME/.claude/plugins" -name forge-onboard.sh` → 실재 경로 (2026-09-08 관측).
+**2) 나온 개수에 따라 이렇게 합니다.**
+
+| 결과 | 뜻 | 할 일 |
+|------|-----|------|
+| **0개** | forge-core 가 설치돼 있지 않습니다 | 훅을 찾을 게 아니라 **설치부터** — 위 [신규 설치](#신규-설치-팀원용) |
+| **1개** | 명확합니다 | 그 경로를 그대로 `bash <경로>` |
+| **2개 이상** | 마켓플레이스 사본과 **버전별 캐시**가 함께 잡힌 것입니다 | 아래 기준으로 고르십시오 |
+
+여러 개가 나오면 경로 모양으로 구분합니다.
+
+- `.../plugins/cache/forge-plugins/forge-core/<버전>/hooks/…` — **버전 캐시**. `<버전>` 이 가장 높은 것이
+  지금 설치된 버전입니다(예: `0.7.2` 와 `0.7.14` 가 함께 있으면 `0.7.14`).
+- `.../plugins/marketplaces/forge-plugins/forge-core/hooks/…` — 마켓플레이스에서 받아 둔 사본.
+
+```bash
+# 예시 — 위 목록에서 고른 경로를 따옴표째 붙여넣으십시오
+bash "$HOME/.claude/plugins/cache/forge-plugins/forge-core/0.7.14/hooks/forge-onboard.sh"
+```
+
+> ⚠️ **경로를 명령치환(`bash "$(find …)"`)으로 바로 넘기지 마십시오.** 하나도 못 찾으면 `bash ""` 가 되어
+> `bash: : No such file or directory` (rc=127) 라는 엉뚱한 오류만 뜹니다 —
+> "훅이 고장 났나?" 로 헤매게 됩니다. 실제 원인은 **설치가 안 된 것**입니다.
+> 재현: `HOME=/tmp/없는경로 bash -c 'bash "$(find "$HOME/.claude/plugins" -name forge-onboard.sh 2>/dev/null | head -1)"'`
+> → `bash: : No such file or directory` · rc=127 (2026-09-08 관측).
+
+> ⚠️ **폐기한 안내 2건** (2026-09-08):
+> ① 구 표기 `bash $HOME/.claude/plugins/forge-core/hooks/forge-onboard.sh` — **그 경로에는 아무것도 없습니다.**
+>    없는 폴더를 뒤져 놓고 "훅이 없네"라고 결론 내리게 만드는 안내였습니다.
+>    재현: `ls "$HOME/.claude/plugins/forge-core"` → `No such file or directory` (2026-09-08 관측).
+> ② 같은 날 제가 넣었던 `-path '*marketplaces*' … | head -1` 과 **"marketplaces 쪽이 최신"** 이라는 설명도
+>    함께 폐기합니다. 필터가 캐시 경로를 걸러내 **바로 윗줄 주석과 모순**됐고(캐시에만 있으면 조용히 실패),
+>    "marketplaces 가 최신"이라는 주장은 **근거를 대지 못했습니다** — 확인하지 않은 것을 단정했습니다.
 
 ### Marketplace 등록 오류
 

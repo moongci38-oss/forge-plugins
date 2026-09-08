@@ -109,10 +109,17 @@ cp ${FORGE_ROOT:-$HOME/forge}/forge-workspace.example.json ${FORGE_ROOT:-$HOME/f
 > **Notion 인증**: Notion MCP는 API 토큰이 아닌 **브라우저 OAuth** 방식입니다. Claude Code 첫 실행 시 자동으로 로그인 창이 열립니다.
 
 > ⚠️ **UI/UX 도구 순서가 바뀌었습니다 (2026-09-08 반영).** 지금 디자인 작업의 **시작점은 Claude Design**
-> (`claude.ai/design`, 커맨드 `/forge-claude-design`)이고, 보조가 **Stitch**(`/forge-stitch`, 사람이 명시 호출할 때만),
+> (웹 제품 `claude.ai/design`)이고, 보조가 **Stitch**(사람이 명시 호출할 때만),
 > **Figma 는 신규 사용 중단**입니다. 이미 Figma 로 굴러가는 작업이 있으면 위 키를 그대로 두어도 되지만,
 > **새로 세팅하는 분은 `FIGMA_API_KEY` 를 건너뛰어도 됩니다.**
-> 정본: `$HOME/.claude/rules/tool-rules.md §UI/UX 작업`.
+> 정본: `$HOME/.claude/rules/tool-rules.md §UI/UX 작업` (이 규칙 파일은 forge-core 번들에 들어 있어
+> 플러그인 사용자에게도 설치됩니다).
+>
+> 🚧 **단, 왕복 커맨드 `/forge-claude-design`·`/forge-stitch` 는 `~/forge` 체크아웃 사용자 전용입니다 —
+> 플러그인 번들에는 들어 있지 않습니다.** 마켓플레이스로 설치한 분은 그 두 명령을 쓸 수 없고,
+> **웹(`claude.ai/design`)에서 직접 작업**하시면 됩니다. 도구 우선순위 자체는 동일하게 적용됩니다.
+> 재현: `find <이 레포> -name 'forge-claude-design.md' -o -name 'forge-stitch.md'` → **0건** ·
+> 번들 5개 `commands/` grep 도 전부 0 · 같은 파일이 `~/forge/.claude/commands/` 에는 실재 (2026-09-08 관측).
 > ⚠️ 구 표기 "`FIGMA_API_KEY` — 디자인 작업 시 (필수급)" 은 2026-09-08 폐기했습니다.
 > ⚠️ 구 표기 "Codex = **GPT-5.5**" 도 같은 날 폐기 — 현행 Codex 레그는 `gpt-6-astra` 입니다
 > (근거: `$HOME/.claude/rules/model-routing.md §세션 운영 모델`, 2026-09-06 상향).
