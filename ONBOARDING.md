@@ -97,7 +97,6 @@ cp ${FORGE_ROOT:-$HOME/forge}/forge-workspace.example.json ${FORGE_ROOT:-$HOME/f
 | 변수 | 용도 | 필수 |
 |------|------|------|
 | `ANTHROPIC_API_KEY` | Claude API | ✅ |
-| `GEMINI_API_KEY` | Gemini MCP (cr-triple) | ✅ |
 | `TAVILY_API_KEY` | 웹 검색 MCP | ✅ |
 | `BRAVE_API_KEY` | Brave Search MCP | ✅ |
 | `FIGMA_API_KEY` | Figma MCP | ⛔ 신규 권장 안 함 (아래 주 참고) |
@@ -123,12 +122,11 @@ cp ${FORGE_ROOT:-$HOME/forge}/forge-workspace.example.json ${FORGE_ROOT:-$HOME/f
 > ⚠️ 구 표기 "`FIGMA_API_KEY` — 디자인 작업 시 (필수급)" 은 2026-09-08 폐기했습니다.
 > ⚠️ 구 표기 "Codex = **GPT-5.5**" 도 같은 날 폐기 — 현행 Codex 레그는 `gpt-6-astra` 입니다
 > (근거: `$HOME/.claude/rules/model-routing.md §세션 운영 모델`, 2026-09-06 상향).
-
-Gemini API 키는 별도 파일에도 저장 (gemini-text MCP가 읽음):
-```bash
-echo "YOUR_GEMINI_API_KEY" > ~/.gemini-api-key
-chmod 600 ~/.gemini-api-key
-```
+>
+> ⚠️ **2026-09-07 Gemini 전면 철수.** 구 표기 "`GEMINI_API_KEY` — Gemini MCP (cr-triple), 필수 ✅"
+> 와 구 절차 "Gemini API 키는 별도 파일(`~/.gemini-api-key`)에도 저장" 은 폐기했습니다.
+> 모든 모델을 **구독으로만** 호출하기로 하면서 종량 과금 API 키 벤더를 끊었습니다.
+> **이 키는 이제 설정하지 마십시오** — 설정해도 쓰이지 않습니다.
 
 ---
 
@@ -220,8 +218,9 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
 | `gitnexus` | 코드 그래프 | 없음 (로컬) |
 | `figma` | Figma 컴포넌트 | `FIGMA_API_KEY` — ⛔ 신규 권장 안 함 (위 UI/UX 주 참고) |
 | `codex` | `gpt-6-astra` 리뷰 | `codex login` |
-| `gemini-text` | `gemini-3.8-flash` 리뷰 | `~/.gemini-api-key` |
 | `brave-search` | 웹 검색 (보조) | `BRAVE_API_KEY` |
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`gemini-text` | `gemini-3.8-flash` 리뷰 | `~/.gemini-api-key`".
 
 `~/.claude.json` → `mcpServers`에 없는 항목 수동 추가:
 
@@ -254,12 +253,6 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
       "command": "codex",
       "args": ["mcp-server"]
     },
-    "gemini-text": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@google/gemini-cli-mcp"],
-      "env": { "GEMINI_API_KEY": "${GEMINI_API_KEY}" }
-    },
     "brave-search": {
       "type": "stdio",
       "command": "npx",
@@ -270,7 +263,8 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
 }
 ```
 
-> `gemini-text`는 공개 npm 패키지를 사용합니다. forge 레포가 있는 코어 팀원은 start.sh 경로로 교체하세요.
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`gemini-text` 블록(`@google/gemini-cli-mcp`) 수동 추가 +
+> 코어 팀원은 start.sh 경로로 교체" 는 삭제했습니다. 이제 등록하지 마십시오.
 
 ### 5-3. 프로젝트 MCP (`${FORGE_ROOT:-$HOME/forge}/.mcp.json`)
 
@@ -418,7 +412,6 @@ Claude Code 대화에서:
 | 증상 | 원인 | 해결 |
 |------|------|------|
 | `codex mcp-server` 오류 | 로그인 만료 | `codex login` 재실행 |
-| gemini-text 연결 실패 | 키 미설정 | `cat ~/.gemini-api-key` 확인 |
 | `claude plugin update` 락 오류 | 병렬 git 충돌 | `find $HOME/.claude/plugins/marketplaces -name "*.lock" -delete` 후 재시도 |
 | forge-sync 스킬 미반영 | sync 미실행 | `node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync` |
 | Notion MCP 인증 루프 | 워크스페이스 권한 없음 | 관리자에게 권한 요청 |

@@ -14,7 +14,7 @@ v0.6.0에서 구 `forge-harness`(하네스 정리 4종)와 구 `forge-audit`(sys
 
 단독으로도 다음을 제공합니다:
 
-- **멀티-LLM 코드 검수** — Codex + Gemini 병렬 적대적 리뷰 (cr-* 커맨드 9종)
+- **멀티-LLM 코드 검수** — Fable + Codex 적대적 리뷰 (cr-* 커맨드 9종) — ⚠️ 2026-09-07 Gemini 전면 철수로 구 표기 "Codex + Gemini 병렬" 폐기
 - **세션 관리** — Opus/Sonnet 세션 시작·종료·체크포인트 (5종)
 - **지식 검색** — forge-outputs 벡터+BM25 하이브리드 RAG
 - **멀티에이전트 승인 게이트** — HMAC 기반 MAS worker 승인
@@ -107,20 +107,26 @@ HMAC-SHA256 서명 토큰을 발행하여 멀티에이전트 시스템(MAS)의 w
 
 ### cr-multi
 
-Codex(GPT) + Gemini를 병렬로 실행하여 단일 모델 맹점을 보완하는 멀티-LLM 코드 검수입니다.
+Codex(GPT)를 세션 밖에서 병렬 실행하여 단일 모델 맹점을 보완하는 멀티-LLM 코드 검수입니다.
 
 | 모드 | 모델 | 사용 시점 |
 |------|------|---------|
-| `double` | Codex + Gemini | 일반 검수 (기본) |
-| `triple` | Opus + Codex + Gemini | 중요 Spec·PR, plateau 감지 시 |
+| `double` | Codex | 일반 검수 (기본) |
+| `triple` | Fable + Codex | 중요 Spec·PR, plateau 감지 시 |
 
 특징:
-- 가중 스코어 병합 (Opus 0.35 / Codex 0.35 / Gemini 0.3)
+- 가중 스코어 병합
 - 중복 제거 + confidence 스코어링
 - plateau 3회 → 자동 triple 승격
 - Completeness Critic 포함
 
-**필수 조건**: `GEMINI_API_KEY` 환경변수 + Codex MCP 설정
+**필수 조건**: Codex MCP 설정
+
+> ⚠️ **2026-09-07 Gemini 전면 철수.** 구 표기 "Codex(GPT) + **Gemini**를 병렬로 실행 ·
+> `double = Codex + Gemini` · `triple = Opus + Codex + Gemini` · 가중 스코어 `Opus 0.35 / Codex 0.35 / Gemini 0.3` ·
+> 필수 조건 `GEMINI_API_KEY` 환경변수" 는 폐기했습니다.
+> 모든 모델을 **구독으로만** 호출하기로 하면서 종량 과금 API 키 벤더를 끊었습니다.
+> (`triple` 의 Claude 레그는 2026-08-22 부터 Opus 가 아니라 **Fable 5.1** 입니다.)
 
 ### rag-search
 
@@ -193,12 +199,13 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 
 ### cr-* 검수 커맨드
 
-> **필수 조건**: `GEMINI_API_KEY` + Codex MCP 없으면 cr-* 동작 안 됩니다.
+> **필수 조건**: Codex MCP 없으면 cr-* 동작 안 됩니다.
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`GEMINI_API_KEY` + Codex MCP 없으면".
 
 | 커맨드 | 설명 | Blocking |
 |--------|------|----------|
-| `/cr-triple` | Opus + Codex + Gemini 3-worker 검수 | 선택 |
-| `/cr-double` | Codex + Gemini 2-worker 검수 | 선택 |
+| `/cr-triple` | Fable + Codex 검수 | 선택 |
+| `/cr-double` | Codex 검수 | 선택 |
 | `/cr-multi <파일>` | double/triple 통합 오케스트레이터 | 선택 |
 | `/cr-code <파일>` | 코드 변경 전용 검수 | 권고 |
 | `/cr-plan <파일>` | 계획서/Spec/ADR 검수 | non-blocking (AD-50) |
@@ -271,9 +278,10 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 
 ```bash
 # ~/.bashrc 또는 ~/.zshrc
-export GEMINI_API_KEY="AIza..."
 export OPENAI_API_KEY="sk-..."   # Codex MCP용
 ```
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `export GEMINI_API_KEY="AIza..."`.
 
 ### Step 2 — ~/.claude.json MCP 등록
 
@@ -285,18 +293,12 @@ export OPENAI_API_KEY="sk-..."   # Codex MCP용
       "command": "codex",
       "args": ["mcp-server"],
       "env": {}
-    },
-    "gemini": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@fre4x/gemini"],
-      "env": {
-        "GEMINI_API_KEY": "${GEMINI_API_KEY}"
-      }
     }
   }
 }
 ```
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `"gemini"` 블록(`@fre4x/gemini` + `GEMINI_API_KEY`).
 
 ### Step 3 — Claude Code 재시작
 
