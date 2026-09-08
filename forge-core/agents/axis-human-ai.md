@@ -4,7 +4,7 @@ description: >
   Human-AI 경계 설계 감사 전문 에이전트. 자율성 레벨, 에스컬레이션 설계,
   게이트 패턴, 신뢰 캘리브레이션을 5-Level Autonomy/TCMM 프레임워크 기반으로 평가한다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 maxTurns: 40
 ---
 

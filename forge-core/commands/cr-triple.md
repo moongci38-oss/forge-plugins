@@ -43,14 +43,24 @@ workflow args 로도 릴레이한다(두 경로가 같은 값을 받는다).
 - 취득 실패 시 차단하지 않는다(fail-open) — `[RepoRoot] pin=(미지정 …)` 로그 + 레그 자기보고 모드.
 - 근거: `cr-multi.md §repoRoot` 는 args **필수**로 규정하는데 이 래퍼는 릴레이하지 않았다(2026-08-19 실측 — 검수 2라운드가 각각 HIGH 지적). 재현: `grep -c 'repoRoot' ${FORGE_ROOT:-$HOME/forge}/.claude/commands/cr-triple.md` → 수정 전 0 / 후 1+.
 
-**`--no-frontier`** — 검수 3레그를 **한 번에 구 기본값으로** 내린다(Claude=Sonnet · Codex=설정 핀 · Gemini=서버 기본 · effort=final:high/그 외 medium).
+**`--no-frontier`** — 검수 3레그를 **한 번에 구 기본값으로** 내린다(Claude=Sonnet · Codex=설정 핀 · Gemini=`gemini:low` · effort=final:high/그 외 medium).
 쉽게 말하면 **비상 브레이크**다 — 평소엔 안 쓰지만 없으면 곤란한 것.
 - workflow.js args `frontier: false` 로 릴레이. `FORGE_CR_FRONTIER=off` 가 설정돼 있으면 이 플래그가 있는 것처럼 동작한다
   (샌드박스에 `process.env` 가 없어 **커맨드 레이어가 읽어 args 로 넘긴다**).
 - 명시 지정(`--sol`/`--terra`/`--luna`/`--gemini-max`)은 이 스위치보다 **우선**한다 — 브레이크가 수동 조작을 삼키지 않는다.
-- ⚠️ 반대로, **사람이 명시하지 않았는데 래퍼가 계산해 둔 값**(기본 `codex:max`·`gemini:default`)은
+- ✅ **그 우선 규칙의 좁은 구멍은 2026-09-05 에 닫혔다** — 갭 `harness-gaps/2026-09-03-explicit-gemini-max-swallowed-by-killswitch.md`.
+  종전에는 `--gemini-max` 와 `--no-frontier` 를 **함께** 주고 그때 **`gemini:max` 만 resolve 실패**하면,
+  첫 분기가 falsy 로 빠져 둘째 분기가 잡고 **명시값이 조용히 `gemini:low` 로 대체**됐다(계약 위반).
+  이제 하향 분기가 `!EXPLICIT_GEMINI` 로 가드돼 그 경우 **아무 값도 싣지 않는다** — 하향을 포기할지언정
+  사람이 명시한 값을 바꿔치지는 않는다(fail-open. workflow.js 가 `geminiModel 이 비어 있다` WARN 을 남긴다).
+  재현: `bash shared/scripts/test-frontier-killswitch-relay.sh` — 진리표 칸 `M=false L=true F=false E=true`.
+- ⚠️ 반대로, **사람이 명시하지 않았는데 래퍼가 계산해 둔 값**(기본 `codex:max`)은
   이 스위치가 켜지면 args 에서 **빠진다**. 안 그러면 workflow.js 의 '명시 override 우선' 규칙에 걸려
-  Codex·Gemini 가 프런티어에 남는 반쪽짜리 브레이크가 된다(2026-08-22 실적발).
+  Codex 가 프런티어에 남는 반쪽짜리 브레이크가 된다(2026-08-22 실적발).
+- ⚠️ **Gemini 만 예외다 — 빼는 대신 `gemini:low` 로 바꿔 싣는다**(2026-09-03). 빼기만 하면 서버 기본값을
+  따라가는데 그 기본이 3.8 로 수렴해서 **브레이크가 죽어 있었다**(PR #477 a-code Codex HIGH 실적발).
+  사유 정본 → registry `gemini.low_is_killswitch_target_reason`(값은 여기 적지 않는다).
+  재현: `bash shared/scripts/test-frontier-killswitch-relay.sh`.
 - 로그에 `frontier=OFF(구 기본값)` 로 찍혀 끈 사실이 조용히 묻히지 않는다.
 - ⚠️ **기본은 켜짐(프런티어)이다.** 이건 비용 제약이 아니라 **끌 수 있는 장치**다 — Human 지시는 "제약을 풀라" 였지 "끄지 못하게 하라" 가 아니었다.
 - 근거: PR #320 cr-final(codex 레그) HIGH — "3레그를 동시에 프런티어로 올리면서 자동 kill-switch 가 없다".
@@ -60,38 +70,57 @@ workflow args 로도 릴레이한다(두 경로가 같은 값을 받는다).
 - `--cr degrade` 또는 `--no-codex`: Codex 제외 → Opus + Gemini 2-worker (rate-limit 보호 / 대량루프 / Codex MCP 불가 환경 폴백)
 - `--cr off`: 동일 (`degrade`와 동작 동일)
 
-**`--fable`** — ⚠️ **no-op 이다.** Claude 검수 레그 기본값이 **Fable 5** 로 올라갔다(2026-08-22 Human 지시(구독 3계정·비용 제약 없음)로 기본값 상향).
+**`--fable`** — ⚠️ **no-op 이다.** Claude 검수 레그 기본값이 **Fable** 로 올라갔다(2026-08-22 Human 지시(구독 3계정·비용 제약 없음)로 기본값 상향). 현재 버전은 **Fable 5.1**(2026-09-02).
 구 서술("Human 수동 전용"·"자동 발동 없음"·"종량 $10/$50"·"forge-pr 배선 금지")은 **전량 폐기**.
 내리려면 workflow args 에 명시적 `fable: false`. 상세 → `/cr-multi §--fable`.
 
 **`--sol`/`--terra`/`--luna`** — Codex 검수 레그 **선택**(Claude·Gemini 불변).
-⚠️ **기본값이 `codex:max`(gpt-5.6-sol)로 올라갔다(2026-08-22 Human 지시(구독 3계정·비용 제약 없음)로 기본값 상향) — `--sol` 은 no-op.**
-`--terra`→codex:high · `--luna`→codex:low 는 이제 **하향** 스위치다(rate-limit 절약용).
+⚠️ **2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용)로 사다리가 한 칸씩 재지정됐다** —
+기본(플래그 없음) = `codex:max` = `gpt-6-astra`.
+`--sol`→codex:high · `--terra`→codex:default · `--luna`→codex:low 로 **셋 다 하향** 스위치다(rate-limit 절약용).
+⚠️ **구 표기 "기본값이 `codex:max`(gpt-5.6-sol) — `--sol` 은 no-op" 은 2026-09-06 폐기.** sol 은 한 칸 아래로
+내려왔으므로 명시하면 실제 하향이 된다. sol/terra/luna 는 **정식 지원 중**이다(폐지 아님).
+⚠️ `gpt-6-astra` 는 로컬 codex CLI **0.153.4 이상**에서만 호출된다(그 아래는 HTTP 400).
+   재현: `codex --version` → `0.153.4` (2026-09-06 관측)
+근거: 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용).
+폐기조건: astra 상위 tier 가 생기거나 sol 계열이 실제로 폐지되면 이 사다리를 재작성한다.
 구 서술 "미지정 시 기본(gpt-5-mini) 유지"는 폐기 — gpt-5-mini 는 ChatGPT OAuth 에서 애초에 거부되던 값이었다.
 모델 id 는 `model-registry.json` SSoT 소유(버전무관).
 
-**`--gemini-max`** (Human opt-in — 2026-08-19): **Gemini 검수 레그 모델 승격**(Claude·Codex 불변).
-쉽게 말하면 **세 검수자 중 Gemini 한 명만 상급자로 바꿔 앉히는 스위치**다.
-- **미지정 시 기본 = `gemini-3.6-flash`**(2026-08-22 Human 지시(구독 3계정·비용 제약 없음)로 기본값 상향). 구 "no-op → 서버 env → 서버 기본(3.5 계열)" 층은 폐기됐다.
-  ⚠️ **정정(2026-08-22 저녁)**: 종전 기본값 `gemini-3.6-pro` 는 서버에 없는 id 였다(실측 404).
+**`--gemini-max`** (Human opt-in — 2026-08-19): **Gemini 검수 레그 모델을 `gemini:max` 로 해석**(Claude·Codex 불변).
+⚠️ **지금은 아무것도 바꾸지 않는다(no-op)** — `gemini:max` 가 `gemini:default` 와 같은 값이라 올릴 곳이 없다.
+쉽게 말하면 **"상급자로 바꿔 앉히는 스위치"였는데 지금은 앉힐 상급자가 없어서 빈 스위치**다.
+구 머리말("세 검수자 중 Gemini 한 명만 상급자로 바꿔 앉히는 스위치")은 본문과 어긋나 2026-09-03 폐기.
+- **미지정 시 기본 = `gemini:default`**(2026-09-03 Human 지시로 상향). 구 "no-op → 서버 env → 서버 기본(3.5 계열)" 층은 폐기됐다.
+  ⚠️ **역사(2026-08-22 저녁)**: 그때 기본값이던 `gemini-3.6-pro` 는 서버에 없는 id 였다(실측 404).
     지시 원문이 'gemini 3.6 flash or pro' 였으므로 **실존하는 쪽**으로 확정한다.
-    재현: `mcp__gemini-text__generate_text(model='gemini-3.6-pro')` → 404 · `'gemini-3.6-flash'` → 정상.
-  ⛔ `--gemini-max` 는 `gemini:max`(**gemini-3.6-pro**)로 올리는데 **지금은 켜지 마라** — 그 id 가
-    서버에 없어서 레그가 죽는다. 리졸버가 stderr 로 경고하고, `FORGE_MODEL_STRICT=1` 이면 아예 멈춘다.
+    재현: `mcp__gemini-text__generate_text(model='gemini-3.6-pro')` → 404 · `'gemini-3.8-flash'` → 정상(2026-09-03 재측).
+  ℹ️ `--gemini-max` 는 `gemini:max` 로 해석되는데 그 값이 `gemini:default` 와 **같다** —
+    **현행 세대(3.6·3.8)에 pro 가 없어서**(구세대 pro 는 실재하지만 상위가 아니라 승격 후보가 아니다),
+    max 를 다른 값으로 두면 없는 id 를 가리키게 되기 때문이다.
+    사유 정본 → `model-registry.json` `max_equals_default_reason`.
+    ⚠️ **구 문장 2개 폐기(2026-09-03)**: ①"구 경고의 그 id 가 서버에 없어서 레그가 죽는다" —
+      선행사가 이제 **실존하는 현행 기본값**이라 앞 문장('안전하다')과 정면으로 충돌했다.
+      ②"리졸버가 stderr 로 경고하고 `FORGE_MODEL_STRICT=1` 이면 아예 멈춘다" — **거짓**이다.
+      그 경고는 registry `unavailable` 등재 id 에만 걸리는데 `gemini:max` 가 더 이상 거기 닿지 않는다.
+      재현: `bash shared/scripts/model-registry-resolve.sh gemini:max` → stderr WARN 0건 · rc 0.
     404 이후의 갈래·응답 원문 → `model-registry.json` `_note_2026_08_22` **한 곳**(여기 옮겨 적지 않는다).
 - 지정 시 `geminiModel` = `model-registry-resolve.sh gemini:max` 결과(**버전무관** — registry SSoT 가 해석).
   ⚠️ 모델 id 를 이 문서에 적지 않는다. `--sol` 과 같은 규약이다.
-  ⚠️ **위 `gemini-3.6-pro` 리터럴은 그 규약의 예외다** — **부재가 확인된 id 를 경고하는 목적**이라
-    값 자체가 경고의 내용이다(승격 대상 id 를 적는 것과 다르다). `cr-multi.md` 에 같은 해명이
-    있는데 이 파일에만 없어 형제 문서 간 서술이 비대칭이었다 — 검수 지적 반영.
+  ⚠️ **구 예외 조항 폐기(2026-09-03)**: 종전에는 "위 모델 id 리터럴은 그 규약의 예외다 —
+    **부재가 확인된 id 를 경고하는 목적**이라 값 자체가 경고의 내용이다"가 붙어 있었다.
+    그런데 그 리터럴은 부재 id 가 아니라 **현행 기본값**으로 바뀌어 있었다 — 즉 한 불릿 안에서
+    바로 윗줄의 규약("id 를 적지 않는다")과 그 위반이 공존했고, 위반을 정당화하는 근거가
+    거짓이었다. 리터럴을 지우고 `gemini:max`(리졸버 결과)로 가리키는 쪽으로 되돌린다.
+    ⚠️ 예외의 원래 취지(부재 id 경고)는 죽지 않았다 — 그 자리는 registry `unavailable` 이다.
 - ⚠️ **"자동 배선 금지" 구 제약은 2026-08-22 Human 지시로 해제됐다.** 기본을 pro 가 아닌 flash 로 둔 이유는
   비용이 아니라 **id 실재**다 — flash 는 실호출로 응답을 받았고, pro 는 **없는 것이 확인됐다**(404).
   ⚠️ 구 표기 "pro 는 미확인" 은 폐기(2026-08-23) — 미확인과 부재 확정은 다르다.
   서버가 id 를 거부하면 그건 검수 실패가 아니라 **검수 미수행**이니 PASS 로 집계하지 말 것.
-- resolve 실패 시 `null` → workflow.js 내장 기본값(`gemini-3.6-flash`)으로 떨어진다(fail-open, **하향 아님**).
+- resolve 실패 시 `null` → workflow.js 내장 기본값(`gemini-3.8-flash`)으로 떨어진다(fail-open, **하향 아님**).
   ⚠️ 구 서술 "서버 기본 유지"는 폐기 — 서버 기본값 층은 2026-08-22 부로 도달하지 않는다.
 - 근거 ①(배선 실재): `workflow.js` 가 `geminiModel` arg 를 수용한다 — 파싱
-  `const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.6-flash' : null)`, 주입 `geminiModelDirective`.
+  `const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.8-flash' : null)`, 주입 `geminiModelDirective`.
   ⚠️ 구 인용 `|| null` 은 **2026-08-22 이전 코드**다(PR #320 C1 검수 HIGH 실적발 — 문서가 없는 코드를 인용하고 있었다).
   재현: `grep -n 'geminiModel' ${FORGE_ROOT:-$HOME/forge}/.claude/skills/cr-multi/workflow.js`
   ⚠️ 줄번호는 편집마다 밀리므로 적지 않는다(구 표기 `:327,1386` 은 diff 적용 **전** 기준이라
@@ -114,11 +143,12 @@ workflow args 로도 릴레이한다(두 경로가 같은 값을 받는다).
 // --fable 파싱: FABLE = true 고정(2026-08-22 기본 승격). '--no-fable' 같은 하향 플래그는 없다 —
 //   내리려면 args 에 fable:false 를 직접 준다. workflow.js 는 `_a?.fable !== false` 로 읽는다.
 // --sol/--terra/--luna 파싱 (Codex 검수 레그 tier 승격, model-registry SSoT):
-//   CODEX_TIER = --sol→'max' · --terra→'high' · --luna→'low' · (없으면 'max' — 2026-08-22 기본 상향)
+//   CODEX_TIER = --sol→'high' · --terra→'default' · --luna→'low' · (없으면 'max' — 2026-09-06 사다리 재지정)
 //   CODEX_MODEL = Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:${CODEX_TIER:-max}`) 결과
-//     → registry가 버전무관 해석(codex:max→gpt-5.6-sol). resolve 실패 시 null → workflow.js 내장 폴백(sol)로 떨어진다(fail-open, 하향 아님).
+//     → registry가 버전무관 해석(codex:max→gpt-6-astra). resolve 실패 시 null → workflow.js 내장 폴백으로 떨어진다(fail-open, 하향 아님).
+//     ⚠️ 구 표기 "--sol→'max' · codex:max→gpt-5.6-sol" 은 2026-09-06 폐기.
 // --gemini-max 파싱 (Gemini 검수 레그 승격, model-registry SSoT — Human opt-in):
-//   GEMINI_MODEL = '--gemini-max' 있으면 Bash(`... gemini:max`) 결과, 없으면 Bash(`... gemini:default`) 결과(=gemini-3.6-flash)
+//   GEMINI_MODEL = '--gemini-max' 있으면 Bash(`... gemini:max`) 결과, 없으면 Bash(`... gemini:default`) 결과(=gemini-3.8-flash)
 //     → null 이면 args 에서 생략한다.
 //       ⚠️ 생략 · 명시적 null · 빈 문자열 · false 는 workflow.js 에서 **전부 동치**다
 //         (`_a?.geminiModel || null` — 넷 다 falsy 라 같은 null 로 떨어진다). 즉 생략은 계약이 아니라
@@ -134,7 +164,14 @@ workflow args 로도 릴레이한다(두 경로가 같은 값을 받는다).
 // 외부 토큰 선발행 후 Workflow 실행 (cr-multi workflow.js 위임)
 Workflow({
   script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
-//   ⚠️ **FRONTIER === false 면 CODEX_MODEL·GEMINI_MODEL 을 args 에 싣지 않는다.**
+//   ⚠️ **FRONTIER === false 면 CODEX_MODEL 은 args 에 싣지 않고, GEMINI_MODEL 자리에는 GEMINI_LOW 를 싣는다.**
+//      GEMINI_LOW = Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh gemini:low`) 결과(관측치 2026-09-03: gemini-3.6-flash).
+//      ⚠️ 2026-09-03 정정: 종전에는 Gemini 도 **아무 값도 안 실었다**. 그러면 workflow.js 가 null 로 떨어져
+//         서버 기본값을 따라가는데 그 서버 기본이 3.8 로 수렴해서, **브레이크를 밟아도 차가 같은 자리**에 있었다
+//         (PR #477 a-code Codex HIGH 실적발). 그래서 지금은 한 단계 아래를 명시적으로 실어 보낸다.
+//         사유 정본 → registry `gemini.low_is_killswitch_target_reason`.
+//      ⚠️ 이 방어가 무력화되는 입력: `gemini:low` resolve 가 실패해 GEMINI_LOW 가 null 이면 구 동작
+//         (키 생략 → 서버 기본 추종)으로 돌아간다 — fail-open 이라 검수는 계속되지만 하향은 안 된다.
 //      workflow.js 는 '명시 override > frontier 파생값' 순서라, 래퍼가 늘 그렇듯 두 값을 계산해
 //      실어 보내면 `--no-frontier` 를 켜도 Codex·Gemini 는 프런티어에 남는 **반쪽짜리 브레이크**가 된다
 //      (2026-08-22 PR #320 r4 cr-final HIGH 실적발). 사람이 명시한 --sol/--terra/--luna/--gemini-max 는
@@ -144,17 +181,19 @@ Workflow({
   //   EXPLICIT_GEMINI = 사용자가 --gemini-max 를 실제로 준 경우만 true
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'triple', stage: STAGE, crMode: CR_MODE, fable: FABLE, repoRoot: REPO_ROOT,
           ...((FRONTIER !== false || EXPLICIT_CODEX) ? { codexModel: CODEX_MODEL } : {}),
-          ...((GEMINI_MODEL && (FRONTIER !== false || EXPLICIT_GEMINI)) ? { geminiModel: GEMINI_MODEL } : {}),
+          ...((GEMINI_MODEL && (FRONTIER !== false || EXPLICIT_GEMINI)) ? { geminiModel: GEMINI_MODEL }
+              : (FRONTIER === false && !EXPLICIT_GEMINI && GEMINI_LOW) ? { geminiModel: GEMINI_LOW } : {}),
           ...(FRONTIER === false ? { frontier: false } : {}) }
 })
 ```
-`FABLE` 은 이제 **기본 true** — workflow.js 가 Claude 레그를 `claude-fable-5` 로 띄운다.
+`FABLE` 은 이제 **기본 true** — workflow.js 가 Claude 레그를 `claude-fable-5-1` 로 띄운다.
 명시적 `fable:false` 일 때만 Sonnet 으로 내려간다(구 동작).
 `CODEX_MODEL` 은 이제 **항상 설정된다**(기본 codex:max) — workflow.js 가 codex-critic 에 model override directive 를 주입한다.
-args 를 아예 안 넘기는 경로(직접 Workflow 호출)에서도 workflow.js 내장 기본값이 `gpt-5.6-sol` 이라 하향되지 않는다.
+args 를 아예 안 넘기는 경로(직접 Workflow 호출)에서도 workflow.js 내장 기본값이 `gpt-6-astra` 라 하향되지 않는다.
+⚠️ 구 표기 "내장 기본값이 `gpt-5.6-sol`" 은 2026-09-06 폐기.
 
 `GEMINI_MODEL` 은 설정됐을 때만 args 에 실린다 — 안 실어도 workflow.js 내장 기본값
-(`gemini-3.6-flash`)이 채우므로 **하향되지 않는다**. 조건부 생략은 표기 취향이다.
+(`gemini-3.8-flash`)이 채우므로 **하향되지 않는다**. 조건부 생략은 표기 취향이다.
 ⚠️ **구 서술 폐기**: "키 부재와 null 을 똑같이 다뤄 서버 기본값 경로로 간다"는 2026-08-22 이전 동작이다.
 이제 그 경로는 `frontier:false`(= `--no-frontier`)일 때만 열린다.
 `REPO_ROOT` 는 workflow.js 가 레그 프롬프트에 pin 으로 주입하고 `reviewedSha` 취득 근거로 쓴다. null 이면 레그 자기보고 모드로 떨어진다(차단 아님).

@@ -4,7 +4,7 @@ description: >
   AI 하네스 엔지니어링 감사 전문 에이전트. 평가 체계, 가드레일, 옵저버빌리티,
   신뢰성을 CLEAR/OTel/OWASP 프레임워크 기반으로 평가한다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 maxTurns: 40
 ---
 

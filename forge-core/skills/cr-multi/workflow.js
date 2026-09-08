@@ -52,7 +52,7 @@ const REVIEW_SCHEMA = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        executed_by: { type: 'string' },       // 실제 분석을 수행한 실행체 (예: gpt-5-mini / gemini-3.5-flash / claude)
+        executed_by: { type: 'string' },       // 실제 분석을 수행한 실행체 (예: gpt-5-mini / gemini-3.8-flash / claude)
         mcp_tool_called: { type: 'boolean' },  // 외부 MCP 도구를 실제로 호출했는가
         // root-cause: 2026-08-14 — gemini 레그가 `executed_by:"claude" + mcp_tool_called:true` 라는
         //   **지시문에 정의되지 않은 제3의 조합**을 반환했다(갭 리포트
@@ -293,6 +293,34 @@ function _buildTestContextSection(files, extraOmitted) {
 // 이 파일을 자기검수할 때 오탐의 최대 원천이라 애초에 판정 대상에서 뺀다.
 const SUBST_EXTERNAL_LEGS = ['codex', 'gemini']
 const SUBST_EXPECTED_EXEC = { codex: /codex|gpt/i, gemini: /gemini/i }
+// 레그 이름 → 그 레그의 **제 계열**. 외부 레그는 위 표에서 파생하고(두 표가 갈라지면 상한이
+//   조용히 헐거워진다), 내부 Claude 레그(opus)만 여기 직접 적는다.
+const SUBST_OWN_FAMILY = { opus: 'claude' }
+for (const w of SUBST_EXTERNAL_LEGS) SUBST_OWN_FAMILY[w] = (w === 'codex' ? 'gpt' : w)
+// 자기신고 문자열에서 계열을 뽑는다. 못 뽑으면 빈 문자열(호출부가 fail-closed 로 처리한다).
+function _execFamilyOf(execStr) {
+  const e = String(execStr || '')
+  for (const [w, re] of Object.entries(SUBST_EXPECTED_EXEC)) if (re.test(e)) return SUBST_OWN_FAMILY[w]
+  if (/claude|fable|opus|sonnet|haiku/i.test(e)) return 'claude'
+  return ''
+}
+// 레그 하나가 "몇 번째 눈"인지 정한다. **대타는 기본이 claude 다.**
+//   ⚠️ 교차 대체를 인정하는 조건은 하나뿐이다: 신고 계열이 **제 계열과 다른 외부 계열**일 때.
+//   그 밖(자백해서 exec 가 비었거나 · 신고가 제 계열 그대로인데 mcp 를 안 불렀거나 · 출처 미선언)은
+//   전부 claude 로 합친다 — 대타를 원래 벤더의 눈으로 세면 이 상한이 통째로 열린다.
+//   근거(2026-09-03 cr-final r5 HIGH, 2레그 프로브 실측): 자백 경로는 `exec:''` 라 종전 폴백이
+//   codex→'gpt'·gemini→'gemini' 로 귀속해 distinct=3 → PASS 가 유지됐다. 그게 PR #460 의 실제 경로다.
+function _legExecutorFamily(l) {
+  const own = SUBST_OWN_FAMILY[l && l.worker] || 'claude'
+  if (!l || l.status !== 'native') {
+    const fam = _execFamilyOf(l && l.exec)
+    // ⚠️ `mcp` AND 조건: 외부 모델은 MCP 없이는 못 돈다 — `executed_by=외부모델` 인데
+    //   `mcp_tool_called=false` 면 **자기모순 신고**다("나는 심판 B 인데 경기장엔 안 갔다").
+    //   그런 신고는 별개의 눈으로 세지 않는다(2026-09-03 cr-final r6 MEDIUM).
+    return (fam && fam !== 'claude' && fam !== own && l.mcp === true) ? fam : 'claude'
+  }
+  return _execFamilyOf(l.exec) || own
+}
 // ⚠️ 자기참조 오탐 방지(위 :472 'FILE_NOT_FOUND' sentinel 선례와 같은 함정): cr-multi 가 이
 //   workflow.js 자신을 검수할 때 리뷰어가 아래 시그니처를 **인용**하면 그 인용문이 다시 매치된다.
 //   → 완전한 문자열을 소스에 남기지 않도록 조각을 런타임에 결합한다.
@@ -313,27 +341,28 @@ function _substLegText(r) {
   for (const i of (Array.isArray(r && r.issues) ? r.issues : [])) parts.push(i && i.description, i && i.evidence)
   return parts.map((s) => (typeof s === 'string' ? s : '')).join('\n')
 }
-// 반환: { worker, status: 'native'|'substituted'|'unknown', reason }
+// 반환: { worker, status: 'native'|'substituted'|'unknown', exec, mcp, reason }
+//   exec = 레그가 신고한 실행체 문자열(계열 판정용 — 자백·미선언 경로는 빈 문자열).
 function _substLegStatus(r) {
   const worker = String((r && r.worker) || '').toLowerCase()
-  if (!SUBST_EXTERNAL_LEGS.includes(worker)) return { worker, status: 'native', reason: 'n/a(외부 MCP 레그 아님)' }
+  if (!SUBST_EXTERNAL_LEGS.includes(worker)) return { worker, status: 'native', exec: '', mcp: false, reason: 'n/a(외부 MCP 레그 아님)' }
   const text = _substLegText(r)
   // 자기 레그 지칭 AND 좁힌 실행실패 문구 — 둘 다 있어야 자백으로 본다(오탐 축소).
   if (new RegExp(worker, 'i').test(text)) {
     const hit = SUBST_CONFESSION_RES.find((re) => re.test(text))
-    if (hit) return { worker, status: 'substituted', reason: `자백 시그니처 매치 /${hit.source}/` }
+    if (hit) return { worker, status: 'substituted', exec: '', mcp: false, reason: `자백 시그니처 매치 /${hit.source}/` }
   }
   const pv = r && r.provenance
   const exec = (pv && typeof pv.executed_by === 'string') ? pv.executed_by.trim() : ''
-  if (!exec) return { worker, status: 'unknown', reason: 'provenance.executed_by 미선언 — 실행 출처 미확인' }
+  if (!exec) return { worker, status: 'unknown', exec: '', mcp: false, reason: 'provenance.executed_by 미선언 — 실행 출처 미확인' }
   // 대체 사유(있으면) 를 판정 문구에 실어 배너까지 끌고 간다 — 없으면 그 사실 자체를 적는다.
   // 이게 없으면 "대체됐다"만 남고 원인이 사라져 다음 검수가 같은 조사를 처음부터 반복한다(2026-08-14).
   const why = (pv && typeof pv.substitution_reason === 'string' && pv.substitution_reason.trim())
     ? ` · 사유="${pv.substitution_reason.trim()}"`
     : ' · 사유 미보고(substitution_reason 없음)'
-  if (!SUBST_EXPECTED_EXEC[worker].test(exec)) return { worker, status: 'substituted', reason: `executed_by="${exec}" — ${worker} 레그의 기대 실행체가 아님${why}` }
-  if (pv.mcp_tool_called !== true) return { worker, status: 'substituted', reason: `mcp_tool_called=${JSON.stringify(pv.mcp_tool_called)} — 외부 MCP 미호출(동일 모델 대행)${why}` }
-  return { worker, status: 'native', reason: `executed_by="${exec}"` }
+  if (!SUBST_EXPECTED_EXEC[worker].test(exec)) return { worker, status: 'substituted', exec, mcp: pv.mcp_tool_called === true, reason: `executed_by="${exec}" — ${worker} 레그의 기대 실행체가 아님${why}` }
+  if (pv.mcp_tool_called !== true) return { worker, status: 'substituted', exec, mcp: false, reason: `mcp_tool_called=${JSON.stringify(pv.mcp_tool_called)} — 외부 MCP 미호출(동일 모델 대행)${why}` }
+  return { worker, status: 'native', exec, mcp: pv.mcp_tool_called === true, reason: `executed_by="${exec}"` }
 }
 function detectWorkerSubstitution(results) {
   const legs = (Array.isArray(results) ? results : []).map(_substLegStatus)
@@ -362,7 +391,8 @@ const reqMode = _a?.mode || 'triple'
 const mode = reqMode
 const crMode = (['on','degrade','off'].includes(_a?.crMode)) ? _a.crMode : 'on'
 const codexEnabled = crMode === 'on'
-// root-cause: 2026-08-22 — 구 cost-opt(gemini-3.5-flash 서버 기본 추종) 폐기. 기본값 = gemini-3.6-flash 명시.
+// root-cause: 2026-08-22 — 구 cost-opt(gemini-3.5-flash 서버 기본 추종) 폐기, 코드 기본값 명시로 전환.
+//   2026-09-03: 그 기본값을 gemini-3.8-flash 로 올렸다(구 3.6-flash). 근거는 model-registry.json `_note` 한 곳.
 //   ⚠️ `gemini-3.6-pro` 는 서버에 없다(404). 사유·응답 원문·404 이후 갈래·재현 명령은
 //     **정본 한 곳**에만 있다 → `shared/config/model-registry.json` 의 `_note_2026_08_22`.
 //     여기 옮겨 적지 않는다 — 그렇게 했다가 세 번 연속 자기모순이 났다(검수 HIGH 3회).
@@ -373,7 +403,7 @@ const codexEnabled = crMode === 'on'
 //    2026-08-19 정정: 이 줄에 특정 모델 id 가 하드코딩돼 있었고 그 값은 registry 와 어긋난
 //    낡은 값이었다. **여기에 현재 값을 다시 적지 않는다** — 적는 순간 같은 드리프트가 재발한다.
 //    지금 값이 궁금하면: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh gemini:max`
-// 우선순위(2026-08-22 개정): per-run arg > 코드 기본값(gemini-3.6-flash). 서버 env/기본 층은 더 이상 도달하지 않는다.
+// 우선순위(2026-08-22 개정): per-run arg > 코드 기본값(gemini-3.8-flash). 서버 env/기본 층은 더 이상 도달하지 않는다.
 // Workflow sandbox has no process.env, so env layer is applied by the MCP server when we OMIT the model param.
 // When _a.geminiModel is provided, pass it explicitly to override; otherwise omit → server governs.
 // root-cause: PR #320 cr-final(codex 레그) HIGH — 검수 3레그를 동시에 프런티어로 올리면서
@@ -386,15 +416,24 @@ const codexEnabled = crMode === 'on'
 //      읽어 args 로 릴레이한다(`--no-frontier`).
 const frontierOn = _a?.frontier !== false
 
-// root-cause: 2026-08-22 Human 지시 — 서버 기본값(3.5 계열) 추종을 그만두고 **gemini-3.6-flash** 를 명시한다.
-//   ⚠️ `--gemini-max`(= registry `gemini:max`)는 켜지 말 것 — 사유는 정본(위 블록이 가리키는 곳) 참조.
-//     리졸버(`model-registry-resolve.sh`)가 그 id 에 stderr 경고를 낸다(`FORGE_MODEL_STRICT=1` 이면 중단).
+// root-cause: 2026-08-22 Human 지시 — 서버 기본값(3.5 계열) 추종을 그만두고 코드에 명시한다.
+//   2026-09-03 Human 지시로 **gemini-3.8-flash** 로 상향(실호출 확인 후 핀 — 목록만 보고 핀하지 않는다).
+//   ℹ️ `--gemini-max`(= registry `gemini:max`)는 지금 **default 와 같은 값**이라 아무것도 바꾸지 않는다(no-op).
+//     사유 정본 → registry `gemini.max_equals_default_reason`. 여기 옮겨 적지 않는다.
+//     ⚠️ 구 주석 "켜지 말 것 — 리졸버가 stderr 경고를 낸다(STRICT=1 이면 중단)" 는 폐기(2026-09-03):
+//       그 경고는 `unavailable` 등재 id 에만 걸리는데 `gemini:max` 가 더 이상 거기 닿지 않아 **경고가 안 난다**.
+//   ⚠️ `frontier:false`(= `--no-frontier`) 일 때 이 상수가 `null` 인 것은 의도다 — 래퍼가 그때
+//     `gemini:low` 를 **명시적으로** 실어 보내므로 이 폴백까지 오지 않는다(정본 → registry
+//     `gemini.low_is_killswitch_target_reason`). ⚠️ 이 방어가 무력화되는 입력: **래퍼를 거치지 않고
+//     workflow.js 를 직접 호출하면서 `frontier:false` 만 주는 경우** — 그때는 여기서 null 로 떨어져
+//     서버 기본값(현재 3.8)을 따라가므로 하향되지 않는다.
 //   ⚠️ 이 리터럴은 registry `gemini.tiers.default` 와 **이중 유지**다 — 샌드박스에 fs 가 없어
 //     런타임 참조가 불가능하기 때문이다. 대신 테스트가 둘을 대조한다
 //     (`tests/model-defaults.test.mjs` — "코드 기본값이 registry 의 gemini:default 와 일치한다").
 //   구 T1 우선순위(arg > 서버 env > 서버 기본)에서 마지막 층이 사라졌다 — 이제 arg 미지정 = 이 상수.
-const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.6-flash' : null)
+const geminiModel = _a?.geminiModel || (frontierOn ? 'gemini-3.8-flash' : null)
 // root-cause: 2026-08-22 Human 지시 — Claude 검수 레그 기본값을 Sonnet -> **Fable 5** 로 승격하고
+//   (2026-09-02: 그 Fable 이 **5.1** 로 올라갔다 — 별칭 'fable' 을 쓰므로 코드 변경 없이 따라간다)
 //   '--fable = Human 수동 전용' 제약을 해제한다(구독 3계정 운용, 비용 제약 없음).
 //   이제 `fable` 은 opt-**out** 이다: 명시적 `fable:false` 일 때만 Sonnet 으로 내려간다.
 //   구 동작(`=== true`)은 미지정 시 Sonnet 이었다 — 호출자 대부분이 이 값을 안 넘겨서 승격이 사문화돼 있었다.
@@ -406,7 +445,13 @@ const fableLeg = frontierOn && _a?.fable !== false
 //   **gpt-5.6-sol 명시 기본값**으로 바꾼다. 커맨드 레이어가 registry 로 해석해 넘기면 그 값이 이기고,
 //   안 넘겨도(직접 Workflow 호출 등) 프런티어로 뜬다. SSoT 는 model-registry.json `codex:max` 이며
 //   여기 상수는 **args 미전달 경로용 폴백**이다(드리프트 시 registry 가 정답).
-const codexModel = (typeof _a?.codexModel === 'string' && _a.codexModel) ? _a.codexModel : (frontierOn ? 'gpt-5.6-sol' : null)
+// root-cause: 2026-09-06 GPT-6 Astra 편입 — registry `codex:max` 가 gpt-5.6-sol → **gpt-6-astra** 로
+//   올라갔다(사다리 재배치: sol 은 `high` 로 한 칸 내려옴). 이 리터럴은 그 SSoT 의 **이중 유지**다.
+//   ⚠️ 없애려 하지 마라 — Workflow 샌드박스는 fs 접근이 없어 registry 를 런타임에 못 읽는다.
+//   대신 짝인 테스트(`tests/model-defaults.test.mjs`)가 두 값을 붙들어 둔다.
+//   ⚠️ 이 이중 유지가 무력화되는 입력: registry 만 고치고 이 줄을 안 고치는 경우 —
+//   테스트를 안 돌리면 조용히 갈라진다(그래서 테스트가 이 값을 문자열로 고정한다).
+const codexModel = (typeof _a?.codexModel === 'string' && _a.codexModel) ? _a.codexModel : (frontierOn ? 'gpt-6-astra' : null)
 // root-cause: 2026-08-17 기사판정 #5 — 검수 레그는 learnings.jsonl(코드 밖 맥락)을 못 본다
 //   (gemini 레그 FS 접근 0 · workflow 스크립트도 FS 접근 0) → 호출자가 jq 산출을 args 로 전달한다.
 //   opt-in: 미지정 시 기존 동작 100% 동일. **상시 배선하지 않는다 — 2026-08-17 확정(파일럿 2회 종료).**
@@ -478,7 +523,21 @@ function _learningsSection(norm) {
 const _learningsNorm = _normalizeLearnings(_a?.learningsContext)
 const learningsContext = _learningsNorm.text
 const learningsTruncated = _learningsNorm.truncated
-log(`[INFO] mode=${mode} stage=${stage} crMode=${crMode} frontier=${frontierOn ? 'on' : 'OFF(구 기본값)'} fable=${fableLeg} codexModel=${codexModel||'default'} learnings=${learningsContext ? learningsContext.length + '자' : 'off'} args_type=${typeof args}`)
+log(`[INFO] mode=${mode} stage=${stage} crMode=${crMode} frontier=${frontierOn ? 'on' : 'OFF(구 기본값)'} fable=${fableLeg} codexModel=${codexModel||'default'} geminiModel=${geminiModel||'default(서버)'} learnings=${learningsContext ? learningsContext.length + '자' : 'off'} args_type=${typeof args}`)
+// root-cause (2026-09-03, PR #477 r2 검수 HIGH): `--no-frontier` 를 켰는데 래퍼의 `gemini:low` resolve 가
+//   실패하면(리졸버가 registry 를 `$HOME/forge` 에서 찾아 워크트리·미pull 머신에서 rc=2) geminiModel 이
+//   null 로 떨어져 **서버 기본값(현재 프런티어)** 를 그대로 따라간다 — 브레이크가 조용히 no-op 이 된다.
+//   종전 로그는 `frontier=OFF` 만 찍고 **실제로 실린 Gemini 모델은 안 보여줘서** 사람이 알 수가 없었다.
+//   쉽게 말하면 **브레이크 등만 켜지고 차는 그대로 굴러가는 것**을 아무도 못 봤다.
+//   ⚠️ 동작은 바꾸지 않는다 — 경고 1줄만 더한다(fail-open 유지, 검수는 계속 돌아간다).
+//   ⚠️ 이 방어가 무력화되는 입력: 호출자가 이 로그를 안 읽거나 버리는 경우 — WARN 은 로그로만 나간다.
+// ─── FRONTIER-WARN:BEGIN ─── (역변조 판별 대상 — `tests/frontier-warn-branch.test.mjs` 가
+//   이 두 마커 사이를 소스에서 그대로 잘라 **실행**한다. 인라인 복제본이 아니라 실코드다.
+//   ⛔ 마커를 지우거나 사이를 비우면 그 테스트가 FAIL 한다 — 그게 이 마커의 유일한 목적이다.)
+if (!frontierOn && !geminiModel) {
+  log(`[WARN] frontier=OFF 인데 geminiModel 이 비었다 — Gemini 레그는 하향되지 않고 서버 기본값(현재 프런티어)에 남는다. 래퍼의 gemini:low resolve 실패를 의심하라 — 재현: bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh gemini:low (rc=2 면 그것이다). 사유 정본 → registry gemini.low_is_killswitch_target_reason`)
+}
+// ─── FRONTIER-WARN:END ───
 const slug = _a?.slug || 'cr'
 // root-cause (2026-07-29, Windows 세션 실측): _safePath 화이트리스트 [A-Za-z0-9_./:-] 에
 //   백슬래시가 없어 \-구분자 절대경로(C:\Users\...)가 자기동일성 검사(:179, :322)에 걸렸다.
@@ -682,6 +741,47 @@ function _utf8Encode(str) {
   }
   return Uint8Array.from(out)
 }
+// diff 의 "빈 줄"은 파일 안에서 실제로는 **공백 한 칸**(' ')이다 — 컨텍스트 줄에도 접두사가
+//   붙기 때문이다. 전사 모델은 후행 공백을 관행적으로 지우므로 그런 줄 하나당 정확히 1B 가 빈다.
+//   실측(2026-08-23, PR#323 델타 47,994B): 후행공백 줄 8개 → 청크 3개가 byte_mismatch 로 거부되고,
+//   **조각 1개 실패가 24개 전량 포기로 번져** 폴백이 48KB 를 8.4KB 로 잘라와 검수가 통째로 무효화됐다.
+//   갭 기록: harness-gaps/2026-08-23-chunk-loader-trailing-space-blindspot.md
+//   쉽게 말하면 — 복사기가 빈 페이지를 "아무것도 없네" 하고 건너뛰었는데 검사대가 서류 전체를 반려했다.
+// ⚠️ 갭 문서의 조치 제안 1(비교 전 후행공백 **정규화**)은 채택하지 않았다. 정규화는 진짜
+//   후행공백 변경(그걸 지우는 커밋)을 대조 대상에서 빼버린다 — 방어를 영구히 얇게 만든다.
+//   대신 후행 개행 복원과 **같은 원리**를 쓴다: 복원본을 만들어 **CRC 가 일치할 때만** 인정한다.
+//   원문이 정말 공백을 지운 것이라면 복원본의 CRC 가 어긋나 그대로 거부된다.
+// ⚠️ **어디까지가 실측이고 어디부터가 방어적 확장인지 구분해 둔다**(2026-08-23 검수 codex 레그 지적).
+//   **실사용 실측으로 입증된 것은 `blank_line_space` 하나뿐이다**(PR#323: 후행공백 8줄 → 청크 3개 거부).
+//   나머지 3종은 같은 손실이 다른 위치·조합에서 일어날 때를 덮는 **방어적 확장**이며 근거는
+//   합성 테스트(T27·T31·T33)다. 전부 CRC 로 검증되므로 넓혀도 오탐이 늘지 않는다 —
+//   그래도 "관측된 사례"와 "있을 법한 사례"를 코드에서 섞어 적지 않는다.
+// ⚠️ **CRC 는 보안 해시가 아니다**(같은 지적). POSIX cksum 은 32비트라 충돌 저항성이 없다.
+//   여기서 막는 것은 **모델의 비적대적 전사 오류**이지 적대적 조작이 아니다 — 이 대조를
+//   무결성 '보장'으로 읽지 말 것. 적대적 입력이 전제되면 다른 수단이 필요하다.
+// 반환값의 `healed` 태그(열거형): 'trailing_newline' · 'blank_line_space' ·
+//   'blank_line_space+trailing_newline' · 'blank_line_space_tail' ·
+//   'blank_line_space_tail+trailing_newline'.
+//   소비처는 호출부 로그 1곳이며 값 자체로 분기하지 않는다
+//   (문자열 표시 전용) — 태그를 늘려도 판정 로직은 바뀌지 않는다.
+// `withTail=false` = 진짜 줄만(전사본이 '\n' 으로 끝나면 마지막 원소는 split 이 만든 빈 꼬리다).
+// `withTail=true`  = 그 꼬리까지 공백으로 — **원문의 마지막 줄이 공백 한 칸이고 개행 없이 끝난** 경우다.
+//   이 갈래가 없으면 파일 끝 위치의 빈 컨텍스트 줄은 영원히 복원되지 않는다.
+//   ⚠️ 1차 수정은 `t.endsWith('\n')` 로 갈랐는데 **판정 기준을 전사본에 뒀다.** 전사본은 이미
+//   그 공백을 잃어 '\n' 으로 끝나므로 조건이 늘 거짓이었다 — 고쳤다고 생각한 케이스가 그대로 남았다
+//   (2026-08-23 cr-final gemini 레그가 node 로 재현해 잡았고, 그 수정마저 첫 판에 빗나갔다).
+//   **원문이 무엇으로 끝났는지는 알 수 없다 — 그래서 판정하지 않고 두 후보를 다 만들어 CRC 에 맡긴다.**
+// ⚠️ **LF 전제다**(2026-08-23 r3 검수 codex 레그 지적). 원문이 CRLF 면 빈 컨텍스트 줄에 '\r' 이
+//   남아 `lines[i] === ''` 에 걸리지 않으므로 후보가 생성되지 않는다 — 복원이 조용히 스킵되고
+//   그대로 거부된다(오작동이 아니라 미복원이다). 이 파이프라인의 대상은 sed 로 뜬 POSIX 텍스트라
+//   현재 실해는 없지만, 전제가 어디에도 안 적혀 있어 다음 사람이 원인을 못 찾을 수 있어 적어 둔다.
+const _blankLinesToSpace = (t, withTail) => {
+  const lines = t.split('\n')
+  const limit = (withTail || !t.endsWith('\n')) ? lines.length : lines.length - 1
+  let n = 0
+  for (let i = 0; i < limit; i++) if (lines[i] === '') { lines[i] = ' '; n++ }
+  return n > 0 ? lines.join('\n') : null
+}
 function _chunkFromPlain(text, expectBytes, expectCrc) {
   if (typeof text !== 'string') return { ok: false, reason: 'bad_text' }
   if (!Number.isInteger(expectBytes) || expectBytes < 0) return { ok: false, reason: 'bad_expect' }
@@ -693,13 +793,41 @@ function _chunkFromPlain(text, expectBytes, expectCrc) {
     //   그 압도 다수가 정확히 1바이트 부족(843!=844, 408!=409, 95!=96 …). 모델이 우연히 개행을
     //   붙인 런만 verified 가 나오던 비결정성의 정체가 이것이다.
     //   복원은 CRC 가 함께 일치할 때만 인정한다 — 길이만 맞추는 치환·조작은 CRC 가 걸러낸다.
-    // ⚠️ 이 복원이 무력화되는 입력: expectCrc 가 사용 불가(-1 등)면 복원하지 않는다(fail-closed) —
-    //   CRC 없는 복원은 "1바이트 아무거나 덧붙이기"와 구분할 수 없기 때문이다.
-    if (u8.length === expectBytes - 1 && _isUsableCrc(expectCrc)) {
-      const fixedText = text + '\n'
-      const fixedU8 = _utf8Encode(fixedText)
-      if (fixedU8.length === expectBytes && _posixCksum(fixedU8) === expectCrc) {
-        return { ok: true, text: fixedText, bytes: fixedU8.length, healed: 'trailing_newline' }
+    // ⚠️ 이 복원이 무력화되는 입력: ①expectCrc 가 사용 불가면 **아예 시도하지 않는다**(fail-closed) —
+    //   CRC 없는 복원은 "아무 바이트나 덧붙이기"와 구분되지 않는다. ②빈 줄 중 **일부만**
+    //   후행공백이었던 경우(진짜 빈 줄과 섞임): 전부-또는-전무만 시도하므로 CRC 가 어긋나 거부된다.
+    //   거부는 침묵 통과가 아니라 안전한 실패다 — 로그가 남고 폴백으로 내려간다.
+    // 복원은 **바이트를 늘리는 연산뿐**이다 — 이미 넘쳤다면(전사본이 더 길다면) 어떤 후보도
+    //   길이를 맞출 수 없다. 대형 청크에서 헛도는 순회·재인코딩을 막는다(2026-08-23 검수 codex 레그 지적).
+    const _deficit = expectBytes - u8.length
+    if (_deficit >= 1 && _isUsableCrc(expectCrc)) {
+      const spaced = _blankLinesToSpace(text, false)
+      const spacedTail = _blankLinesToSpace(text, true)
+      // 후보는 전부 CRC 로 검증되므로 순서는 정확성이 아니라 비용 문제일 뿐이다.
+      //   **최대 5개**다(기본 1 + spaced 2 + spacedTail 2) — 내부 빈 줄이 있고 말미 개행까지 있는
+      //   전사본이면 다섯 갈래가 전부 성립한다. 실측: ' a\n\n b\n' → 5.
+      //   ⚠️ 종전 주석은 "최대 4회"였다. 이 파일이 몇 줄 아래에서 "실측 숫자를 적어두면 그 숫자도
+      //   함께 관리해야 한다"고 적어 놓고 **태어날 때부터 낡은 값**을 넣었다(2026-08-23 r3 검수 적발).
+      //   후보를 더 늘리면 이 숫자도 같이 고쳐야 한다.
+      // 개행 복원은 text 가 이미 '\n' 으로 끝날 때도 시도한다 — 원문이 '\n\n' 으로 끝나고
+      //   모델이 마지막 하나만 흘린 경우가 그렇다(endsWith 로 거르면 그 케이스를 잃는다).
+      const candidates = [[text + '\n', 'trailing_newline']]
+      if (spaced) candidates.push([spaced, 'blank_line_space'], [spaced + '\n', 'blank_line_space+trailing_newline'])
+      // 꼬리 변형은 위와 결과가 같을 수 있다(전사본이 '\n' 으로 끝나지 않을 때) — 그때는 중복을 뺀다.
+      //   `+개행` 짝까지 넣는 이유: 원문이 **빈 컨텍스트 줄 + 그 줄을 끝맺는 개행**으로 끝나면
+      //   (헝크가 빈 줄로 끝나는 흔한 모양) 공백 유실과 말미 개행 유실이 겹쳐 deficit=2 가 되는데,
+      //   이 짝이 없으면 어떤 후보도 길이를 못 맞춰 거부된다. 안전한 거부이긴 하나 그 거부가
+      //   폴백 절단으로 번지는 것이 이 PR 이 고치려는 원래 사고 경로다.
+      //   ⚠️ 2026-08-23 cr-final **2라운드에서 3레그가 독립적으로 같은 지점에 수렴**해 잡았다
+      //   (opus 워크트리 실측 · codex 정적분석 · gemini 바이트 단위 재현).
+      if (spacedTail && spacedTail !== spaced) {
+        candidates.push([spacedTail, 'blank_line_space_tail'], [spacedTail + '\n', 'blank_line_space_tail+trailing_newline'])
+      }
+      for (const [cand, tag] of candidates) {
+        const cu8 = _utf8Encode(cand)
+        if (cu8.length === expectBytes && _posixCksum(cu8) === expectCrc) {
+          return { ok: true, text: cand, bytes: cu8.length, healed: tag }
+        }
       }
     }
     return { ok: false, reason: `byte_mismatch ${u8.length}!=${expectBytes}` }
@@ -727,6 +855,52 @@ function _applyContentCeiling(tierFromLegs, contentState) {
   const ceil = _CONTENT_TIER_CEILING[contentState]
   if (!ceil) return tierFromLegs
   return (_TIER_RANK[ceil] < _TIER_RANK[tierFromLegs]) ? ceil : tierFromLegs
+}
+// 재분할 경계 계산(갭 §제안 2, 2026-08-24). 순수함수로 뽑은 이유 = 테스트가 "이런 코드가 있는가"가
+//   아니라 **"이 계산이 맞는가"** 를 실행으로 볼 수 있게 — 같은 파일의 _classifyLoadFailure 와 같은 규약.
+// 반환: mid(첫 하위 조각의 끝 줄) | null(쪼갤 수 없음 — 1줄짜리이거나 인자가 정수가 아님)
+// ⚠️ `mid < endNum` 을 요구한다: mid === endNum 이면 두 번째 하위 조각이 빈 범위가 되어
+//   sed 가 아무것도 안 뽑고, 그 조각이 영원히 byte_mismatch 로 떨어진다.
+function _splitMid(start, endNum) {
+  if (!Number.isInteger(start) || !Number.isInteger(endNum)) return null
+  const mid = Math.floor((start + endNum) / 2)
+  return (mid >= start && mid < endNum) ? mid : null
+}
+// 포기 로그의 재분할 문구를 고른다(2026-08-24). 순수함수인 이유는 이 파일의 규약 그대로다 —
+//   **계산은 계산으로 검증한다.** 이 갈래는 두 번 틀렸고(무조건 문구 → 전체 시도 수 인용),
+//   두 번 다 테스트가 없어서 검수가 잡을 때까지 몰랐다.
+// splitFailed = 분할까지 갔는데도 끝내 실패한 청크 수 · splitAttempted = 분할을 시도한 **전체** 청크 수
+function _splitNoteText(splitFailed, splitAttempted) {
+  if (splitFailed > 0) return `실패 청크 중 ${splitFailed}개는 재분할까지 시도했다`
+  // 시도는 있었는데 실패 청크는 그 대상이 아니었다 = 복구된 청크만 쪼갰다는 뜻이다.
+  if (splitAttempted > 0) return '실패 청크는 재분할 대상이 아니었다(쪼갤 수 없었다 — 다른 청크만 시도)'
+  return '재분할 불가(쪼갤 수 없는 조각)'
+}
+// 폴백 스냅샷이 거부됐을 때의 **사유 문장**을 만든다(갭 §조치 제안 3, 2026-08-24).
+//   순수함수로 뽑은 이유 = 테스트가 "이런 코드가 있는가"가 아니라 **"이 문장이 맞는가"** 를
+//   실행으로 볼 수 있게 — 같은 파일 `_classifyLoadFailure`·`_splitMid` 와 같은 규약이다.
+//   (이 세션에서 '항진식 테스트'와 '구조만 보는 가드'를 각각 한 번씩 지적받았다. 계산은 계산으로 검증한다.)
+// ⚠️ targetBytes 가 정수 양수가 아니면(stat 미확보) **비율을 지어내지 않는다** — '미상'으로 적는다.
+//   0 으로 나눠 Infinity·NaN 을 payload 에 실어 보내면 읽는 사람이 그 값을 믿는다.
+function _fallbackLossText(chunkReason, accReason, snapBytes, targetBytes) {
+  const base = chunkReason || '청크 로더 미확보'
+  // ⚠️ `_classifyLoadFailure` 의 `known` 은 `>= 0`(0 = 빈 파일도 '아는 값')인데 여기는 `> 0` 이다.
+  //   **묻는 것이 다르기 때문이다**: 저기는 "stat 값을 아는가", 여기는 "비율을 낼 수 있는가".
+  //   0 으로는 나눌 수 없으니 여기서는 0 을 '모름'으로 친다. 같은 이름이라 헷갈리기 쉬워 적어 둔다.
+  const known = Number.isInteger(targetBytes) && targetBytes > 0
+  const nSnap = Number.isInteger(snapBytes) && snapBytes >= 0 ? snapBytes : -1
+  // ⚠️ **아는 값은 버리지 않는다**(2026-08-24 r1 검수 — opus·gemini 두 레그가 수렴한 지적).
+  //   종전엔 `!known || nSnap < 0` 을 한 분기로 묶어, targetBytes 를 **알고 있는데도** snapBytes 만
+  //   무효면 '실측 미상'으로 적었다. '정직하게 미상으로 적는다'는 설계 의도와 정반대다.
+  const snapTxt = nSnap < 0 ? '미상' : `${nSnap}B`
+  const tgtTxt = known ? `${targetBytes}B` : '미상'
+  const head = `${base} · 폴백 스냅샷도 거부(${accReason}) — 확보 ${snapTxt} / 실측 ${tgtTxt}`
+  if (!known || nSnap < 0) return head                 // 차이·비율은 둘 다 알아야 낼 수 있다
+  const shortB = targetBytes - nSnap
+  // 차이가 0 이면 비율(0.0%)은 군더더기다 — 붙이지 않는다(gemini 레그 지적).
+  if (shortB === 0) return `${head}, 차이 없음`
+  const dir = shortB > 0 ? `${shortB}B 부족` : `${-shortB}B 초과`
+  return `${head}, ${dir} (${(Math.abs(shortB) / targetBytes * 100).toFixed(1)}%)`
 }
 // 원문 확보 실패의 **원인 분류**. 순수함수로 뽑은 이유 = 테스트가 "이런 코드가 있는가"가 아니라
 //   "이 판정이 맞는가"를 실행으로 볼 수 있게(PR#283 cr-final test-coverage MEDIUM 반영).
@@ -763,6 +937,14 @@ let _snapshotVerified = false // 스냅샷이 청크 검증 로더 산물일 때
 //   그때는 'verified' 가 찍힌다 — 이 축은 "무결성 검사를 통과했는가"를 말할 뿐 "모델이 정직했는가"를
 //   말하지 못한다. 그 층은 상위 stat 대조가 담당하며, 여전히 완결되지 않는다(열린 질문으로 남긴다).
 let _contentIntegrity = { state: 'none', reason: '' }
+// 폴백 스냅샷이 거부됐을 때의 **정량 사유**를 보관한다(2026-08-24 r2 검수 HIGH — 배선 갭).
+//   종전에는 이 문자열을 `_setContentIntegrity('lost', ...)` 에 넣기만 했는데, 그 상태는
+//   **payload 에 도달하기 전에 반드시 덮어써지거나 버려졌다**:
+//     ①File Pre-load 가 원문을 얻으면 'unchecked' 가 무조건 덮어썼고,
+//     ②못 얻으면 A-2 조기 반환(INVALID_INPUT)에 content_integrity 필드 자체가 없었다.
+//   즉 "얼마를 잃었는지 payload 에 싣는다"는 이 변경의 목표가 **실경로에서 0건**이었다.
+//   `wiring-check` 는 "함수가 불리는가"만 보므로 이걸 못 잡았다 — 부르긴 했고 결과가 버려졌다.
+let _fallbackLossReason = ''
 const _setContentIntegrity = (state, reason) => { _contentIntegrity = { state, reason: reason || '' } }
 // 청크 로더가 왜 포기했는지. '' = 청크 경로를 아예 안 탔거나 성공했다.
 let _chunkLossReason = ''
@@ -820,10 +1002,11 @@ async function _readTargetVerbatim() {
     //   payload 에 개수만 실려, 사고 후 원인 판별이 로그 채굴 없이는 불가능했다.
     const _chunkFailDetails = []
     let _chunkHealedCount = 0
-    const chunkResults = await parallel(starts.map((start) => async () => {
-      // 마지막 청크는 '$'로 EOF까지 — wc -l 언더카운트(무개행 마지막 줄)를 sed가 흡수
-      const isLast = start + CHUNK - 1 >= statLines
-      const end = isLast ? '$' : String(start + CHUNK - 1)
+    // ─── 조각 1개 전사 (헬퍼) ───────────────────────────────────────────────
+    // 왜 함수로 뺐나: 아래 **재분할 재시도**가 같은 로직을 다시 써야 하기 때문이다.
+    //   인라인일 때는 실패한 조각을 다시 시도할 방법이 복붙밖에 없었다.
+    // 반환: 전사 성공 시 텍스트, 두 tier 모두 실패하면 null.
+    const _readChunk = async (start, end, tag) => {
       const range = `${start},${end}`
       // 재시도 체인 — "최종 tier 인가" 판정은 아래 두 소비처(실패 로그·사유 수집)가 **같은 술어**를
       //   써야 한다(cr-final LOW: 종전엔 로그가 '!==haiku' 이분법, 수집이 '===sonnet' 일치로 어긋나
@@ -873,7 +1056,7 @@ async function _readTargetVerbatim() {
           // crc 를 required 로 강제한다 — optional 이면 모델이 그 필드만 빼는 것으로 CRC 방어가
           //   조용히 사라지고(상위 합계 게이트도 바이트만 본다) '동일 길이 치환 탐지'가 opt-in 이 된다.
           //   PR#281 검수 3레그 중 2레그 합의 지적(high). 스키마가 강제하면 누락 자체가 재시도로 간다.
-          { label: `read-chunk-${start}${readModel !== READ_MODELS[0] ? '-retry' : ''}`, phase: 'StructuralContext', schema: { type: 'object', additionalProperties: false, properties: { text: { type: 'string' }, bytes: { type: 'integer' }, crc: { type: 'integer' } }, required: ['text','bytes','crc'] }, model: readModel }
+          { label: `read-chunk-${start}${tag}${readModel !== READ_MODELS[0] ? '-retry' : ''}`, phase: 'StructuralContext', schema: { type: 'object', additionalProperties: false, properties: { text: { type: 'string' }, bytes: { type: 'integer' }, crc: { type: 'integer' } }, required: ['text','bytes','crc'] }, model: readModel }
         )
         // crc 누락은 **침묵 통과 대상이 아니다** — 스키마가 required 로 막지만, 만에 하나 빠져 오면
         //   fail-open 으로 흘리지 않고 로그를 남긴다(안 남기면 방어가 꺼진 사실을 아무도 모른다).
@@ -882,24 +1065,96 @@ async function _readTargetVerbatim() {
         if (!_isUsableCrc(c?.crc)) log(`[FileLoad][chunk ${range}] crc 사용 불가(${JSON.stringify(c?.crc)}) — CRC 대조 없이 바이트만 검사한다(방어 약화 상태)`)
         const r = _chunkFromPlain(c?.text ?? null, c?.bytes ?? -1, _isUsableCrc(c?.crc) ? c.crc : -1)
         if (r.ok) {
-          if (r.healed) { _chunkHealedCount++; log(`[FileLoad][chunk ${range}] 후행 개행 복원(CRC 일치) — 통과`) }
+          if (r.healed) { _chunkHealedCount++; log(`[FileLoad][chunk ${range}] 복원 ${r.healed}(CRC 일치) — 통과`) }
           return r.text
         }
         log(`[FileLoad][chunk ${range}] ${readModel} 무결성 거부(${r.reason}) — ${isFinalTier ? '실패' : '재시도'}`)
-        if (isFinalTier) _chunkFailDetails.push(`${range}:${r.reason}`)
+        if (isFinalTier) _chunkFailDetails.push(`${range}${tag}:${r.reason}`)
       }
       return null
+    }
+
+    // 갭 마감 §제안 2 — **부분 성공을 살린다**(2026-08-24).
+    //   종전에는 조각 24개 중 **1개만 실패해도 23개를 통째로 버리고** 폴백에 위임했다.
+    //   폴백은 요약해 오므로 48KB 가 8.4KB 로 잘렸고, 무결성 게이트가 그걸 잡아 검수 자체가 반려됐다.
+    //   쉽게 말하면 — 스무 장 중 한 장을 못 베꼈다고 스무 장을 다 버리고 요약본을 받아온 셈이다.
+    //
+    // ⚠️ **갭 문서의 원안(실패 조각만 폴백으로 채우기)은 채택하지 않았다.** 그렇게 하면 한 문자열
+    //   안에 검증본과 미검증본이 섞이는데, `content_integrity` 는 파일 단위 **한 값**이라
+    //   "어디까지가 검증본인지"를 하류(검수 3레그)에 전달할 방법이 없다. 섞인 줄 모르고 'verified'
+    //   를 읽는 쪽이 생기면 이 갭이 막으려던 것보다 나쁜 상태가 된다.
+    // → 대신 **조각을 반으로 쪼개 다시 시도**한다. 쪼갠 조각도 각각 바이트+CRC 를 통과해야 하므로
+    //   **무결성 계약은 그대로다** — 이건 '검증을 느슨하게'가 아니라 '다시 시도'다.
+    //   근거: 실패 사유의 압도 다수가 긴 조각에서의 전사 누락이라 길이를 줄이면 통과 개연성이 높다.
+    // ⚠️ **깊이 1 로 제한한다**(쪼갠 조각이 또 실패하면 거기서 끝). 무한 분할 금지 —
+    //   실패가 길이 때문이 아니라 내용 때문이면 더 쪼개도 같은 결과이고 에이전트만 늘어난다.
+    // ⚠️ 이 재시도가 무력화되는 입력 **3종** — 전부 종전처럼 전량 포기로 떨어진다(안전 방향):
+    //   ①**1줄짜리 조각** — 더 쪼갤 수 없다.
+    //   ②전사 실패가 **길이와 무관**한 경우(분류기 차단 등) — 쪼개도 같은 결과다.
+    //   ③**마지막 조각 + 무개행 EOF**(2026-08-24 r1 검수 codex 레그 지적). `isLast` 일 때
+    //     `endNum` 은 `wc -l` 기반 `statLines` 인데, 마지막 줄에 개행이 없으면 그 값이 **1 적다.**
+    //     물리적으로 2줄인 마지막 조각이 `_splitMid(21,21) → null` 로 1줄 취급돼 **쪼갤 기회를 놓친다.**
+    //     즉 이 패치의 목적이 하필 그 자리에서만 조용히 무력화된다.
+    //     ⚠️ `endNum + 1` 로 늘려 잡는 것은 **고치는 게 아니다** — 실제로 21줄이면 split-b 가
+    //     빈 범위가 되어 byte_mismatch 로 실패하고, 결과는 같은데 에이전트만 2개 더 쓴다.
+    //     `sed '$'` 는 실제 끝을 알지만 우리는 그 값을 모르는 것이 근본 원인이라, 여기서는
+    //     **고치지 않고 적어 둔다**(전량 포기라는 기존 동작으로 안전하게 떨어진다).
+    let _chunkSplitCount = 0
+    let _chunkSplitAttempted = 0
+    // ⚠️ **실패로 끝난 청크 중 분할까지 갔던 수**를 따로 센다(2026-08-24 r1 검수 opus 레그, conf 0.85).
+    //   `_chunkSplitAttempted` 는 **전체** 청크의 시도 수라, 분할로 복구된 청크와 분할조차 못 한
+    //   청크(1줄짜리)가 섞이면 "재분할 N건 시도 후에도 미확보" 가 **그 실패 청크에 대해서는 거짓**이 된다.
+    //   이 커밋이 고치겠다고 선언한 바로 그 축("실제보다 애쓴 것처럼 읽히는 로그")이 혼합 케이스에
+    //   그대로 남아 있었다 — 선언과 구현이 어긋난 것이라 반드시 고친다.
+    let _chunkSplitFailed = 0
+    const chunkResults = await parallel(starts.map((start) => async () => {
+      // 마지막 청크는 '$'로 EOF까지 — wc -l 언더카운트(무개행 마지막 줄)를 sed가 흡수
+      const isLast = start + CHUNK - 1 >= statLines
+      const endNum = isLast ? statLines : start + CHUNK - 1
+      const end = isLast ? '$' : String(endNum)
+      const first = await _readChunk(start, end, '')
+      if (first !== null) return first
+      const mid = _splitMid(start, endNum)
+      if (mid === null) return null                      // 1줄짜리 — 쪼갤 수 없다
+      _chunkSplitAttempted++                             // 아래 포기 로그가 "재시도했다"를 사실대로 말하게 한다
+      log(`[FileLoad][chunk ${start},${end}] 두 tier 실패 — [${start},${mid}] + [${mid + 1},${end}] 로 쪼개 재시도`)
+      const a = await _readChunk(start, String(mid), ':split-a')
+      if (a === null) { _chunkSplitFailed++; return null }   // 앞이 실패하면 뒤는 돌리지 않는다(비용)
+      const b = await _readChunk(mid + 1, end, ':split-b')
+      if (b === null) { _chunkSplitFailed++; return null }
+      _chunkSplitCount++
+      // 재분할로 복구했으니 **원 범위의 실패 사유를 진단 표본에서 걷어낸다.**
+      //   안 걷으면 나중에 다른 조각이 진짜 실패했을 때 `_reasonSample`(3건)이 **이미 복구된 조각**을
+      //   가리키고, `외 N건` 이 실제 손실 수(_lostN)를 넘어설 수 있다 — 2026-08-21 갭이 만들어 둔
+      //   "payload 만 보고 원인을 안다"는 성질을 이 PR 이 조용히 깎는 셈이었다(r1 검수 실적발).
+      const _origPrefix = `${start},${end}:`
+      for (let i = _chunkFailDetails.length - 1; i >= 0; i--) {
+        if (_chunkFailDetails[i].startsWith(_origPrefix)) _chunkFailDetails.splice(i, 1)
+      }
+      log(`[FileLoad][chunk ${start},${end}] 재분할 성공 — 두 조각 모두 CRC 일치`)
+      return a + b
     }))
     if (chunkResults.some((x) => x === null || x === undefined)) {
       const _lostN = chunkResults.filter((x) => x === null || x === undefined).length
       // 사유를 남겨야 아래 evidence_tier 강등이 "왜"를 말할 수 있다(로그만 남기면 판정에 안 닿는다).
       //   사유 표본은 3건까지만 싣는다 — payload 는 사람이 읽는 요약이지 전체 로그가 아니다.
+      // ⚠️ `외 기록 N건` 은 **청크 수가 아니라 기록 건수**다(2026-08-24 r2 검수 지적).
+      //   미복구 청크 하나가 원 범위 + 분할 시도로 **최대 2건**을 남기므로
+      //   (split-a 가 실패하면 조기 반환해 split-b 는 아예 돌지 않는다 — 그래서 3건은 불가능하다.
+      //    구 주석은 '최대 3건'이라 적었는데, 단위를 바로잡겠다는 주석의 상한 자체가 틀렸었다.)
+      //   이 값이 `_lostN` 을 넘을 수 있다. 모든 기록이 진짜 실패 청크를 가리키므로 거짓은 아니지만,
+      //   '건'이 무엇의 단위인지 이름에 적어 둔다 — 세어 본 사람과 읽는 사람의 숫자가 어긋나지 않게.
       const _reasonSample = _chunkFailDetails.slice(0, 3).join(' · ')
-      _chunkLossReason = `청크 ${_lostN}/${chunkResults.length} 무결성 거부${_reasonSample ? ` [${_reasonSample}${_chunkFailDetails.length > 3 ? ` 외 ${_chunkFailDetails.length - 3}건` : ''}]` : ''}`
-      log(`[FileLoad] 청크 검증 실패(${_chunkLossReason}) — 포기(폴백 위임)`)
+      _chunkLossReason = `청크 ${_lostN}/${chunkResults.length} 무결성 거부${_reasonSample ? ` [${_reasonSample}${_chunkFailDetails.length > 3 ? ` 외 기록 ${_chunkFailDetails.length - 3}건` : ''}]` : ''}`
+      // ⚠️ 문구는 **실패한 그 청크들이 실제로 무엇을 했는지**를 말해야 한다. 종전엔 무조건
+      //   "재분할 재시도까지 한 뒤에도" 였다가(r2 지적), 다음 판에서는 전체 시도 수를 인용해
+      //   **복구된 청크의 시도를 실패 청크의 공으로 돌렸다**(r1 지적). 세 갈래로 정확히 가른다.
+      const _splitNote = _splitNoteText(_chunkSplitFailed, _chunkSplitAttempted)
+      log(`[FileLoad] 청크 검증 실패(${_chunkLossReason}) — ${_splitNote} · 미확보, 포기(폴백 위임)`)
       return ''
     }
-    if (_chunkHealedCount > 0) log(`[FileLoad] 후행 개행 복원 ${_chunkHealedCount}/${starts.length}청크 (전건 CRC 일치 확인)`)
+    if (_chunkHealedCount > 0) log(`[FileLoad] 청크 복원 ${_chunkHealedCount}건 / 원 조각 ${starts.length}개 (전건 CRC 일치 · 재분할 하위 조각의 복원도 함께 센다 — 분모를 넘을 수 있다)`)
+    if (_chunkSplitCount > 0) log(`[FileLoad] 재분할 복구 ${_chunkSplitCount}/${starts.length}청크 (쪼갠 조각도 전건 CRC 일치)`)
     const joined = chunkResults.join('')
     const loadedBytes = _utf8ByteLen(joined)
     // 전체 정확 대조: concat 재조립 = sum(b) — sed가 무개행 EOF에 개행을 보정하는 1B만 허용(±1B). 그 외 전부 거부
@@ -937,9 +1192,20 @@ const _snapshot = await (async () => {
     if (!content) return ''
     // item 23: 캡처 시점 정확 대조. 하류 게이트(drift>5% AND absDiff>512B)는 512B 이하 손실을
     //   무조건 통과시키므로 그것에 의존하지 않는다 — 어긋난 스냅샷은 여기서 버린다.
-    const acc = _snapshotAcceptable(_utf8ByteLen(content), _targetBytes)
+    const _snapBytes = _utf8ByteLen(content)
+    const acc = _snapshotAcceptable(_snapBytes, _targetBytes)
     if (!acc.ok) {
       log(`[Snapshot] 폴백 스냅샷 거부(${acc.reason}) — 요약·절단 가능성. 후속 File Pre-load 로 위임한다.`)
+      // 갭 §조치 제안 3 마감(2026-08-24): **얼마를 잃었는지 payload 에 싣는다.**
+      //   종전에는 이 수치가 log() 내레이터에만 남아, 사고 후 원인 판별에 로그 채굴이 필요했다.
+      //   실사례(PR#323): 폴백이 47,994B 를 8,421B 로 잘라왔는데 payload 에는 "청크 로더 미확보"
+      //   한 줄뿐이라, 얼마나 잘렸는지 알려면 워크플로 로그를 뒤져야 했다.
+      // ⚠️ **이 자리에서는 _targetBytes 가 항상 양수다** — `_snapshotAcceptable` 이 `expectBytes<=0`
+      //   이면 `{ok:true, reason:'unverifiable'}` 로 fail-open 하므로 이 `!acc.ok` 분기에 오지 않는다.
+      //   `_fallbackLossText` 의 '미상' 분기는 **테스트·미래 호출자용 방어**이지 이 자리의 실경로가 아니다.
+      //   (종전 주석은 그것을 살아 있는 경로처럼 적었다 — 2026-08-24 r1 검수 지적, conf 0.9.)
+      _fallbackLossReason = _fallbackLossText(_chunkLossReason, acc.reason, _snapBytes, _targetBytes)
+      _setContentIntegrity('lost', _fallbackLossReason)
       return ''
     }
     // 대조가 실제로 수행됐는가 — 아래 세 곳(로그·상태·사유)이 **같은 판정**을 써야 한다.
@@ -963,8 +1229,8 @@ const _snapshot = await (async () => {
     _setContentIntegrity(
       _snapUnverifiable ? 'unchecked' : 'unverified',
       _snapUnverifiable
-        ? `폴백 단일-read — stat 미확보로 캡처 시점 대조 불가${_chunkLossReason ? ` · 청크 실패: ${_chunkLossReason}` : ''}`
-        : `폴백 단일-read (바이트 대조 통과)${_chunkLossReason ? ` · 청크 실패: ${_chunkLossReason}` : ''}`)
+        ? `폴백 단일-read ${_snapBytes}B — stat 미확보로 캡처 시점 대조 불가${_chunkLossReason ? ` · 청크 실패: ${_chunkLossReason}` : ''}`
+        : `폴백 단일-read (바이트 대조 통과, 확보 ${_snapBytes}B / 실측 ${_targetBytes}B)${_chunkLossReason ? ` · 청크 실패: ${_chunkLossReason}` : ''}`)
     return content
   } catch (e) {
     log(`[WARN] 원문 스냅샷 실패(후속 File Pre-load로 폴백): ${e?.message || e}`)
@@ -979,7 +1245,7 @@ if (_snapshot) log(`[Snapshot] 원문 선확보 ${_snapshot.length}자 — 이�
 if (_inputReject) {
   const _tlDesc = `검수 불가(too_large) — 대상이 로더 상한 초과: ${_inputReject.bytes}B/${_inputReject.lines}줄. 논리 단위로 나눠 개별 호출하라(안전 단위: 600줄 이하이거나 256KB 이하).`
   log(`[INVALID_INPUT:too_large] ${_tlDesc}`)
-  return { verdict: 'INVALID_INPUT', score: null, inputRejected: true, issues: [{ category: 'fileload', severity: 'critical', code: 'too_large', description: _tlDesc }], hasCrit: false, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage }
+  return { verdict: 'INVALID_INPUT', score: null, inputRejected: true, issues: [{ category: 'fileload', severity: 'critical', code: 'too_large', description: _tlDesc }], hasCrit: false, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage, content_integrity: _contentIntegrity.state, content_integrity_reason: _contentIntegrity.reason }
 }
 
 // ── Phase 0: StructuralContext (GitNexus — approve-worker 불필요) ─────────────
@@ -1047,7 +1313,13 @@ if (targetPath && !targetContent) {
     //   보고된다. 그래서 별도 상태 'unchecked' 를 쓴다 — 상한은 'unverified'(가장 낮은 등급)이고
     //   forge-pr 게이트가 'lost' 와 **같이** [STOP] 한다.
     //   쉽게 말하면 — '검사해보니 괜찮았다'와 '검사를 안 했다'를 같은 칸에 적지 않는다.
-    if (targetContent) _setContentIntegrity('unchecked', `File Pre-load 단일-read — 캡처 시점 대조 없음${_chunkLossReason ? ` · 청크 실패: ${_chunkLossReason}` : ''}`)
+    // ⚠️ **1차 폴백이 얼마를 잘랐는지를 여기서 잃지 않는다**(2026-08-24 r2 검수 HIGH).
+    //   `_fallbackLossReason` 에는 이미 청크 실패 사유가 앞머리로 들어 있으므로 그걸 통째로 쓰고,
+    //   없을 때만 청크 사유를 따로 적는다(같은 문장을 두 번 싣지 않는다).
+    if (targetContent) {
+      const _preloadBase = _fallbackLossReason || (_chunkLossReason ? `청크 실패: ${_chunkLossReason}` : '')
+      _setContentIntegrity('unchecked', `File Pre-load 단일-read — 캡처 시점 대조 없음${_preloadBase ? ` · ${_preloadBase}` : ''}`)
+    }
   } catch (e) {
     log(`[WARN] 파일 로드 실패: ${e?.message || e}`)
   }
@@ -1092,7 +1364,7 @@ if (targetPath && !targetContent) {
       : `검수 불가(not_found) — 대상을 읽지 못했고 크기도 확인하지 못했다: ${targetPath}. 파일 존재 여부와 **에이전트 셸에서 접근 가능한 경로 표기**인지 확인하라(백슬래시 경로는 슬래시로 정규화된다).`
   const _rej = { code: _cls.code }
   log(`[INVALID_INPUT:${_rej.code}] ${_desc}`)
-  return { verdict: 'INVALID_INPUT', score: null, inputRejected: true, issues: [{ category: 'fileload', severity: 'critical', code: _rej.code, description: _desc }], hasCrit: false, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage }
+  return { verdict: 'INVALID_INPUT', score: null, inputRejected: true, issues: [{ category: 'fileload', severity: 'critical', code: _rej.code, description: _desc }], hasCrit: false, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage, content_integrity: _contentIntegrity.state, content_integrity_reason: _contentIntegrity.reason }
 }
 
 // ── FileLoad 무결성 게이트 (2026-07-10) ───────────────────────────────────────
@@ -1152,7 +1424,7 @@ if (targetPath && targetContent && _pathGateSafe) {
         //   즉 A-1 은 비용 절감이고, 정확성 보증은 이 무결성 게이트가 계속 담당한다.
         const _mmDesc = `검수 불가(content_mismatch) — 확보한 내용이 원문이 아니다: 로드 ${loadedBytes}B vs 실제 ${actualBytes}B (drift ${(drift * 100).toFixed(1)}%, absDiff ${absDiff}B). 대상이 크면 나눠서 호출하라.`
         log(`[INVALID_INPUT:content_mismatch] ${_mmDesc}`)
-        return { verdict: 'INVALID_INPUT', score: null, inputRejected: true, issues: [{ category: 'fileload', severity: 'critical', code: 'content_mismatch', description: _mmDesc }], hasCrit: false, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage }
+        return { verdict: 'INVALID_INPUT', score: null, inputRejected: true, issues: [{ category: 'fileload', severity: 'critical', code: 'content_mismatch', description: _mmDesc }], hasCrit: false, hasHigh: false, degraded: false, quorumFail: true, mode, slug, stage, content_integrity: _contentIntegrity.state, content_integrity_reason: _contentIntegrity.reason }
       }
     } else if (_contentIntegrity.state === 'unchecked') {
       // ⚠️ 여기 도달 = **이 게이트가 실제로 돌았고 통과했다**(로드 바이트 vs stat 실측 대조).
@@ -1501,9 +1773,11 @@ const lensHintGemini = crLens ? '[lens=spec-drift+perf] spec 준수·naming 일�
 // root-cause: Fix #3 — lensHintOpus→lensHintPrimary 사용처 갱신 (변수명 rename 완결)
 // root-cause: --fable opt-in → Claude 레그 Fable 5 승격(기본 Sonnet 무조건, 비용통제). 미지정 시 기존 동작 100% 동일.
 const primaryModel = fableLeg ? 'fable' : 'sonnet'
-const wOpus = () => agent(`[${fableLeg ? 'Fable5' : 'Sonnet'}] ${lensHintPrimary}intent/architecture/goal-coverage 중점. ${basePrompt}`,
+const wOpus = () => agent(`[${fableLeg ? 'Fable5.1' : 'Sonnet'}] ${lensHintPrimary}intent/architecture/goal-coverage 중점. ${basePrompt}`,
   { label: 'opus-review', phase: 'Review', schema: REVIEW_SCHEMA, model: primaryModel,
-    effort: frontierOn ? 'xhigh' : 'high' })  // 기본 Fable5+xhigh · frontier:false 시 Sonnet+high
+    effort: frontierOn ? 'xhigh' : 'high' })  // 기본 Fable5.1+xhigh · frontier:false 시 Sonnet+high
+// ⚠️ 여기서 넘기는 것은 **별칭** `'fable'` 이지 풀 id 가 아니다 — 실제 어느 버전으로
+//    해석되는지는 하네스가 정한다(레포의 model-registry 가 아니다). 2026-09-02 기준 Fable 5.1.
 // root-cause: PR #320 r4 cr-final(codex) HIGH — 문서는 '3레그 effort=xhigh' 라 선언했는데
 //   실제 배선은 Codex 레그(config.model_reasoning_effort)뿐이었고 Claude 레그엔 effort 가 없었다.
 //   ⚠️ Gemini 레그는 MCP 릴레이라 effort 개념 자체가 없다 — '3레그' 는 정확히는 '2레그' 다.
@@ -1543,7 +1817,7 @@ Codex 응답(JSON) 파싱 → StructuredOutput(score/issues/summary).${provenanc
   { label: 'codex-review', phase: 'Review', schema: REVIEW_SCHEMA, agentType: 'codex-critic' })
 // root-cause: gemini-text-mcp — 텍스트 리뷰 가능, input isolation + Claude Code convention 주입.
 // root-cause: Bug 2 fix — basePrompt "[파일 내용]" 섹션 사용. 재Read/git diff 금지.
-// 우선순위(2026-08-22 개정): arg > 코드 기본값(gemini-3.6-flash). 서버 env/기본 층 미도달.
+// 우선순위(2026-08-22 개정): arg > 코드 기본값(gemini-3.8-flash). 서버 env/기본 층 미도달.
 // When geminiModel is null (no arg given), OMIT the model param so the MCP server applies GEMINI_REVIEW_MODEL||default.
 // When geminiModel is set (explicit per-run arg), pass it to override the server's env/default.
 const geminiModelDirective = geminiModel
@@ -1975,6 +2249,56 @@ if (verdict === 'PASS' && _CONTENT_BLOCKING.includes(_contentIntegrity.state)) {
   log(`[VERDICT] PASS 차단 → WARN — 대상 원문을 확보하지 못한 채 낸 판정이다 (${_contentIntegrity.reason}). 나눠서 재호출하거나 근거를 확인하라.`)
   verdict = 'WARN'
 }
+// ── SINGLE_EXECUTOR_WARN_CAP (2026-09-02) — 눈이 하나면 문을 열지 않는다 ──────
+// 왜: `quorumFail` 은 **생존 레그 수**만 본다. 그런데 레그 셋이 다 살아 있어도 그중 둘이
+//   Claude 로 대체됐으면 **실제로 본 눈은 하나**다. 그 상태가 지금까지 PASS 로 나갔다.
+//   실측(2026-09-02, PR #460): results.length=3 · codex/gemini 둘 다 executed_by="claude"
+//   → quorumFail=false → verdict=PASS(88.7). 3레그 검수와 **같은 문**을 통과했다.
+//   쉽게 말하면 **심판 셋이 앉아 있는데 둘이 첫 번째 심판의 쌍둥이**인 경기다.
+//   종전에도 `evidence_tier=degraded` 라벨은 붙었다 — 그러나 자동 게이트가 실제로 읽는 것은
+//   verdict 뿐이라, 라벨은 아무도 멈춰 세우지 못했다(경보를 울리고 문은 안 잠그는 구조).
+// 설계: 점수·임계·가중치·레그 구성은 건드리지 않는다(E-3). PASS 만 WARN 으로 꺾는다 —
+//   바로 위 content_integrity 상한과 같은 패턴이고, 반대 방향(WARN→PASS)으로는 절대 안 움직인다.
+//   `quorumFail`/`hasCrit` 의 FAIL 경로도 그대로다(생존 1레그는 여전히 FAIL — 이 절은 그보다 약하지 않다).
+// >>> LEGCAP_PURE_BEGIN — 순수 로직(agent()/외부 상태 미사용). 테스트가 이 구간을 소스에서
+//     그대로 추출해 실행한다(인라인 복제 금지 — 구현이 흘러가면 즉시 깨지도록).
+// 레그를 **실행체 계열**로 귀속시킨 뒤 서로 다른 것의 개수를 센다.
+//   native = 그 레그의 제 계열 · substituted/unknown = 대신 분석한 Claude 로 귀속.
+// ⚠️ 종전엔 `native 레그 수` 로 셌는데 그건 **내부 Claude 레그(opus)가 있는 triple 에서만** 맞다.
+//   double 모드 워커는 [codex, gemini] 뿐이라(위 workerNames 참조) codex native + gemini 대체면
+//   실제 실행체는 GPT·Claude **둘**인데 1로 세어 멀쩡한 검수를 WARN 으로 꺾었고, 양쪽 다 대체면
+//   "실행체 0개"라는 거짓 로그를 냈다(2026-09-03 cr-final MEDIUM 적발, PR #465 자기 결함).
+// native = 제 계열. substituted = **그 레그가 신고한 실행체의 계열**(교차 대체를 놓치지 않는다 —
+//   gemini 레그가 gpt 로 정직하게 신고했으면 그건 진짜 다른 눈이다). unknown = 출처 미확인이라
+//   fail-closed 로 claude 에 합친다(별개의 눈으로 세지 않는다).
+const _distinctExecutors = new Set(_subst.legs.map(_legExecutorFamily)).size
+// ⚠️ `expected >= 2` 가드가 필요한 이유: double+degrade 는 **설계상** 실행체가 1개다.
+//   그것까지 꺾으면 구멍을 막는 게 아니라 정상 모드를 고장내는 것이다.
+// ⚠️ 로그에 쓸 '대체 레그 수'를 `results.length - _distinctExecutors` 로 구하지 마라 —
+//   계열로 합쳐 세는 순간 그 뺄셈은 더 이상 대체 레그 수가 아니다(double 양측 대체 시 2 를 1 로
+//   적는다). 대체 수는 status 로 직접 센다(2026-09-03 cr-final r2 MEDIUM, 2레그 중복 적발).
+// 상한 **조건** 충족 여부. 이름이 아니라 뜻을 보라 — 이건 "꺾을 상황인가"이지 "꺾었는가"가 아니다.
+const _singleExecutorCapEligible = expected >= 2 && _distinctExecutors <= 1
+// ⚠️ 이 방어가 무력화되는 입력 — **이건 보안 경계가 아니라 품질 게이트다.**
+//   레그가 `executed_by` 를 거짓 신고하면 이 상한은 무력하다. 이 게이트는 **정직한 레그의
+//   '대체 사실'을 잡는 것**이지 **적대적 레그를 막는 것이 아니다.**
+//   독립 관측(훅·MCP 로그 대조)은 Workflow 샌드박스에 fs/process 가 없어 불가하다.
+//   구조적 검증(레그 격리·서명)은 별건 — harness-gaps 에 등록돼 있다.
+//   ⚠️ 이 약점은 이 상한이 새로 만든 것이 아니다 — `substituted`/`native` 판정과 `mcp_tool_called`
+//   검사가 이미 같은 기반 위에 서 있다(2026-09-03 총괄 결정).
+// ⚠️ 적용 지점까지 sentinel 안에 둔다 — 계산만 추출해 테스트하면 "계산은 맞는데 verdict 에
+//   안 쓰는" 상태가 초록으로 통과한다(그게 정확히 이 게이트가 죽는 방식이다).
+// payload 로 나가는 `single_executor_cap` 은 **실제로 꺾였을 때만** true 다(2026-09-03 cr-final r3 Codex).
+//   종전엔 조건 충족 여부를 그대로 내보내서, verdict 가 이미 FAIL/WARN 인데도 true 가 나갔다 —
+//   문서는 "PASS 를 WARN 으로 꺾었는가"라고 적혀 있었으니 둘이 어긋났다.
+//   조건 충족 여부가 궁금하면 `distinct_executors` 를 보면 된다(그게 원자료다).
+let singleExecutorCap = false
+if (verdict === 'PASS' && _singleExecutorCapEligible) {
+  singleExecutorCap = true
+  log(`[VERDICT] PASS 차단 → WARN (SINGLE_EXECUTOR_WARN_CAP) — 생존 ${results.length}레그 중 실제 실행체가 ${_distinctExecutors}개뿐이다(대체·미선언 ${_subst.legs.filter((l) => l.status !== 'native').length}). 벤더 교차가 성립하지 않은 검수라 자동 머지 대상이 아니다.`)
+  verdict = 'WARN'
+}
+// <<< LEGCAP_PURE_END
 log(`Triage: ${mode} scores=${JSON.stringify(scores)} combined=${combined.toFixed(1)}${degraded ? ' (degraded)' : ''} → ${verdict}`)
 // root-cause: Batch 3 증거등급 정직화(3-2) — tier가 full이 아니면 리포트 헤더에 1줄 고지. WARN-only, [STOP] 아님.
 // root-cause: degradedBanner 는 degraded 경로에서만 세워진다 — unknown(fail-closed) 강등은
@@ -2224,6 +2548,9 @@ return {
   stage, expected_legs: expected,
   combined: parseFloat(combined.toFixed(1)),
   verdict, scores, hasCrit, hasHigh, degraded, quorumFail,
+  // additive (2026-09-02): 실행체 정족수 상한의 판정 근거를 payload 로도 내보낸다 —
+  //   로그만 남기면 하류 게이트·리포트가 "왜 WARN 인지"를 못 읽는다.
+  single_executor_cap: singleExecutorCap, distinct_executors: _distinctExecutors,
   // root-cause: G2(2026-07-26) — 사람이 이 반환값을 직접 재사용할 때(§REVIEWED-SHA) 무엇을
   //   검수했는지 스스로 판별하게 한다. 없으면(null) repoRoot 미pin·취득 실패 — 소비자는
   //   "이 결과의 최신성은 검증 불가"로 취급할 것(additive, null-safe).

@@ -23,7 +23,7 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
    - **hotfix**: 긴급 수정 — P4(Spec) 스킵, P5 Check만 (별도 `/forge-fix`도 동일 흐름)
    - **small**: 소규모 기능 (간소화된 Spec)
    - **standard**: 표준 기능 (전체 Phase)
-   - **multi-spec**: 대규모 — Spec N개로 분할 (`/forge-spec --bulk`, 구 `/spec-write --bulk`). Plan/Task는 각 Spec §8/§11 서브섹션 (별도 파일 X)
+   - **multi-spec**: 대규모 — Spec N개로 분할 (`/forge-spec --bulk`, 구 `/spec-write --bulk`). Plan=`.specify/plans/`, Tasks=`.specify/tasks/` (2026-08-31 재편 — 구 §8/§11 서브섹션 폐기)
 
 3. `forge/pipeline.md`를 기반으로 P4부터 순차 진행
 
@@ -37,7 +37,7 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 
 | Phase | 작업 | Check |
 |-------|------|-------|
-| P4 | Spec 작성 (복잡 시 Plan/Task = Spec §8/§11 섹션) → Codex `--stage plan` (blocking) → Human 승인 | Check P4 [STOP] |
+| P4 | Spec 작성 (**무엇/왜만** — Plan·Tasks 는 별도 파일) → Codex `--stage plan` (blocking) → Human 승인 | Check P4 [STOP] |
 | P5 | 구현 + 검증 (TDD) | Check P5→P5-INV→P5.5→P5.7→P5.7-X (Codex code)→P5.9 (harness) |
 | P6 | QA (/forge-qa) | Check 6-QA (qa loop)→6-TX (Codex test, on-demand) |
 | P7 | PR 생성 + Merge (feature→develop) | Check 7-BM (benchmark)→7-X (Codex final, blocking)→7 ([STOP]/auto-merge) |

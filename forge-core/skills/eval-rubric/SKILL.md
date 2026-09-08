@@ -123,7 +123,7 @@ target과 rubric을 별도 모델 호출(Sonnet)에 전달:
 입력:
 - 평가 대상: {target}
 - 채점 기준: {rubric_yaml}
-- 컨텍스트: {sprint_contract 또는 spec 발췌 (있으면)}
+- 컨텍스트: {sprint키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다. 또는 spec 발췌 (있으면)}
 
 출력 (JSON 강제):
 {

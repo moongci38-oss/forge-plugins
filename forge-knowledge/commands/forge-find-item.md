@@ -142,9 +142,9 @@ node "$S/market-chart.mjs" revenue --chart=<차트json>             # 차트 전
 |------|------|------|
 | 후보 문서 작성·판정 | **Sonnet** | frontmatter `model: sonnet` |
 | 신호 수집·시장 탐색(web/grep) | **Haiku** | `Agent(model:"haiku")` subagent (50p+ 장문 분석은 기존 Gemini 라우팅 유지) |
-| GO/NO-GO 자문 | **Fable 5**(대체 `gpt-5.6-sol`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
+| GO/NO-GO 자문 | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
 
-근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. advisor 모델 = `advisor-model-resolve.sh` 출력(기본 Fable 5 · 대체 `gpt-5.6-sol`) — 구 "Opus 고정(Fable 자동 없음)" 은 2026-08-12 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
+근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. advisor 모델 = `advisor-model-resolve.sh` 출력(기본 Fable 5.1 · 대체 `gpt-6-astra`) — 구 "Opus 고정(Fable 자동 없음)" 은 2026-08-12 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
 
 **방법론 출처** (forge-outputs RAG): Mike Hill 10단계 / Mom Test / Lean Validation 4주 / 10 후보 v2 Reject·Priority 룰
 
@@ -165,7 +165,7 @@ node "$S/market-chart.mjs" revenue --chart=<차트json>             # 차트 전
 
 요약(상세는 위 파일 — 이 요약만 보고 구현하지 않는다):
 1. 지식자산 3레인을 엔진을 명시해 각각 호출한다 — L1 Raw(Glob/Grep 전수 열거) · L2 로컬(FAISS+Wiki 위키링크, `FORGE_RAG_ENGINE=t2`) · L3 공용 pgvector(`FORGE_RAG_ENGINE=t3`). L3 사용 판정은 exit code 가 아니라 **stderr 마커**로만 한다.
-2. 스캔은 `Agent(model:"haiku")` 2개 병렬(L1 / L2+L3) — **이 Step만 fan-out 허용**. AgentTool 금지 세션이면 메인이 순차 실행하고 `병렬 미사용(세션 설정)` 1줄을 남긴다.
+2. 스캔은 `Agent(model:"haiku")` 2개 병렬(L1 / L2+L3) — **이 Step만 fan-out 허용**. fan-out 을 쓰지 않기로 판단했으면(4축 판단) 메인이 순차 실행한다 — "세션 설정" 을 사유로 적지 않는다(`forge-core.md §병렬 실행`, 2026-08-26).
 3. 허용 도메인(§evidence/ 보안 정책의 허용 도메인) 안에서만 `Agent(model:"sonnet")` 로 외부 검색 — brave→tavily→exa→WebSearch 순 폴백, 전부 실패 시 FAIL 보고(조용한 skip 금지).
 4. 후보 3개를 커맨드 어휘(JTBD·Reject4·수요근거·경쟁3+Moat 1+·MVP wedge)로 산출한다. **TAM/SAM/SOM 금지**(아래 §금지 사항과 동일 근거). 배제 목록은 무엇을·왜·어느 레인인지 명시한다.
 5. 산출물: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/idea-hunt/{YYYY-MM-DD}-{HHMM}-{topic-slug}.md` + 같은 폴더 `gate-log.md` 에 run-id 선두로 1줄 append. `items/` 에는 쓰지 않는다.
@@ -457,7 +457,7 @@ Step 1~7 은 병렬 Task 사용 금지(메인 단독). 순차 또는 병렬 도�
 - **(선택) 30일 검증 프로토콜** 섹션
 - 관련 Obsidian 노트 링크 (`[[concepts/micro-saas-solo-founder-2026]]` 등)
 
-**GO/NO-GO advisor (조건부, advisory-only)**: 5 신호 종합 판정이 **borderline**(일부 PASS·일부 애매) 또는 **Reject 경계**(4 항목 중 애매한 ❌)일 때 → Human 승인 전 advisor-strategist(리졸버 기본 = Fable 5) 자문: `Agent(subagent_type="advisor-strategist", prompt="<후보 1줄+5신호 결과+애매점 500토큰> 추진(GO) vs 보류(NO-GO) 권고 + 핵심 근거 1~2개")`. 명확한 전항목 PASS 또는 명확한 Reject는 스폰 X(비용 방지). advisory only — 최종 GO/NO-GO는 Human 승인 게이트. non-blocking(advisor 없어도 판정 진행). 중첩 시 [→Lead 위임].
+**GO/NO-GO advisor (조건부, advisory-only)**: 5 신호 종합 판정이 **borderline**(일부 PASS·일부 애매) 또는 **Reject 경계**(4 항목 중 애매한 ❌)일 때 → Human 승인 전 advisor-strategist(리졸버 기본 = Fable 5.1) 자문: `Agent(subagent_type="advisor-strategist", prompt="<후보 1줄+5신호 결과+애매점 500토큰> 추진(GO) vs 보류(NO-GO) 권고 + 핵심 근거 1~2개")`. 명확한 전항목 PASS 또는 명확한 Reject는 스폰 X(비용 방지). advisory only — 최종 GO/NO-GO는 Human 승인 게이트. non-blocking(advisor 없어도 판정 진행). 중첩 시 [→Lead 위임].
 
 ### Step 5.5 — 검증 게이트 실행 가능성 심사 (v7 신설 — 2026-08-19 Human 지적)
 

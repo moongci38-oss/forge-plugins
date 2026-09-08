@@ -134,6 +134,14 @@ def main():
     )
     args = ap.parse_args()
 
+    # 재현: `--input-context` 없이 --skill yt 로 두 번 호출(서로 다른 --target) →
+    # 둘 다 dedupe_key = sha256(skill + "|")[:32] 로 동일해져 두 번째 호출이 첫 번째
+    # target 밑에 observation 으로 병합된다(실측: EC-yt-5 가 이후 다른 영상의 채점을
+    # 전부 흡수). 문서(reference.md/SKILL.md)의 호출 예시가 --input-context 를 아예
+    # 언급하지 않아 상시 재발하는 결함이었다 — target 을 기본 컨텍스트로 채워 막는다.
+    if not args.input_context:
+        args.input_context = args.target
+
     if os.environ.get("EVAL_RUBRIC_AUTO", "").lower() == "off":
         print("EVAL_RUBRIC_AUTO=off → skip", file=sys.stderr)
         return 0

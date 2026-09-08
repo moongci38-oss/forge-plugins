@@ -34,6 +34,34 @@ Always output the JSON config block first, then explain what it does.
 5. **Choose storage location** - User settings (`$HOME/.claude/settings.json`) or project (`.claude/settings.json`)
 6. **Output the complete JSON config** - Always include the full `"hooks": { ... }` block
 7. **Test the hook** - Verify behavior with a simple test case
+8. **배선 확인 — 훅 파일을 만드는 것은 절반이다** (2026-08-27 system-audit H-1·H-7)
+
+## ⚠️ 완료 기준 — "훅을 만들었다" ≠ "훅이 돈다"
+
+**훅 스크립트 파일이 존재하는 것과 그 훅이 실제로 발동하는 것은 다른 주장이다.**
+`settings.json` 에 등록되지 않은 훅은 **파일로만 존재하고 한 번도 실행되지 않는다.**
+
+- 2026-08-27 감사 실측: 갭을 메우려 만든 훅 **2건**(`dialog-rail-watch.sh`·`pixel-diff-gate.sh`)이
+  어느 레인에도 등록되지 않은 채 있었다. 만든 사람은 "고쳤다"고 보고했고 아무도 안 세었다.
+  **이 실패 모드가 한 번의 감사에서만 2건 나왔다** — 우연이 아니라 구조다.
+
+**그래서 훅을 새로 만드는 PR 은 다음 3줄이 본문에 없으면 미완료로 본다:**
+
+1. `등록: <settings.json 경로> <이벤트> matcher=<값>` — **어느 파일의 어느 자리**에 넣었는지
+2. **`settings.json` diff 를 PR 에 동반**한다. 훅 파일만 있는 PR 은 "만들었다"이지 "켰다"가 아니다.
+3. `재현:` 등록 검증 명령 1줄 —
+   `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/register-forge-hooks.sh" --verify`
+
+⚠️ **레인을 명시한다.** `$HOME/.claude/settings.json` = **git 밖 전역** → 팀 전파 **0**(내 머신만).
+`$FORGE_ROOT/.claude/settings.json` = **프로젝트 레인** → `git pull` 로 팀원에게 도달한다.
+전역 레인에만 넣었으면 PR 에 **"전파 0"** 이라고 적는다 — 그것을 "배선 완료"라고 쓰지 않는다.
+
+⚠️ **AI 는 `settings.json` 을 직접 수정할 수 없다**(`settings-json-lock.sh`, matcher `Edit|Write|Bash`).
+그래서 등록은 **사람이 `/permissions`·`/config` 로** 하거나 파일을 직접 편집한다.
+AI 가 할 일은 **붙여넣을 JSON 조각과 검증 명령을 PR 에 정확히 적어 주는 것**까지다 —
+"등록해 두었다"고 쓰면 거짓이 된다.
+
+폐기조건: 훅 등록이 `settings.json` 이 아닌 다른 단일 경로로 일원화되면 이 절을 재작성한다.
 
 ## Hook Configuration Structure
 

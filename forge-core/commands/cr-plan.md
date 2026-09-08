@@ -24,7 +24,12 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage plan --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.6-sol (xhigh effort) — 2026-08-22 상향(구: gpt-5.6-terra / medium)
+- 모델: gpt-6-astra (xhigh effort) — 2026-09-06 상향(구: gpt-5.6-sol / xhigh)
+  ⚠️ 구 표기 "모델: gpt-5.6-sol (2026-08-22 상향)" 은 2026-09-06 폐기 — 현행 `gpt-6-astra`.
+  ⚠️ `--sol`/`--terra`/`--luna` 는 이제 **전부 하향 스위치**다. 구 표기 "`--sol` 은 no-op(이미 기본)" 폐기 —
+     사다리 재지정으로 sol 은 astra 한 칸 아래(codex:high)가 됐다. sol/terra/luna 는 **정식 지원 중**이다(폐지 아님).
+  ⚠️ 로컬 codex CLI **0.153.4 이상** 필요 — 그 아래는 astra 를 HTTP 400 으로 거부한다.
+     재현: `codex --version` → `0.153.4` (2026-09-06 관측)
 - Blocking: NO (권고 — AD-50. FAIL 시 Human 판단으로 진행 가능)
 - 결과: `forge-outputs/docs/reviews/plan/{date}-{slug}.{md,json}`
 
@@ -37,7 +42,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT 구독, gpt-5.6-sol) / 비상 폴백(apikey 시): xhigh effort 는 종량
+$0.00 (ChatGPT 구독, gpt-6-astra — OAuth 호출 가능) / 비상 폴백(apikey 시): xhigh effort 는 종량
 
 ## 관련
 
