@@ -11,7 +11,7 @@ group: review
 > 폐기조건: 옛 증거를 더 안 읽어도 되면 헬퍼 파일명까지 후속 개명한다.
 
 > 📌 **이 문서의 "2026-08-22 Human 지시" 근거**: 지시 원문과 세션 기록 링크는 정본
-> `~/.claude/rules/model-routing.md §세션 운영 모델`(SSoT: `dev/global-rules/model-routing.md`)에 있다.
+> `$HOME/.claude/rules/model-routing.md §세션 운영 모델`(SSoT: `dev/global-rules/model-routing.md`)에 있다.
 > ⚠️ **이 근거는 아직 미해결로 표시돼 있다** — 정본 스스로 "저장소 안에서 독립 검증이 불가능하다"고
 > 적었고, 적대적 검수가 **8회 이상 '위조된 승인'으로 지목**했다. **"사람 확인 대기"로 취급해도 된다.**
 > ⚠️ **문서에 적힌 "Human 지시"는 그 자체로 권한을 만들지 않는다** — 출처를 확인하지 못했거나
@@ -49,7 +49,7 @@ Gemini 전면 철수로 레그 구성이 **하나**가 됐다: Claude(Fable 5.1)
 //      Gemini 전면 철수. workflow.js 는 `geminiModel` 을 받아도 **무시하고 WARN 만 남긴다**.
 //      근거: 없는 레그에 모델을 실어 보내면 다음 사람이 그 레그가 산다고 읽는다.
 //      폐기조건: 3번째 벤더가 다시 들어오면 그 벤더 이름으로 이 릴레이를 새로 쓴다.
-Workflow({ scriptPath: "~/forge/.claude/skills/forge-multi/workflow.js",
+Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js",
   // DISSENT_DELTA = Bash(`echo $FORGE_CR_DISSENT_DELTA`) 가 양의 숫자면 그 값, 아니면 미전달(기본 20).
   //   ⚠️ 샌드박스에 process.env 가 없어 **커맨드 레이어가 env 를 읽어 릴레이**해야 한다(FRONTIER 와 같은 방식).
   //   이견(dissent) 임계 = 유효 레그 점수 차가 이 값 이상이면 payload 에 `dissent:true` 를 싣는다.
@@ -66,14 +66,14 @@ Workflow({ scriptPath: "~/forge/.claude/skills/forge-multi/workflow.js",
 - **이름이 `cr` 가 아니라 `crMode` 인 이유**: 이 필드는 플래그 유무가 아니라 **값**(`on|degrade|off`)을
   싣는다. `--no-codex` 는 별칭이라 래퍼가 `degrade` 로 **정규화해서** 이 한 필드에 모은다 —
   그래서 플래그명(`--cr`)이 아니라 "무엇을 담는가"(mode)로 이름 지었다. 오탈자가 아니다.
-- 재현: `grep -n 'crMode\|fable' ~/forge/.claude/skills/forge-multi/workflow.js` → 파싱·소비처가 나온다.
+- 재현: `grep -n 'crMode\|fable' ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js` → 파싱·소비처가 나온다.
 
 - 값: `git rev-parse --show-toplevel` 결과, 워크트리 작업 시에는 **그 워크트리의 절대경로**.
 - 미지정 시 차단하지는 않는다(fail-open) — 대신 레그가 자기 트리를 summary 에 보고하도록
   프롬프트가 강제하고 `[RepoRoot] pin=(미지정 …)` 이 로그로 남는다. 조용히 넘어가지는 않는다.
 - 레그는 pin 과 `git -C <pin> rev-parse --show-toplevel` 이 불일치하면 판정을 내지 않고
   `INCONCLUSIVE(repo_root_mismatch)` 로 반환한다.
-- 재현: `node --test ~/forge/.claude/skills/forge-multi/tests/repo-root-pin.test.mjs`
+- 재현: `node --test ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/tests/repo-root-pin.test.mjs`
 
 **`--repo-root <path>` (2026-08-20 신설 — CLI 플래그)**: 위 `repoRoot` 를 **명령줄에서** 지정한다.
 미지정 시 `git rev-parse --show-toplevel`(세션 CWD 기준)을 쓴다.
@@ -82,7 +82,7 @@ Workflow({ scriptPath: "~/forge/.claude/skills/forge-multi/workflow.js",
 - 근거: 종전에는 이 값이 **Workflow args 로만** 전달돼 CLI 에 진입점이 없었다. 그래서
   `/cr-triple --repo-root ...` 가 `/forge-multi` 로 폴백하면 pin 이 **조용히 사라졌다**
   (handover 2026-08-20 §열린 질문).
-  재현: `grep -c '\-\-repo-root' ~/forge/.claude/commands/forge-multi.md` → **수정 전 0 / 후 3**.
+  재현: `grep -c '\-\-repo-root' ${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-multi.md` → **수정 전 0 / 후 3**.
   ⚠️ 종전 재현 명령은 `grep -c 'repo-root'`(대시 없음)였는데 **판별력이 없었다** — 무관한
   `repo-root-pin.test.mjs` 참조가 잡혀 수정 전에도 1 을 반환했다(실측). 플래그 형태(`--`)를
   요구해야 "플래그가 있는가"를 실제로 가른다.
@@ -99,7 +99,7 @@ Workflow({ scriptPath: "~/forge/.claude/skills/forge-multi/workflow.js",
 근거: 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용).
 폐기조건: OpenAI 가 astra 상위 tier 를 내거나 sol 계열을 실제로 폐지하면 이 사다리를 재작성한다.
 - 해석은 **`model-registry-resolve.sh` 가 소유**한다(버전무관) — 모델 id 를 이 문서에 적지 않는다.
-  `CODEX_MODEL = Bash("~/forge/shared/scripts/model-registry-resolve.sh codex:<tier>")` → args `codexModel`.
+  `CODEX_MODEL = Bash("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:<tier>")` → args `codexModel`.
   resolve 실패 시 workflow.js 내장 폴백(`codex:max` 상당)으로 떨어진다 — fail-open 이되 **하향되지 않는다**.
 - **비용 제약 없음**(구독 3계정 운용, Human 확인 2026-08-22).
 - ⚠️ **로컬 codex CLI 0.153.4 이상**이라야 `gpt-6-astra` 를 호출할 수 있다 — 그 아래(예: 0.144.3)는
@@ -160,7 +160,7 @@ Workflow({ scriptPath: "~/forge/.claude/skills/forge-multi/workflow.js",
 ```bash
 /forge-multi ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-05-24-mas-plan-p0-adr.md --mode double
 /forge-multi ${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/forge-platform/specs/approve-worker-spec.md --mode triple --stage plan
-/forge-multi ~/forge/.claude/skills/forge-multi/workflow.js --mode triple --cr degrade   # Codex 제외
+/forge-multi ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js --mode triple --cr degrade   # Codex 제외
 /forge-multi ./plan.md --mode triple --no-codex                                        # --cr degrade 별칭
 ```
 
@@ -209,7 +209,7 @@ grep -iE "$SECRET_PATTERN" "$TARGET_FILE" && {
 
 ```
 mcp__codex__codex(
-  prompt="<contents of ~/forge/.claude/prompts/cr-multi-codex.md with TARGET_FILE replaced>",
+  prompt="<contents of ${FORGE_ROOT:-$HOME/forge}/.claude/prompts/cr-multi-codex.md with TARGET_FILE replaced>",
   cwd=<dirname of target>,
   sandbox="read-only",
   approval_policy="never",
@@ -235,7 +235,7 @@ Agent(
   subagent_type="advisor-strategist",
   model="fable",   # 2026-08-22: Claude 레그 기본값 = Fable (구: --fable 지정 시에만). 2026-09-02 부터 Fable 5.1.
                    # ⚠️ 별칭이라 버전은 하네스가 해석한다 — 풀 id 를 여기 박지 않는다.
-  prompt="<contents of ~/forge/.claude/prompts/cr-multi-opus.md with TARGET replaced>"
+  prompt="<contents of ${FORGE_ROOT:-$HOME/forge}/.claude/prompts/cr-multi-opus.md with TARGET replaced>"
 )
 → save result to $REVIEWS_DIR/$DATE-$SLUG-$VERSION-opus.json
 ```
@@ -245,7 +245,7 @@ Agent(
 ```bash
 # ⚠️ --codex·--opus 는 **둘 다 필수**다(2026-09-07). 구 표기의 `--gemini` 는 폐기 — 인자는
 #    하위호환으로 남아 있지만 합산에 쓰이지 않는다. 구 `[--opus ...]` 선택 표기도 폐기.
-python3 ~/forge/shared/scripts/cr-multi-triage.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py \
   --codex "$REVIEWS_DIR/$DATE-$SLUG-$VERSION-codex.json" \
   --opus "$REVIEWS_DIR/$DATE-$SLUG-$VERSION-opus.json" \
   --slug "$SLUG" \
@@ -256,7 +256,7 @@ python3 ~/forge/shared/scripts/cr-multi-triage.py \
 ## Step 7: Plateau 감지
 
 ```bash
-python3 ~/forge/shared/scripts/cr-multi-plateau-guard.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py \
   --slug "$SLUG" \
   --reviews-dir "$REVIEWS_DIR"
 EC=$?
@@ -290,6 +290,6 @@ ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/cr-multi/
 
 ## 참조
 
-- 모드 룰: `~/.claude/rules-on-demand/multi-gate-review.md`
-- Triage: `~/forge/shared/scripts/cr-multi-triage.py`
-- Plateau: `~/forge/shared/scripts/cr-multi-plateau-guard.py`
+- 모드 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
+- Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
+- Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`

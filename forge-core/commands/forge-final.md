@@ -83,4 +83,4 @@ $0.00 (ChatGPT 구독 3계정, gpt-6-astra — OAuth 호출 가능) / 비상 폴
 
 - 본명령: `/codex-review --stage final --effort xhigh --blocking`
 - Forge Dev P7 Check 7-X에서 자동 호출
-- 정책: `~/forge/dev/rules/codex-review-policy.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`
