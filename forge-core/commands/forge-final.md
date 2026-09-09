@@ -4,15 +4,20 @@ argument-hint: "<PR-N or branch> [--cr <on|degrade|off>]"
 group: verify
 ---
 
-# /cr-final
+# /forge-final
+
+> ⚠️ 구 이름 **"/cr-final"** 는 2026-09-07 개명했다. 헬퍼 스크립트 파일명·감사로그·증거
+> 경로(`cr-evidence/`)는 **그대로 둔다** — 쌓인 증거가 그 이름으로 묶여 있어서다.
+> 근거: 간판만 바꾸고 배달 주소를 바꾸면 옛 증거가 통째로 안 보이게 된다.
+> 폐기조건: 옛 증거를 더 안 읽어도 되면 헬퍼 파일명까지 후속 개명한다.
 
 `/codex-review --stage final --effort xhigh` 단축 래퍼.
 
 ## 사용
 
 ```
-/cr-final PR-1234
-/cr-final feature/auth-refactor
+/forge-final PR-1234
+/forge-final feature/auth-refactor
 ```
 
 ## 동작
@@ -78,4 +83,4 @@ $0.00 (ChatGPT 구독 3계정, gpt-6-astra — OAuth 호출 가능) / 비상 폴
 
 - 본명령: `/codex-review --stage final --effort xhigh --blocking`
 - Forge Dev P7 Check 7-X에서 자동 호출
-- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`
+- 정책: `~/forge/dev/rules/codex-review-policy.md`

@@ -60,7 +60,15 @@ GodBlade AI 이미지 생성 주 진입점. orchestrator.sh + nanobanana-wrapper
 
 **주요 기능**
 - **Primary**: gpt-image-1 (DALL·E 3) 생성
-- **Fallback**: nano-banana API 자동 폴백
+- **Fallback**: ⛔ **없습니다** — 옛 nano-banana 폴백은 내부적으로 Gemini(`provider_used = "nano-banana-gemini"`)를
+  거치는데, 2026-09-07 Gemini 전면 철수로 그 통로(MCP 서버·`GEMINI_API_KEY`)가 막혀 **사용할 수 없습니다.**
+  지금은 primary 가 실패하면 그대로 실패로 끝납니다(`ERROR: primary + fallback 모두 실패`).
+  대체 폴백은 아직 없습니다 — 정해지면 이 줄을 그 이름으로 다시 씁니다.
+  <!-- 사유: 구 표기 "nano-banana API 자동 폴백" 은 현재 기능 서술이라, 막힌 통로를 쓸 수 있는 것처럼
+       광고하고 있었습니다. 근거: nanobanana-wrapper.py:243 `provider_used = "nano-banana-gemini"` ·
+       :167 `fallback_nanobanana()` 가 MCP request 방식(2026-09-09 관측).
+       재현: grep -n 'nano-banana-gemini' "$FORGE_OUTPUTS/11-platform/pipelines/forge-dev/game-image-mvp/nanobanana-wrapper.py"
+       폐기조건: 대체 폴백 프로바이더가 배선되면 이 줄과 주석을 그 이름으로 교체합니다. -->
 - 카테고리별 경로 자동 라우팅 (`AI_Generated/{category}/`)
 - path-safe-storage.sh: 특수문자 파일명 안전 처리
 - quality-check.py: 생성 이미지 품질 자동 검증
