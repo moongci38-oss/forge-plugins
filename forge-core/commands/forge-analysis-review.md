@@ -4,16 +4,21 @@ argument-hint: "<analysis-or-backlog-or-runbook-md-path> [--cr <on|degrade|off>]
 group: verify
 ---
 
-# /cr-analysis
+# /forge-analysis-review
+
+> ⚠️ 구 이름 **"/cr-analysis"** 는 2026-09-07 개명했다. 헬퍼 스크립트 파일명·감사로그·증거
+> 경로(`cr-evidence/`)는 **그대로 둔다** — 쌓인 증거가 그 이름으로 묶여 있어서다.
+> 근거: 간판만 바꾸고 배달 주소를 바꾸면 옛 증거가 통째로 안 보이게 된다.
+> 폐기조건: 옛 증거를 더 안 읽어도 되면 헬퍼 파일명까지 후속 개명한다.
 
 `/codex-review --stage analysis` 단축 래퍼.
 
 ## 사용
 
 ```
-/cr-analysis docs/analysis/cross-repo/2026-05-05-payment-flow.md
-/cr-analysis docs/security-backlog.md
-/cr-analysis docs/operations/some-runbook.md
+/forge-analysis-review docs/analysis/cross-repo/2026-05-05-payment-flow.md
+/forge-analysis-review docs/security-backlog.md
+/forge-analysis-review docs/operations/some-runbook.md
 ```
 
 ## 동작
@@ -47,8 +52,8 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## plan stage와 헷갈리지 말 것
 
-- 즉시 실행 가능 task 시퀀스 (파일 path·정확 값·검증 명령 확정) = `/cr-plan`
-- 현황 분석 노트 / 백로그 / runbook 초안 = `/cr-analysis`
+- 즉시 실행 가능 task 시퀀스 (파일 path·정확 값·검증 명령 확정) = `/forge-plan-review`
+- 현황 분석 노트 / 백로그 / runbook 초안 = `/forge-analysis-review`
 - `--stage plan`으로 분석 doc(frontmatter `stage: analysis|backlog|runbook`)을 호출하면 `/codex-review` Step 1.6 auto-route가 analysis로 가로챔
 
 ## 비용
@@ -60,4 +65,4 @@ $0.00 (ChatGPT 구독, gpt-6-astra — OAuth 호출 가능) / 비상 폴백(apik
 - 본명령: `/codex-review --stage analysis`
 - 프롬프트: `${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-analysis.md`
 - 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules/codex-review-policy.md`
-- 자매: `/cr-plan` (Spec/Plan, blocking)
+- 자매: `/forge-plan-review` (Spec/Plan, blocking)

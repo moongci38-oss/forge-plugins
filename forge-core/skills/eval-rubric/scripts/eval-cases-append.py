@@ -97,6 +97,52 @@ def compute_pass_at_k(verdicts):
     }
 
 
+# ── E3·E4 (2026-09-07): 판정자 건강 분리 + 이견 신호 ────────────────────────────────
+# 왜: 0 점은 "나쁘다"이고 결측은 "모른다"인데, 종전엔 둘 다 `scores` 의 같은 칸에 떨어졌다.
+#   축 하나가 빠진 채 3축 평균이 4축 평균 행세를 해도 아무도 몰랐다.
+# ⚠️ 무력화되는 입력: 판정자가 결측 축을 **직접 0 으로 채워 보내면** 여기서는 구별할 방법이 없다
+#   (그건 진짜 0 점과 비트 단위로 같다). 그래서 SKILL.md §축 결측·파싱 실패 처리가
+#   "0 으로 채우지 말라"를 판정자 쪽 규약으로 못박는다 — 이 함수는 그 규약의 뒷문 잠금장치다.
+AXIS_HEALTH_VALUES = ("OK", "MISSING", "PARSE_FAILED")
+# 0~2 척도에서 편차 2 = 한 축 만점 + 다른 축 0점. 평균이 그 둘을 대표하지 못하는 지점이다.
+DISSENT_SPREAD = 2
+
+
+def normalize_axis_health(scores, declared):
+    """선언된 axis_health + scores 의 비숫자 값을 합쳐 축별 건강표를 만든다.
+
+    반환: (health dict, 유효 점수 dict). 유효 점수만 평균·이견 계산에 쓴다.
+    ⚠️ **점수를 고쳐 쓰지 않는다** — 결측을 0 으로 환산하지도, 채워 넣지도 않는다.
+    """
+    health = {}
+    for axis, status in (declared or {}).items():
+        s = str(status).upper()
+        if s not in AXIS_HEALTH_VALUES:
+            raise SystemExit(
+                "--axis-health 값은 %s 중 하나여야 한다 (받은 값: %r)" % ("/".join(AXIS_HEALTH_VALUES), status))
+        if s != "OK":
+            health[axis] = s
+    numeric = {}
+    for axis, v in (scores or {}).items():
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            # 값이 숫자가 아니다 = 채점된 적이 없다. 0 으로 세지 않고 결측으로 분리한다.
+            health.setdefault(axis, "PARSE_FAILED" if v is not None else "MISSING")
+        else:
+            numeric[axis] = v
+    return health, numeric
+
+
+def compute_dissent(numeric_scores):
+    """축 간 이견 — **표시 전용. verdict 를 바꾸지 않는다**(E-3 지표·기준 분리)."""
+    vals = list(numeric_scores.values())
+    if len(vals) < 2:
+        return {"dissent": False, "spread": None, "min": None, "max": None,
+                "threshold": DISSENT_SPREAD, "n": len(vals), "gate": "display-only"}
+    spread = max(vals) - min(vals)
+    return {"dissent": spread >= DISSENT_SPREAD, "spread": spread, "min": min(vals), "max": max(vals),
+            "threshold": DISSENT_SPREAD, "n": len(vals), "gate": "display-only"}
+
+
 def main():
     ap = argparse.ArgumentParser(description="eval-rubric 결과를 skill별 eval_cases.jsonl에 append")
     ap.add_argument("--skill", required=True, help="스킬 이름 (예: qa, codex-review)")
@@ -112,6 +158,13 @@ def main():
         help='JSON, 예: \'{"level":1,"evidence":"...","prohibitions_checked":["git stash 금지"]}\' '
              "— 명시적 금지사항 준수 축(0 위반 / 1 인지흔적 없음 / 2 인지하고 지킴). "
              "scores 와 분리 기록되며 verdict 계산에 들어가지 않는다.",
+    )
+    # E3 — 채점 못 한 축을 0 점과 분리해 기록한다(scores 를 건드리지 않는다).
+    ap.add_argument(
+        "--axis-health",
+        default=None,
+        help='JSON, 예: \'{"safety":"MISSING"}\' — 값은 OK/MISSING/PARSE_FAILED. '
+             "채점 못 한 축만 적는다. 0 점(나쁘다)과 결측(모른다)을 같은 칸에 넣지 않기 위한 필드다.",
     )
     ap.add_argument("--rationale", default="{}", help="JSON 근거 맵")
     ap.add_argument("--input-context", default="", help="입력 컨텍스트 (dedupe key 산출용)")
@@ -169,6 +222,30 @@ def main():
         elif nc["level"] == 1:
             print("[금지사항 인지 흔적 없음] %s" % args.target, file=sys.stderr)
 
+    # E3·E4 — negative_constraint 와 같은 이유로 **dedupe 분기보다 먼저** 계산·고지한다.
+    #   dedupe 히트로 위에서 빠져나가면 결측·이견이 조용히 사라진다(2026-08-09에 같은 구멍을 한 번 메웠다).
+    scores_map = json.loads(args.scores)
+    axis_health, numeric_scores = normalize_axis_health(
+        scores_map, json.loads(args.axis_health) if args.axis_health else None)
+    dissent = compute_dissent(numeric_scores)
+    if axis_health:
+        # 침묵 금지 — 결측은 판정을 바꾸지 않는 대신 반드시 보이게 한다.
+        print("[축 결측] %s — %s | 유효 축 %d/%d. 결측은 0점이 아니다(모름) — 평균 분모에서 빠졌다."
+              % (args.target, json.dumps(axis_health, ensure_ascii=False),
+                 len(numeric_scores), len(numeric_scores) + len(axis_health)),
+              file=sys.stderr)
+        if args.verdict == "PASS":
+            # 기존 PASS 조건("모든 채점축 ≥ 1")은 결측 축에서 충족을 **증명할 수 없다**.
+            # 새 임계값이 아니라 기존 조건의 귀결이다 — 판정을 바꾸지 않고 모순만 지적한다.
+            print("[경고] 축이 결측인데 verdict=PASS 다 — 기존 PASS 조건(모든 채점축 ≥ 1)을 "
+                  "충족했다는 증거가 없다. SKILL.md §축 결측·파싱 실패 처리 3항 참조(WARN 이 맞다).",
+                  file=sys.stderr)
+    if dissent["dissent"]:
+        print("[이견] %s — 축 편차 %s (min=%s max=%s, 임계 %s). 평균 하나로 읽지 말 것. "
+              "판정에는 반영하지 않는다(표시 전용)."
+              % (args.target, dissent["spread"], dissent["min"], dissent["max"], dissent["threshold"]),
+              file=sys.stderr)
+
     key = dedupe_key(args.skill, args.input_context)
     existing = find_dedupe(jsonl, key)
 
@@ -186,6 +263,10 @@ def main():
         existing["record_type"] = "observation"
         if pass_at_k:
             existing["pass_at_k"] = pass_at_k
+        # 관측 레코드에도 이번 회차의 건강·이견을 싣는다 — 안 실으면 "몇 번째 관측에서
+        # 축이 죽었는지"를 사후에 못 센다(negative_constraint 와 같은 이유).
+        existing["axis_health"] = axis_health
+        existing["dissent"] = dissent
         # 관측 레코드에도 이번 회차의 금지사항 판정을 싣는다 — 안 실으면 재발 사례가
         #   최초 1회 기록에 묻혀 "몇 번째 관측에서 위반했는지"를 사후에 못 센다.
         if nc is not None:
@@ -206,7 +287,11 @@ def main():
         "skill": args.skill,
         "target": args.target,
         "verdict": args.verdict,
-        "scores": json.loads(args.scores),
+        # ⚠️ scores 는 받은 그대로 기록한다 — 결측을 0 으로 채워 넣지 않는다.
+        "scores": scores_map,
+        "axis_health": axis_health,   # E3: 채점 못 한 축만(빈 dict = 전부 채점됨)
+        "score_denominator": len(numeric_scores),  # E3: 평균의 분모 — 4 미만이면 부분 채점이다
+        "dissent": dissent,           # E4: 축 간 이견(표시 전용 — verdict 미반영)
         "rationale": json.loads(args.rationale),
         "split": split_decision(case_id),
         "dedupe_key": key,

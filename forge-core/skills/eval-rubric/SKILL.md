@@ -57,6 +57,34 @@ model: sonnet
 > "채점축" = `default-rubric.yaml` 의 `scored: true` 축(현재 4개). v1.1 에서 축이 5개가 됐지만
 > **통과 기준의 분모는 그대로 4** 다 — 이 문장이 없으면 다음 세션이 5로 나눠 판정을 어긋나게 한다.
 
+### 축 결측·파싱 실패 처리 (E3, 2026-09-07 신설 — 임계값 무변경)
+
+**0점은 "나쁘다"이고 결측은 "모른다"다. 둘을 같은 칸에 넣지 않는다.**
+쉽게 말하면 **시험을 0점 맞은 답안지**와 **아예 안 낸 답안지**는 다른 사건인데,
+지금까지는 둘 다 그냥 `0` 으로 적혀 평균 뒤로 사라졌다.
+
+판정자 응답에서 어떤 축을 **채점할 수 없을 때**(키 누락 · 값이 숫자가 아님 · JSON 파싱 실패 · 판정자 미응답):
+
+1. **그 축을 0 으로 채우지 않는다.** `scores` 에서 값을 `null` 로 두거나 키를 빼고,
+   `axis_health` 에 `{"<축>": "MISSING"}`(미응답·키 누락) 또는 `{"<축>": "PARSE_FAILED"}`(형식 붕괴)로 적는다.
+2. **평균의 분모에서 뺀다.** 그리고 리포트에 **분모를 함께 적는다** — `평균 1.7 (유효 축 3/4)`.
+   분모를 숨긴 평균은 몇 축을 본 결과인지 알 수 없다.
+3. **결측이 1축 이상이면 PASS 를 주장하지 않는다.** 새 임계값이 아니라 **기존 PASS 조건에서 그대로 따라 나온다** —
+   PASS 는 "모든 채점축 ≥ 1" 을 요구하는데, 결측 축은 ≥1 이라는 **증거가 없다**. 그러면 조건이 충족된 것이 아니다.
+   → 이때는 `WARN`(판정 불충분)으로 낸다. ⚠️ **`FAIL` 로도 가지 않는다** — FAIL 은 "0점 축 2개 이상"이라는
+   **관측된 나쁨**을 요구하고, 결측은 관측이 아니다. 모른다는 이유로 벌하지도, 봐주지도 않는다.
+4. **전 축 결측이면 채점 자체를 내지 않는다.** `verdict` 를 만들지 말고 "채점 불가(사유)"로 보고한다.
+
+### 축 간 이견 신호 (E4, 2026-09-07 신설 — 판정 무변경, 표시 전용)
+
+0-2 척도에서 **최고 축 − 최저 축 = 2** 면(한 축은 만점, 다른 축은 0점) 그 평균은 두 집단을 대표하지 못한다.
+`eval-cases-append.py` 가 `scores` 로부터 자동 계산해 레코드의 `dissent` 필드에 적고 stderr 로 1줄 알린다.
+**판정(PASS/WARN/FAIL)에는 반영하지 않는다**(지표·기준 분리 게이트 E-3) — 보이게만 한다.
+
+근거: 이 스킬에는 축 결측·파싱 실패 처리 로직이 **아예 없었다**(2026-09-07 조사). 판정자가 축 하나를
+빠뜨리면 그 축이 0 으로 세어져 WARN·FAIL 로 내려가거나, 조용히 3축 평균이 4축 평균 행세를 했다.
+폐기조건: 판정 호출이 스키마 강제(structured output)로 바뀌어 축 결측이 런타임 오류가 되면 이 절을 재검토한다.
+
 ### 골든셋 네거티브 비중 추적 (선택)
 
 `eval_cases.jsonl` 에 네거티브 케이스(금지행동 미실행 검증)를 넣을 때 `"tags": ["negative"]` 를 붙인다.
@@ -133,6 +161,7 @@ target과 rubric을 별도 모델 호출(Sonnet)에 전달:
     "completeness": 0-2,
     "safety": 0-2
   },
+  "axis_health": { "<채점 못 한 축>": "MISSING | PARSE_FAILED" },
   "rationale": {
     "clarity": "구체 사유",
     "consistency": "...",
@@ -188,6 +217,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases
   --target "{평가 대상 경로 또는 식별자}" \
   --verdict {PASS|WARN|FAIL} \
   --scores '{"clarity":N,"consistency":N,"completeness":N,"safety":N}' \
+  --axis-health '{"safety":"MISSING"}' \
   --negative-constraint '{"level":0|1|2,"prohibitions_checked":["..."],"evidence":"..."}' \
   --rationale '{"clarity":"...","consistency":"...","completeness":"...","safety":"..."}' \
   [--pass-at-k-verdicts '["PASS","PASS","WARN",...]']
@@ -197,6 +227,9 @@ python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases
 - outcome 매핑: PASS → `"pass"` / WARN → `"regression_candidate"` / FAIL → `"new_failure"` (verdict 필드에 그대로 기록, 별도 outcome 필드 변환 불필요 — 소비자는 verdict로 판독).
 - dedupe: `sha256(skill + "|" + input_context)` — 동일 target 재실행 시 `observed_count++`만 기록(신규 case_id 아님, `record_type: "observation"`).
 - `--pass-at-k-verdicts` 지정 시 `pass_at_k: {k, verdicts, pass_count, pass_rate, threshold, reliability, gate:"advisory"}` 필드가 레코드에 추가된다.
+- `--axis-health` 지정 시 `axis_health` 필드가 레코드에 실리고 stderr 로 `[축 결측]` 1줄이 나온다(E3, 침묵 금지).
+  값이 `null`·비숫자인 축은 `--axis-health` 없이도 스크립트가 잡아 경고한다 — **0 으로 자동 환산하지 않는다.**
+- `dissent` 필드는 `scores` 에서 **자동 계산**된다(E4, 표시 전용 — verdict 미반영).
 - kill-switch: `EVAL_RUBRIC_AUTO=off` 환경변수 시 append 생략(exit 0, fail-open — 전역 무블로킹 롤아웃 원칙 §forge-core 준수).
 - SSoT는 `${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases-append.py` — 수정 시 이 파일을 편집 후 `forge-sync sync`로 미러 전파(직접 미러 편집 금지, AD-41 mirror-lock 대상은 아니나 관례 통일).
 

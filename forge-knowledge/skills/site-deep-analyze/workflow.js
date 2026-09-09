@@ -1,12 +1,15 @@
-// root-cause: site-deep-analyze Phase 2(정적) + Phase 3(Gemini Vision) = 독립 → parallel() 병렬화. 계획서 P2-6.
-// Gemini Vision: 외부 토큰 선발행 전제 (mcp__gemini__ HMAC approve-worker).
+// root-cause: site-deep-analyze Phase 2(정적) + Phase 3(Vision) = 독립 → parallel() 병렬화. 계획서 P2-6.
+// root-cause: Vision 벤더 전환(2026-09-07) — Gemini 전면 철수로 Vision 레그를 Codex(GPT-6 Astra)로 교체.
+//   계획서: ${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+//   ⚠️ Astra 는 스크린샷을 **절대경로로 직접 읽는다** — 인라인 불필요.
+// Vision 레그: codex-critic approve-worker 토큰 외부 선발행 전제.
 export const meta = {
   name: 'site-deep-analyze',
-  description: '사이트 정밀 분석 Workflow — Phase 1 크롤 후 Phase 2(정적)+Phase 3(Gemini Vision) 병렬화',
+  description: '사이트 정밀 분석 Workflow — Phase 1 크롤 후 Phase 2(정적)+Phase 3(Codex Vision) 병렬화',
   phases: [
     { title: 'Gate', detail: 'Phase 0: 윤리 게이트 + robots.txt 확인', model: 'haiku' },
     { title: 'Crawl', detail: 'Phase 1: Playwright 크롤 (depth=2, 3 viewport)' },
-    { title: 'Analyze', detail: 'Phase 2+3: 정적분석(DOM/CSS/HAR) + Gemini Vision 병렬' },
+    { title: 'Analyze', detail: 'Phase 2+3: 정적분석(DOM/CSS/HAR) + Codex(Astra) Vision 병렬' },
     { title: 'Semantic', detail: 'Phase 4: Tavily 시맨틱 추출' },
     { title: 'Output', detail: 'Phase 5+6: 산출물 생성 + 다음 액션 안내' },
   ],
@@ -19,7 +22,10 @@ const depth = _a?.depth || 2
 const pages = _a?.pages || 20
 const task = _a?.task || 'full'  // 'ui-audit' | 'api-discovery' | 'full'
 const viewport = _a?.viewport || 'desktop,tablet,mobile'
-const skipGemini = _a?.skipGemini || false  // Gemini 토큰 선발행 없는 경우
+// root-cause: 2026-09-07 Gemini 철수로 스위치 이름을 벤더 중립으로 옮겼다(구 `skipGemini`).
+//   의미는 그대로 — "Vision 레그를 건너뛰고 정적 분석만 한다".
+//   ⚠️ 이 인자를 넘기는 코드 호출자는 0곳이었다(재현: grep -rn "skipGemini" — SKILL.md 문서 3줄뿐).
+const skipVision = _a?.skipVision || false  // Vision 토큰 선발행 없는 경우
 
 if (!url) {
   log('[STOP] url 필수 (args.url)')
@@ -257,7 +263,7 @@ log(`[Crawl] pages=${crawlResult?.pagesFound} screenshots=${crawlResult?.screens
 
 // ── Phase 2+3: Analyze (multi-modal fan-out 5각도 병렬) ───────────────────────
 // root-cause: (a) fan-out 심화 — 기존 2각(static+vision) → 5각 독립 parallel(). research-verification-protocol.md §multi-modal sweep.
-// 각도: by-component(DOM) / by-API(HAR) / by-CSS-token / by-page-type / by-interaction + Gemini Vision
+// 각도: by-component(DOM) / by-API(HAR) / by-CSS-token / by-page-type / by-interaction + Codex(Astra) Vision
 phase('Analyze')
 const analyzeAgents = [
   () => agent(
@@ -289,13 +295,22 @@ const analyzeAgents = [
     { label: 'analyze:by-css-token', phase: 'Analyze', schema: CSS_TOKEN_SCHEMA }
   ),
 ]
-if (!skipGemini) {
+// root-cause: Workflow 샌드박스는 Bash 불가 → model-registry-resolve.sh 를 직접 못 부른다.
+//   cr-multi/workflow.js:454 관례대로 codex:max 현행 id 를 코드 기본값으로 둔다.
+//   SSoT = shared/config/model-registry.json (codex.tiers.max).
+const codexVisionModel = _a?.codexModel || 'gpt-6-astra'
+if (!skipVision) {
   analyzeAgents.push(() => agent(
-    `site-deep-analyze Phase 3 시각 분석 (Gemini Vision). 외부 토큰 선발행 전제. ` +
-    `핵심 화면 5-10개: ${JSON.stringify(crawlResult?.screenshotPaths?.slice(0, 8))}. ` +
-    `Gemini Vision: 레이아웃 grid/flex + UX 패턴 분류 + 인터랙션 단서. ` +
-    `layoutPattern + uxPatterns[] + interactionHints[] + componentsCatalog[] 반환.`,
-    { label: 'analyze:vision', phase: 'Analyze', schema: VISION_SCHEMA, agentType: 'gemini' }
+    `site-deep-analyze Phase 3 시각 분석 (Codex Vision). 외부 토큰 선발행 전제.\n` +
+    `**mcp__codex__codex 실제 호출** (ToolSearch 로 스키마 선로드 필요) — Claude 자체 추론으로 결과 생성 금지:\n` +
+    `- prompt = "다음 스크린샷들을 시각 분석하라. 이미지 절대경로 목록: ${JSON.stringify(crawlResult?.screenshotPaths?.slice(0, 8))}\\n` +
+    `레이아웃 grid/flex + UX 패턴 분류 + 인터랙션 단서를 뽑아 ` +
+    `layoutPattern(문자열) + uxPatterns(배열) + interactionHints(배열) + componentsCatalog(배열) 를 JSON 으로 반환."\n` +
+    `- model = "${codexVisionModel}" (Vision 레그 tier — codex:max)\n` +
+    `- sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "xhigh"}\n` +
+    `- 스크린샷은 **절대경로로 직접 읽는다** — base64 인라인 금지.\n` +
+    `Codex 응답(JSON) 파싱 → StructuredOutput(layoutPattern/uxPatterns/interactionHints/componentsCatalog).`,
+    { label: 'analyze:vision', phase: 'Analyze', schema: VISION_SCHEMA, agentType: 'codex-critic' }
   ))
 }
 const analyzeResults = await parallel(analyzeAgents)
@@ -303,7 +318,7 @@ const staticResult = analyzeResults[0]
 const pageTypeResult = analyzeResults[1]
 const interactionResult = analyzeResults[2]
 const cssTokenResult = analyzeResults[3]
-const visionResult = skipGemini ? null : analyzeResults[4]
+const visionResult = skipVision ? null : analyzeResults[4]
 log(`[Analyze] components=${staticResult?.components?.length} apis=${staticResult?.apiEndpoints?.length} pageTypes=${pageTypeResult?.pageTypes?.length} interactions=${interactionResult?.eventPatterns?.length} cssVars=${cssTokenResult?.cssVariables?.length} vision=${visionResult ? 'OK' : 'skip'}`)
 
 // ── Phase 2.x: Coverage Loop (completeness critic, cap 2라운드) ──────────────

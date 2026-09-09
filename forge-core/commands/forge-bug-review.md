@@ -4,15 +4,20 @@ argument-hint: "<patch-file or PR-N> [--cr <on|degrade|off>]"
 group: verify
 ---
 
-# /cr-bug
+# /forge-bug-review
+
+> ⚠️ 구 이름 **"/cr-bug"** 는 2026-09-07 개명했다. 헬퍼 스크립트 파일명·감사로그·증거
+> 경로(`cr-evidence/`)는 **그대로 둔다** — 쌓인 증거가 그 이름으로 묶여 있어서다.
+> 근거: 간판만 바꾸고 배달 주소를 바꾸면 옛 증거가 통째로 안 보이게 된다.
+> 폐기조건: 옛 증거를 더 안 읽어도 되면 헬퍼 파일명까지 후속 개명한다.
 
 `/codex-review --stage bugfix` 단축 래퍼.
 
 ## 사용
 
 ```
-/cr-bug patches/fix-token-leak.diff
-/cr-bug PR-5678
+/forge-bug-review patches/fix-token-leak.diff
+/forge-bug-review PR-5678
 ```
 
 ## 동작

@@ -97,11 +97,10 @@ cp ${FORGE_ROOT:-$HOME/forge}/forge-workspace.example.json ${FORGE_ROOT:-$HOME/f
 | 변수 | 용도 | 필수 |
 |------|------|------|
 | `ANTHROPIC_API_KEY` | Claude API | ✅ |
-| `GEMINI_API_KEY` | Gemini MCP (cr-triple) | ✅ |
 | `TAVILY_API_KEY` | 웹 검색 MCP | ✅ |
 | `BRAVE_API_KEY` | Brave Search MCP | ✅ |
 | `FIGMA_API_KEY` | Figma MCP | ⛔ 신규 권장 안 함 (아래 주 참고) |
-| `OPENAI_API_KEY` | Codex (`gpt-6-astra`, cr-triple) | cr-triple 사용 시 |
+| `OPENAI_API_KEY` | Codex (`gpt-6-astra`, cr-triple) | ⚠️ **선택** — `codex login`(구독) 쓰면 불필요 |
 | `GITHUB_TOKEN` | GitHub API | PR/이슈 작업 시 |
 | `REPLICATE_API_TOKEN` | 이미지 생성 | 게임/디자인 트랙 |
 | `FORGE_DB_URL` | forge-knowledge RAG (pgvector) | RAG 검색 사용 시 |
@@ -123,23 +122,31 @@ cp ${FORGE_ROOT:-$HOME/forge}/forge-workspace.example.json ${FORGE_ROOT:-$HOME/f
 > ⚠️ 구 표기 "`FIGMA_API_KEY` — 디자인 작업 시 (필수급)" 은 2026-09-08 폐기했습니다.
 > ⚠️ 구 표기 "Codex = **GPT-5.5**" 도 같은 날 폐기 — 현행 Codex 레그는 `gpt-6-astra` 입니다
 > (근거: `$HOME/.claude/rules/model-routing.md §세션 운영 모델`, 2026-09-06 상향).
-
-Gemini API 키는 별도 파일에도 저장 (gemini-text MCP가 읽음):
-```bash
-echo "YOUR_GEMINI_API_KEY" > ~/.gemini-api-key
-chmod 600 ~/.gemini-api-key
-```
+>
+> ⚠️ **2026-09-07 Gemini 전면 철수.** 구 표기 "`GEMINI_API_KEY` — Gemini MCP (cr-triple), 필수 ✅"
+> 와 구 절차 "Gemini API 키는 별도 파일(`~/.gemini-api-key`)에도 저장" 은 폐기했습니다.
+> **종량 과금(API 키 과금) 벤더인 Gemini 를 끊고, 남은 레그는 구독 인증으로 씁니다.**
+> **이 키는 이제 설정하지 마십시오** — 설정해도 쓰이지 않습니다.
+>
+> ⚠️ *"어떤 API 키도 안 쓴다"* 는 뜻이 아닙니다 — 범위는 **Gemini 철수**입니다.
+> Codex 는 `codex login`(구독)이 **권장**이고, `OPENAI_API_KEY` 는 그것을 안 쓸 때의 **대안**입니다.
+> 위 표의 `OPENAI_API_KEY` 행은 그 대안 레인을 가리킵니다.
 
 ---
 
 ## 3. CLI 도구 설치
 
-### 3-1. Codex (GPT-5.5 — cr-triple 필수)
+### 3-1. Codex (`gpt-6-astra` — cr-triple 필수)
 
 ```bash
 npm install -g @openai/codex
-codex login   # ChatGPT OAuth 로그인
+codex login          # ChatGPT OAuth 로그인 — 이걸 하면 API 키가 필요 없습니다
+codex login status   # → "Logged in using ChatGPT" 면 완료
 ```
+
+> ⚠️ 구 표기 "Codex (**GPT-5.5**)" 는 2026-09-08 폐기 — 현행 Codex 레그는 `gpt-6-astra` 입니다.
+> 실측(2026-09-08): `OPENAI_API_KEY` 미설정 + `~/.codex/auth.json` 의 `OPENAI_API_KEY` 가 `null` 인
+> 상태로 `codex login status` 가 `Logged in using ChatGPT` 를 반환하며 Codex MCP 가 정상 동작합니다.
 
 확인:
 ```bash
@@ -220,8 +227,9 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
 | `gitnexus` | 코드 그래프 | 없음 (로컬) |
 | `figma` | Figma 컴포넌트 | `FIGMA_API_KEY` — ⛔ 신규 권장 안 함 (위 UI/UX 주 참고) |
 | `codex` | `gpt-6-astra` 리뷰 | `codex login` |
-| `gemini-text` | `gemini-3.8-flash` 리뷰 | `~/.gemini-api-key` |
 | `brave-search` | 웹 검색 (보조) | `BRAVE_API_KEY` |
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`gemini-text` | `gemini-3.8-flash` 리뷰 | `~/.gemini-api-key`".
 
 `~/.claude.json` → `mcpServers`에 없는 항목 수동 추가:
 
@@ -254,12 +262,6 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
       "command": "codex",
       "args": ["mcp-server"]
     },
-    "gemini-text": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@google/gemini-cli-mcp"],
-      "env": { "GEMINI_API_KEY": "${GEMINI_API_KEY}" }
-    },
     "brave-search": {
       "type": "stdio",
       "command": "npx",
@@ -270,7 +272,50 @@ cd ~/forge && bash shared/scripts/setup-mcp.sh
 }
 ```
 
-> `gemini-text`는 공개 npm 패키지를 사용합니다. forge 레포가 있는 코어 팀원은 start.sh 경로로 교체하세요.
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`gemini-text` 블록(`@google/gemini-cli-mcp`) 수동 추가 +
+> 코어 팀원은 start.sh 경로로 교체" 는 삭제했습니다. 이제 등록하지 마십시오.
+
+### 5-2-B. ⚠️ 이미 쓰던 분은 이것도 지우세요 (Gemini 철수 정리)
+
+**신규 설치자는 건너뛰세요.** 이 절은 **2026-09-07 이전에 이미 세팅한 분** 전용입니다.
+
+예전 `setup.sh` 는 `~/.claude.json` 에 `gemini` / `gemini-text` 를 **전역으로 등록**했습니다.
+이번 변경은 **앞으로 등록하지 않게** 막은 것이라, **이미 등록된 것은 그대로 남아 있습니다.**
+쉽게 말하면 **수도관은 잠갔는데 이미 받아둔 물통은 그대로 있는** 상태입니다.
+그 키는 지출 한도 초과로 막혀 있어서, 남겨두면 **뜨지도 않는 MCP 서버가 매 세션 연결을 시도**합니다.
+
+#### 1단계 — 무엇이 등록돼 있는지 봅니다 (읽기만 함)
+
+```bash
+python3 -c "
+import json,os
+d=json.load(open(os.path.expanduser('~/.claude.json')))
+ks=list(d.get('mcpServers',{}).keys())
+print('등록된 MCP 서버:', ks)
+print('gemini 계열:', [k for k in ks if 'gemini' in k.lower()] or '(없음)')
+"
+```
+
+`gemini 계열: (없음)` 이면 **할 일이 없습니다.** 여기서 끝내세요.
+
+#### 2단계 — 백업을 먼저 뜹니다
+
+```bash
+cp ~/.claude.json ~/.claude.json.bak-$(date +%Y%m%d)
+```
+
+#### 3단계 — 해당 항목만 손으로 지웁니다
+
+`~/.claude.json` 을 편집기로 열어 `mcpServers` 안의 **`gemini`·`gemini-text` 항목만** 지웁니다.
+지운 뒤 Claude Code 를 완전히 종료했다가 다시 시작하면 반영됩니다.
+
+> ⛔ **`~/.claude.json` 을 통째로 지우지 마세요.** `notion`·`tavily`·`codex` 등 **다른 MCP 등록이 같이 죽습니다.**
+> ⛔ **자동 스크립트를 만들어 돌리지 마세요.** 개인 전역 설정이라 사람이 눈으로 보고 지우는 것이 안전합니다.
+> ✅ 편집 후 JSON 이 안 깨졌는지 확인: `python3 -c "import json,os;json.load(open(os.path.expanduser('~/.claude.json')));print('JSON OK')"`
+> 깨졌으면 2단계 백업으로 되돌리세요: `cp ~/.claude.json.bak-<날짜> ~/.claude.json`
+
+> 참고: `~/.gemini-api-key` 파일도 예전 `setup.sh` 가 만들었습니다. 더는 쓰이지 않으니
+> `rm ~/.gemini-api-key` 로 지워도 됩니다(선택 — 남겨둬도 동작에는 영향 없습니다).
 
 ### 5-3. 프로젝트 MCP (`${FORGE_ROOT:-$HOME/forge}/.mcp.json`)
 
@@ -418,7 +463,6 @@ Claude Code 대화에서:
 | 증상 | 원인 | 해결 |
 |------|------|------|
 | `codex mcp-server` 오류 | 로그인 만료 | `codex login` 재실행 |
-| gemini-text 연결 실패 | 키 미설정 | `cat ~/.gemini-api-key` 확인 |
 | `claude plugin update` 락 오류 | 병렬 git 충돌 | `find $HOME/.claude/plugins/marketplaces -name "*.lock" -delete` 후 재시도 |
 | forge-sync 스킬 미반영 | sync 미실행 | `node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync` |
 | Notion MCP 인증 루프 | 워크스페이스 권한 없음 | 관리자에게 권한 요청 |

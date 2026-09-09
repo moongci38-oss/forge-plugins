@@ -129,7 +129,7 @@ src 인라인 주석(`legacy:.../g-N:...`) + bug_report + learnings 교차수집
 `--cr=degrade` | `--cr=off`: codex-critic 스폰 생략. Phase 2 findings를 WARN verdict로 그대로 통과. 비용 절감 또는 Codex 불가 환경용.
 crMode 해석은 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh`가 담당하며 `args.crMode`로 Workflow에 전달한다.
 
-Claude 1차 finding → `/cr-multi --mode triple`:
+Claude 1차 finding → `/forge-multi --mode triple`:
 
 **페이로드 필수 형식** (요약 금지 — 동의편향 방지):
 ```
@@ -178,7 +178,7 @@ Advisor 응답 → `MIGRATION-AUDIT-REPORT.md`의 `## Advisor 분류 조언` 섹
    - denylist: `legacy/**`, `*/mysql_info.js`, env/secret/config, package-lock, require 위치
    - IRON Rule 4/5/6 변경 차단
 2. **oracle PASS**: golden-test + `npm run build` 통과
-3. **patch 멀티검수**: `/cr-multi --mode triple` (실코드 전달)
+3. **patch 멀티검수**: `/forge-multi --mode triple` (실코드 전달)
 
 commit: `fix(migration): BUG-NNN`
 

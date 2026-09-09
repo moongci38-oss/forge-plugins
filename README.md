@@ -182,44 +182,65 @@ claude plugin update forge-build
 
 ## cr-* 커맨드 사전 조건
 
-`/cr-triple`, `/cr-double` 등 cr-* 계열은 **Codex MCP + Gemini MCP** 필수.
+`/cr-triple`, `/cr-double` 등 cr-* 계열은 **Codex MCP** 필수.
 MCP 없으면 cr-* 커맨드 동작 X.
 
 **왜 남의 모델을 부르나**: 자기가 쓴 답안을 자기가 채점하면 같은 착각을 두 번 합니다.
-그래서 검수는 **벤더가 다른 세 모델**에게 따로 시킵니다(tier 를 올리는 게 아니라 **출제자를 바꾸는** 설계입니다).
+그래서 검수는 **벤더가 다른 모델**에게 따로 시킵니다(tier 를 올리는 게 아니라 **출제자를 바꾸는** 설계입니다).
 
 | 레그 | 현행 기본 모델 | 경유 |
 |------|---------------|------|
 | Claude | **Fable 5.1** | 세션 내 subagent |
 | Codex | **gpt-6-astra** | Codex MCP |
-| Gemini | **gemini-3.8-flash** | Gemini MCP |
 
-reasoning **effort = xhigh** (Gemini 레그는 MCP 릴레이라 effort 개념이 없습니다).
+reasoning **effort = xhigh**.
 
 > 정본은 이 레포가 아닙니다 — `$HOME/.claude/rules/model-routing.md §세션 운영 모델` 입니다.
 > 모델은 자주 바뀌므로, 이 표와 정본이 어긋나면 **정본이 이깁니다**.
+> ⚠️ **2026-09-07 Gemini 전면 철수로 검수는 2벤더(Claude·Codex)가 되었습니다.**
+> 구 표기 "Codex MCP + **Gemini MCP** 필수 · 벤더가 다른 **세** 모델 · `| Gemini | gemini-3.8-flash | Gemini MCP |`"
+> 는 폐기했습니다. **종량 과금(API 키 과금) 벤더인 Gemini 를 끊고, 남은 레그는 구독 인증으로 씁니다.**
+> ⚠️ 이 말은 *"어떤 API 키도 안 쓴다"* 가 아닙니다 — 범위는 **Gemini 철수**입니다.
+> Codex 레그 인증은 아래 [Step 1](#step-1--codex-인증) 참고.
 > ⚠️ 구 표기 `Claude=Opus · Codex=gpt-5.6-sol · Gemini=gemini-3.5-flash` 는 2026-09-08 폐기했습니다
-> (근거: `model-routing.md §세션 운영 모델` — Codex 레그는 2026-09-06 에 `gpt-6-astra` 로,
-> Gemini 레그는 2026-09-03 에 `gemini-3.8-flash` 로 올라갔습니다).
+> (근거: `model-routing.md §세션 운영 모델` — Codex 레그는 2026-09-06 에 `gpt-6-astra` 로 올라갔습니다).
 > ⚠️ `--sol`·`--terra`·`--luna` 는 이제 **셋 다 하향 스위치**입니다(예전엔 `--sol` 이 기본과 같아 아무 일도 안 했습니다).
 > `--fable` 은 이미 기본이라 no-op 입니다.
 
-### Step 1 — API 키 환경변수 설정
+### Step 1 — Codex 인증
+
+**권장 — 구독 로그인(API 키 불필요)**
+
+```bash
+codex login          # ChatGPT OAuth 로그인
+codex login status   # → "Logged in using ChatGPT" 면 완료
+```
+
+**대안 — API 키(종량 과금)**
 
 ```bash
 # ~/.bashrc 또는 ~/.zshrc 에 추가
-export OPENAI_API_KEY="sk-..."       # Codex MCP용
-export GEMINI_API_KEY="AIza..."      # Gemini MCP용
+export OPENAI_API_KEY="sk-..."       # 구독 로그인을 쓰지 않을 때만
 ```
+
+> **둘 중 하나만** 하면 됩니다. 구독 로그인이 권장입니다 — 쓴 만큼 돈이 나가는 종량 과금을 피하려고
+> Gemini 를 끊은 것이라, 같은 이유로 Codex 도 구독 쪽이 결이 맞습니다.
+> 실측(2026-09-08): 개발 머신에서 `OPENAI_API_KEY` 가 **미설정**이고
+> `~/.codex/auth.json` 의 `OPENAI_API_KEY` 가 **null** 인 상태로 `codex login status` 가
+> `Logged in using ChatGPT` 를 반환하며 Codex MCP 가 정상 동작합니다 — **키 없이 도는 것이 확인된 구성입니다.**
+> 재현: `codex login status` · `python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.codex/auth.json')))['auth_mode'])"`
+>
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `export GEMINI_API_KEY="AIza..."  # Gemini MCP용`.
+> ⚠️ 구 표기 "Step 1 — API 키 환경변수 설정"(키가 유일한 방법인 것처럼 읽혔음)도 같은 날 정정했습니다.
 
 ### Step 2 — MCP 서버 설치
 
 ```bash
 # Codex MCP (npm 전역 설치)
 npm install -g @openai/codex
-
-# Gemini MCP (npx 자동 설치 — 별도 설치 불필요)
 ```
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "Gemini MCP (npx 자동 설치 — 별도 설치 불필요)".
 
 ### Step 3 — ~/.claude.json MCP 서버 등록
 
@@ -233,18 +254,24 @@ npm install -g @openai/codex
       "command": "codex",
       "args": ["mcp-server"],
       "env": {}
-    },
-    "gemini": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@fre4x/gemini"],
-      "env": {
-        "GEMINI_API_KEY": "<your-gemini-api-key>"
-      }
     }
   }
 }
 ```
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `"gemini"` 블록(`@fre4x/gemini` + `GEMINI_API_KEY`).
+>
+> 🔁 **이미 예전 `setup.sh` 로 세팅한 분**은 `~/.claude.json` 에 `gemini`·`gemini-text` 가
+> **전역 등록된 채로 남아 있습니다** — 이번 변경은 앞으로 등록하지 않게 막았을 뿐이라 기존 등록은 안 지워집니다.
+> 확인·제거 절차는 `ONBOARDING.md` **§5-2-B (이미 쓰던 분은 이것도 지우세요)** 를 보세요.
+> 먼저 이 명령으로 남아 있는지부터 확인하시면 됩니다:
+> ```bash
+> python3 -c "
+> import json,os
+> ks=list(json.load(open(os.path.expanduser('~/.claude.json'))).get('mcpServers',{}).keys())
+> print('gemini 계열:', [k for k in ks if 'gemini' in k.lower()] or '(없음)')
+> "
+> ```
 
 ### Step 4 — Claude Code 재시작
 
@@ -258,23 +285,23 @@ MCP 등록 후 재시작해야 적용됩니다.
 > 쉽게 말하면 **"검수 없이 통과"가 조용히 일어나지는 않습니다** — 낮추려면 본인이 그렇게 적어야 합니다.
 > 재현: `grep -n 'cr <on|degrade|off>' forge-build/commands/forge-pr.md` (2026-09-08 관측).
 
-> ⚠️ **위 Gemini 블록의 `@fre4x/gemini` 는 이 레포가 검증한 값이 아닙니다.** 이 저장소 어디에서도
-> 그 패키지를 참조하지 않습니다(재현: `grep -rn 'fre4x' .` → 이 README 줄 외 0건, 2026-09-08 관측).
-> 개발팀 내부는 forge 체크아웃이 소유한 `gemini-text` MCP 를 쓰는데, 그건 이 플러그인 번들에
-> 들어 있지 않아 외부 설치자에게는 대안 예시를 적어 둔 것입니다.
-> **동작하는 Gemini stdio MCP 라면 무엇이든 됩니다** — 위 블록은 형식 예시로 읽으십시오.
-
 ---
 
-## MCP API 키 설정 (선택)
+## MCP 인증 설정 (선택)
 
-`forge-core`는 Codex/Gemini MCP를 포함. 사용하려면 환경변수 설정:
+`forge-core`는 Codex MCP를 포함합니다. 인증은 **구독 로그인이 권장**입니다:
 
 ```bash
-# ~/.bashrc 또는 ~/.zshrc 에 추가
+codex login                          # 권장 — API 키 불필요
+# 또는 (대안, 종량 과금)
 export OPENAI_API_KEY="sk-..."       # Codex MCP (cr-triple 2차 검수)
-export GEMINI_API_KEY="AIza..."      # Gemini MCP (vision 분석)
 ```
+
+> 상세·실측 근거는 위 [Step 1 — Codex 인증](#step-1--codex-인증) 참고.
+> ⚠️ 구 제목 "MCP **API 키** 설정"은 키가 유일한 방법인 것처럼 읽혀 2026-09-08 정정했습니다.
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`forge-core`는 Codex/**Gemini** MCP를 포함" 과
+> `export GEMINI_API_KEY="AIza..."  # Gemini MCP (vision 분석)`.
 
 > MCP 없이도 forge-core/forge-build 기본 스킬 정상 동작.
 > **예외는 위와 같습니다** — `cr-*` 계열과 `/forge-pr` 의 기본 검수 게이트는 MCP 를 요구합니다
@@ -377,8 +404,8 @@ cd ~/forge-plugins-repo && git pull
 
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
-| `/cr-triple` | `/cr-triple <파일>` | Fable+Codex+Gemini 3중 검수 (중요 Spec/PR) — 모델은 위 [cr-* 사전 조건](#cr--커맨드-사전-조건) 표 |
-| `/cr-double` | `/cr-double <파일>` | Codex+Gemini 2중 검수 (기본) |
+| `/cr-triple` | `/cr-triple <파일>` | Fable+Codex 검수 (중요 Spec/PR) — 모델은 위 [cr-* 사전 조건](#cr--커맨드-사전-조건) 표 |
+| `/cr-double` | `/cr-double <파일>` | Codex 검수 (기본) |
 | `/advisor` | `/advisor <질문>` | 갈림길에서 최상위 모델에게 400~700토큰 조언만 받기 (코드 작성 X) |
 | `/cr-multi` | `/cr-multi <파일>` | 멀티 검수 오케스트레이터 (double/triple 통합) |
 | `/cr-code` | `/cr-code <파일>` | 코드 전용 검수 |
@@ -515,7 +542,7 @@ cd ~/forge-plugins-repo && git pull
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
 | `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
-| `/generate-image` | `/generate-image <설명>` | 이미지 1장 생성 (gpt-image-1 우선, Gemini 폴백) |
+| `/generate-image` | `/generate-image <설명>` | 이미지 1장 생성 (gpt-image-1) — ⚠️ 2026-09-07 Gemini 전면 철수로 구 표기 "Gemini 폴백" 폐기 |
 | `/visual-loop` | `/visual-loop` | 프론트 변경을 실제 브라우저로 캡처해 Vision 분석 |
 | `/style-forge` | `/style-forge` | 참조 에셋에서 스타일 추출 → style-guide.md (에셋 생성 전 선행) |
 | `/asset-critic` | `/asset-critic <에셋>` | AI 생성 에셋을 6축 정량 루브릭으로 채점 |
@@ -647,7 +674,7 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 ```
 forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
-├── forge-core/                        — (v0.7.17) 기반 + 하네스 정리 + AI 감사 + 저작 도구
+├── forge-core/                        — (v0.7.18) 기반 + 하네스 정리 + AI 감사 + 저작 도구
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 23개
 │   │   ├── approve-worker/            — forge 승인 워커
@@ -675,7 +702,7 @@ forge-plugins-repo/
 │       ├── dev-workflow-rules.md      — 브랜치·배포·SDD 진입
 │       ├── security-agent-input.md    — 외부 입력 프롬프트 인젝션 방어
 │       └── success-is-silent.md       — 성공 시 침묵
-├── forge-build/                       — (v0.4.24) 구 forge-dev + forge-plan 통합
+├── forge-build/                       — (v0.4.25) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 32개 (qa/healer/investigate/api-e2e + spec 계열/writing-plans/autoplan + gitnexus 6종 등)
 │   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + forge-spec/prd/forge-plan/forge-deploy 등)
@@ -686,11 +713,11 @@ forge-plugins-repo/
 │   ├── commands/                      — 7개 (article/site-deep-analyze/forge-find-item/find-item/wiki-sync/grants/meeting)
 │   ├── agents/                        — 6개 (academic-researcher/article-analyst/fact-checker/yt-cross-analyst/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
-├── forge-design/                      — (v0.2.17)
+├── forge-design/                      — (v0.2.18)
 │   ├── skills/                        — 7개 (image-orchestrate/visual-loop/figma-screen-capture/style-forge/asset-critic/doc-writer/design-plan-closeout)
 │   ├── commands/                      — 4개 (forge-design/forge-design-review/generate-image/clip)
-│   └── agents/                        — 2개 (doc-writer/gemini)
-└── forge-game/                        — (v0.1.16)
+│   └── agents/                        — 1개 등록 (doc-writer) — ⚠️ 2026-09-07 Gemini 전면 철수로 구 표기 "2개 (doc-writer/gemini)" 폐기. `agents/gemini.md` 파일은 forge SSoT sync 대상이라 남아 있으나 **plugin.json 등록에서 빠져 로드되지 않습니다**
+└── forge-game/                        — (v0.1.17)
     ├── skills/                        — 10개 (game-qa/game-asset-pipeline/asset-extract/game-logic-visualize/dungeon 루프 2종 등)
     ├── commands/                      — 1개 (gdd)
     └── agents/                        — 1개 (gdd-writer)

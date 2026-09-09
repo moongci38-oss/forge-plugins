@@ -91,7 +91,8 @@ Wave 1 — 5개 축 에이전트 병렬 스폰 중...
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS` 환경변수 미설정 시 → Workflow 도구로 위임.
 
-**⚠️ 토큰 선발행 필수 (CRITICAL)**: Verify phase가 `codex-critic`(mcp__codex__) + `gemini`(mcp__gemini__) 호출.
+**⚠️ 토큰 선발행 필수 (CRITICAL)**: Verify phase가 `codex-critic`(mcp__codex__)을 **적대 레그(verify-codex) + 구조 레그(verify-structural)** 두 번 호출한다(crMode=on 시. degrade/off 는 둘 다 스킵하고 Claude 로 대체).
+⚠️ 구 표기 "`codex-critic`(mcp__codex__) + `gemini`(mcp__gemini__) 호출" 은 2026-09-07 폐기 — Gemini 전면 철수로 구조 검증 레그(구 `verify-gemini`)가 Codex(GPT-6 Astra, `verify-structural`)로 교체됐다. ⚠️ 이제 3레그 중 2개가 Codex 라 벤더 교차 독립성이 약해졌다(known trade-off).
 이 MCP는 `multiagent-mcp-direct.sh`+`multiagent-approval-verify.sh` 훅이 approve-worker HMAC 토큰 없으면 BLOCK.
 Workflow 스크립트는 셸 불가 → **기동 前 외부 선발행** 필수 (cr-multi/SKILL.md 패턴 동일):
 
@@ -101,13 +102,11 @@ TODAY=$(date +%Y-%m-%d); SLUG="system-audit-${TODAY}"
 # CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
 CR_MODE="${CR_MODE:-on}"
 
-# crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 스킵)
+# crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 Codex 레그 2개 모두 스킵)
 if [ "$CR_MODE" = "on" ]; then
   FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
     --task "$SLUG" --worker codex-critic --tools mcp__codex__codex --paths "$TARGET"
 fi
-FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
-  --task "$SLUG" --worker gemini --tools mcp__gemini__analyze_media --paths "$TARGET"
 # 그 후 Workflow 기동
 Workflow({
   script: Read("${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"),
@@ -115,7 +114,7 @@ Workflow({
 })
 ```
 
-> nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (cr-multi 참조).
+> nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (forge-multi 참조).
 > `--cr` 값: `on`(기본, 3-LLM) | `degrade`(Codex rate-limit/비용 절감 시) | `off`(Codex 완전 비활성).
 > `cr-mode.sh` 경로: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
 
@@ -415,15 +414,17 @@ Agent(
 
 ## Workflow 통합 (P0)
 
-6축 parallel() + 3-LLM adversarial verify (Claude+Codex+Gemini 2/3 합의) + resume 지원.
+6축 parallel() + 3-LLM adversarial verify (Claude + Codex 적대 레그 + Codex 구조 레그 2/3 합의) + resume 지원.
+⚠️ 구 표기 "Claude+Codex+Gemini 2/3 합의" 는 2026-09-07 폐기 — Gemini 전면 철수로 구조 레그(구 `verify-gemini`)가 Codex(GPT-6 Astra, `verify-structural`)로 교체됐다.
 
 실행:
 ```bash
 TODAY=$(date +%Y-%m-%d)
-# CR_MODE: on(기본 3-LLM) | degrade(Codex 스킵, Claude+Gemini) | off(동일)
+# CR_MODE: on(기본 3-LLM, Codex 2레그) | degrade(Codex 완전 스킵 — 적대 레그 제외 + 구조 레그 Claude 대체 = Claude 2-LLM) | off(동일)
 # ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh 로 자동 결정 가능
 Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
 ```
+⚠️ 구 표기 "degrade(Codex 스킵, Claude+Gemini)" 는 2026-09-07 폐기 — Gemini 레그가 사라져 degrade/off 는 이제 Claude 단독 2레그로 대체된다.
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 Wave 1~4 fallback.
 

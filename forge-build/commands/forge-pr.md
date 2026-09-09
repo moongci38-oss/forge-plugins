@@ -1,5 +1,5 @@
 ---
-description: PR 생성 + 3-LLM(cr-triple) 적대적 리뷰 + 머지 준비 완료 + 사람 실행(auto mode 기본) (옛 /sdd Phase 5)
+description: PR 생성 + 2벤더 교차(cr-triple) 적대적 리뷰 + 머지 준비 완료 + 사람 실행(auto mode 기본) (옛 /sdd Phase 5)
 argument-hint: "[--cr <on|degrade|off>] [--no-cr-final] [--auto-merge]"
 group: deploy
 model: sonnet
@@ -15,15 +15,20 @@ PR 생성 단독 실행. `/sdd` Phase 5 분리 명령 (AD-46).
 |------|------|------|
 | PR 작업(diff 요약·PR body·봇리뷰 해소) | **Sonnet** | 커맨드 frontmatter `model: sonnet`(실행자 계층) |
 | git ops(checkout·merge·push·worktree) | **Haiku** | `Agent(model:"haiku")` subagent |
-| cr-final(Step 3) | **Fable 5.1**+Codex(sol)+Gemini(3.8-flash) | 2026-08-22 상향 · effort=xhigh · `--no-frontier` 로 일괄 하향(degrade=Codex 제외) |
+| cr-final(Step 3) | **Fable 5.1**+Codex(**gpt-6-astra**) — 2벤더 교차 | effort=xhigh · `--no-frontier` 로 검수 2레그 일괄 하향 · `--cr degrade`=Codex 제외(Claude 단독→`quorumFail`) |
 | 고위험 결정 advisor(BOUNDARY·scope-drift·봇충돌) | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력. advisory only |
+
+⚠️ 구 표기 "cr-final(Step 3) = **Fable 5.1**+Codex(sol)+Gemini(3.8-flash)" 는 2026-09-07 폐기 — Gemini 전면 철수.
 
 근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`.
 ⚠️ **2026-08-12 정정**: 구 문구는 "forge-pr advisor 는 Opus 고정 — Fable 자동분기 없음"이었다. advisor 기본이 Fable 로 바뀌면서 **advisor 자문 레그는 리졸버를 따른다**. 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
-✅ **2026-08-22 Human 지시로 이 금지는 해제됐다.** `cr-multi`/`cr-triple` 의 **검수 워커 레그**도 이제 기본이
-**Fable 5.1 + gpt-6-astra + gemini-3.8-flash(effort=xhigh)** 다(⚠️ 구 표기 "gpt-5.6-sol" 은 2026-09-06 폐기 — Codex 레그가 astra 로 올라갔다. sol 은 정식 지원 중이며 `--sol` 하향 스위치로 남는다). 즉 `/forge-pr` 이 부르는 cr-final·cr-triple 은
-별도 플래그 없이 프런티어 모델로 돈다. 구 조항의 근거("매 PR 프런티어 = 비용 폭발")는 구독 3계정 정액
+✅ **2026-08-22 Human 지시로 이 금지는 해제됐다.** `forge-multi`/`cr-triple` 의 **검수 워커 레그**도 이제 기본이
+**Claude Fable 5.1 + OpenAI gpt-6-astra(effort=xhigh) 2벤더 교차**다. 즉 `/forge-pr` 이 부르는 cr-final·cr-triple 은
+별도 플래그 없이 프런티어 모델로 돈다. 구 조항의 근거("매 PR 프런티어 = 비용 폭발")는 구독 정액
 운용이라 성립하지 않는다. 정본 → `model-routing.md §세션 운영 모델`.
+
+⚠️ 구 표기 "Fable 5.1 + gpt-6-astra + gemini-3.8-flash(effort=xhigh)" 는 2026-09-07 폐기 — Gemini 전면 철수(3레그 → 2레그).
+sol 은 정식 지원 중이지만 `--sol` 은 이제 Codex 레그를 astra→sol 로 **내리는** 하향 스위치다(구 표기 "승격" 폐기).
 
 ## 선적 전 체크리스트 (Pre-ship) — AI-instruction 전용 (기계적 강제 없음)
 
@@ -140,6 +145,35 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 > Detached HEAD 환경에서는 Option 1 제외, 3가지만 제시.
 
 ## 실행 단계 (Option 2: Push + PR)
+
+0. **보안 스캔 신선도 확인 + 밀린 검수 큐 소비** (G3·G1, 2026-09-07 신설 — PR 생성 **전**)
+
+   왜 여기 있나: 지금까지 `/forge-pr` 은 "보안 스캔은 QA 때 이미 돌았겠지"라고 **가정만** 했다.
+   위 §선적 전 체크리스트의 "보안 CRITICAL 0건" 은 사람이 읽는 문장이지 호출이 아니고,
+   `forge-check-security` 를 실제로 부르는 곳은 QA T6 한 군데다. **QA 를 건너뛴 PR 은 보안
+   스캔을 한 번도 돌리지 않은 채** 여기까지 온다. 가정을 검사로 바꾼다.
+
+   ```bash
+   # (a) 보안 리포트가 지금 이 diff 를 덮는가 — 0=fresh 1=stale 2=missing 3=판정불가
+   bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/security-report-freshness.sh"; echo "rc=$?"
+
+   # (b) 밀린 cr 검수 주문(healer 가 큐에 적어둔 것)을 실제로 실행한다
+   python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py" --dry-run   # 먼저 무엇을 돌릴지 본다
+   python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py"             # 실제 소비
+   ```
+
+   - **rc=2(missing) 또는 rc=1(stale)** → `/forge-check-security` 를 먼저 돌린다.
+     산출물은 `docs/qa/security-report.md` 에 떨어지고, 그 파일이 **머지 게이트의 판정 근거**다
+     (없으면 머지가 막힌다 — 아래 ⚠️).
+   - **rc=3(판정 불가)** → 통과로 읽지 마라. base ref 를 못 찾은 것이니 `--base` 를 지정하거나
+     `git fetch` 후 다시 잰다.
+   - ⚠️ **이 단계가 무력화되는 입력**: `docs/qa/security-report.md` 를 `touch` 만 해도 fresh 로
+     읽힌다(신선도는 mtime 만 본다). 내용 판정은 머지 게이트의 CRITICAL grep 이 한다.
+
+   ⚠️ **머지 게이트 연동(G4)**: `docs/qa/security-report.md` 와 `docs/qa/baseline.json` 이
+   **없으면** `gh pr merge` 가 차단된다. 종전엔 파일이 없으면 조건 자체가 거짓이 되어
+   **스캔을 안 돌리는 것이 가장 쉬운 통과 경로**였다 — 그것을 뒤집었다.
+   끄는 법(사람 판단): `FORGE_MERGE_REQUIRE_EVIDENCE=off`.
 
 1. **브랜치 diff 확인** — develop ↔ feature 브랜치 변경 내역 요약
 2. **`gh pr create`** — 자동 제목 + body (handover 요약 기반)
@@ -298,6 +332,9 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
   **[선행] 채널A 봇 실재 확인 — 없으면 oracle 아님 (2026-08-13)**: 아래 §sunset 가드는 `0건 AND sunset 문자열`에만 발화한다. 봇이 **처음부터 이 레포에 없는** 경우엔 sunset 문자열이 나올 리 없어 그 안전판이 발동하지 않고, `unresolved == 0`이 조용히 통과 신호로 쓰인다 — **감독관이 배정된 적 없는 시험장에서 "부정행위 적발 0건"을 성적표에 적는 것**이다. 채널A 진입 전에 1회 실측한다(GraphQL 1콜):
   ```bash
   # 채널A oracle 을 제공하는 봇 allowlist — reviewThreads 를 만드는 봇만. 여기 없는 봇은 oracle 아님(fail-closed).
+  # ⚠️ 이 `gemini-code-assist` 는 GitHub App 봇 리뷰어이지 우리 검수 레그가 아니다(2026-09-07 Gemini 철수 범위 밖).
+  #    이름만 같은 남의 물건이다 — 우리 API 검수 레그(구 gemini-3.8-flash)는 철수했지만 이 봇은 그대로 살아 있고,
+  #    지우면 멀쩡한 PR 봇 리뷰 연동이 조용히 죽는다. 재현: 아래 GraphQL 로 `godblade-client` 를 재면 [gemini-code-assist] 가 그대로 나온다.
   CHANNEL_A_BOTS='gemini-code-assist'
   read -r OWNER REPO <<<"$(gh repo view --json nameWithOwner -q '.nameWithOwner | sub("/"; " ")')"
   BOT_REVIEWERS=$(gh api graphql -f query='
@@ -338,7 +375,10 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
   ```
   [WARN] Gemini 공식 리뷰 0건 + sunset 감지 — 채널A oracle 소실. unresolved=0이 리뷰 통과를 의미하지 않는다.
   ```
-  이 경우 채널A를 BLOCK oracle로 취급하지 않고, Step 3(cr-triple)의 Gemini 레그 결과 또는 human-audit로 대체한다. 무력화된 oracle을 통과로 오인해 조용히 머지 진행하는 것을 방지하는 것이 목적.
+  이 경우 채널A를 BLOCK oracle로 취급하지 않고, Step 3(cr-triple)의 **2벤더 교차 검수 결과**(Claude Fable 5.1 + Codex gpt-6-astra) 또는 human-audit로 대체한다. 무력화된 oracle을 통과로 오인해 조용히 머지 진행하는 것을 방지하는 것이 목적.
+  ⚠️ 구 표기 "Step 3(cr-triple)의 Gemini 레그 결과" 는 2026-09-07 폐기 — Gemini 전면 철수로 그 레그가 없다.
+  ⚠️ **여기의 "Gemini"는 두 개가 서로 다른 것이다**: 채널A 가 기다리는 것은 위 `gemini-code-assist` **GitHub App 봇**(살아 있다)이고,
+  대체 수단이 되는 Step 3 은 우리 **API 검수 레그**(2벤더 교차)다. 봇이 침묵해도 Step 3 은 Gemini 없이 정상 작동한다.
 
   **채널B — Claude 이슈코멘트 (`<!-- claude-code-review -->`)** → WARN(advisory):
   ```
@@ -355,20 +395,27 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
   **초기 모드 (enforcement-theater 방지)**: WARN + 면제≤2종(hotfix/BYPASS_BOT_REVIEW=1). 1주 metrics 후 hard BLOCK 승격 검토.
 
-3. **`/cr-triple --stage final` 자동 호출** (blocking, 3-LLM 적대적 리뷰 — Codex 주도+Gemini advisory)
+3. **`/cr-triple --stage final` 자동 호출** (blocking, **2벤더 교차** 적대적 리뷰 — Claude Fable 5.1 + Codex gpt-6-astra, 가중 0.5/0.5)
+
+   ⚠️ 구 표기 "3-LLM 적대적 리뷰 — Codex 주도+Gemini advisory" 는 2026-09-07 폐기 — Gemini 전면 철수.
 
    **`--cr <on|degrade|off>` 인자** (Codex 비용 통제 게이트):
    ```
    MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "$CR_ARG")
    # 우선순위: --cr 인자 > $FORGE_AUTO_CR 환경변수 > 기본값 on
    case "$MODE" in
-     off)     echo "auto cr-final skip (cr=off). 강제: /forge-pr --cr on 또는 수동 /cr-final." ;;
-     degrade) /cr-triple --stage final --effort high --cr degrade ;;   # Opus+Gemini, Codex=0
+     off)     echo "auto cr-final skip (cr=off). 강제: /forge-pr --cr on 또는 수동 /forge-final." ;;
+     degrade) /cr-triple --stage final --effort high --cr degrade ;;   # Codex=0 → Claude 레그 단독
      on|*)    /cr-triple --stage final --effort high ;;
    esac
    ```
-   - **on** (기본): 풀 cr-triple (Opus+Codex+Gemini)
-   - **degrade**: Codex 레그 제외 (Opus+Gemini만) — Codex 비용/응답지연 회피 시
+   - **on** (기본): 풀 cr-triple (Claude Fable 5.1 + Codex gpt-6-astra 2벤더 교차)
+   - **degrade**: Codex 레그 제외 → **Claude 레그 단독**. 교차 검증이 성립하지 않으므로 `forge-multi` 가
+     `quorumFail` → **verdict=FAIL** · `degraded=true` 로 받는다. 즉 degrade 는 "통과를 싸게 얻는 길"이 아니라
+     **검수 없이 머지하지 못하게 하는 길**이다(Codex 비용/응답지연 회피 시에도 머지는 막힌다).
+     ⚠️ 구 표기 "Codex 레그 제외 (Opus+Gemini만)" 는 2026-09-07 폐기 — Gemini 전면 철수로 남는 레그가 Claude 하나뿐이다.
+     근거: 레그가 2개뿐인 구성에서 하나를 빼면 자기검토가 되어 교차 검증이라는 목적 자체가 사라진다.
+     폐기조건: 3벤더 이상으로 다시 늘어나면 이 항을 그때의 잔여 레그 구성으로 다시 쓴다.
    - **off**: cr-final 자동 호출 생략 — 긴급 머지 or `--no-cr-final` 대체
    - **PASS → develop 자동 머지(기본).** 승인 요청 없이 `gh pr merge --squash --delete-branch`를 실행한다
      — 커맨드 계약이 "develop 머지까지 자동"이다. 실제로 권한 분류기에 차단됐을 때만 §(d) 폴백으로
@@ -377,7 +424,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
      보고에 `WARN 사유` 를 그대로 싣고 머지 명령 블록(§(d) 형식)을 함께 출력한다.
 
      **왜 바꿨나 — 이 파일이 이미 답을 적어 두고 있었다.** 아래 `content_integrity` 절의 마지막
-     문단이 그것이다: *"`cr-multi` 가 `lost` 일 때 `PASS→WARN` 으로 낮추지만, 바로 위 줄이 WARN 도
+     문단이 그것이다: *"`forge-multi` 가 `lost` 일 때 `PASS→WARN` 으로 낮추지만, 바로 위 줄이 WARN 도
      자동 머지하므로 그 강등은 게이트에 전혀 닿지 않는다."* 즉 **강등이라는 안전장치를 만들어
      놓고 그 아래 줄이 무력화**하고 있었다. 쉽게 말하면 **경보를 울리게 해 놓고 문은 그대로
      열어 둔 것**이다. 이제 강등이 실제로 문을 닫는다.
@@ -433,7 +480,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
      `lost` 일 때 출력할 문구: `[STOP] 검수가 대상 원문을 확보하지 못했다(content_integrity=lost: <content_integrity_reason>). 이 판정은 '코드가 괜찮다'가 아니라 '우리가 못 읽었다'이다 — 대상을 나눠 재호출하라.`
 
-     **왜 verdict 만으로는 안 되나**: `cr-multi` 가 `lost` 일 때 `PASS→WARN` 으로 낮추는데,
+     **왜 verdict 만으로는 안 되나**: `forge-multi` 가 `lost` 일 때 `PASS→WARN` 으로 낮추는데,
      **2026-08-31 이전에는 바로 위 줄이 WARN 도 자동 머지**해서 그 강등이 게이트에 전혀 닿지 않았다.
      "원문 없이 낸 판정"이 라벨만 바뀐 채 그대로 develop 에 들어갔다 — base64 차단 갭이 경고한 그 사고다.
      ✅ **2026-08-31 에 위 §Step 3 에서 `WARN 자동 머지 금지` 로 닫았다.** 그래도 이 표를 남기는 이유는
@@ -444,7 +491,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
 
      근거: PR #282 cr-final 1차·2차 적발(2026-08-18). 1차 이전까지 `content_integrity`/`evidence_tier` 를 **게이트 조건으로 읽는 소비처는 레포 전체에 0건**이었다 — 필드는 보고용으로만 실려 나갔다.
      재현: `grep -rn 'content_integrity' .claude/commands/forge-pr.md` → 이 표가 나와야 한다.
-     ⚠️ 이 게이트가 무력화되는 입력: `cr-multi` 를 거치지 않는 머지 경로. 이 조건은 §Step 3 결과 payload 를 소비하는 경로에만 걸린다.
+     ⚠️ 이 게이트가 무력화되는 입력: `forge-multi` 를 거치지 않는 머지 경로. 이 조건은 §Step 3 결과 payload 를 소비하는 경로에만 걸린다.
      폐기조건: 청크 로더가 폴백 없이 항상 전량 확보를 보장하게 되면 이 항을 재검토한다.
    - **`inconclusive_legs` 확인 의무 (2026-08-11)**: 결과 payload 의 `inconclusive_legs` 가 비어
      있지 않으면 그 레그는 **검수를 수행하지 못했다**(점수 0 이 아니라 미응시라 분모에서 빠졌다).
@@ -458,7 +505,7 @@ PR 생성 전 PR body에서 다음 패턴 검출 시 즉시 제거:
      대상을 읽지 못한 경우로 `score:null`·`inputRejected:true`가 함께 온다. 품질 판정으로 읽지 말고
      `issues[].code`(`too_large`/`not_found`/`content_mismatch`)에 따라 입력을 고쳐 **재호출**한다
      (대개 대상 분할). 재호출 없이 머지 진행 금지 — 그 PR은 아직 검수되지 않았다.
-   - `/cr-final`은 수동 단독 호출용으로 유지
+   - `/forge-final`은 수동 단독 호출용으로 유지
    - **Codex MCP가 백그라운드로 전환되면(`moved to the background as task <id>`, 통상 132초 무응답 시)
      그 task의 결과 수신 전 머지 금지**(2026-08-02 harness-gaps L-2): 이건 바로 아래 "무응답·타임아웃
      degrade"와 다른 경로다 — degrade는 레그가 *죽어서* 자동 대체되는 경우이고, 백그라운드 전환은
@@ -716,23 +763,44 @@ BOUNDARY 감지 → WARN 출력 → human 확인 대기 → 승인 후 진행
 **advisor 자문 (고위험 결정 보강)**: BOUNDARY 감지 시 human 확인 전 advisor-strategist(리졸버 기본 = Fable 5.1) 자문 — advisory only, non-blocking(advisor 스폰 실패/미가용해도 기존 WARN+human 확인 그대로 진행):
 - **B1(DB스키마)/B2(마이그레이션)/B4(결제·금융)** = 비가역·최고위험 → `Agent(subagent_type="advisor-strategist", prompt="<BOUNDARY 범주+변경 요약+롤백 현황 500토큰> 비가역 리스크·롤백 전략 조언 요청")` + Human [STOP] 연계(advisor 조언을 승인 요청에 포함).
 - **B3(권한)/B5(scope확대)/B6(의존성)** → `Agent(subagent_type="advisor-strategist", prompt="<BOUNDARY 범주+변경 요약 500토큰> 설계 정합·회귀·대안 조언 요청")`.
-- 모델=`advisor-model-resolve.sh` 출력(**기본 Fable 5.1**, 대체 `gpt-6-astra`, 명시 시 Opus). 2026-08-12 이전의 "Opus 고정" 문구는 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only). 중첩 시 [→Lead 위임]. 최종 승인=Human.
+- 모델 = **스폰 래퍼** 출력(2026-09-07, W6-R1·R2):
+  ```bash
+  MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" resolve)
+  ```
+  래퍼가 리졸버를 감싸면서 두 가지를 더 한다 — ① 세션 실행자를 판정해 `FORGE_ADVISOR_EXECUTOR` 를
+  **설정**(벤더 교차 자동 성립 · R2) ② 그 모델이 최근 429 로 죽었으면 **한 칸 내린 모델**을 준다(R1).
+  기본은 `gpt-6-astra`, 실행자가 Codex 면 `claude-fable-5-1`, 명시 시 Opus.
+  출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only). 중첩 시 [→Lead 위임]. 최종 승인=Human.
+  ⚠️ 조언자 호출이 429 로 죽으면 그 **에러 출력**을
+  `... advisor-spawn-guard.sh observe "$MODEL" --exit-code "$rc"` 에 먹여
+  하향 모델로 **1회만** 재시도한다(무한 재시도 금지 — advisory only 계약 유지).
+  ⛔ **정상 응답 본문을 먹이지 마라 — 에러 채널만이다.** 리뷰 조언에 흔한 "rate limited"·
+  "status: 429" 같은 표현이 **머신 전역 60분 쿨다운**으로 번진다(PR #511 — 같은 버그가 3회 재발).
+  ⚠️ 구 표기 "모델=`advisor-model-resolve.sh` 출력(기본 Fable 5.1)" 은 2026-09-07 폐기 —
+  리졸버를 직접 부르면 벤더 교차 설정과 429 쿨다운이 **둘 다 빠진다**(동작은 하되 가드가 없다).
 
 **위험도 기반 검수 강도 상향 권고 (B1/B2/B4 한정, AD-168 준수 — hard-block 금지)**: B1(DB스키마)/B2(마이그레이션)/B4(결제·금융) 감지 시, 위 advisor-strategist 자문과 병행해 검수 강도 상향을 **WARN 권고**한다(권고 출력일 뿐 차단 아님).
 
 - ⚠️ **`/codex-review` 단독 호출 경로에 한해** effort medium→high 상향을 권고한다.
 - ⚠️ **`cr-triple --stage final` 경로에는 effort 상향이 무의미하다** — 이 커맨드는 위 Step 3에서 **이미 `--effort high`로 호출**된다(본 문서 §Step 3 참조). 여기에 "medium→high 상향"을 권고하면 아무 것도 바뀌지 않는 공허한 문구가 된다(실측 정정 2026-07-24).
-- 대신 cr-triple 경로의 실효 있는 상향 레버는 **Codex 검수 레그 tier 승격 `--sol`**이다(`gpt-5-mini` → 프런티어). **ChatGPT Plus 정액이라 추가 비용 0** — Fable(종량)과 다르다.
-- 단 `--sol`은 **Human opt-in 규약**이므로 자동 주입하지 않는다. B1/B2/B4 감지 시 아래를 그대로 출력해 사용자 선택을 받는다:
+- ⚠️ **모델 tier 상향 레버도 남아 있지 않다.** 검수 2레그의 기본값이 이미 각 벤더의 최상단
+  (Claude=Fable 5.1 · Codex=gpt-6-astra · effort=xhigh)이라 더 올릴 자리가 없다.
+  ⚠️ 구 표기 "실효 있는 상향 레버는 Codex 검수 레그 tier 승격 `--sol`이다(`gpt-5-mini` → 프런티어)" 는
+  2026-09-07 폐기 — 2026-09-06 사다리 재배치로 `codex:max` 가 astra 가 되면서 **`--sol` 은 승격이 아니라
+  한 칸 하향**(astra → gpt-5.6-sol)이 됐다. 그대로 두면 "강도를 올리라"며 내리는 플래그를 권하게 된다.
+- 따라서 B1/B2/B4 에서 실효 있는 조치는 **기본 호출을 그대로 두는 것**이다 —
+  `--no-frontier`·`--sol`·`--terra`·`--luna` 는 전부 **하향 스위치**이므로 고위험 PR 에 붙이지 않는다.
+  붙어 있으면 아래를 출력해 사용자 확인을 받는다:
   ```
-  [BOUNDARY B{N}] 비가역·고위험 변경 감지. 검수 강도 상향을 권고합니다(추가 비용 0):
-    /cr-triple <target> --stage final --sol
-  그대로 진행하려면 기본 호출을 유지합니다.
+  [BOUNDARY B{N}] 비가역·고위험 변경인데 검수 하향 스위치(--no-frontier|--sol|--terra|--luna)가 붙어 있습니다.
+  권고: 스위치를 떼고 기본 호출로 검수합니다 → /cr-triple <target> --stage final
   ```
-- ⚠️ 위 두 사실(`cr-triple`이 이미 `--effort high`로 호출됨 / `--sol`이 추가 비용 0)은
-  **외부 커맨드 동작·구독 약관에 종속**된다. 이 절을 근거로 판단하기 전에 §Step 3의
-  실제 호출 라인과 `cr-triple.md §--sol` 문구를 재확인한다 — 상류가 바뀌면 이 문단은
-  조용히 거짓이 된다(2026-07-24 실측 기준).
+  근거: 하향 스위치를 상향으로 오인하면 고위험 PR 이 **더 약한 검수로** 통과한다(플래그 이름만으로는 방향을 알 수 없다).
+  폐기조건: `codex:max` 위에 새 tier 가 생겨 실제 상향 플래그가 부활하면 이 항을 그 플래그로 다시 쓴다.
+- ⚠️ 위 사실(`cr-triple`이 이미 `--effort high`로 호출됨 / 하향 스위치 목록)은
+  **외부 커맨드 동작·모델 사다리에 종속**된다. 이 절을 근거로 판단하기 전에 §Step 3의
+  실제 호출 라인과 `cr-triple.md §--no-frontier`·`§--sol` 문구, `shared/config/model-registry.json` 을
+  재확인한다 — 상류가 바뀌면 이 문단은 조용히 거짓이 된다(2026-09-07 실측 기준).
 - 오탐률·면제율 metrics 축적 후에만 BLOCK 승격을 검토한다 — 현 시점 자동 BLOCK 절대 금지.
 
 감지 명령:

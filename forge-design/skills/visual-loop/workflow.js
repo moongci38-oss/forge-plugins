@@ -1,10 +1,13 @@
-// root-cause: Gemini Vision 3 viewport 순차 → parallel() 동시. 계획서 P1-9.
-// ⚠️ Phase 0 전제: Gemini Vision용 approve-worker 토큰 3개 외부 선발행 필수 (viewport별).
+// root-cause: Vision 3 viewport 순차 → parallel() 동시. 계획서 P1-9.
+// root-cause: Vision 벤더 전환(2026-09-07) — Gemini 전면 철수로 Vision 레그를 Codex(GPT-6 Astra)로 교체.
+//   계획서: ${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+//   ⚠️ Astra 는 시안·캡처를 **절대경로로 직접 읽는다** — 이미지 인라인 불필요.
+// ⚠️ Phase 0 전제: Vision 용 codex-critic approve-worker 토큰 3개 외부 선발행 필수 (viewport별).
 export const meta = {
   name: 'visual-loop',
-  description: '디자인 시안 vs 구현 시각 비교 — 3 viewport Gemini Vision parallel() 동시 + 수렴 루프',
+  description: '디자인 시안 vs 구현 시각 비교 — 3 viewport Codex(Astra) Vision parallel() 동시 + 수렴 루프',
   phases: [
-    { title: 'Compare', detail: '3 viewport(mobile/tablet/desktop) Gemini Vision 병렬 비교' },
+    { title: 'Compare', detail: '3 viewport(mobile/tablet/desktop) Codex(Astra) Vision 병렬 비교' },
     { title: 'Verdict', detail: 'diff 종합 + 수렴 여부 판정' },
   ],
 }
@@ -29,14 +32,25 @@ const viewports = [
   { name: 'tablet', w: 768 },
   { name: 'desktop', w: 1280 },
 ]
+// root-cause: Workflow 샌드박스는 Bash 불가 → model-registry-resolve.sh 를 직접 못 부른다.
+//   cr-multi/workflow.js:454 관례대로 codex:max 현행 id 를 코드 기본값으로 둔다.
+//   SSoT = shared/config/model-registry.json (codex.tiers.max).
+const codexVisionModel = _a?.codexModel || 'gpt-6-astra'
 
 // ── Phase 1: Compare (3 viewport parallel()) ─────────────────────────────────
 phase('Compare')
 const results = await parallel(viewports.map(vp => () =>
   agent(
-    `디자인 시안 vs 구현 시각 비교. viewport: ${vp.name}(${vp.w}px). ` +
-    `시안: ${designRef}. 구현: ${implUrl}. matchScore(0-100) + diffs 목록 + converged(>=90).`,
-    { label: `compare-${vp.name}`, phase: 'Compare', schema: DIFF_SCHEMA, agentType: 'gemini' }
+    `디자인 시안 vs 구현 시각 비교 (Codex Vision). viewport: ${vp.name}(${vp.w}px).\n` +
+    `**mcp__codex__codex 실제 호출** (ToolSearch 로 스키마 선로드 필요) — Claude 자체 추론으로 점수 생성 금지:\n` +
+    `- prompt = "디자인 시안과 구현 화면을 viewport ${vp.name}(${vp.w}px) 기준으로 시각 비교하라.\\n` +
+    `시안(절대경로 또는 URL): ${designRef}\\n구현 URL: ${implUrl}\\n` +
+    `viewport(문자열) + matchScore(0-100 숫자) + diffs(문자열 배열) + converged(matchScore>=90 이면 true) 를 JSON 으로 반환."\n` +
+    `- model = "${codexVisionModel}" (Vision 레그 tier — codex:max)\n` +
+    `- sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "xhigh"}\n` +
+    `- 시안·캡처 이미지는 **절대경로로 직접 읽는다** — base64 인라인 금지.\n` +
+    `Codex 응답(JSON) 파싱 → StructuredOutput(viewport/matchScore/diffs/converged).`,
+    { label: `compare-${vp.name}`, phase: 'Compare', schema: DIFF_SCHEMA, agentType: 'codex-critic' }
   )
 ))
 

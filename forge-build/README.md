@@ -172,7 +172,9 @@ TDD red-green 사이클:
 | `forge-check-security` | 15-phase OWASP+STRIDE 보안 스캔 | P6 T6 보안 게이트 |
 | `spec-compliance-checker` | Spec ↔ 코드 추적성 검증 | P5 Check 5.5 |
 | `inspection-checklist` | P5+P6 통합 최종 검수 체크리스트 | PR 직전 |
-| `screenshot-analyze` | Gemini Vision UI 스크린샷 분석 | 수동 |
+| `screenshot-analyze` | Vision UI 스크린샷 분석 | 수동 |
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`screenshot-analyze` | **Gemini Vision** UI 스크린샷 분석".
 
 #### codex-review
 

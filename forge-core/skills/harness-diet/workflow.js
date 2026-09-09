@@ -632,7 +632,7 @@ diff: ${JSON.stringify(diff)}
 ## ⑦ smoke-test 6개
 아래 6가지 Bash로 직접 확인하고 결과 표시:
 1. $HOME/.claude/rules/*.md 존재 확인: ls $HOME/.claude/rules/*.md | wc -l → 0이면 FAIL
-2. 주요 스킬 SKILL.md frontmatter 검증: python3 $HOME/.claude/skills/skill-creator/scripts/quick_validate.py $HOME/.claude/skills/cr-multi
+2. 주요 스킬 SKILL.md frontmatter 검증: python3 $HOME/.claude/skills/skill-creator/scripts/quick_validate.py $HOME/.claude/skills/forge-multi
 3. hooks 미수정 확인: ls -la $HOME/.claude/hooks/ | md5sum (before/after 같으면 OK)
 4. archive 복구 가능 확인: ls "${archiveBase}" 2>/dev/null && echo "ARCHIVE_OK" || echo "ARCHIVE_EMPTY"
 5. mirror orphan 부재 확인: archive한 스킬이 $HOME/.claude/skills/ 에 없는지 확인

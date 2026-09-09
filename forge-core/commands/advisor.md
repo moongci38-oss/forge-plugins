@@ -20,9 +20,22 @@ Forge 하네스에서 **advisor 패턴**을 간편히 호출하는 래퍼. 내�
 모델 결정은 `shared/scripts/advisor-model-resolve.sh` **한 곳**이 한다 — 호출자는 그 출력만 믿는다.
 
 ```bash
-MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh")
-# claude-fable-5-1 (기본) | gpt-6-astra (대체) | claude-opus-5 (명시 요청 시)
+# 진입점은 **스폰 래퍼**를 부른다(2026-09-07, W6-R1·R2). 래퍼가 리졸버를 감싸며 두 가지를 더 한다:
+#   ① 세션 실행자를 판정해 FORGE_ADVISOR_EXECUTOR 를 설정 → 벤더 교차가 저절로 성립(R2)
+#   ② 그 모델이 최근 429(한도 초과)로 죽었으면 한 칸 내린 모델을 준다(R1)
+MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" resolve)
+# gpt-6-astra (기본) | claude-fable-5-1 (실행자가 Codex 일 때 교차) | gpt-5.6-sol (하향) | claude-opus-5 (명시)
+
+# 조언자 호출이 한도(429)로 **실패했을 때만** 그 에러를 래퍼에 먹여 하향 모델을 받고 1회 재시도한다.
+# 쿨다운이 찍히므로 그 다음 호출부터는 죽은 모델을 아예 고르지 않는다.
+# ⛔ **정상 응답 본문을 먹이지 마라 — 에러 채널(stderr)·실패 응답만이다.**
+#    리뷰 조언에는 "rate limited"·"status: 429" 같은 말이 흔해서, 본문을 먹이면 멀쩡한 모델이
+#    **머신 전역 60분** 쿨다운에 들어간다(한 방의 사고가 모든 세션의 조언자를 깎는다 — PR #511).
+#    종료코드를 알면 `--exit-code` 로 함께 넘겨라 — 0 이면 래퍼가 본문을 아예 보지 않는다.
+#   ALT=$(printf '%s' "$에러출력" | bash ".../advisor-spawn-guard.sh" observe "$MODEL" --exit-code "$rc")
 ```
+⚠️ 래퍼를 건너뛰고 리졸버를 직접 불러도 **동작은 한다**(그게 fail-open 설계다) — 다만
+그때는 벤더 교차 자동 설정과 429 쿨다운이 **둘 다 빠진다**. 새 코드는 래퍼를 부른다.
 
 | 상황 | 결과 |
 |---|---|
@@ -43,7 +56,20 @@ MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh
 ### `FORGE_ADVISOR_EXECUTOR` — 벤더 교차의 자동화 (신설 2026-09-06)
 
 쉽게 말하면 **자기가 쓴 답안을 자기가 채점하지 않게** 하는 스위치다. 지금까지 "실행자와 조언자의
-벤더를 엇갈리게 하라"는 **권고**였고, 이 env 는 그것을 기계로 옮긴 것이다 — 다만 **env opt-in** 이다 — ⚠️ **2026-09-07 정정: 구 표기 "기본 동작" 은 과장이라 폐기.** 리졸버가 그 값을 **읽는** 배선은 실재하고 테스트로 고정돼 있지만, **설정하는 프로덕션 호출자가 0곳**이라 사람이 export 하지 않으면 종전대로 Fable 이 나간다(`배선: 세터 0곳 · 리더 1곳`). 재현: `grep -rn 'FORGE_ADVISOR_EXECUTOR=' --include='*.sh' --include='*.js' .` → 세터 0건. 진입점이 실행자를 계산해 export 하면 그때 기본 동작이 된다.
+벤더를 엇갈리게 하라"는 **권고**였고, 이 env 는 그것을 기계로 옮긴 것이다.
+
+✅ **2026-09-07(W6-R2) 배선 완료 — 이제 세터가 있다.** `advisor-spawn-guard.sh resolve` 가
+세션 실행자를 판정해(`CODEX_SANDBOX*` → codex · `CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` → claude)
+`FORGE_ADVISOR_EXECUTOR` 를 **설정한 뒤** 리졸버를 부른다. 진입점(`/advisor`·`/forge-pr`)이
+그 래퍼를 호출하므로 사람이 export 하지 않아도 교차가 성립한다.
+- `배선: 세터 1곳 · 리더 1곳` — 재현: `grep -rn 'FORGE_ADVISOR_EXECUTOR=' --include='*.sh' --include='*.js' .`
+- ⚠️ **판정 불가일 때는 아무 값도 만들어 내지 않는다**(빈 문자열 → 리졸버 기본값).
+  모르는 것을 `claude` 로 찍으면 결과가 기본값과 같아 **틀렸다는 사실조차 안 보인다.**
+- ⚠️ 이 방어가 무력화되는 입력: 래퍼를 건너뛰고 리졸버를 직접 부르는 옛 호출부 —
+  그때는 종전처럼 미설정이라 기본값(astra)이 나간다. 실행자가 실제로 codex 면 자기훈수가 된다.
+
+⚠️ **구 표기 폐기(2026-09-07)**: "**env opt-in** 이다 · 설정하는 프로덕션 호출자가 0곳 ·
+`배선: 세터 0곳 · 리더 1곳`". 그때는 참이었다 — 그날 오전까지 세터가 정말 없었다.
 
 - `claude` → advisor = **`gpt-6-astra`** (Claude 가 짰으니 OpenAI 가 본다)
 - `codex` 또는 `gpt` → advisor = **`claude-fable-5-1`** (Codex 가 짰으니 Claude 가 본다)
@@ -131,9 +157,17 @@ EOF
 
 **Agent 경로(무과금, 기본)**
 ```
-MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh")
+MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" resolve)
 # claude-* → Agent(subagent_type:"advisor-strategist", model:"fable"|"opus")
 # gpt-*    → mcp__codex__codex (sandbox=read-only)
+#
+# 429(한도 초과)로 실패했을 때 — 그 **에러 출력**을 래퍼에 먹이면 하향 모델을 주고 쿨다운을 찍는다(W6-R1):
+# ⛔ **정상 응답 본문을 먹이지 마라 — 에러 채널(stderr)·실패 응답만이다.**
+#    리뷰 조언에는 "rate limited"·"status: 429" 같은 말이 흔해서, 본문을 먹이면 멀쩡한 모델이
+#    **머신 전역 60분** 쿨다운에 들어간다(한 방의 사고가 모든 세션의 조언자를 깎는다 — PR #511).
+#    종료코드를 알면 `--exit-code` 로 함께 넘겨라 — 0 이면 래퍼가 본문을 아예 보지 않는다.
+#   ALT=$(printf '%s' "$에러출력" | bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" observe "$MODEL" --exit-code "$rc")
+#   → ALT 로 **1회만** 재시도한다(무한 재시도 금지 — non-blocking 계약 그대로).
 ```
 
 **API 경로(종량 과금)**
@@ -167,7 +201,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 
 - **집계**: Fable 디스패치 시 `/tmp/advisor-fable-usage.log`(또는 `FORGE_ADVISOR_FABLE_LOG`)에 기록 — 캡 카운트 + ROI 리뷰 겸용.
 - **범위 — 2026-08-22 부터 자문·검수 레그 모두 O**(구 제목 "검수 레그 X" 는 폐기): 2026-08-12 에 승격된 것은 **advisor 자문 레그**뿐이었다. `forge-pr`·`forge-plan` 의 advisor 자문도 이제 리졸버를 따른다(그 커맨드들의 "advisor = Opus 고정" 문구는 2026-08-12 폐기).
-  ✅ `cr-multi`/`cr-triple` 의 **검수 워커 레그**도 2026-08-22 부터 Fable 기본이다(구 금지 조항 폐기 — 2026-08-22 Human 지시로 해제(구독 3계정 정액 운용 — 호출당 비용 0)). 정본 → `model-routing.md §세션 운영 모델`.
+  ✅ `forge-multi`/`cr-triple` 의 **검수 워커 레그**도 2026-08-22 부터 Fable 기본이다(구 금지 조항 폐기 — 2026-08-22 Human 지시로 해제(구독 3계정 정액 운용 — 호출당 비용 0)). 정본 → `model-routing.md §세션 운영 모델`.
   ✅ 반면 `forge-deploy`·`forge-rollback`·`forge-check-*`·`forge-milestone-close`·`forge-dev-undo` 는 **advisor 자문 레그가 실재한다** — 이 PR 에서 그 커맨드들의 "Fable 5 미배선 · 리졸버 호출 금지" 문구를 **폐기**하고 리졸버 경유로 바꿨다. (2026-08-12 이전에 "그 커맨드들은 advisor 를 안 쓴다"고 적혀 있던 것은 사실이 아니었다.)
 - **구현(coder) 경로 예외**: `coder-model-resolve.sh` 는 `FORGE_ADVISOR_FALLBACK=opus` 를 박아 넘긴다 — `--coder fable` 이 안 될 때 벤더를 말없이 Codex 로 바꾸지 않기 위해서다(그 스크립트의 기존 계약 유지).
 

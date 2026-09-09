@@ -5,7 +5,8 @@ context: fork
 model: sonnet
 ---
 
-**역할**: 당신은 게임/웹/앱 스크린샷을 Gemini Vision으로 분석하여 UI 구조와 구현 가이드를 생성하는 시각 분석 전문가입니다.
+**역할**: 당신은 게임/웹/앱 스크린샷을 GPT-6 Astra(Codex Vision, `codex-critic` 경유)로 분석하여 UI 구조와 구현 가이드를 생성하는 시각 분석 전문가입니다.
+⚠️ 구 표기 "Gemini Vision" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra 로 단일화됐다.
 **컨텍스트**: 정적 이미지(게임 UI, HUD, 이펙트 프레임, 경쟁작, 구현 검증) 분석이 필요할 때 호출됩니다.
 **출력**: UI 구조·컬러 팔레트·구현 가이드를 5개 필수 요소로 구성된 마크다운 분석 보고서로 반환합니다.
 
@@ -80,13 +81,13 @@ model: sonnet
 - EXTRACT_MODE: 컴포넌트 추출 모드 여부 (true/false)
 ```
 
-### Step 2: Gemini 프롬프트 조립
+### Step 2: Astra 프롬프트 조립
 
-> **핵심 원칙**: MUST 출력 형식을 Gemini 프롬프트에 직접 포함한다.
-> 스킬 문서의 출력 규격과 Gemini에 보내는 프롬프트가 일치해야 한다.
+> **핵심 원칙**: MUST 출력 형식을 Astra 프롬프트에 직접 포함한다.
+> 스킬 문서의 출력 규격과 Astra(Codex CLI)에 보내는 프롬프트가 일치해야 한다.
 
-> **모델**: `--extract` 모드 → `GEMINI_MODEL=gemini-3.1-pro-preview` 고정 (정밀도 최우선)
-> 기본 분석 → `gemini-3.8-flash` (2026-09-03 상향 — PNG 1장 실호출 확인 후 핀)
+> **모델**: 기본/`--extract` 모드 공통 — `ASTRA_MODEL=gpt-6-astra`, `ASTRA_EFFORT=xhigh` (Codex CLI 0.153.4+ 필요).
+> ⚠️ 구 표기 "`--extract` 모드 → `gemini-3.1-pro-preview` 고정 / 기본 분석 → `gemini-3.8-flash`" 는 2026-09-07 폐기 — Gemini 전면 철수로 정밀도용 별도 모델 구분이 사라지고 단일 모델(gpt-6-astra)로 통합됐다.
 
 공통 분해 규칙 블록·필수 출력 형식(3테이블+트리+가이드)·분석 유형별 프롬프트 전문(Game/Web/App UI·HUD·아이콘·이펙트·경쟁작 비교·구현 검증)·`--extract` 모드 bbox JSON 스키마 상세 → `references/output-format.md`
 
@@ -96,14 +97,14 @@ model: sonnet
 [오케스트레이터 — Sonnet]
 
 Pass 1 (병렬):
-  ├─ [Analyzer Agent × N] (gemini-3.1-pro-preview)
+  ├─ [Analyzer Agent × N] (gpt-6-astra, Codex Vision)
   │    → 이미지 N장 동시 분석, 각각 초안 bbox JSON 생성
   └─ [OverlapDetector] (내부 처리)
        → bbox 취합 후 형제 IoU 사전 검사
 
 Pass 2 — 정밀 검증 (병렬, CRITICAL):
-  └─ [Verifier Agent × M] (gemini-3.1-pro-preview)
-       → 각 초안 bbox 크롭을 Gemini 재전송
+  └─ [Verifier Agent × M] (gpt-6-astra, Codex Vision)
+       → 각 초안 bbox 크롭을 Astra(Codex CLI)에 재전송
        → 질문: "이 컴포넌트가 완전히 포함됐는가? 잘린 부분이 있는가?"
        → 잘림 감지 시: 확장 방향(상/하/좌/우) + 확장량(px) 반환 → bbox 보정
 
@@ -112,9 +113,12 @@ Pass 2 — 정밀 검증 (병렬, CRITICAL):
   └─ [Evaluator Agent] (내부)  → 루브릭 5항목 자기평가
 ```
 
+⚠️ 구 표기 "Analyzer/Verifier = gemini-3.1-pro-preview" 는 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra(gpt-6-astra) 로 단일화됐다.
+
 ### Step 3: 분석 실행
 
-`analyze-screenshot.sh`를 호출하여 Gemini Vision API 분석을 실행한다.
+`analyze-screenshot.sh`를 호출하여 GPT-6 Astra(Codex CLI) Vision 분석을 실행한다.
+⚠️ 구 표기 "Gemini Vision API" 는 2026-09-07 폐기 — API 키·base64 인코딩 없이 Codex CLI(구독)에 이미지를 `-i` 로 직접 첨부하는 방식으로 바뀌었다.
 
 **단일 이미지 분석:**
 ```bash
@@ -134,23 +138,24 @@ bash $HOME/.claude/scripts/analyze-screenshot.sh \
   "{IMAGE3_PATH}"  # 선택
 ```
 
-> 멀티 이미지: 2-3장을 한 번의 API 호출로 Gemini에 전송하여 직접 비교.
+> 멀티 이미지: 2-3장을 한 번의 Codex CLI 호출로 Astra에 전송하여 직접 비교.
 > 기존 순차 분석 → 텍스트 비교 대비 정확도와 일관성 향상.
+> ⚠️ 구 표기 "Gemini에 전송" 은 2026-09-07 폐기 — Gemini 전면 철수, 현재는 Astra(Codex CLI)에 전송한다.
 
-**모델 선택** (환경변수 `GEMINI_MODEL`):
+**모델 선택** (환경변수 `ASTRA_MODEL`·`ASTRA_EFFORT`):
 ```bash
-# 기본: gemini-3.8-flash (빠르고 저렴)
-# 고품질: gemini-2.5-pro (정밀 분해, 복잡한 UI)
-GEMINI_MODEL=gemini-2.5-pro bash $HOME/.claude/scripts/analyze-screenshot.sh ...
+# 기본: gpt-6-astra, reasoning effort xhigh (Codex CLI 0.153.4+ 필요)
+ASTRA_MODEL=gpt-6-astra bash $HOME/.claude/scripts/analyze-screenshot.sh ...
 ```
+⚠️ 구 표기 "`GEMINI_MODEL` 환경변수 / gemini-3.8-flash·gemini-2.5-pro 선택" 은 2026-09-07 폐기 — Gemini 전면 철수로 단일 모델(gpt-6-astra) 체계로 바뀌었다.
 
 ### Step 3.5: 컴포넌트 추출 실행 (--extract 모드 전용)
 
 Pass 1 분석 완료 후, Pass 2 Verifier와 Extractor를 Agent Teams로 병렬 실행한다.
 
-**Pass 2 — Verifier (각 컴포넌트 병렬, gemini-3.1-pro-preview)**:
+**Pass 2 — Verifier (각 컴포넌트 병렬, gpt-6-astra)**:
 
-각 컴포넌트 bbox로 원본 이미지를 임시 크롭 → Gemini 재전송:
+각 컴포넌트 bbox로 원본 이미지를 임시 크롭 → Astra(Codex CLI) 재전송:
 ```bash
 # 임시 크롭 생성
 python3 -c "
@@ -163,8 +168,8 @@ right = int((bbox['x']+bbox['w'])*w); bottom = int((bbox['y']+bbox['h'])*h)
 img.crop((left,top,right,bottom)).save('/tmp/verify_{comp_id}.png')
 "
 
-# Gemini 재확인
-GEMINI_MODEL=gemini-3.1-pro-preview bash $HOME/.claude/scripts/analyze-screenshot.sh \
+# Astra 재확인 (⚠️ 구 표기 "Gemini 재확인 / GEMINI_MODEL=gemini-3.1-pro-preview" 는 2026-09-07 폐기)
+ASTRA_MODEL=gpt-6-astra bash $HOME/.claude/scripts/analyze-screenshot.sh \
   "/tmp/verify_{comp_id}.png" \
   "" \
   "이 이미지에서 '{comp_name}'({comp_type}) 컴포넌트가 완전히 포함되어 있는가?
@@ -178,7 +183,7 @@ GEMINI_MODEL=gemini-3.1-pro-preview bash $HOME/.claude/scripts/analyze-screensho
 **Extractor (Verifier 완료 후 즉시, Sonnet)**:
 
 ```bash
-GEMINI_MODEL=gemini-3.1-pro-preview \
+ASTRA_MODEL=gpt-6-astra \
 python3 $HOME/.claude/scripts/extract-components.py \
   --image "{IMAGE_PATH}" \
   --analysis "{ANALYSIS_MD_PATH}" \
@@ -187,7 +192,7 @@ python3 $HOME/.claude/scripts/extract-components.py \
 
 **Kill Conditions**:
 - bbox JSON 미포함 → 재프롬프트 1회 → 실패 시 텍스트 분석만 반환 (폴백)
-- Gemini API 오류 → 즉시 폴백, 오류 메시지 출력
+- Astra(Codex CLI) 오류 → 즉시 폴백, 오류 메시지 출력
 - 이미지 20MB 초과 → 추출 모드 차단
 - 크롭 결과 0개 → 오류 + 안내
 
@@ -200,7 +205,8 @@ python3 $HOME/.claude/scripts/extract-components.py \
 
 ### Step 4: 결과 검증 + 출력
 
-Gemini 응답에서 아래 5개 필수 요소를 검증한다. **하나라도 누락되면 해당 섹션을 AI가 직접 보완**한다.
+Astra 응답에서 아래 5개 필수 요소를 검증한다. **하나라도 누락되면 해당 섹션을 AI가 직접 보완**한다.
+⚠️ 구 표기 "Gemini 응답" 은 2026-09-07 폐기.
 
 | # | 필수 요소 | 검증 기준 |
 |---|---------|----------|
@@ -315,7 +321,7 @@ Canvas (Screen Space - Overlay)
 2. **Element Task Doc 작성 컨텍스트에서 호출되면 Task Doc 모드를 자동 적용한다**
 3. 기본/Task Doc/시안/구현검증 모드 선택을 사용자에게 묻지 않는다 — 컨텍스트로 자동 판단한다
 4. 분석 전 "X 분석 → [모드] 모드로 실행합니다" 한 줄 선언 후 실행한다
-5. **Gemini 응답에 필수 요소가 누락되면 AI가 직접 보완한다** — 누락 상태로 출력 금지
+5. **Astra 응답에 필수 요소가 누락되면 AI가 직접 보완한다** — 누락 상태로 출력 금지 (⚠️ 구 표기 "Gemini 응답" 은 2026-09-07 폐기)
 
 ## 스타일 추출 모드 (P0)
 
@@ -352,21 +358,25 @@ Canvas (Screen Space - Overlay)
 
 ## 환경 요구사항
 
-- `GEMINI_API_KEY` 환경변수 설정 필수
+- Codex CLI **0.153.4 이상** 설치 + 구독 인증(`auth_mode=chatgpt`) — API 키 불필요
 - `$HOME/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
 - Python 3 (JSON 파싱용)
-- curl (API 호출용)
+- curl (URL 이미지 다운로드용)
+
+⚠️ 구 표기 "`GEMINI_API_KEY` 환경변수 설정 필수 / curl(API 호출용)" 은 2026-09-07 폐기 — Gemini 전면 철수로 API 키가 필요 없어지고 Codex CLI(구독)로 이미지를 직접 첨부하는 방식으로 바뀌었다.
 
 ## 주의사항
 
-- 이미지 분석은 Gemini API 크레딧을 소비한다 — 불필요한 반복 분석 방지
-- 캐싱: output-file이 이미 존재하면 API를 호출하지 않는다
-- 이미지 크기 제한: 20MB 이하
+- 이미지 분석은 Codex CLI(구독) 사용량을 소비한다 — 불필요한 반복 분석 방지
+- 캐싱: output-file이 이미 존재하면 모델을 호출하지 않는다
 - 비교 분석 시 멀티 이미지 모드(2-3장 동시 전송)를 우선 사용, 4장 이상은 순차 분석
+
+⚠️ 구 표기 "Gemini API 크레딧을 소비 / 이미지 크기 제한 20MB 이하" 는 2026-09-07 폐기 — Codex CLI 는 파일을 직접 첨부해 base64 인코딩·API 크기 제한이 없다.
 
 ## 보안 주의사항
 
-이 스킬은 이미지 전체를 base64로 인코딩하여 **Google Gemini API로 전송**한다.
+이 스킬은 이미지 파일을 **Codex CLI(구독, `-i` 첨부)로 GPT-6 Astra 에 전달**한다.
+⚠️ 구 표기 "이미지 전체를 base64로 인코딩하여 Google Gemini API로 전송" 은 2026-09-07 폐기 — Gemini 전면 철수로 base64 인코딩·외부 API 호출 없이 파일을 직접 첨부하는 방식으로 바뀌었다.
 아래 유형의 이미지는 전송 전 확인이 필요하다:
 
 | 주의 대상 | 이유 | 대안 |
@@ -379,7 +389,8 @@ Canvas (Screen Space - Overlay)
 
 ## Workflow 통합 (계획서 P1)
 
-병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Codex Vision→Gemini fallback.
+병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Codex(Astra) Vision → Claude 자체 분석 fallback.
+⚠️ 구 표기 "Codex Vision→Gemini fallback" 은 2026-09-07 폐기 — Gemini 레그 자체가 사라져 폴백 대상이 Claude 자체 분석으로 바뀌었다.
 
 실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
 
@@ -387,15 +398,17 @@ Canvas (Screen Space - Overlay)
 
 ### `--cr` 옵션 (crMode)
 
-Codex Vision 사용 여부를 제어한다. caller는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
+Codex(Astra) Vision 사용 여부를 제어한다. caller는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
 
 | 값 | 동작 |
 |----|------|
-| `on` (기본) | Codex Vision primary → Gemini fallback (현재 동작) |
-| `degrade` | Codex Vision 스킵 → Gemini Vision 직행 |
-| `off` | Codex Vision 스킵 → Gemini Vision 직행 |
+| `on` (기본) | Codex(Astra) Vision (default) |
+| `degrade` | Codex 레그 제외, Claude 자체 Vision 분석으로 축소 |
+| `off` | Codex 레그 제외, Claude 자체 Vision 분석으로 축소 |
 
-로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Gemini`
+로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Claude 자체 분석`
 
-> ⚠️ Phase 0 전제: Codex/Gemini Vision용 approve-worker 토큰 외부 선발행 필수 (Workflow는 셸 직접 호출 불가).
+⚠️ 구 표기 "degrade/off → Gemini Vision 직행" 은 2026-09-07 폐기 — Gemini 레그 자체가 사라졌다.
+
+> ⚠️ Phase 0 전제: Vision 용 codex-critic approve-worker 토큰 외부 선발행 필수 (Workflow는 셸 직접 호출 불가).
 

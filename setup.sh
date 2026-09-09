@@ -24,7 +24,8 @@ CLAUDE_JSON="${HOME_DIR}/.claude.json"
 # root-cause: 플러그인 사용자는 ~/forge 없음 — ~/.forge.env 폴백 (forge 있으면 우선)
 if [ -d "${FORGE_ROOT}" ]; then ENV_FILE="${FORGE_ROOT}/.env"; else ENV_FILE="${HOME_DIR}/.forge.env"; fi
 FORGE_SYNC="${FORGE_ROOT}/dev/scripts/forge-sync.mjs"
-GEMINI_KEY_FILE="${HOME_DIR}/.gemini-api-key"
+# ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `GEMINI_KEY_FILE="${HOME_DIR}/.gemini-api-key"`
+# (모든 모델을 구독으로만 호출한다. 종량 과금 API 키 벤더를 끊었다.)
 
 # ── 유틸 ──────────────────────────────────────────────
 open_browser() {
@@ -180,10 +181,8 @@ if [ ! -f "${ENV_FILE}" ]; then
   open_browser "https://console.anthropic.com/keys"
   ask_key "ANTHROPIC_API_KEY" "Anthropic API Key" ""
 
-  echo ""
-  info "브라우저 열기: https://aistudio.google.com/app/apikey"
-  open_browser "https://aistudio.google.com/app/apikey"
-  ask_key "GEMINI_API_KEY" "Gemini API Key" ""
+  # ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "Gemini API Key 발급 안내 + ask_key GEMINI_API_KEY"
+  # (aistudio 키 발급 페이지를 열어 키를 물어봤다. 이제 묻지 않는다.)
 
   echo ""
   info "브라우저 열기: https://tavily.com"
@@ -225,12 +224,8 @@ if [ -n "${_SHELL_RC}" ]; then
   fi
 fi
 
-# Gemini 키 별도 파일
-if [ -n "${GEMINI_API_KEY:-}" ] && [ ! -f "${GEMINI_KEY_FILE}" ]; then
-  echo "${GEMINI_API_KEY}" > "${GEMINI_KEY_FILE}"
-  chmod 600 "${GEMINI_KEY_FILE}"
-  ok "~/.gemini-api-key 생성됨"
-fi
+# ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "Gemini 키 별도 파일(~/.gemini-api-key) 생성 블록"
+# (GEMINI_API_KEY 를 받아 chmod 600 파일로 떨궜다. 이제 만들지 않는다.)
 
 # ══════════════════════════════════════════════════════
 banner "4단계: 프로그램 설치"
@@ -326,10 +321,8 @@ const servers = {
   "gitnexus":     { type:"stdio", command:"gitnexus", args:["mcp"] },
   "figma":        { type:"stdio", command:"npx", args:["-y","@figma/figma-developer-mcp","--stdio"], env:{"FIGMA_API_KEY":"\${FIGMA_API_KEY}"} },
   "codex":        { type:"stdio", command:"codex", args:["mcp-server"] },
-  // root-cause: 외부 사용자는 forge 레포 없음 — 경로 조건부 처리
-  "gemini-text": require('fs').existsSync(FORGE_ROOT+"/dev/scripts/gemini-text-mcp/start.sh")
-    ? { type:"stdio", command:"bash", args:[FORGE_ROOT+"/dev/scripts/gemini-text-mcp/start.sh"], env:{"GEMINI_API_KEY":"\${GEMINI_API_KEY}"} }
-    : { type:"stdio", command:"npx", args:["-y","@google/gemini-cli-mcp"], env:{"GEMINI_API_KEY":"\${GEMINI_API_KEY}"} },
+  // ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "gemini-text MCP 자동 등록
+  //    (forge 레포 있으면 dev/scripts/gemini-text-mcp/start.sh, 없으면 @google/gemini-cli-mcp)"
   "brave-search": { type:"stdio", command:"npx", args:["-y","@modelcontextprotocol/server-brave-search"], env:{"BRAVE_API_KEY":"\${BRAVE_API_KEY}"} }
 };
 
@@ -413,7 +406,7 @@ echo ""
 # 빠진 API 키 안내
 MISSING=()
 [ -z "${ANTHROPIC_API_KEY:-}" ] && MISSING+=("ANTHROPIC_API_KEY  →  https://console.anthropic.com/keys")
-[ -z "${GEMINI_API_KEY:-}" ]    && MISSING+=("GEMINI_API_KEY     →  https://aistudio.google.com/app/apikey")
+# ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "GEMINI_API_KEY 미입력 시 발급 링크 안내"
 [ -z "${TAVILY_API_KEY:-}" ]    && MISSING+=("TAVILY_API_KEY     →  https://tavily.com")
 [ -z "${BRAVE_API_KEY:-}" ]     && MISSING+=("BRAVE_API_KEY      →  https://api.search.brave.com/register")
 

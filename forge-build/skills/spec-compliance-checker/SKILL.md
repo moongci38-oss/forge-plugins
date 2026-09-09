@@ -300,7 +300,7 @@ ELSE
 
 PRD 요구사항 → FR 파생 여부 체크 (끊긴 노드=0 목표):
 - **기계 카운트 불가** — PRD req-id 비표준(섹션형 자연어) → grep 기반 카운트 오류 위험
-- **LLM-judged by design**: 구현자/cr-plan이 각 FR과 PRD 섹션 간 의미론적 연결 판정
+- **LLM-judged by design**: 구현자/forge-plan-review이 각 FR과 PRD 섹션 간 의미론적 연결 판정
 - 끊긴 노드 의심 시 → WARN 보고: `"완결성체인 갭: FR-NNN PRD 파생 불명확"` (BLOCK 아님)
 
 ### Step 1: 입력 소스 결정

@@ -174,7 +174,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
    │             ① 조사·재현(RED, 게이트 R — 축별 실오라클 강제) [Phase C 아티팩트 재사용 가능]
    │             ② 리포트(6하원칙, bug-fix-plan.md)
    │             ③ 수정(healer a1~a3, cr-code blocking)
-   │             ④ 검수(GREEN, 게이트 G, healer a4~a7 + cr-bug/cr-code/cr-test/cr-final + Codex cr-final)
+   │             ④ 검수(GREEN, 게이트 G, healer a4~a7 + forge-bug-review/forge-code-review/forge-test-review/forge-final + Codex cr-final)
    │           UI버그: Vision evaluator(JSON schema) + pixel-diff-gate + forge-check-ui (Lane A 내부 적용)
    │           [UAT 진입점] --mode=uat 시: docs/qa/uat-scenarios.md 로드 → Lane A 수정 비활성 → 수동 검토 플로우
    │           ⚠️ qa는 발견만 담당 — 수정+검수 로직은 Lane A 재사용(로직 단일화). 상세 라우팅·게이트는 `commands/forge-fix.md` 참조.
@@ -203,11 +203,11 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
 
 ### 자동 머지 조건 (9개 전부 충족)
 
-- [✓] /cr-bug PASS/WARN
-- [✓] /cr-code PASS/WARN
-- [✓] /cr-test PASS/WARN
-- [✓] /cr-final PASS/WARN (Claude Sonnet, 적대적)
-- [✓] Codex /cr-final PASS (third-party LLM — 미충족 시 develop 머지 X)
+- [✓] /forge-bug-review PASS/WARN
+- [✓] /forge-code-review PASS/WARN
+- [✓] /forge-test-review PASS/WARN
+- [✓] /forge-final PASS/WARN (Claude Sonnet, 적대적)
+- [✓] Codex /forge-final PASS (third-party LLM — 미충족 시 develop 머지 X)
 - [✓] 보안 CRITICAL 0건
 - [✓] 회귀 0건 (baseline 대조)
 - [✓] GitHub CI PASS
@@ -245,7 +245,7 @@ _QA 맥락 차별_: behavior-core.md의 red-green은 일반 버그수정 룰. �
 
 ## Hotfix 모드 폐지 — Lane A(`/forge-fix`)로 통합 (plan v1.1 D1, AD-95 대체)
 
-과거 `--mode=hotfix`(Phase B~C 스킵 + cr-test/cr-final 선택)는 **폐지**한다. 단일 알려진 버그는 `/forge-fix "<버그>"`로 직접 처리하며, 그 파이프라인도 4-스테이지(조사·재현→리포트→수정→검수) 전부와 게이트 R/G를 항상 통과해야 한다 — "가벼운 버그라 검증을 생략한다"는 경로는 더 이상 없다.
+과거 `--mode=hotfix`(Phase B~C 스킵 + forge-test-review/forge-final 선택)는 **폐지**한다. 단일 알려진 버그는 `/forge-fix "<버그>"`로 직접 처리하며, 그 파이프라인도 4-스테이지(조사·재현→리포트→수정→검수) 전부와 게이트 R/G를 항상 통과해야 한다 — "가벼운 버그라 검증을 생략한다"는 경로는 더 이상 없다.
 
 `/qa`는 spec 기반 전수 발견(Phase A~C, Lane B) 전용이며, 개별 버그의 경량 수정 진입점 역할은 하지 않는다. 발견된 버그의 수정·검수는 Lane A(`/forge-fix`)로 위임된다.
 

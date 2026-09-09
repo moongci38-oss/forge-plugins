@@ -179,10 +179,10 @@ healer 첫 출력 형식 (필수):
 - 기대값 달성을 목표 (Spec/Human 출처 기준)
 - 변경 라인은 버그 리포트에 직접 추적 가능해야 함
 
-### a3. 코드 리뷰 (`/cr-code`) — blocking
+### a3. 코드 리뷰 (`/forge-code-review`) — blocking
 
 ```bash
-# /cr-code 실행 (Healer 맥락 = blocking)
+# /forge-code-review 실행 (Healer 맥락 = blocking)
 # FAIL → a2 재수정 후 a3 재실행
 # 검토 포인트: 수정 품질 + 회귀 위험 + over-engineering
 ```
@@ -317,7 +317,7 @@ a6.2 일관성 검증 통과 시에만:
 2. 리포트에 "a6 완료: a0-oracle 일관성 통과 + scenarios.md/verify.sh 영구 등록" 기록
 3. **current-bug 정리**: `docs/qa/artifacts/current-bug`(plain, M1부터 항상 존재)와 `docs/qa/artifacts/current-bug-${session_id}`(있으면) **둘 다** 제거(다음 버그 없으면) 또는 다음 버그 번호로 갱신(순차 처리 중이면). Gate R/G는 이 파일 존재로 활성 버그를 판정하므로, 완료된 버그를 방치하면 이후 편집이 오귀속된다.
 
-> **미래 강화(미적용)**: verify.sh에 단일테스트 selector(`VERIFY_ONLY=BUG-N`) 신설 시 → a6.2를 throwaway worktree(`git worktree add <tmp> <fix_commit>^`) 기반 **동적 RED 재현**으로 승격 가능. 현재는 selector 인프라 부재 + 본 갭 P2 + 하류 QA Phase F `/cr-test` 백스톱 존재로 **정적 게이트 채택**. 정적 게이트 한계: 테스트가 올바른 oracle을 *주장*함은 확인하나 pre-fix에서 실제 FAIL함을 *실행 증명*하진 않음(구현 오류 테스트는 통과 가능) → selector 신설 시 승격 권고.
+> **미래 강화(미적용)**: verify.sh에 단일테스트 selector(`VERIFY_ONLY=BUG-N`) 신설 시 → a6.2를 throwaway worktree(`git worktree add <tmp> <fix_commit>^`) 기반 **동적 RED 재현**으로 승격 가능. 현재는 selector 인프라 부재 + 본 갭 P2 + 하류 QA Phase F `/forge-test-review` 백스톱 존재로 **정적 게이트 채택**. 정적 게이트 한계: 테스트가 올바른 oracle을 *주장*함은 확인하나 pre-fix에서 실제 FAIL함을 *실행 증명*하진 않음(구현 오류 테스트는 통과 가능) → selector 신설 시 승격 권고.
 
 ---
 

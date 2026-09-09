@@ -5,7 +5,8 @@ context: fork
 model: sonnet
 ---
 
-**역할**: 당신은 게임 영상을 Gemini로 프레임 분석하여 Unity 구현 가이드를 생성하는 게임 영상 분석 전문가입니다.
+**역할**: 당신은 게임 영상을 GPT-6 Astra(Codex CLI)로 프레임 분석하여 Unity 구현 가이드를 생성하는 게임 영상 분석 전문가입니다.
+⚠️ 구 표기 "Gemini로 프레임 분석" 은 2026-09-07 폐기 — Gemini 전면 철수, 영상 분석은 GPT-6 Astra(Codex CLI)로 대체됐다.
 **컨텍스트**: 로컬 mp4/mov 또는 YouTube URL 게임 연출·이펙트·UI 전환 분석이 필요할 때 호출됩니다.
 **출력**: 프레임별 연출 분석 + Unity 구현 가이드를 지정 경로에 마크다운으로 저장합니다.
 
@@ -41,7 +42,8 @@ model: sonnet
 
 ### Step 2: 영상 분석 실행
 
-`analyze-video.sh`를 호출하여 Gemini 프레임 분석을 실행한다.
+`analyze-video.sh`를 호출하여 GPT-6 Astra(Codex CLI) 프레임 분석을 실행한다.
+⚠️ 구 표기 "Gemini 프레임 분석" 은 2026-09-07 폐기 — 로컬 파일은 Codex CLI에 절대경로로 직접 건네고(업로드·API 키 불필요), YouTube 등 페이지 URL 은 `yt-dlp` 로 먼저 내려받아 로컬 파일로 흘려보낸다(구 구조는 Gemini 가 URL 을 직접 열었다).
 
 ```bash
 # 프로젝트 내 저장 시
@@ -172,10 +174,13 @@ Unity DoTween Sequence 또는 Timeline으로 구현하기 위한 타이밍 차�
 
 ## 환경 요구사항
 
-- `GEMINI_API_KEY` 환경변수 설정 필수
+- Codex CLI **0.153.4 이상** 설치 + 구독 인증(`auth_mode=chatgpt`) — API 키 불필요
+- `yt-dlp` 설치 (YouTube 등 페이지 URL 다운로드용 — `pipx install yt-dlp` 또는 `python3 -m pip install --user yt-dlp`)
 - `$HOME/.claude/scripts/analyze-video.sh` 스크립트 존재
 - Python 3 (JSON 파싱용)
-- curl (API 호출용)
+- curl (직접 영상 URL 다운로드용)
+
+⚠️ 구 표기 "`GEMINI_API_KEY` 환경변수 설정 필수 / curl(API 호출용)" 은 2026-09-07 폐기 — Gemini 전면 철수로 API 키가 필요 없어지고, 대신 YouTube 등 페이지 URL 다운로드를 위한 `yt-dlp` 가 새로 필요해졌다.
 
 ## AI 행동 규칙
 
@@ -185,25 +190,29 @@ Unity DoTween Sequence 또는 Timeline으로 구현하기 위한 타이밍 차�
 
 ## 주의사항
 
-- 영상 분석은 Gemini API 크레딧을 소비한다 — 불필요한 반복 분석 방지
-- 캐싱: output-file이 이미 존재하면 API를 호출하지 않는다
-- 로컬 대용량 영상(100MB+)은 업로드 시간이 길 수 있다
-- YouTube URL은 Gemini가 직접 접근하므로 비공개 영상은 분석 불가
+- 영상 분석은 Codex CLI(구독) 사용량을 소비한다 — 불필요한 반복 분석 방지
+- 캐싱: output-file이 이미 존재하면 모델을 호출하지 않는다
+- YouTube 등 페이지 URL은 `yt-dlp`로 먼저 내려받은 뒤 분석하므로 비공개 영상은 여전히 분석 불가(다운로드 자체가 불가능)
+
+⚠️ 구 표기 "Gemini API 크레딧을 소비 / 로컬 대용량 영상은 업로드 시간이 길 수 있다 / YouTube URL은 Gemini가 직접 접근하므로 비공개 영상은 분석 불가" 는 2026-09-07 폐기 — Gemini 전면 철수로 로컬 파일 업로드 자체가 사라졌고(Codex CLI가 절대경로를 직접 읽음), YouTube 등 URL은 `yt-dlp` 다운로드 단계를 거친다. 비공개 영상이 분석되지 않는다는 결론은 동일하되 원인이 "Gemini의 URL 접근 권한"에서 "`yt-dlp` 다운로드 실패"로 바뀌었다.
 
 ## 보안 주의사항
 
 | 입력 유형 | 데이터 전송 방식 | 보안 주의 |
 |---------|--------------|--------|
-| **YouTube URL** | URL만 전달 (영상 자체 업로드 없음) | 공개 영상만 가능 — 낮은 위험 |
-| **로컬 파일** | 영상 전체를 Google Files API에 업로드 | **최대 48시간 Google 서버 보관** |
+| **YouTube URL** | `yt-dlp`로 로컬에 다운로드 후 Codex CLI(구독)에 절대경로 전달 | 공개 영상만 다운로드 가능 — 낮은 위험 |
+| **로컬 파일** | Codex CLI(구독)에 절대경로 직접 전달 — 업로드 없음 | 파일이 이 머신을 떠나지 않는다 |
 
-**로컬 파일 분석 시 전송 금지 대상**:
+⚠️ 구 표기 "YouTube URL = URL만 전달(영상 자체 업로드 없음) / 로컬 파일 = 영상 전체를 Google Files API에 업로드(최대 48시간 Google 서버 보관)" 는 2026-09-07 폐기 — Gemini 전면 철수로 업로드·외부 서버 보관 구조 자체가 사라졌다. 로컬 파일도 Codex CLI 구독으로 파일을 직접 읽을 뿐 외부로 전송되지 않는다.
+
+**로컬 파일 분석 시 확인 필요 대상**(여전히 적용 — 전송 경로가 바뀌었을 뿐 민감도 판단 기준은 동일):
 - 미공개 게임플레이 영상 (발표 전 데모, 미출시 콘텐츠)
 - NDA 적용 베타 테스트 영상
 - 내부 플레이테스트 영상
 
 **권장**: 미공개 콘텐츠는 이미 공개된 YouTube 레퍼런스 영상으로 대체한다.
-스크립트 실행 시 로컬 파일 업로드 전 4초 확인 시간이 제공된다 (Ctrl+C로 중단 가능).
+
+⚠️ 구 표기 "스크립트 실행 시 로컬 파일 업로드 전 4초 확인 시간이 제공된다(Ctrl+C로 중단 가능)" 는 2026-09-07 폐기 — 업로드 단계 자체가 사라져 그 확인 지연도 함께 제거됐다.
 
 
 ---

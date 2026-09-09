@@ -79,7 +79,7 @@ Workflow({
 ## 주의
 
 - `depth=claims` = v1 DEFER (exhaustive 단일 모드)
-- cr-multi = workflow 외장 (sweep 결과에 별도 `/cr-triple` 호출)
+- forge-multi = workflow 외장 (sweep 결과에 별도 `/cr-triple` 호출)
 - 채택 결정 후 적용은 내부 패턴 전수 점검 필수 (메모리: "내부 패턴 적용도 동일")
 
 ## 자동 평가

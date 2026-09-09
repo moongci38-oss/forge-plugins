@@ -23,8 +23,9 @@ claude plugin install forge-game
 |------|------|------|
 | Unity MCP | game-qa (Unity run_tests 연동) | `~/.claude.json` mcpServers에 unity 등록 |
 | `OPENAI_API_KEY` | 에셋 생성 (gpt-image-1, Codex) | `~/.bashrc` export |
-| `GEMINI_API_KEY` | Gemini Vision 에셋 분석 | `~/.bashrc` export |
 | .NET SDK | game-qa (.NET bot 빌드) | 시스템 패키지 설치 |
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`GEMINI_API_KEY` | Gemini Vision 에셋 분석 | `~/.bashrc` export".
 
 > Unity MCP 없이도 `game-asset-generate`·`game-asset-pipeline`·`asset-extract`는 동작합니다.
 
@@ -115,8 +116,11 @@ AI_Generated/Extracted/
 **주요 기능**
 - **Library-First**: 기존 에셋 라이브러리 탐색 후 신규 생성 (MCP 비용 절감)
 - **12요소 Soul 프롬프트**: 게임 아트 특화 품질 극대화 프롬프트
-- **모델 어댑터**: FLUX / Gemini Imagen / Replicate 선택 지원
-- **MAS P1**: Codex image_gen 직접 생성 + NanoBanana 병행
+- **모델 어댑터**: FLUX / Replicate 선택 지원
+- **MAS P1**: Codex image_gen 직접 생성
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "FLUX / **Gemini Imagen** / Replicate" ·
+> "Codex image_gen 직접 생성 + **NanoBanana** 병행". NanoBanana 는 `GEMINI_API_KEY` 를 공유해 함께 끊겼습니다.
 - **6-axis 크리틱 루프**: 품질·일관성·게임 적합성 자동 검증
 
 **사용법**
