@@ -115,7 +115,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
       - **codex:tier** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=현재 워크트리, model=$MODEL)로 root-cause surgical fix. RED 오라클·리포트·확정된 근본원인 가설을 프롬프트에 주입(Codex 재탐색 방지). Codex diff는 표시·커밋 전 `secret-content-scan.sh` 경유(LN-03 마스킹).
       - **surface=game-engine 감지 → Claude 폴백**(forge-implement와 동일 — Unity Windows 전용, Codex Linux 샌드박스 batchmode 불가. 실측 확정 2026-07-15).
       - **advisor tier-gate (2026-07-16 · 2026-08-12 판정 기준 변경)**: `GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")`. **`skip`**(구현자 tier ≥ **현재 advisor tier**) → T1/T2 strategic advisor **생략**(tier 역전 방지). **`advise`**(구현자 tier < advisor tier) → advisor 발동 + **조언을 Codex 프롬프트에 주입**.
-        ⚠️ **구 서술 "skip=구현자≥Opus(sol/terra/opus/fable)" 는 폐기**(2026-08-12). advisor 기본이 Fable 5.1(max)라 기준선이 Opus 가 아니다 — **`opus`·`terra` 는 이제 `advise`** 이고, 기본 advisor 기준 `skip` 은 `fable`·`astra` 뿐(⚠️ 2026-09-07 두 군데를 고쳤다: ①`sol` → `astra` — Astra 도입으로 codex 사다리가 재배치돼 sol 이 max 에서 high 로 내려왔다 ②`gemini-2.5-pro` **삭제** — 이건 처음부터 틀렸다. gemini 는 default 와 max 가 같은 id(`gemini-3.8-flash`)라 구현자 랭크 산정의 동률해소 min 이 default(rank 1)를 집어 **어떤 gemini id 도 skip 에 닿지 않는다**. 재현: `bash shared/scripts/advisor-tier-gate.sh gemini-2.5-pro` → `advise` · `... gemini-3.8-flash` → `advise` · `... claude-fable-5-1` → `skip`, 2026-09-07 실측)이다. advisor 가 내려가면 경계도 함께 내려간다(하드코딩 없음).
+        ⚠️ **구 서술 "skip=구현자≥Opus(sol/terra/opus/fable)" 는 폐기**(2026-08-12). advisor 기본이 Fable 5.1(max)라 기준선이 Opus 가 아니다 — **`opus`·`terra` 는 이제 `advise`** 이고, 기본 advisor 기준 `skip` 은 `fable`·`astra` 뿐(⚠️ 2026-09-07 두 군데를 고쳤다: ①`sol` → `astra` — Astra 도입으로 codex 사다리가 재배치돼 sol 이 max 에서 high 로 내려왔다 ②구 표기에 있던 **`gemini-*` 판정 예시 전부 삭제** — Gemini 전면 철수로 레지스트리에서 벤더 자체가 빠져 판정 대상이 아니다. 재현: `FORGE_ROOT=<레포 절대경로> bash shared/scripts/advisor-tier-gate.sh claude-fable-5-1` → `skip` · `... opus` → `advise`, 2026-09-07 실측)이다. advisor 가 내려가면 경계도 함께 내려간다(하드코딩 없음).
         재현: `bash shared/scripts/advisor-tier-gate.sh opus` → `advise` · 전수 판정표는 `shared/scripts/test-advisor-tier-gate.sh` (33케이스).
         ⚠️ **T3(plateau·thrash bounding)·T4(비가역) 자문은 tier 무관 항상 유지** — 제어 기능이라 구현자가 프런티어여도 필요.
       - **--advisor 오버라이드 (2026-07-16)**: `--advisor <spec>`(sol/terra/opus/fable)로 advisor 모델을 경우별 선택. `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → gpt/codex 결과면 **`mcp__codex__codex`(sandbox=read-only)로 advisor 스폰**(sol/terra, Plus 정액=무료·독립 관점), claude면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`(opus/fable). 미지정=리졸버 기본(2026-08-12 부터 **Fable 5**, 못 쓰면 `gpt-6-astra` — 구 "Opus + tier-gate" 폐기 · 2026-09-02: Fable 5.1 로 업그레이드 · ⚠️ 구 표기 "못 쓰면 `gpt-5.6-sol`" 은 2026-09-06 폐기, 대체 최상위가 astra 로 승격됐다). ⚠️ **독립성: advisor 벤더 ≠ 구현자 벤더 권고**(같은 벤더=자기훈수 무의미 → Codex 구현엔 opus/fable, Claude 구현엔 sol/terra). fable 은 **구독 정액**(Human 확인 2026-08-12 · 5.1 재확인 2026-09-02)이라 sol(Plus 정액)과 **동급으로 자유 선택 가능**하다 — 호출당 추가 과금이 없다. 일일 캡은 기본 0(무제한)이며 필요하면 `FORGE_ADVISOR_FABLE_CAP=N` 으로 켠다. advisor-model-resolve 가드는 kill-switch·가용성 폴백만 상시 동작한다.
@@ -125,7 +125,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
     - **클래스 스윕 표 필수(Batch 1-4, 2026-07-10 — WARN-first 초기)**: 수정 심볼/패턴을 **레포 전체 grep** → 발견 항목별 처분 표 작성 — `fix`(이번 수정)/`verified-clean`(무결 확인)/`follow-up`(티켓팅) + **근거 1줄** 필수. 처분 누락 = 게이트 실패(WARN-first 초기 — fop `sweep.found_count/fixed_count/ticketed`와 정합). 실증: 2026-07-10 스윕이 즉시 동일 클래스 3건 적중(리포트 A-P2). **`git rm`(삭제) 포함 시 스윕 대상 = 삭제된 경로 문자열**(테스트 스크립트 타깃 배열·CI path 필터·qa-config 엔드포인트·docs 실행예시) — 코드 심볼만 grep하면 회귀 게이트가 stale 타깃으로 조용히 죽는다.
     - **상호의존 편집 원자성(F4, WARN-first — 라이브 dev서버 과도기 크래시 방지)**: 필드 제거/optional화 + 그 소비처 가드처럼 **서로 의존하는 다단계 편집**은 반드시 (a) **역순 적용**(소비처 `?.` 옵셔널 가드·판별 분기를 먼저 넣고 → 데이터/타입 필드 제거) 또는 (b) 한 번에 원자적 적용한다. 순서 역전(데이터 먼저 제거) 시 HMR 중간상태 컴파일 순간 "데이터엔 없는데 렌더는 아직 비옵셔널 접근" → throw로 라이브 서버 실사용자 크래시(최종 코드는 정상이라 '최종 상태 GREEN'으론 못 막는 창). 소비처 전수 grep 후 가드-우선 순서로 편집. non-blocking(규율, 게이트 신설 아님).
     - fix_started_at 타임스탬프 기록 (아티팩트 신선도 기준)
-    - **background/headless cr 폴백(WARN-first — A7)**: cr 게이트(cr-code/cr-bug) 진입 전 실행 컨텍스트가 background/headless 세션인지 감지한다 — 이런 세션은 사용자 TTY가 없어 외부 cr 워커(Codex/Gemini HMAC 승인)를 블로킹한다. 감지 시 외부 워커 대신 **Opus-worker cr 폴백으로 자동 라우팅**한다(cr-multi가 이미 보유한 폴백을 forge-fix 레벨에서 배선). 감지 불가·전경(foreground) 세션이면 정상 외부 cr 진행. non-blocking(게이트 신설 아님, 라우팅만 전환).
+    - **background/headless cr 폴백(WARN-first — A7)**: cr 게이트(forge-code-review/forge-bug-review) 진입 전 실행 컨텍스트가 background/headless 세션인지 감지한다 — 이런 세션은 사용자 TTY가 없어 외부 cr 워커(Codex HMAC 승인)를 블로킹한다(⚠️ 구 표기 "Codex/Gemini HMAC 승인" 은 2026-09-07 폐기 — Gemini 전면 철수). 감지 시 외부 워커 대신 **Opus-worker cr 폴백으로 자동 라우팅**한다(forge-multi가 이미 보유한 폴백을 forge-fix 레벨에서 배선). 감지 불가·전경(foreground) 세션이면 정상 외부 cr 진행. non-blocking(게이트 신설 아님, 라우팅만 전환).
     - cr-code(blocking)
 
 ④ 검수 (GREEN)   [healer a4~a7 + visual-loop 흡수]
@@ -263,7 +263,7 @@ node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
 
 ## 자동 리뷰-수정 루프 (③→④ 재시도, iteration-cap: 3)
 
-④ 검수(cr-bug/cr-code 등) FAIL 시 자동 루프:
+④ 검수(forge-bug-review/forge-code-review 등) FAIL 시 자동 루프:
 
 ```
 1회: FAIL 이슈 목록 수신 → healer 단일파일 수정 → 재검수
@@ -272,7 +272,7 @@ node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
 ```
 
 탈출 조건: PASS/WARN 달성 → Phase G(PR) 진입 / 동일 이슈 재발(위 sha256 키 기준) → 즉시 [STOP] / 3회 초과 → [STOP].
-iteration-cap 초과 = cr-multi plateau 규칙 적용 (4 옵션: A추가R/B override/C폐기/D단순화).
+iteration-cap 초과 = forge-multi plateau 규칙 적용 (4 옵션: A추가R/B override/C폐기/D단순화).
 
 **plateau/oscillation advisor 자문(T3)**: same-issue 3x / cr-code FAIL 3x / plateau 2연속 STOP 발동 시, healer가 [healer→Lead] 위임 요청으로 advisor-strategist 자문(접근 전환 권고)을 구하고 그 응답(400~700토큰)을 위 4옵션(A/B/C/D) 판단 입력에 포함한다. advisor는 조언만 — STOP 자체를 해제하거나 자동 재시도를 트리거하지 않는다. 최종 옵션 선택은 Human/오케스트레이터.
 

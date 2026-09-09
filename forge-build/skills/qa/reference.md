@@ -692,20 +692,29 @@ fi
 
 ## §Phase F~H 상세 코드
 
-### Phase F — cr-* queue 폴링
-```python
-queue_path = "docs/qa/cr-trigger-queue.jsonl"
-if os.path.exists(queue_path):
-    with open(queue_path) as f:
-        for line in f:
-            entry = json.loads(line)
-            if entry.get("status") == "pending":
-                # 1. /cr-bug {entry['bug_report']}
-                # 2. /cr-code {changed_files}
-                # 3. /cr-test {qa_report}
-                # 4. /cr-final {pr_body}
-                # 5. bash scripts/codex-cr-final.sh {pr_body}
+### Phase F — cr 검수 큐 소비 (실행)
+
+⚠️ **2026-09-07 정정**: 이 자리에 있던 것은 **주석뿐인 파이썬 블록**이었다 — 큐를 열어
+`pending` 을 찾은 뒤 할 일을 `# 1. /forge-bug-review ...` 처럼 **주석으로만** 적어 두고 끝났다.
+즉 문서상으로는 4단계 자동 검수가 있었지만 **실행하는 코드가 레포에 0건**이었다.
+실측(2026-09-07): `${FORGE_ROOT:-$HOME/forge}` 와 `${FORGE_ROOT:-$HOME/forge}-outputs` 의 큐에 2026-07-04 부터 **두 달 넘게
+pending 으로 방치된 줄 5건**, `cr-bug`·`cr-test` 는 증거 디렉터리조차 생긴 적이 없다.
+주문서만 뽑고 주방에 넘기는 사람이 없었던 셈이다. 이제 그 주방장이 있다.
+
+```bash
+# 무엇을 돌릴지 먼저 본다(큐를 바꾸지 않는다)
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py" --dry-run
+
+# 실제 소비 — stage 별 검수를 실행하고, 증거가 착지했는지 확인한 뒤 상태를 done/failed 로 되쓴다
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py"
 ```
+
+- stage 어휘는 `bugfix | code | test | final` 이다(커맨드 이름이 아니라 **인자**).
+  증거 디렉터리·머지 게이트 루프·큐가 전부 이 어휘를 쓴다.
+- 러너는 **증거 파일을 직접 쓰지 않는다.** 발행자는 `cr-evidence-emit.py` 하나뿐이고,
+  러너의 일은 **실행시키기**와 **착지 확인**이다. 착지가 없으면 `done` 으로 적지 않는다.
+- 끄는 법: `FORGE_CR_RUNNER=off` · 실행자 교체: `FORGE_CR_RUNNER_EXEC='<명령>'`
+  (stage 는 `$CR_STAGE`, 증거 경로는 `$CR_EVIDENCE_DIR` 환경변수로 들어온다)
 
 ### Phase G — PR + CI + develop 머지
 ```bash

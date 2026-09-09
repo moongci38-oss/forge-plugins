@@ -12,9 +12,9 @@ tools: Read, Grep, Glob, WebSearch, Write
 # `Verdict: PASS && Critical: 0` 으로 S4 게이트를 판정한다(`forge-s4-planning.md` S4-IRON-3).
 # `model-routing.md §워커 tier`: **verify/judge/review 는 대상 worker tier 이상(하향 금지)**.
 # 응시자가 Opus 인데 채점자가 Sonnet 이면 그 조항 위반이다.
-# 예외 판정(먼저 확인했다): 그 조항의 예외는 `cr-multi`/`cr-triple` 의 **고정 레그**(벤더 교차
+# 예외 판정(먼저 확인했다): 그 조항의 예외는 `forge-multi`/`cr-triple` 의 **고정 레그**(벤더 교차
 #   설계라 tier 축이 아니라 벤더 축으로 독립성을 얻는다)뿐이다. cto-advisor 는 거기 해당하지 않는다 —
-#   재현: `grep -c cto-advisor .claude/skills/cr-multi/workflow.js` → 0 (레그는 wOpus·wCodex·wGemini).
+#   재현: `grep -c cto-advisor .claude/skills/forge-multi/workflow.js` → 0 (레그는 wOpus·wCodex·wGemini).
 #   호출처는 `/forge-plan` S4 Step 4-② 단독 스폰이다(`pipeline-p3-devplan.md:66`).
 # 왜 `opus` 가 아니라 `fable` 인가: ①Fable 5.1 ≥ Opus 5 라 하향금지를 충족한다 ②2026-08-22
 #   프런티어 승격으로 **판정 역할의 Claude 측 기본값이 이미 Fable 5.1** 다(검수 3레그·advisor 동일)

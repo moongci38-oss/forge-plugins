@@ -6,7 +6,7 @@
 
 | 그룹 | 스킬 목록 | 권고 | 위험도 |
 |------|---------|------|:-----:|
-| cr-* 계열 | cr-plan, cr-code, cr-test, cr-final, cr-bug, cr-analysis | cr-multi stage 파라미터로 통합 | LOW |
+| cr-* 계열 | forge-plan-review, forge-code-review, forge-test-review, forge-final, forge-bug-review, forge-analysis-review | forge-multi stage 파라미터로 통합 | LOW |
 | 계획 스킬 | autoplan, concise-planning, writing-plans | 계층 정리 | LOW |
 | yt 계열 | yt, yt-analyze | yt --analysis-only 통합 | LOW |
 

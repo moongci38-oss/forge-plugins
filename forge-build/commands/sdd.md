@@ -13,7 +13,7 @@ AD-46 (2026-05-15): /sdd = 4 독립 명령으로 분해.
 1. /forge-spec <기능 설명>     # Spec 작성 (Human STOP)
 2. /forge-implement            # P5 구현 (시나리오 라우팅)
 3. /qa                         # E2E 검증
-4. /forge-pr                   # PR + Codex /cr-final + 머지
+4. /forge-pr                   # PR + Codex /forge-final + 머지
 
 각 단계 [STOP] = 사용자 결정. 묶음 자동 chain X.
 

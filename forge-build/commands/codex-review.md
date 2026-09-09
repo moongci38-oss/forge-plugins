@@ -40,7 +40,7 @@ codex   # /login → moongci38 ChatGPT 계정 OAuth
 /codex-review --stage bugfix --target patches/fix-token-expiry.diff
 ```
 
-단축 래퍼: `/cr-plan`, `/cr-analysis`, `/cr-code`, `/cr-test`, `/cr-final`, `/cr-bug` (각각 stage 자동 매핑).
+단축 래퍼: `/forge-plan-review`, `/forge-analysis-review`, `/forge-code-review`, `/forge-test-review`, `/forge-final`, `/forge-bug-review` (각각 stage 자동 매핑).
 
 ---
 
@@ -179,9 +179,9 @@ fi
 #         자동 하향은 `advisor-model-resolve.sh`(advisor 레인)에만 있다 — **이 검수 레인은 가드가 없다.**
 #         구 CLI 머신에서는 Codex 레그가 400 으로 죽고 그 레그가 분모에서 빠져 조용히 2-레그로 축소된다.
 #         내리려면 사람이 `--sol`(codex:high)을 **직접** 준다(아래 §비용 절 같은 취지).
-#      재현: grep -c 'codex --version' .claude/skills/cr-multi/workflow.js → 0 (2026-09-07 관측)
+#      재현: grep -c 'codex --version' .claude/skills/forge-multi/workflow.js → 0 (2026-09-07 관측)
 #      재현: codex --version → 0.153.4 (2026-09-06 관측)
-#   이 파일이 `/cr-final`·`/cr-plan`·`/cr-code`·`/cr-test`·`/cr-bug`·`/cr-analysis` 6개 래퍼의
+#   이 파일이 `/forge-final`·`/forge-plan-review`·`/forge-code-review`·`/forge-test-review`·`/forge-bug-review`·`/forge-analysis-review` 6개 래퍼의
 #   **실제 실행 경로**다 — 래퍼 문서만 고치면 값은 여기서 구 값으로 되돌아간다(PR #320 cr-final CRITICAL 실적발).
 # apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 API 가격 과금.
 # --sol/--terra/--luna: Codex 검수 레그 tier 선택 (model-registry SSoT).
@@ -456,7 +456,7 @@ fi
 | P7 Check 7-X | `final` | YES |
 
 ### 수동 전용 (파이프라인 미배선)
-- `analysis` — 분석노트·cross-repo·backlog·runbook doc. `/cr-analysis <path>` 수동 호출만. SDD/PGE/Forge Dev 자동 게이트에 배선하지 않음 (분석노트는 즉시 실행 가능 산출물이 아님 — plan/code/test 게이트와 성격 다름). `--stage plan`이 분석 doc에 잘못 걸리면 Step 1.6 auto-route가 가로챔.
+- `analysis` — 분석노트·cross-repo·backlog·runbook doc. `/forge-analysis-review <path>` 수동 호출만. SDD/PGE/Forge Dev 자동 게이트에 배선하지 않음 (분석노트는 즉시 실행 가능 산출물이 아님 — plan/code/test 게이트와 성격 다름). `--stage plan`이 분석 doc에 잘못 걸리면 Step 1.6 auto-route가 가로챔.
 
 ---
 
@@ -507,7 +507,7 @@ forge-outputs/docs/reviews/
 
 - 1차 리뷰: `code-reviewer` 에이전트 (`forge/.claude/agents/code-reviewer/`)
 - 정책: `forge/dev/rules/codex-review-policy.md`
-- 단축 래퍼: `/cr-plan`, `/cr-analysis`, `/cr-code`, `/cr-test`, `/cr-final`, `/cr-bug`
+- 단축 래퍼: `/forge-plan-review`, `/forge-analysis-review`, `/forge-code-review`, `/forge-test-review`, `/forge-final`, `/forge-bug-review`
 - 통합 게이트: SDD Check C-1, PGE Phase 4.5, Forge Dev Phase 2~9
 - 프롬프트: `forge/.claude/prompts/codex-review-{stage}.md` (analysis stage = `codex-review-analysis.md`, backlog/runbook frontmatter도 공용)
 > 실패 시 [[pev-self-correction]] 적용
