@@ -174,7 +174,7 @@ node $HOME/.claude/scripts/forge-sync.mjs sync --target <project-name> --include
 |---------|------|------|
 | Dev Rules | `$HOME/.claude/rules/`(global) | 이미 auto-load 됨 — 프로젝트 사본 불필요(2026-07-21 이중로드 방지) |
 | 공통 Rules | `.claude/rules/` | frontend-standards, plan-mode, pr-code-review-gate |
-| Templates | `.specify/templates/` | Spec·Walkthrough 템플릿 (+ game: element-task) — Plan/Task는 Spec §8/§11 서브섹션 |
+| Templates | `.specify/templates/` | Spec·Walkthrough 템플릿 (+ game: element-task) — Plan·Tasks 는 별도 파일(`.specify/plans/` · `.specify/tasks/`, 2026-08-31 재편) |
 | GitHub Spec Kit | `.github/` + `scripts/` | CI 워크플로, 이슈/PR 템플릿 |
 | Hooks (recommended) | `.claude/hooks/` | 보안 체크, JSON 무결성 |
 
@@ -264,42 +264,14 @@ cp ${FORGE_ROOT:-${FORGE_ROOT:-$HOME/forge}}/planning/templates/inspector-refere
 
 ## Phase 3.5: Monitoring 통합 (Sentry)
 
-에러 모니터링을 자동 통합한다. `--no-monitoring` flag 시 스킵.
+에러 모니터링(Sentry)을 자동 통합한다. `--no-monitoring` flag 시 이 Phase 전체를 스킵한다.
 
-### 3.5.1 스택 감지 + SDK 자동 설치
+4스텝: ①`scripts/monitoring-init.sh <project-path>` 로 스택 감지 + SDK 설치(7종 — Next.js/NestJS/
+Colyseus/React/Node.js/Unity/FastAPI, 미지원 시 exit 0 + WARN) ②`templates/sentry-config-{stack}.*`
+복사(빈 DSN 런타임 비활성화 내장) ③`.env.example`/`.env.ci.example` 분리(P-2 보안) ④dry-run + grep 검증.
 
-`scripts/monitoring-init.sh <project-path>` 실행. 지원 스택 7종(Next.js/NestJS/Colyseus/React/Node.js/Unity/FastAPI). 미지원 스택 = exit 0 + WARN 출력 (수동 통합 필요).
-
-> 스택별 감지조건·SDK 표 → `reference.md §3.5 Monitoring(Sentry) 스택 감지표` (필요 시 Read)
-
-### 3.5.2 sentry.config 생성
-
-`templates/sentry-config-{stack}.{ts,js,cs,py}` → 프로젝트에 복사. 모든 템플릿에 P-7 빈 DSN 처리(런타임 비활성화, 코드 롤백 없이) 내장.
-
-> 템플릿 언어별 guard 코드 → `reference.md §3.5.2` (필요 시 Read)
-
-### 3.5.3 .env 파일 분리 (P-2 보안)
-
-앱 `.env.example`(런타임 변수만) / `.env.ci.example`(CI secret 전용, 앱 .env 포함 금지)로 분리.
-
-> 파일 내용 예시 → `reference.md §3.5.3` (필요 시 Read)
-
-### 3.5.4 검증
-
-```bash
-# 스택 감지 dry-run
-bash scripts/monitoring-init.sh --dry-run <project-path>
-
-# SDK 통합 확인
-grep -rn "Sentry.init\|initSentry\|sentry_sdk.init" <project-path>/src/ 2>/dev/null | head -3
-
-# .env 분리 확인 (P-2)
-grep "SENTRY_DSN" <project-path>/.env.example         # 있어야 함
-! grep "SENTRY_AUTH_TOKEN" <project-path>/.env.example # 없어야 함
-grep "SENTRY_AUTH_TOKEN" <project-path>/.env.ci.example # 있어야 함
-```
-
-Unity는 Editor 실행 없이 manifest.json + SentryInit.cs까지만. 실제 DSN 입력은 Editor TODO.
+> **이 Phase 를 실행하기 전에 반드시 Read**: `references/monitoring-sentry.md`
+> — 스텝별 명령·검증 grep 3종·Unity 예외(Editor TODO)가 거기 있다. 스킵 시에는 Read 불필요.
 
 ## Phase 4: forge-workspace.json 연결
 

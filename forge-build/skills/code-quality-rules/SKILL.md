@@ -66,6 +66,14 @@ Agent는 파일 간 관계, 실행 흐름, 비즈니스 로직 맥락을 이해�
 |:-:|------|---------|:------:|
 | 6 | arch-circular-dep | 모듈 간 순환 import 금지 | critical |
 | 7 | arch-layer-violation | 레이어 경계 침범 금지 | critical |
+| 7a | arch-shallow-module | 인터페이스가 구현만큼 복잡한 모듈 신설 금지 | warning |
+| 7b | arch-static-io-binding | 훅·엔진이 I/O 를 정적 import 해 테스트가 모듈 모킹을 요구 | warning |
+
+> `arch-shallow-module` — 한 줄짜리 함수를 파일마다 하나씩 만드는 추출이 전형이다. 판정:
+> **삭제 테스트**(지웠을 때 복잡도가 사라지면 껍데기) · 부르는 쪽이 알아야 할 것이 줄었는가.
+> `arch-static-io-binding` — 주입받으면 `vi.mock` 없이 가짜를 넣어 **실패하는 테스트를 먼저** 쓸 수 있다.
+> 둘 다 어휘 정본 = `rules-on-demand/codebase-design.md`(§판정 도구·§인터페이스 설계 질문 4).
+> 둘 다 **warning** 이다 — 신설 모듈에만 적용하고, 기존 코드 전수 개조를 요구하지 않는다.
 
 ### 4. Logic — `logic-`
 

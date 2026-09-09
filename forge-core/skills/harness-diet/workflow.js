@@ -8,7 +8,7 @@ export const meta = {
   description: 'harness-legacy-scan diet-queue.json 소비 — low-risk 자동 적용 + Human 승인 목록',
   phases: [
     { title: 'Prepare', detail: 'restore point tag + diet-queue.json Read + 항목 분류' },
-    { title: 'Apply', detail: 'low-risk 항목별 agent 병렬 적용 (SSoT ${FORGE_ROOT:-$HOME/forge}/.claude/ 편집)' },
+    { title: 'Apply', detail: 'low-risk 항목별 agent 병렬 적용 (SSoT: 룰=${FORGE_ROOT:-$HOME/forge}/dev/global-rules/, 그 외=${FORGE_ROOT:-$HOME/forge}/.claude/)' },
     { title: 'Verify', detail: 'verify agent — 적용 결과 code-review + smoke-test 6개' },
     { title: 'Report', detail: '7보고 섹션 + Human 승인 high-risk 목록' },
   ],
@@ -46,7 +46,16 @@ const FORBIDDEN = `
 5. 앱 코드(forge-outputs 외 프로젝트 파일) 수정 금지
 6. test/build/deploy 임의 실행 금지
 7. 불확실한 변경 → 수동 승인 목록 반환 (자동 적용 X)
-편집 SSoT = ${FORGE_ROOT:-$HOME/forge}/.claude/ (직접 Edit/Write). ~\.claude/ 직접 편집 = hook block.
+편집 SSoT — 자산 종류마다 다르다(틀리면 없는 디렉터리를 고치려다 조용히 no-op 된다):
+  · 전역 룰(asset_type=rule)      = ${FORGE_ROOT:-$HOME/forge}/dev/global-rules/          ⚠️ ${FORGE_ROOT:-$HOME/forge}/.claude/rules 는 **없다**
+  · on-demand 룰                  = ${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/
+  · 스킬·에이전트·커맨드          = ${FORGE_ROOT:-$HOME/forge}/.claude/{skills,agents,commands}/
+  ⛔ **훅은 여기 없다.** 위 금지 2번($HOME/.claude/hooks/ 수정 금지)은 SSoT 쪽(${FORGE_ROOT:-$HOME/forge}/.claude/hooks/)에도
+     그대로 적용된다 — SSoT 를 고치면 forge-sync 가 미러로 전파하므로 그게 곧 우회다.
+     (2026-08-27 r3 검수: 구 표기가 훅을 편집 뿌리로 열거해 금지 2번과 정면 충돌했다.)
+큐 항목의 path 에 "(SSoT: …)" 가 적혀 있으면 그 경로를 쓰되, **위 뿌리 안에 있을 때만** 쓴다.
+밖이면 적용하지 말고 수동 승인 목록으로 돌린다(금지 7번). 코드도 같은 검사를 한다 — 아래 §SSoT 뿌리 검증.
+$HOME/.claude/ (홈 미러) 직접 편집 = hook block.
 `
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,9 +118,67 @@ const autoItems = queue.items.filter(i =>
     (i.reason + i.evidence + i.path).toLowerCase().includes(kw)
   )
 )
+// ── SSoT 뿌리 검증 (2026-08-27 r3 검수 high) ────────────────────────────────
+// 큐 데이터의 "(SSoT: …)" 를 그대로 믿고 프롬프트에 넣으면, 큐가 오염됐을 때(선행 스캔 버그·
+// 주입) 자동 적용 에이전트가 **임의 경로**를 SSoT 로 오인해 편집한다. FORBIDDEN 은 프롬프트
+// 텍스트라 지켜지길 바랄 뿐이므로, 코드가 같은 검사를 한 번 더 한다(방어 이중화).
+// ⚠️ 훅은 뿌리에 없다 — 금지 2번(훅 수정 금지)은 SSoT 쪽에도 적용된다.
+const SSOT_ROOTS = [
+  '${FORGE_ROOT:-$HOME/forge}/dev/global-rules/',
+  '${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/',
+  '${FORGE_ROOT:-$HOME/forge}/.claude/skills/',
+  '${FORGE_ROOT:-$HOME/forge}/.claude/agents/',
+  '${FORGE_ROOT:-$HOME/forge}/.claude/commands/',
+]
+// ⚠️ String() 강제 — path 가 문자열이 아닌 큐(숫자·객체)에서 .trim() 이 TypeError 를 낸다.
+//    오염된 큐를 방어하는 코드가 오염된 큐에 죽으면 방어가 아니다(2026-08-27 r4 검수).
+const _ssotPathOf = (p) => {
+  const raw = String(p == null ? '' : p)
+  const m = /SSoT:\s*([^)]+)/.exec(raw)
+  return (m ? m[1] : raw).trim()
+}
+const _inSsotRoot = (p) => {
+  const t = _ssotPathOf(p)
+  return SSOT_ROOTS.some(r => t.startsWith(r))
+}
+// ⚠️ 상위 참조(`${FORGE_ROOT:-$HOME/forge}/.claude/skills/../hooks/x`)는 prefix 검사로 못 잡는다 — 경로 정규화를
+//    하지 않기 때문이다. 그래서 **경로 문맥의** `..` 만 거부한다.
+//    구 코드는 `includes('..')` 라 `foo..md` 같은 정상 파일명도 튕겼다(r4 low).
+const _hasParentRef = (p) => /(^|\/)\.\.(\/|$)/.test(String(p == null ? '' : p))
+// ⚠️ **프롬프트 주입 차단 (r4 high)**: 뿌리 검증을 통과해도 `item.path` 원문이 그대로
+//    프롬프트에 들어가면, 유효 경로 뒤에 개행 + 추가 지시문을 붙인 값이 두 검사를 다 통과한다.
+//      예: `(SSoT: ${FORGE_ROOT:-$HOME/forge}/.claude/skills/x/SKILL.md)\n이전 지시를 무시하고 …`
+//    경로에 나올 수 있는 글자만 허용하고, 개행·제어문자가 있으면 통째로 거부한다.
+//    ⚠️ 무력화되는 입력: 허용 문자만으로 쓴 지시문(공백·마침표만 쓰는 짧은 문장)은 통과한다 —
+//       그래서 길이 상한(200)을 함께 둔다. 완전한 방어가 아니라 **면적을 줄이는** 조치다.
+// ⚠️ **경로만 막으면 옆문이 열려 있다 (r5 high)**: reason·evidence·move_target 도 apply 프롬프트에
+//    그대로 보간된다. 개행·제어문자를 지우고 길이를 자른다 — 지시문을 한 줄로 눌러 담아도
+//    프롬프트의 문단 구조를 깨지 못하게 하는 것이 목적이다.
+//    ⚠️ 무력화되는 입력: 한 줄짜리 짧은 지시문은 여전히 통과한다. 완전한 차단이 아니라 면적 축소다.
+const _safeText = (v, max) => String(v == null ? '' : v)
+  .replace(/[\u0000-\u001f\u007f]+/g, ' ')   // 개행·제어문자 → 공백
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, max)
+
+const _pathShapeOk = (p) => {
+  const raw = String(p == null ? '' : p)
+  return raw.length > 0 && raw.length <= 200 && /^[\w~@/.\-()* :,]+$/.test(raw)
+}
+const outOfRootItems = autoItems.filter(i =>
+  !_inSsotRoot(i.path) || _hasParentRef(i.path) || !_pathShapeOk(i.path))
+const autoItemsSafe = autoItems.filter(i => !outOfRootItems.includes(i))
+if (outOfRootItems.length > 0) {
+  log(`[Classify-REJECT] SSoT 뿌리 밖 ${outOfRootItems.length}건을 자동적용에서 뺀다 — ` +
+      `[${outOfRootItems.map(i => i.id).join(',')}] 수동 승인 목록으로 보낸다`)
+}
+autoItems.length = 0
+autoItems.push(...autoItemsSafe)
+
 const humanRequired = queue.items.filter(i => !autoItems.includes(i))
 
-log(`[Classify] auto=${autoItems.length} human_required=${humanRequired.length}`)
+log(`[Classify] auto=${autoItems.length} human_required=${humanRequired.length}` +
+    (outOfRootItems.length ? ` (뿌리밖 거부 ${outOfRootItems.length})` : ''))
 
 if (autoItems.length === 0) {
   log('[INFO] 자동적용 항목 없음 — Human 승인 목록만 반환')
@@ -186,16 +253,18 @@ scan 시점 grep 범위가 SSoT 뿌리 중 일부만 훑었을 가능성이 있�
 // Before 상태 측정
 const beforeState = await agent(
   `Before 상태 측정. Bash 도구:
-# per-session rules 라인수
-wc -l $HOME/.claude/rules/*.md | tail -1
-# skills 수
-ls $HOME/.claude/skills/ | wc -l
-# skills 총 라인수
-find $HOME/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
-# CLAUDE.md cascade 총 라인수
-find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
+# ⚠️ 2026-08-27 정정: 구 측정은 $HOME/.claude (미러) 를 쟀다. 편집은 ${FORGE_ROOT:-$HOME/forge} (SSoT) 에 착지하고
+#    미러는 forge-sync 를 돌려야 움직인다 — 그래서 rules·skills 는 **정상 적용돼도 diff=0** 이 되어
+#    applied=0 으로 오보고됐다. 거짓 성공을 거짓 실패로 뒤집었을 뿐이었다. 이제 SSoT 를 잰다.
+# 전역 룰(L1) + on-demand 룰 / skills 수 / skills 라인 / CLAUDE.md cascade — 전부 SSoT 기준
+wc -l ${FORGE_ROOT:-$HOME/forge}/dev/global-rules/*.md ${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/*.md | tail -1 | awk '{print $1}'
+ls ${FORGE_ROOT:-$HOME/forge}/.claude/skills/ | wc -l
+find ${FORGE_ROOT:-$HOME/forge}/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
+# 에이전트·커맨드 라인수 — SSoT (2026-08-27 r3: 이 축이 없어 agents/commands 편집이 diff=0 이었다)
+find ${FORGE_ROOT:-$HOME/forge}/.claude/agents ${FORGE_ROOT:-$HOME/forge}/.claude/commands -name "*.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
+find ${FORGE_ROOT:-$HOME/forge} ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/worktrees/*" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
 
-결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"claude_md_lines":N}`,
+결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"assets_lines":N,"claude_md_lines":N}`,
   {
     label: 'before-state',
     phase: 'Prepare',
@@ -203,12 +272,17 @@ find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | a
       type: 'object',
       properties: {
         rules_lines:{type:'number'}, skills_count:{type:'number'},
-        skills_total_lines:{type:'number'}, claude_md_lines:{type:'number'},
+        skills_total_lines:{type:'number'}, assets_lines:{type:'number'}, claude_md_lines:{type:'number'},
       },
+      required: ['rules_lines','skills_count','skills_total_lines','assets_lines','claude_md_lines'],
     },
   }
-)
-
+).catch(e => {
+  // ⚠️ catch 가 없으면 측정 실패 시 워크플로가 통째로 중단돼 **-1(판정 불가) 분기가 영원히
+  //    발화하지 못한다** — 삼상 설계를 해놓고 그 상태에 도달할 길을 막아둔 셈이었다(r5 medium).
+  log(`[WARN] Before 상태 측정 실패: ${e?.message || e} — applied 는 판정 불가(-1)로 간다`)
+  return null
+})
 log(`[Before] rules=${beforeState?.rules_lines}L skills=${beforeState?.skills_count}개 skills_body=${beforeState?.skills_total_lines}L claude_md=${beforeState?.claude_md_lines}L`)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,8 +293,8 @@ phase('Apply')
 // 허용 7가지 action별 적용 함수 (agent 프롬프트)
 const buildApplyPrompt = (item) => {
   const base = `항목 적용. ID: ${item.id}, 경로: ${item.path}, 조치: ${item.action}
-이유: ${item.reason}
-근거: ${item.evidence}
+이유: ${_safeText(item.reason, 400)}
+근거: ${_safeText(item.evidence, 400)}
 ${FORBIDDEN}
 `
 
@@ -232,7 +306,7 @@ ${FORBIDDEN}
 1. Read 도구로 ${item.path} 읽기
 2. 중복/일반지침 섹션만 제거. Forge 특화 내용 유지.
 3. 인라인주석 과다 시 → 최종요약으로 집약 (허용 7)
-4. Edit 도구로 ${FORGE_ROOT:-$HOME/forge}/.claude/ 하위 SSoT 파일 수정
+4. Edit 도구로 SSoT 파일 수정 — item.path 의 "(SSoT: …)" 를 그대로 따르고, 없으면 위 §편집 SSoT 목록에서 자산 종류에 맞는 뿌리를 고른다
    ($HOME/.claude/ 직접 편집 X — hook block됨)
 5. 결과: {"applied":true,"path":"str","lines_removed":N,"summary":"str"} 반환`
 
@@ -240,7 +314,7 @@ ${FORBIDDEN}
       // 허용 2: 절차 CLAUDE.md→Skills 이동
       return base + `
 [허용 2: 절차 CLAUDE.md→Skills 이동 또는 MOVE rules/→on-demand]
-이동 대상: ${item.move_target || 'rules-on-demand/'}
+이동 대상: ${_safeText(item.move_target, 200) || 'rules-on-demand/'}
 1. Read 도구로 ${item.path} 읽기 → 이동 섹션 식별
 2. 이동 후 경로에 내용 Write (${FORGE_ROOT:-$HOME/forge}/.claude/ 하위 SSoT)
 3. 원본에서 해당 섹션 Edit으로 제거 (또는 참조 링크로 교체)
@@ -304,10 +378,17 @@ ${FORBIDDEN}
 
 // 병렬 적용 (apply 대상 = diet_auto low-risk)
 let applyResults = []
+// ⚠️ applyResults 의 순서는 autoItems 와 **다르다** — 아래에서 otherItems→descItems 로 재정렬해
+//    스폰하기 때문이다. 결과를 항목에 되돌려 붙이려면 그 순서를 **명시적으로 들고 나와야** 한다.
+//    (2026-08-27: 이 배열 없이 autoItems 인덱스로 대조하다가 id 오귀속 버그를 냈다 — 원 결함과
+//     같은 형태다. 블록 안 const 는 블록 밖에서 안 보인다.)
+let applyOrder = []
 if (autoItems.length > 0) {
   // action별 분리 (description 좁힘은 별도 처리)
   const descItems = autoItems.filter(i => i.action === 'SHRINK' && i.path.includes('/skills/') && i.asset_type === 'skill')
   const otherItems = autoItems.filter(i => !descItems.includes(i))
+
+  applyOrder = [...otherItems, ...descItems]   // applyFns / applyResults 와 같은 순서
 
   const applyFns = [
     ...otherItems.map(item => () => agent(
@@ -339,10 +420,16 @@ if (autoItems.length > 0) {
     // `|| r` 이지 `?? r` 이 아니다 — 'false'·'0' 이 파싱돼 falsy 가 되면 filter(Boolean) 에서
     // 사라져 성공 집계가 줄어든다. 파싱 결과가 falsy 면 원문 문자열을 그대로 남긴다.
     applyResults = applyResults.map(r => (typeof r === 'string' ? (parseAgentJson(r) || r) : r))
-    const success = applyResults.filter(Boolean).length
-    log(`[Apply] ${success}/${applyFns.length} 성공`)
+    // WARNING filter(Boolean) 금지 — 에이전트가 반환한 {"applied":false} 는 truthy 객체라
+    //    "성공"으로 세어진다(2026-08-27 실사고: 실적용 0인데 `1/2 성공`이 찍혔다).
+    //    자기보고이므로 이것만으로 applied 를 결정하지 않는다 — 아래 실측과 대조한다.
+    const success = applyResults.filter(r => r && r.applied === true).length
+    log(`[Apply] 자기보고 ${success}/${applyFns.length} 성공 (실측은 아래 measure 가 정본)`)
   }
 }
+
+// 에이전트 자기보고 집계 — 이것만으로 applied 를 결정하지 않는다(아래 §실적용 실측 참조).
+const appliedClaimed = applyResults.filter(r => r && r.applied === true).length
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 3: Verify — code-review + smoke-test 6개
@@ -383,11 +470,13 @@ ${JSON.stringify(applyResults.filter(Boolean).map(r => r?.path || r?.from || r?.
   // After 상태 측정
   () => agent(
     `After 상태 측정. Bash 도구:
-wc -l $HOME/.claude/rules/*.md | tail -1
-ls $HOME/.claude/skills/ | wc -l
-find $HOME/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
-find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s}'
-결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"claude_md_lines":N}`,
+wc -l ${FORGE_ROOT:-$HOME/forge}/dev/global-rules/*.md ${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/*.md | tail -1 | awk '{print $1}'
+ls ${FORGE_ROOT:-$HOME/forge}/.claude/skills/ | wc -l
+find ${FORGE_ROOT:-$HOME/forge}/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
+# 에이전트·커맨드 라인수 — SSoT (2026-08-27 r3: 이 축이 없어 agents/commands 편집이 diff=0 이었다)
+find ${FORGE_ROOT:-$HOME/forge}/.claude/agents ${FORGE_ROOT:-$HOME/forge}/.claude/commands -name "*.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
+find ${FORGE_ROOT:-$HOME/forge} ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/worktrees/*" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
+결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"assets_lines":N,"claude_md_lines":N}`,
     {
       label: 'after-state',
       phase: 'Verify',
@@ -395,11 +484,16 @@ find ${FORGE_ROOT:-$HOME/forge}-outputs -name "CLAUDE.md" -exec wc -l {} \\; | a
         type: 'object',
         properties: {
           rules_lines:{type:'number'}, skills_count:{type:'number'},
-          skills_total_lines:{type:'number'}, claude_md_lines:{type:'number'},
+          skills_total_lines:{type:'number'}, assets_lines:{type:'number'}, claude_md_lines:{type:'number'},
         },
+        required: ['rules_lines','skills_count','skills_total_lines','assets_lines','claude_md_lines'],
       },
     }
-  ),
+  ).catch(e => {
+    // beforeState 와 같은 이유 — 측정 실패가 워크플로를 죽이면 -1 분기에 도달하지 못한다.
+    log(`[WARN] After 상태 측정 실패: ${e?.message || e} — applied 는 판정 불가(-1)로 간다`)
+    return null
+  }),
 ])
 
 log(`[Verify] passed=${verifyResult?.passed} failed=${verifyResult?.failed} issues=${verifyResult?.issues?.length || 0}`)
@@ -422,7 +516,62 @@ const diff = {
   rules_lines: (afterState?.rules_lines || 0) - (beforeState?.rules_lines || 0),
   skills_count: (afterState?.skills_count || 0) - (beforeState?.skills_count || 0),
   skills_total_lines: (afterState?.skills_total_lines || 0) - (beforeState?.skills_total_lines || 0),
+  assets_lines: (afterState?.assets_lines || 0) - (beforeState?.assets_lines || 0),
   claude_md_lines: (afterState?.claude_md_lines || 0) - (beforeState?.claude_md_lines || 0),
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 실적용 실측 (2026-08-27 신설) — 에이전트 자기보고를 applied 의 근거로 쓰지 않는다.
+//
+// 왜 필요한가: 구 코드의 `applied` 는 apply 결과가 아니라 **분류 단계의 후보 수**
+//   (autoItems.length)였고, 실제 적용 결과와 한 번도 대조되지 않았다. 그래서 실적용 0인 run 이
+//   두 번(2026-08-16 · 2026-08-27) 연속 `applied>0` 을 보고했다. 자기보고도 못 믿는다 —
+//   `{"applied":false}` 는 truthy 객체라 구 `filter(Boolean)` 이 성공으로 셌다.
+//
+// 판정 규칙: before/after 상태가 **어느 축도 움직이지 않았으면 적용은 0건**이다.
+//   상태가 움직였으면 자기보고 수를 쓰되, 자기보고가 시도 수를 넘지 못하게 막는다.
+//
+// ⚠️ 이 방어가 무력화되는 입력:
+//   ① 상태 측정 자체가 실패해 before/after 가 null 이면 판정 불가(-1)로 남긴다 — "0건"과 다르다.
+//   ② 두 항목이 서로 반대 방향으로 같은 줄 수를 바꾸면 합계 diff 가 0 이 돼 0건으로 읽힌다.
+//      (SHRINK 만 자동 대상이라 현재는 발생하지 않지만, 자동 대상에 증가형 action 이 추가되면
+//       축별 절대값 합으로 바꿔야 한다.)
+// ─────────────────────────────────────────────────────────────────────────────
+// 객체 truthiness 만 보면 **부분 측정**(4필드 중 일부만 온 객체)이 통과한다 — 누락분이 diff
+// 계산의 `|| 0` 에 걸려 가짜 diff 를 만들고, 그 가짜가 자기보고를 '실측'으로 승격시킨다.
+// schema required 로도 막지만 그건 런타임 의존이라 코드가 한 번 더 본다(2026-08-27 r3 검수).
+const _AXES = ['rules_lines', 'skills_count', 'skills_total_lines', 'assets_lines', 'claude_md_lines']
+const _complete = (st) => !!st && _AXES.every(k => Number.isFinite(st[k]))
+const _stateMeasured = _complete(beforeState) && _complete(afterState)
+const _stateChanged = Object.values(diff).some(v => v !== 0)
+// 삼상(三相): -1 판정불가 / 0 적용없음 / n 적용됨. **-1 과 0 을 섞지 않는다.**
+// 상태가 움직였으면 개수는 자기보고를 쓴다 — 실측은 "움직였나"의 0/비0 게이트이지 항목별 계수가
+// 아니다. 그 한계를 이름으로 숨기지 않으려고 applied_claimed 를 반환값에 함께 싣는다.
+const appliedMeasured = !_stateMeasured ? -1 : (_stateChanged ? appliedClaimed : 0)
+// 귀속은 **applyOrder** 로 한다(autoItems 순서가 아니다 — 위 주석 참조).
+const appliedItems = appliedMeasured > 0
+  ? applyOrder.filter((_, idx) => applyResults[idx] && applyResults[idx].applied === true)
+  : []
+// -1(판정 불가)이면 blocked 도 판정할 수 없다. 모르는 것을 "막혔다"로 단정하지 않는다.
+// 자기보고가 전멸한 경우(_stateChanged && claimed===0)도 **귀속을 알 수 없다** — 상태는 움직였는데
+// 어느 항목이 움직였는지 모른다. -1 과 같은 취급으로 blocked_ids 를 비운다.
+// (2026-08-27 r2 검수 low: 경고문은 "모른다"인데 반환값은 전원 blocked 로 단정하던 불일치.)
+const _contradiction = _stateMeasured && _stateChanged && appliedClaimed === 0
+const verdictUnknown = appliedMeasured < 0 || _contradiction
+const blockedIds = verdictUnknown ? [] : autoItems.filter(i => !appliedItems.includes(i)).map(i => i.id)
+log(`[Apply] claimed=${appliedClaimed} measured=${appliedMeasured < 0 ? 'unknown' : appliedMeasured}` +
+    ` / attempted=${autoItems.length}` + (blockedIds.length ? ` blocked=[${blockedIds.join(',')}]` : ''))
+if (appliedMeasured < 0) {
+  log(`[Apply-UNKNOWN] 상태 측정 실패 — applied 는 판정 불가(-1)다. "0건 적용"으로 읽지 마라.` +
+      ` blocked_ids 도 비운다(모르는 것과 막힌 것은 다르다).`)
+} else if (_contradiction) {
+  // 상태는 움직였는데 자기보고 파싱이 전멸한 경우. claimed===measured===0 이라 아래 MISMATCH 는
+  // 발화하지 않는다 — 그 침묵이 이 커밋이 없애려던 바로 그 실패 모드라 별도 경고를 둔다.
+  log(`[Apply-CONTRADICTION] 상태는 움직였는데(diff=${JSON.stringify(diff)}) 자기보고가 0건이다 —` +
+      ` 파싱 실패이거나 다른 세션의 변경이 섞였다. applied=0 을 "아무것도 안 됐다"로 읽지 마라.`)
+} else if (appliedClaimed !== appliedMeasured) {
+  log(`[Apply-MISMATCH] 자기보고와 실측이 다르다 — measured 를 정본으로 쓴다 ` +
+      `(claimed=${appliedClaimed} measured=${appliedMeasured} diff=${JSON.stringify(diff)})`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -435,7 +584,15 @@ await agent(
 ${FORBIDDEN}
 
 [데이터]
-auto_applied: ${autoItems.length}개
+auto_applied(실측 파생): ${verdictUnknown ? '판정 불가(unknown)' : appliedMeasured + '개'}   <- 이 값이 정본
+applied_unknown: ${verdictUnknown}   <- true 면 위 수치를 확정으로 쓰지 마라
+auto_attempted: ${autoItems.length}개
+auto_claimed(에이전트 자기보고): ${appliedClaimed}개
+blocked_ids: ${JSON.stringify(blockedIds)}
+WARNING applied_unknown=true 면 **판정 불가**다 — "0건 적용"과 다르다. 두 경우가 있다:
+  · measured=-1 : 상태 측정 자체가 실패했다(부분 측정 포함)
+  · measured=0 이면서 unknown : 상태는 움직였는데 자기보고가 전멸했다(무엇이 움직였는지 모른다)
+  둘 다 보고서에 "적용 0건"으로 쓰지 말고 "판정 불가"로 쓴다.
 human_required: ${humanRequired.length}개
 apply_results: ${JSON.stringify(applyResults.filter(Boolean))}
 verify: passed=${verifyResult?.passed} failed=${verifyResult?.failed} issues=${JSON.stringify(verifyResult?.issues || [])}
@@ -475,7 +632,7 @@ diff: ${JSON.stringify(diff)}
 ## ⑦ smoke-test 6개
 아래 6가지 Bash로 직접 확인하고 결과 표시:
 1. $HOME/.claude/rules/*.md 존재 확인: ls $HOME/.claude/rules/*.md | wc -l → 0이면 FAIL
-2. 주요 스킬 SKILL.md frontmatter 검증: python3 $HOME/.claude/skills/skill-creator/scripts/quick_validate.py $HOME/.claude/skills/cr-multi
+2. 주요 스킬 SKILL.md frontmatter 검증: python3 $HOME/.claude/skills/skill-creator/scripts/quick_validate.py $HOME/.claude/skills/forge-multi
 3. hooks 미수정 확인: ls -la $HOME/.claude/hooks/ | md5sum (before/after 같으면 OK)
 4. archive 복구 가능 확인: ls "${archiveBase}" 2>/dev/null && echo "ARCHIVE_OK" || echo "ARCHIVE_EMPTY"
 5. mirror orphan 부재 확인: archive한 스킬이 $HOME/.claude/skills/ 에 없는지 확인
@@ -490,10 +647,15 @@ diff: ${JSON.stringify(diff)}
   { label: 'report', phase: 'Report' }
 )
 
-log(`[Report] 완료. 자동적용=${autoItems.length} 미적용(human)=${humanRequired.length}`)
+log(`[Report] 완료. 자동적용(실측)=${appliedMeasured} 시도=${autoItems.length} 미적용(human)=${humanRequired.length}`)
 
 return {
-  applied: autoItems.length,
+  applied: appliedMeasured,              // 삼상: -1 판정불가 / 0 적용없음 / n 적용됨
+  applied_unknown: verdictUnknown,       // true 면 applied·blocked_ids 를 판정으로 읽지 마라
+  applied_claimed: appliedClaimed,       // 에이전트 자기보고 — 모순 노출용
+  attempted: autoItems.length,
+  applied_ids: appliedItems.map(i => i.id),
+  blocked_ids: blockedIds,
   human_required: humanRequired.length,
   verify: { passed: verifyResult?.passed, failed: verifyResult?.failed },
   diff,

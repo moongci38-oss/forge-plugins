@@ -349,5 +349,6 @@ UI를 다음 3가지 유형으로 분류 후, 해당 규칙 세트 적용:
 
 - **oracle-manifest.json 없음**: screen-mapping axis = WARN ("oracle-manifest 없음 — 스킵") 자동 처리. FAIL 아님.
 - **URL 미접근**: L2(Lighthouse/반응형) 스킵, L1·L3 정적 분석만 진행. findings에 "URL 미접근 — L2 스킵" 명시.
-- **Gemini Vision**: Lighthouse axis는 Gemini 에이전트 경유. approve-worker 토큰 선발행 필수 (Phase 0 전제).
+- **GPT-6 Astra Vision**: Lighthouse axis는 `codex-critic`(GPT-6 Astra) 에이전트 경유. approve-worker 토큰 선발행 필수 (Phase 0 전제).
+  ⚠️ 구 표기 "Gemini Vision / Gemini 에이전트" 는 2026-09-07 폐기 — Gemini 전면 철수, Lighthouse/Vision 레그가 Codex(GPT-6 Astra)로 교체됐다.
 - **workflow.js**: 실제 4축 병렬 실행 엔진. 이 SKILL.md는 각 에이전트에 주입되는 기준 문서.

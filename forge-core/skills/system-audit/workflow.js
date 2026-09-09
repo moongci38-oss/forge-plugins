@@ -5,7 +5,8 @@ export const meta = {
   phases: [
     { title: 'Audit', detail: '6축 parallel() 동시 실행 (axis-* 5개 + Redundancy)' },
     { title: 'Synthesize', detail: 'Lead 종합 + 축간 트레이드오프 + 로드맵' },
-    { title: 'Verify', detail: '3-LLM adversarial (Claude + Codex + Gemini) 2/3 합의' },
+    // root-cause: Gemini 전면 철수(2026-09-07) — 구조 검증 레그를 Codex(GPT-6 Astra)로 교체.
+    { title: 'Verify', detail: '3-LLM adversarial (Claude + Codex 적대 + Codex 구조) 2/3 합의' },
     { title: 'Report', detail: '검증 통과 발견 기반 최종 보고서 저장' },
   ],
 }
@@ -106,6 +107,57 @@ const VERIFY_SCHEMA = {
   },
   required: ['confirmed_finding_ids','disputed'],
 }
+
+// <judge-health:start> — E3·E4(2026-09-07) 판정자 건강 + 이견 신호. 순수함수만 둔다.
+//   ⚠️ 이 블록은 `.claude/skills/system-audit/tests/axis-health-dissent.test.mjs` 가 **통째로
+//   추출해 실행**한다. 바깥 변수(log·agent·args)를 참조하면 그 테스트가 깨진다.
+//
+// 왜 필요한가(쉽게): 지금도 죽은 축은 분모에서 빼고 재시도까지 한다 — 거기까진 좋다.
+//   빠진 것은 **그 사실이 숫자 밖으로 안 나온다**는 것이다. WARN 로그 한 줄은 사람이
+//   보고서를 볼 때 이미 사라져 있다. "avg=72" 만 남으면 그게 5축 평균인지 3축 평균인지,
+//   빠진 2축이 왜 빠졌는지 아무도 모른다. 0 점은 "나쁘다"이고 결측은 "모른다"인데
+//   지금은 둘 다 그냥 사라진다.
+// 무엇을 바꾸나: 판정선은 그대로 두고(평균 산식·조기중단 임계 무변경) **구조화 필드**를 더한다.
+//   ⚠️ 점수가 숫자가 아닌 축(스키마 위반)은 종전에 평균을 통째로 NaN 으로 만들었다 —
+//   이제 UNSCORED 결측으로 빼낸다. 이건 판정 완화가 아니라 **NaN 이라는 고장의 수리**다.
+// ⚠️ 무력화되는 입력: 축이 응답은 했는데 **내용이 빈 껍데기**(findings 0건, 근거 없는 점수)면
+//   status 는 OK 로 잡힌다 — 건강은 "응답했나"만 재지 "제대로 봤나"는 못 잰다. 그건 verify 레그 몫이다.
+const AXIS_DISSENT_SPREAD = 30 // 0~100 척도. 성숙도 1등급(L1~L5 = 20점 폭)을 넘어 벌어지면 이견으로 본다.
+
+// 축 하나의 건강 상태를 분류한다. 반환: 'OK' | 'MISSING' | 'UNSCORED'
+//   MISSING  = 판정자가 아무것도 안 돌려줬다(죽음·미응답).
+//   UNSCORED = 응답은 왔는데 점수가 숫자가 아니다(스키마 위반·파싱 실패). 0 점이 아니다.
+function classifyAxis(result) {
+  if (result == null) return 'MISSING'
+  return Number.isFinite(result.score) ? 'OK' : 'UNSCORED'
+}
+
+// 축별 건강표를 만든다. entries = [{ key, label, result, recovered }]
+// 반환: [{ axis, label, status, reason, score }]
+function buildAxisHealth(entries) {
+  return entries.map(e => {
+    const status = classifyAxis(e.result)
+    const reason = status === 'OK'
+      ? (e.recovered ? 'recovered-on-retry' : null)
+      : status === 'MISSING'
+        ? (e.recovered === false ? 'empty-after-retry' : 'empty-return')
+        : 'score-not-a-number'
+    return { axis: e.key, label: e.label, status, reason, score: status === 'OK' ? e.result.score : null }
+  })
+}
+
+// 이견 신호 — **표시 전용이다. 판정을 바꾸지 않는다**(dev-workflow-rules.md §E-3).
+// 왜 필요한가: 40 점과 100 점의 평균도 70 이고, 70 두 개의 평균도 70 이다.
+//   앞은 "한 축이 무너졌다"이고 뒤는 "고르게 보통"인데 평균만 보면 구별이 안 된다.
+function computeDissent(values, threshold) {
+  const nums = (values || []).filter(v => Number.isFinite(v))
+  if (nums.length < 2) return { dissent: false, spread: null, min: null, max: null, threshold, n: nums.length }
+  const min = Math.min(...nums)
+  const max = Math.max(...nums)
+  const spread = max - min
+  return { dissent: spread >= threshold, spread, min, max, threshold, n: nums.length }
+}
+// <judge-health:end>
 
 const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) } catch(e) { return null } })() : args
 
@@ -225,14 +277,16 @@ const axisResults = await parallel([
     { label: 'redundancy', phase: 'Audit', schema: REDUNDANCY_SCHEMA, model: 'sonnet' }),
 ])
 const redundancy = axisResults[AXIS_SPECS.length]
+// E3: 재시도로 살아난 축과 끝내 못 살린 축을 **구분해서** 기록한다(둘 다 종전엔 로그 한 줄뿐이었다).
+const axisRecovered = AXIS_SPECS.map(() => null) // null=재시도 안 함 / true=회수 성공 / false=재시도도 실패
 if (AXIS_SPECS.some((s, i) => !axisResults[i])) {
   const retried = await parallel(AXIS_SPECS.map((s, i) => axisResults[i]
     ? (() => Promise.resolve(null))
     : (() => agent(s.prompt() + ' [회수 재시도] 광범위 탐색 금지 — 지금까지의 최소 실측만으로 요구된 JSON 을 즉시 반환하라.',
         { label: `${s.label}-retry`, phase: 'Audit', schema: AXIS_SCHEMA, agentType: s.agentType, model: s.model }))))
   AXIS_SPECS.forEach((s, i) => {
-    if (!axisResults[i] && retried[i]) { axisResults[i] = retried[i]; log(`[INFO] ${s.label} 빈손 → 재시도 회수 성공`) }
-    else if (!axisResults[i]) log(`[WARN] ${s.label} 빈손 — 재시도에도 미반환. 부분 감사로 진행(이 축 점수 결측을 보고서에 명시할 것)`)
+    if (!axisResults[i] && retried[i]) { axisResults[i] = retried[i]; axisRecovered[i] = true; log(`[INFO] ${s.label} 빈손 → 재시도 회수 성공`) }
+    else if (!axisResults[i]) { axisRecovered[i] = false; log(`[WARN] ${s.label} 빈손 — 재시도에도 미반환. 부분 감사로 진행(이 축 점수 결측을 보고서에 명시할 것)`) }
   })
 }
 const [agentic, context, harness, cost, humanAi] = axisResults
@@ -245,9 +299,26 @@ if (axes.length === 0) {
 }
 // root-cause: B-1 Codex MED — filter(Boolean) 분모 변동으로 부분 감사 은폐
 if (axes.length < 5) log(`[WARN] axis ${axes.length}/5 — 부분 감사, 커버리지 저하`)
-const scores = axes.map(a => a.score)
+// E3: 어느 축이 왜 빠졌는지를 **구조화 필드**로 남긴다. 로그 한 줄은 보고서까지 안 따라간다.
+const axisHealth = buildAxisHealth(AXIS_SPECS.map((s, i) => ({
+  key: s.key, label: s.label, result: axisResults[i], recovered: axisRecovered[i],
+})))
+const unhealthyAxes = axisHealth.filter(h => h.status !== 'OK')
+if (unhealthyAxes.length) {
+  log(`[WARN] 축 결측 ${unhealthyAxes.length}/5 — ${unhealthyAxes.map(h => `${h.axis}:${h.status}(${h.reason})`).join(' ')} `
+    + `| 결측은 0점이 아니다(모름) — 평균 분모에서 빠졌고 보고서에 그대로 명시할 것`)
+}
+// ⚠️ 판정선 무변경: 평균 산식은 종전 그대로다. 다만 **점수가 숫자가 아닌 축**(스키마 위반)은
+//   종전에 평균 전체를 NaN 으로 만들었다 — 이제 UNSCORED 결측으로 빼낸다(고장 수리, 완화 아님).
+const scores = axes.map(a => a.score).filter(n => Number.isFinite(n))
 const avgScore = scores.reduce((s, n) => s + n, 0) / (scores.length || 1)
-log(`Audit: scores=${JSON.stringify(scores)} avg=${avgScore.toFixed(1)}`)
+log(`Audit: scores=${JSON.stringify(scores)} avg=${avgScore.toFixed(1)} (분모 ${scores.length}/5)`)
+// E4: 이견 신호 — 표시 전용, 판정 무변경.
+const axisDissent = computeDissent(scores, AXIS_DISSENT_SPREAD)
+if (axisDissent.dissent) {
+  log(`[DISSENT] 축 간 점수 편차 ${axisDissent.spread}점 (min=${axisDissent.min} max=${axisDissent.max}, 임계 ${axisDissent.threshold}) `
+    + `— avg ${avgScore.toFixed(1)} 하나로 읽지 말 것. 판정에는 반영하지 않는다(표시 전용)`)
+}
 if (redundancy) {
   const s = redundancy.summary
   log(`Redundancy: ${redundancy.items?.length || 0}건 (dup=${s.duplicates} orphan=${s.orphans} deprecated=${s.deprecated} theater=${s.theater_hooks})`)
@@ -295,8 +366,19 @@ const verifyCtx = JSON.stringify({
 // 'degrade'/'off' → null slot returned; .filter(Boolean) below drops it to 2-LLM.
 // Existing verifiers.length<2 fail-closed guard + threshold=2 renorm handle 2-LLM gracefully.
 const spawnCodex = crMode === 'on'
-if (!spawnCodex) log(`[INFO] crMode=${crMode} — codex-critic spawn SKIPPED. Verify degrades to Claude+Gemini (2-LLM).`)
-const [claudeVerify, codexVerify, geminiVerify] = await parallel([
+if (!spawnCodex) log(`[INFO] crMode=${crMode} — codex-critic spawn SKIPPED. Verify degrades to Claude 2-LLM(적대 레그 제외, 구조 레그는 Claude 로 대체).`)
+// root-cause: Gemini 전면 철수(2026-09-07) — 구조 검증 레그(구 agentType = Gemini)를 Codex(GPT-6 Astra)로 교체.
+//   계획서: ${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+//   ⚠️ 알려진 대가: 이제 3레그 중 2개가 Codex 라 **벤더 교차 독립성이 약해졌다**.
+//     레그별 렌즈(적대 false-positive vs 구조 drift)로만 분리된다 — 합의 2/3 의 의미가 종전보다 얕다.
+//   ⚠️ crMode 계약 유지: crMode!=='on' 이면 Codex 를 하나도 안 띄운다는 뜻이므로,
+//     구조 레그도 Codex 로 두면 게이트가 새어나간다 → degrade 시 Claude 구조 검증으로 대체한다.
+//     그 결과 verifier 수는 종전 degrade 경로와 동일하게 2 로 유지된다(fail-closed 임계 불변).
+// root-cause: Workflow 샌드박스는 Bash 불가 → model-registry-resolve.sh 미호출.
+//   cr-multi/workflow.js:454 관례대로 codex:max 현행 id 를 코드 기본값으로 둔다.
+//   SSoT = shared/config/model-registry.json (codex.tiers.max).
+const codexVerifyModel = _a?.codexModel || 'gpt-6-astra'
+const [claudeVerify, codexVerify, structuralVerify] = await parallel([
   () => agent(
     `audit 결과 meta-review. 검토: (1) 발견 이슈 실제 문제인가 (2) 권고사항 실행 가능한가 (3) 놓친 이슈. ` +
     `각 finding.id confirmed/disputed 판단. 결과: ${verifyCtx}`,
@@ -310,15 +392,27 @@ const [claudeVerify, codexVerify, geminiVerify] = await parallel([
         { label: 'verify-codex', phase: 'Verify', schema: VERIFY_SCHEMA, agentType: 'codex-critic' }
       )
     : null,
-  () => agent(
-    `구조 검증 (Gemini). 리포트 일관성·완전성·레이블 drift 체크. ` +
-    `축간 점수 모순? 중복 분류 표 섹션 정합? ` +
-    `각 finding.id confirmed/disputed 판단. 결과: ${verifyCtx}`,
-    { label: 'verify-gemini', phase: 'Verify', schema: VERIFY_SCHEMA, agentType: 'gemini' }
-  ),
+  () => spawnCodex
+    ? agent(
+        `구조 검증 (Codex). 리포트 일관성·완전성·레이블 drift 체크.\n` +
+        `**mcp__codex__codex 실제 호출** (ToolSearch 로 스키마 선로드 필요) — Claude 자체 추론으로 결과 생성 금지:\n` +
+        `- prompt = "다음 감사 종합 결과의 **구조**를 검증하라. 축간 점수 모순? 중복 분류 표 섹션 정합? ` +
+        `레이블 drift? 각 finding.id 를 confirmed/disputed 로 판단하라.\\n결과: ${verifyCtx}\\n` +
+        `VERIFY_SCHEMA(confirmed_finding_ids/disputed_finding_ids 등) 형태 JSON 으로 반환."\n` +
+        `- model = "${codexVerifyModel}" (구조 검증 레그 tier — codex:max)\n` +
+        `- sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "xhigh"}\n` +
+        `Codex 응답(JSON) 파싱 → StructuredOutput(VERIFY_SCHEMA).`,
+        { label: 'verify-structural', phase: 'Verify', schema: VERIFY_SCHEMA, agentType: 'codex-critic' }
+      )
+    : agent(
+        `구조 검증 (Claude — crMode=${crMode} 라 Codex 레그 대체). 리포트 일관성·완전성·레이블 drift 체크. ` +
+        `축간 점수 모순? 중복 분류 표 섹션 정합? ` +
+        `각 finding.id confirmed/disputed 판단. 결과: ${verifyCtx}`,
+        { label: 'verify-structural', phase: 'Verify', schema: VERIFY_SCHEMA }
+      ),
 ])
 
-const verifiers = [claudeVerify, codexVerify, geminiVerify].filter(Boolean)
+const verifiers = [claudeVerify, codexVerify, structuralVerify].filter(Boolean)
 // root-cause: Codex HIGH — verifier < 2명 시 감사 계속으로 2/3 합의 요건 미충족. fail-closed 필수.
 if (verifiers.length < 2) {
   log(`[FAIL] verifier ${verifiers.length}/3 — 최소 2명 미충족, 감사 중단 (fail-closed)`)
@@ -327,7 +421,7 @@ if (verifiers.length < 2) {
 const allFindings = synthesis.findings || []
 // root-cause: cr-triple Codex CRIT — ceil(2/2)=1 버그 수정. 3·2 verifier=2표 필수(fail-closed), 1=solo(WARN).
 const threshold = verifiers.length >= 2 ? 2 : 1
-if (verifiers.length < 3) log(`[WARN] verifier ${verifiers.length}/3 (codex/gemini 누락) — 임계 ${threshold} (2 verifier도 2표 필수), 신뢰도 저하`)
+if (verifiers.length < 3) log(`[WARN] verifier ${verifiers.length}/3 (codex 적대/구조 레그 누락) — 임계 ${threshold} (2 verifier도 2표 필수), 신뢰도 저하`)
 const verified = allFindings.filter(f =>
   verifiers.filter(v => v.confirmed_finding_ids?.includes(f.id)).length >= threshold
 )
@@ -352,13 +446,19 @@ await agent(
   - verifier_additions=${JSON.stringify(additions)}
   - disputed_ids=${JSON.stringify(disputed)}
   - verifier_count=${verifiers.length} (3 미만이면 검증 신뢰도 저하 명시)
+  - axis_health=${JSON.stringify(axisHealth)}  // E3: 축별 판정자 건강(OK/MISSING/UNSCORED + 사유)
+  - axis_dissent=${JSON.stringify(axisDissent)} // E4: 축 간 이견 신호(표시 전용 — 판정 미반영)
+  - score_denominator=${scores.length}/5 (평균의 분모. 5 미만이면 avg 를 5축 평균처럼 쓰지 말 것)
   - tradeoffs=${JSON.stringify(synthesis.tradeoffs)}
   - roadmap_p0=${JSON.stringify(synthesis.roadmap_p0)}
   - roadmap_p1=${JSON.stringify(synthesis.roadmap_p1)}
   - roadmap_p2=${JSON.stringify(synthesis.roadmap_p2)}
 
   필수 섹션:
-  1. Executive Summary (점수 표 + Redundancy 요약 + verifier_count<3 시 신뢰도 경고)
+  1. Executive Summary (점수 표 + Redundancy 요약 + verifier_count<3 시 신뢰도 경고
+     + **axis_health 에 OK 아닌 축이 있으면 "축 N/5 결측(사유)" 을 점수 바로 옆에 명시** —
+       결측을 0점으로 적지 말고 "미측정"으로 적는다(0점="나쁘다" / 결측="모른다")
+     + axis_dissent.dissent 가 true 면 "축 간 편차 N점 — 평균 하나로 읽지 말 것" 1줄)
   2. 축별 감사 결과 (1.1~1.5 + 1.6 Redundancy)
   3. 축간 트레이드오프 분석
   4. Redundancy 리포트 (redundancy_items의 type/names/recommendation/risk/reason 표 — summary 아닌 item별 행)
@@ -379,4 +479,8 @@ return {
   redundancy: redundancy?.summary,
   verified_count: verified.length,
   total_findings: allFindings.length,
+  // ⚠️ 기존 필드는 이름·타입 그대로. 아래 3개만 **추가**한다(상위 소비자 무영향).
+  axisHealth,                      // E3: 축별 OK/MISSING/UNSCORED + 사유
+  scoreDenominator: scores.length, // E3: avg 의 분모 — 5 미만이면 부분 감사다
+  axisDissent,                     // E4: 이견 신호(표시 전용, 판정 미반영)
 }

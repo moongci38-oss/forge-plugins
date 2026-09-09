@@ -16,7 +16,7 @@ ls release-config.json 2>/dev/null && echo "redeploy=on" || echo "redeploy=off (
 ```
 
 - `WIRED` → 아래 L1/L2/L3 그대로 실행 가능.
-- `NOT_WIRED` → `dev/github-spec-kit/workflows/rollback.yml`(spec-kit 템플릿)을 그 레포의
+- `NOT_WIRED` → `dev/github-spec-kit/workflows/rollback.yml`(⚠️ OSS `github/spec-kit` 과 무관 — 이름만 같은 자체 GitHub Actions 워크플로우)을 그 레포의
   `.github/workflows/`에 복사해 배선한 뒤 실행한다. 템플릿 헤더가 명시하는 정규 설치 경로다.
 - `redeploy=off` → L2의 "Re-deploy previous version" 스텝이 `release-config.json` 부재로
   **skip**된다(템플릿이 그렇게 설계됨). 코드는 되돌아가지만 재배포는 수동이다 — L2를 쓸 때
@@ -51,20 +51,20 @@ Forge Dev platform층 프로덕션 롤백을 실행합니다. 배포 실패 시 
 | **L2 Release Revert** | 실패 후 < 2시간 | 이전 릴리스 태그로 완전 복구 + 재배포 |
 | **L3 Hotfix Forward** | 실패 후 > 2시간 | `hotfix/*` 브랜치 생성 → Forge Dev Hotfix 플로우 재진입 |
 
-## Advisor 자문 (advisory-only · non-blocking · 리졸버 기본 = Fable 5)
+## Advisor 자문 (advisory-only · non-blocking · 리졸버 기본 = Fable 5.1)
 
-롤백 실행 결정(장애 대응·비가역) 직전에 `advisor-strategist` 조언을 구한다(모델 = `advisor-model-resolve.sh` 출력, 기본 Fable 5). **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+롤백 실행 결정(장애 대응·비가역) 직전에 `advisor-strategist` 조언을 구한다(모델 = `advisor-model-resolve.sh` 출력, 기본 Fable 5.1). **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
 
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```
 Agent(subagent_type="advisor-strategist", prompt="장애 증상·롤백 대상 버전·현재 배포 상태 맥락 3-5줄. 질문: 이 롤백 자체가 유발할 수 있는 데이터 정합·부분배포 부작용과 대안 2-3개는?")
 ```
 
 - 트리거: 롤백 명령 실행 직전(장애 대응·비가역)
 - 반환 조언은 참고만 — 최종 판단·실행은 커맨드(및 기존 Human 승인 게이트)가 수행.
-- **advisor 모델 = `advisor-model-resolve.sh` 출력**(기본 Fable 5 · 대체 `gpt-5.6-sol` · `FORGE_ADVISOR_MODEL=opus` 로 Opus 고정). 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)로 스폰한다.
+- **advisor 모델 = `advisor-model-resolve.sh` 출력**(기본 Fable 5.1 · 대체 `gpt-6-astra` · `FORGE_ADVISOR_MODEL=opus` 로 Opus 고정). 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)로 스폰한다.
   ⚠️ 2026-08-12 이전 문구 **"Fable 5 미배선 — Human 수동 에스컬레이션 전용 · `advisor-model-resolve` 호출 금지"는 폐기**했다 — 이 커맨드에 advisor 자문 레그가 실재하는데 리졸버 호출을 금지해 라우팅이 서로 어긋났다(cr-final HIGH). 정본 → `rules/model-routing.md §Advisor 전략 상시 가동`
-- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor=`advisor-model-resolve.sh` 출력(기본 Fable 5 · 대체 `gpt-5.6-sol`).
+- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor=`advisor-model-resolve.sh` 출력(기본 Fable 5.1 · 대체 `gpt-6-astra`).
 
 ## [STOP] 실행 승인 게이트 (2026-08-22 신설 — 감사 H-2)
 

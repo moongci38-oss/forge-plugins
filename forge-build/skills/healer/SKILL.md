@@ -76,7 +76,7 @@ Agent(
 - a2: surgical 수정
   + mcp__gitnexus__impact(수정_함수, direction="upstream", maxDepth=1)
   → d=1 심볼 = "반드시 테스트" 목록 확보
-- a3: /cr-code 리뷰
+- a3: /forge-code-review 리뷰
 - a4: 재현(GREEN) + Vision evaluator
 - a5: 회귀 체크
   + mcp__gitnexus__detect_changes(scope="staged")

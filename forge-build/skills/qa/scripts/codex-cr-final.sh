@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # codex-cr-final.sh — AD-93 W3 (amendments §A1/§A5)
-# PR 머지 직전 Codex /cr-final 1회 실행
+# PR 머지 직전 Codex /forge-final 1회 실행
 # Usage: bash codex-cr-final.sh <pr-body-path> [output-dir]
 # Output: docs/reviews/codex-final/{date}-codex-cr-final.json (라벨: codex-verified)
 #
@@ -62,7 +62,7 @@ else
   echo "  설치: npm install -g @openai/codex  또는 PATH 확인" >&2
   VERDICT="WARN"
   CODEX_RESPONSE='{"status":"codex-cli-missing"}'
-  ISSUES=('{"severity":"medium","message":"Codex CLI not installed. Manual /cr-final review recommended. Merge gate weakened."}')
+  ISSUES=('{"severity":"medium","message":"Codex CLI not installed. Manual /forge-final review recommended. Merge gate weakened."}')
 fi
 
 # ─── Response sha256 (위조 차단 §I.10)

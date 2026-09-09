@@ -4,7 +4,7 @@ description: >
   컨텍스트 엔지니어링 감사 전문 에이전트. RAG, 메모리, 컨텍스트 윈도우 관리,
   지식 아키텍처를 7-Layer/RAGAS/ACE-FCA 프레임워크 기반으로 평가한다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 maxTurns: 40
 ---
 

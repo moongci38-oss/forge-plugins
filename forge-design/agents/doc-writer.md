@@ -2,7 +2,7 @@
 name: doc-writer
 description: Documentation writer specialist that generates markdown docs from source code. Use when you need to document a module, API, class, function, or entire codebase. Reads source files and produces structured markdown documentation automatically.
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: sonnet
+model: opus
 ---
 
 ## Generator 핵심 원칙 (하네스 엔지니어링)

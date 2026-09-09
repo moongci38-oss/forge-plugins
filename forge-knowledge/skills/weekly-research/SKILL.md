@@ -13,18 +13,22 @@ model: sonnet
 
 **역할**: 당신은 매주 기술·비즈니스 뉴스를 수집하고 사업 아이템을 제안하는 주간 리서치 전문가입니다.
 **컨텍스트**: 매주 자동 실행되거나 `/weekly-research` 호출 시 실행됩니다.
-<!-- root-cause(2026-08-10): 이 줄이 "파일 저장 불필요"라고 지시했으나, 아래 §산출물이 요구하는
-     `01-research/weekly/{date}/` 파일 저장을 전제로 후속 단계(Wave 0.5 carryover 수집, 대시보드
-     생성, 텔레그램 발송, 아티팩트 발행)가 전부 동작한다 — 지시대로 따르면 파이프라인이 끊긴다.
-     같은 결함을 article·daily-system-review 는 2026-08-03 에 정정했고 yt·weekly-research 두 곳이
-     남아 있었다(2026-08-10 실측 `grep -rn "파일 저장 불필요" ${FORGE_ROOT:-$HOME/forge}/.claude/skills/` → 2건,
-     둘 다 이번에 함께 정정). "파일 저장=정본, Artifact=파생"으로 단일화.
-     ⚠️ 아래 "Artifact XML"은 claude.ai 아티팩트가 **아니다** — stdout 표시용 `<artifact>` 태그일 뿐
-     공유 URL이 생기지 않는다. 이름이 같아 "발행됐다"고 오독하기 쉽다. 실제 발행은 대화형 세션의
-     `/forge-publish-report` 가 하며 헤드리스에서는 불가능하다(Artifact 도구 부재 — L-68). -->
-**출력 형식**: §산출물대로 **파일 저장이 정본**입니다. Artifact XML 발행은 저장 후 선택적 파생 출력(stdout 표시용)이며 파일 저장을 대체하지 않습니다.
-  - `report-formatter.mjs`의 `formatAsArtifact(title, content, 'markdown', id, true)` 사용
-  - `stripFirstHeading: true` 옵션으로 첫 # 제목 자동 제거
+<!-- 2026-08-25 정정(Human 지시): claude.ai Artifact 발행을 **폐지**하고 발행 대상을
+     https://forge-reports.pages.dev 하나로 단일화했다. 이유는 Artifact URL 이 **로그인 계정에
+     묶이기** 때문이다 — 계정이 바뀌면 갱신도 공유도 못 한다(DHS 에서 그렇게 죽은 URL 이 4개 이상).
+     구판이 말하던 "Artifact XML" 은 애초에 claude.ai 아티팩트가 **아니라** stdout 표시용 태그였고
+     공유 URL 을 만들지 않았다 — 이름만 같아서 "이미 발행됐다" 는 오독을 낳았으므로 함께 걷어낸다.
+     ⚠️ 파일 저장은 그대로 정본이다. 사이트 발행기가 저장된 파일을 훑어 올린다. -->
+**출력 형식**: §산출물대로 **파일 저장이 정본**입니다. 저장만 하면 **발행은 자동**입니다 —
+`report-site-publish.sh auto` 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
+텔레그램으로 링크를 보냅니다. **이 스킬이 발행을 직접 하지 않습니다.**
+
+- 지금 당장 올리려면: `/forge-publish-report`
+- 발행 URL: `https://forge-reports.pages.dev/<kind>/<slug>/`
+- ⚠️ Artifact 도구를 호출하지 마십시오(폐지됨).
+
+저장 경로(정본): `01-research/weekly/{date}/`
+— Wave 0.5 carryover 수집·대시보드 생성·텔레그램 발송이 전부 이 파일들을 Read 해 동작합니다.
 
 # 주간 리서치 파이프라인
 
@@ -61,7 +65,6 @@ model: sonnet
 | 3 | 사업 아이템 제안 | `01-research/projects/{project}/` | `{date}-s1-research.md` |
 | 4 | HTML 대시보드 | `01-research/weekly/{date}/` | `dashboard.html` (Wave 2.7) |
 | 5 | 관심종목 브리핑 (weekly=심층) | `01-research/weekly/{date}/` | `stock-trends.md` (워치리스트 없으면 skip, fail-open) |
-| 6 | 학습노트 | `01-research/weekly/{date}/` | `study-notes.md` (핵심 개념 0건이면 skip) |
 
 ### index.json `files` 스키마 (additive)
 
@@ -71,7 +74,6 @@ Publish 단계에서 갱신하는 `01-research/weekly/index.json`의 `files` 객
 {
   "files": {
     "stock_brief": "01-research/weekly/{date}/stock-trends.md",
-    "study_notes": "01-research/weekly/{date}/study-notes.md"
   }
 }
 ```
@@ -324,91 +326,30 @@ Round 2:
 
 ---
 
-### Wave 2.5 (독립 Evaluator subagent — Wave 2 완료 후, Wave 3 이전)
+### Wave 2.5~2.55 (독립 검증 + 적대적 검수 — Wave 2 완료 후, Wave 2.6 이전)
 
-> **핵심 원칙: Lead의 컨텍스트(의도, 가정)를 공유하지 않는 별도 에이전트가 검증한다.**
-> Wave 2 Lead 취합 완료 직후, Wave 3(Notion 등록 + 블로그 발행) 진행 전에 반드시 실행한다.
+두 겹으로 검증한다.
 
-```
-subagent_type: general-purpose
-model: sonnet
-```
+**Wave 2.5** — **Lead 의 컨텍스트(의도·가정)를 공유하지 않는 별도 에이전트**가 Wave 2 산출물을
+검증한다. Wave 2 취합 직후 **반드시** 실행한다 — 생성자가 자기 결과를 채점하면 편향이 걸리기
+때문이다. 판정은 PASS / FAIL(AUTO-PROCEED) 두 갈래다.
 
-**입력 파일 (직접 Read)**:
-- `01-research/weekly/{date}/tech-trends.md`
-- `01-research/weekly/{date}/biz-trends.md`
-- `01-research/projects/{project}/{date}-s1-research.md`
+**Wave 2.55** — **분석 리포트**(`tech-trends.md` · `biz-trends.md`)에 cr-triple 3레그로
+적대적 검수를 건다(2026-08-27 Human 지시). **비차단(WARN-first)** — WARN/FAIL 이어도 지적을
+**리포트 말미 `## 검수 지적`** 에 적고 진행하며 [STOP] 을 걸지 않는다(cron 무인 실행이라
+멈추면 그 주 리포트가 통째로 안 나온다).
 
-**Rubric (100점 만점)**:
+> ⚠️ **2026-09-03 변경**: 종전 대상은 계획서(`{date}-s1-research.md`)였다. 계획서 생산을
+> 중단하면서 그 경로를 두면 **검수가 영영 안 돈다** — 대상을 분석 리포트로 옮겼다.
+> `content_integrity=lost`·`INVALID_INPUT` 은 판정이 아니라 **검수 미수행**이니 대상을
+> 쪼개 재호출한다(로더 ~15KB 상한, 2026-09-02 실측).
 
-| 항목 | 가중치 | 불합격 기준 |
-|------|:------:|-----------|
-| 소스 커버리지 | 40% | 3종 파일 중 누락 1개 이상이면 즉시 FAIL; 필수 소스(Anthropic, Brave) 미참조 시 0점 |
-| 인사이트 품질 | 30% | 뉴스 나열만 있고 "우리에게 주는 시사점" 없으면 0점 |
-| 사업 아이템 완성도 | 20% | **JTBD 누락 시 감점 · 거래 실증(가격 + 거래량 근사치 중 2개, 마켓 리스팅 직접 실측) 누락 시 감점 · 마켓 표면 조회 원장 누락 시 감점**. ⛔ TAM/SAM/SOM 은 채점 대상이 아니다(2026-08-19 제거 — 있으면 감점도 가점도 없음) |
-| 액션 실현 가능성 | 10% | 액션 아이템 없거나 모호하면 감점 |
+> **이 Wave 를 돌릴 때 Read**: `references/wave25-wave3.md §Wave 2.5` · `§Wave 2.55`
+> — Evaluator 프롬프트 전문·항목별 배점·AUTO-PROCEED 정의와 cr-triple 호출 규약
+>   (`--cr on` 필수)·판정 소비 표가 거기 있다.
 
-**PASS 기준**: 70점 이상.
-
-**FAIL 처리**: Evaluator가 감점 항목별 위치 + 이유 + 개선 방법을 구체적으로 작성하여 Lead에 반환. Lead는 해당 Subagent 재스폰 후 Evaluator 재실행 (1회 한정).
-
-**2회 연속 FAIL — 무인 실행 원칙 (CRITICAL, G-2 2026-08-10 실사고 정정)**: 이 스킬은 사람이 답할 수 없는
-`claude -p` 헤드리스(cron)로도 실행된다. **선택지를 제시하고 사람의 답을 기다리지 않는다** — 답할 사람이
-없으면 그 턴에서 그대로 끝나고 Evaluator 판정이 영구히 미완으로 남는다(2026-08-10 실관측: 로그 마지막 줄이
-"A를 권합니다… 알려주시면 이어서 진행하겠습니다"였고, 산출물 존재 검증만 통과해 Exit 0을 냈다 — `/yt`의
-L-56·L-61과 같은 narration-not-execution 계열).
-
-대신 아래를 **그 자리에서 자율 실행**한다(질문·대기 금지):
-1. Evaluator 자신의 감점 사유를 근거로 **가장 타당한 기본안을 스스로 선정**한다 — Wave 2.5는 이미 독립
-   판단 주체이므로 사람에게 다시 묻지 않는다.
-2. `WR_EVAL.md`에 `## [STOP] 자동 선택 기록` 섹션을 추가해 ①선택한 안 ②선정 사유 ③기각한 대안을 남기고,
-   **판정 필드를 `FAIL(AUTO-PROCEED)` 로 갱신**한다 — FAIL 을 PASS 로 바꾸는 것이 아니다(판정 위조 금지).
-   자동 진행했다는 **사실**만 기록해, 아래 Wave 절들의 "PASS 후" 진입조건이 이 상태를 식별하게 한다
-   (cr-final pr267-chunk4: 갱신 지시가 없어 판정이 FAIL 로만 남아 하위 Wave 가 진행을 주저하는 재정체 경로).
-3. 선택안을 실행(필요 시 워커 재스폰으로 보강)한 뒤 Wave 2.6으로 계속 진행한다 — 실행을 멈추고 사람의
-   답을 기다리지 않는다.
-4. 그래도 사람 재검토가 필요한 결정(비가역·고위험)이라 판단되면, 실행 자체는 위 1~3대로 계속하되
-   `WR_EVAL.md` 최상단에 `[STOP] 승인 대기` 마커 한 줄을 남긴다 — 이 마커는 **다음 Human 세션이 읽는
-   표식**이지 이번 헤드리스 실행을 멈추는 신호가 아니다.
-
-**출력**: `${FORGE_ROOT:-$HOME/forge}/.claude/state/WR_EVAL.md`(절대경로 — 상대경로는 cwd에 따라 조용히 다른 곳에 쓰인다. root-cause: 2026-08-03 하네스 위생 조사, 앵커 없는 상대경로가 `shared/.claude/state/`에 산개해 있던 걸 실측)
-
-```markdown
-## Weekly Research Evaluator 결과
-
-**총점**: XX/100
-**판정**: PASS / FAIL
-
-### 항목별 점수
-- 소스 커버리지 (40%): XX점 — [미참조 소스 목록]
-- 인사이트 품질 (30%): XX점 — [사유]
-- 사업 아이템 완성도 (20%): XX점 — [사유]
-- 액션 실현 가능성 (10%): XX점 — [사유]
-
-### 개선 지시 (FAIL 항목만)
-- [파일명] [항목]: [위치] → [이유] → [개선 방법]
-```
-
-PASS 확인 후 Wave 2.6(학습노트) → Wave 2.7(HTML 대시보드) → Wave 3(Notion 자동 등록 + 블로그 발행)으로 진행한다.
-⚠️ **진입조건 정합(cr-final pr267-chunk4)**: 이 문서에서 "PASS 후/PASS 확인 후"는 전부
-**`PASS` 또는 `FAIL(AUTO-PROCEED)`**(위 §2회 연속 FAIL 무인 실행 원칙의 자동 선택 완료 상태)를 뜻한다.
-순수 `FAIL`(자동 선택 미실행)만 진행 불가다 — 헤드리스 실행이 잔존 "PASS 후" 문구를 문자 그대로 읽고
-멈추는 재정체(G-2 재발)를 막는 정의 조항.
-
----
-
-### Wave 2.6 (학습노트 생성 — Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 후, Wave 2.7 이전)
-
-```
-subagent_type: general-purpose (agentType: concept-notes-writer)
-model: sonnet
-```
-
-그주 리포트(`tech-trends.md` / `biz-trends.md` / `stock-trends.md`(있으면))에서 핵심 개념 1~3개를 선별해
-`01-research/weekly/{date}/study-notes.md`를 생성한다. 개념 후보 0개면 파일 생성을 생략한다(에이전트 자체 가드레일,
-`agents/concept-notes-writer.md` 참조). **fail-open** — 실패해도 기존 3종 리포트·대시보드·Notion 발행은 그대로 진행한다.
-
----
+> ⚠️ **학습노트(study-notes) 생성은 2026-09-03 폐지**(Human 지시) —
+> `concept-notes-writer` 를 스폰하지 않는다. 산출물은 분석 리포트 + 대시보드다.
 
 ### Wave 2.7 (HTML 대시보드 생성 — Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 후)
 
@@ -430,83 +371,11 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 
 ### Wave 3 (Notion 자동 등록 + 블로그 발행 — Wave 2.5 PASS(또는 FAIL(AUTO-PROCEED)) 후)
 
-3종 파일 작성 완료 + Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 확인 후, 아래 2개를 순차 실행한다.
+산출물을 Notion 에 등록하고 블로그로 발행한다. **실패해도 파이프라인을 멈추지 않는다** —
+Notion MCP 미연결·페이지 생성 실패는 경고 후 스킵한다(리포트 파일은 이미 저장돼 있다).
 
-**Step 1: 블로그 자동 발행** (선택적)
-
-tech-trends.md 내용을 프로젝트 블로그에 자동 발행한다.
-
-- 엔드포인트: `POST {BLOG_API_URL}/api/v1/blog/auto-publish`
-- 인증: `X-API-Key` 헤더 (환경변수 `AUTO_PUBLISH_API_KEY`)
-- DTO:
-  - `title`: "{date} 주간 기술 트렌드"
-  - `content`: tech-trends.md 전체 내용
-  - `category`: "tech" (또는 블로그 카테고리에 맞게)
-  - `tags`: ["weekly", "tech-trends", "AI"]
-  - `excerpt`: tech-trends.md 첫 2-3문장 요약
-- 성공 시: 블로그 발행 = "발행완료"
-- 실패 시: 경고 출력 후 블로그 발행 = "발행실패" (파이프라인 중단 안 함)
-
-**⚠️ API 서버 미기동 시**: 경고만 출력하고 스킵. 블로그 발행 = "미발행".
-
-**Step 2: Notion DB 자동 등록**
-
-Notion "Weekly Research" DB에 페이지를 자동 생성한다.
-
-**Notion DB 정보:**
-- Data Source ID: `d7ba2bc1-4c7b-400d-872f-8d78bfeea213`
-- DB URL: `https://www.notion.so/${NOTION_DB_ID}`
-
-**실행 순서:**
-
-1. `Read("01-research/weekly/{date}/tech-trends.md")` → 전체 내용 변수 저장
-2. `Read("01-research/weekly/{date}/biz-trends.md")` → 전체 내용 변수 저장
-3. `Read("01-research/weekly/{date}/stock-trends.md")` (존재하면) → 전체 내용 변수 저장. 미존재(skip) 시 이 단계 생략.
-4. `Read("01-research/weekly/{date}/study-notes.md")` (존재하면) → 전체 내용 변수 저장. 미존재(skip) 시 이 단계 생략.
-5. tech + biz + (stock, 있으면) + (study-notes, 있으면) 내용을 구분선(`---`)으로 이어 붙여 `content` 구성
-6. `mcp__notion__notion-create-pages` 호출
-
-**`mcp__notion__notion-create-pages` 호출:**
-
-```json
-{
-  "parent": { "data_source_id": "d7ba2bc1-4c7b-400d-872f-8d78bfeea213" },
-  "pages": [{
-    "properties": {
-      "제목": "{date} 주간 리서치 리포트",
-      "요약": "{tech-trends 핵심 3줄 + biz-trends 핵심 3줄}",
-      "date:날짜:start": "{date}",
-      "상태": "완료",
-      "기술 트렌드": "{tech-trends.md 핵심 뉴스 Top 3 요약}",
-      "비즈니스 트렌드": "{biz-trends.md 핵심 뉴스 Top 3 요약}",
-      "사업 아이템": "{선정된 사업 아이템 제목}",
-      "블로그 발행": "{Step 1 결과: 발행완료/발행실패/미발행}",
-      "tech-trends 경로": "01-research/weekly/{date}/tech-trends.md",
-      "biz-trends 경로": "01-research/weekly/{date}/biz-trends.md",
-      "s1-research 경로": "01-research/projects/{project}/{date}-s1-research.md",
-      "stock-trends 경로": "01-research/weekly/{date}/stock-trends.md (있으면만)",
-      "study-notes 경로": "01-research/weekly/{date}/study-notes.md (있으면만)"
-    },
-    "content": "{tech-trends.md 전체 내용}\n\n---\n\n{biz-trends.md 전체 내용}\n\n---\n\n{stock-trends.md 전체 내용, 있으면}\n\n---\n\n{study-notes.md 전체 내용, 있으면}"
-  }]
-}
-```
-
-**리포트 구성** (content 본문 섹션 순서, 있는 것만 포함 — additive):
-- 기술/비즈니스 트렌드 (기존)
-- 📈 주식 브리핑 (`stock-trends.md`, 워치리스트 없으면 섹션 생략)
-- 🎓 학습노트 (`study-notes.md`, 핵심 개념 0건이면 섹션 생략)
-
-**속성 값 추출 규칙:**
-- 요약: tech-trends + biz-trends 각 핵심 3줄 합산
-- 기술/비즈니스 트렌드: 각 파일의 Top 3 뉴스 항목 1줄씩
-- 사업 아이템: s1-research에서 최종 선정된 아이템명
-- 블로그 발행: Step 1 결과 반영
-- content: **tech-trends.md 전체 + `---` 구분선 + biz-trends.md 전체** (Notion 페이지에서 스크롤하며 전체 내용 열람 가능)
-
-**실패 처리:**
-- Notion MCP 미연결 시 경고 출력 후 스킵 (리포트 파일은 이미 저장됨)
-- 페이지 생성 실패 시 에러 로그 출력 후 스킵 (파이프라인 중단 안 함)
+> **이 Wave 를 실행할 때 Read**: `references/wave25-wave3.md §Wave 3`
+> — 등록 필드 매핑·블로그 발행 절차·실패 처리 분기가 거기 있다.
 
 ### Wave 3.5 (wiki-sync 자동 동기화 — Wave 3 완료 후)
 

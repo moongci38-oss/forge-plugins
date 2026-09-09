@@ -477,18 +477,24 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
 
   // ── Phase F: Validate (cr-* 순차) ──────────────────────────────────────────────
   phase('Validate')
-  const CR_CHECKS = ['cr-bug', 'cr-code', 'cr-test', 'cr-final']
-  for (const check of CR_CHECKS) {
+  // G2 (2026-09-07): stage 는 **커맨드 이름이 아니라 인자**다.
+  //   구: [cr-bug, cr-code, cr-test, cr-final] — 커맨드 이름을 배열에 박아두면
+  //   ①커맨드가 개명될 때 이 배열이 조용히 낡고 ②같은 개념을 부르는 어휘가 파일마다
+  //   달라진다(증거 디렉터리·게이트 루프·큐는 이미 bugfix/code/test/final 을 쓴다).
+  //   진입점은 하나(/forge-multi)로 두고 stage 를 넘긴다.
+  //   ⚠️ cr-bug 의 stage 이름은 bug 가 아니라 **bugfix** 다(증거 디렉터리 이름 기준).
+  const CR_STAGES = ['bugfix', 'code', 'test', 'final']
+  for (const stage of CR_STAGES) {
     const result = await agent(
-      `Phase F ${check} 검수. bug-fix-plan: ${planResult.planPath}. ` +
-      `${check} 스킬 기준 PASS/WARN/FAIL 판정.`,
-      { label: `${tagPrefix}phase-f:${check}`, phase: 'Validate', schema: CR_SCHEMA }
+      `Phase F ${stage} 단계 검수: /forge-multi --stage ${stage}. bug-fix-plan: ${planResult.planPath}. ` +
+      `해당 stage 기준 PASS/WARN/FAIL 판정.`,
+      { label: `${tagPrefix}phase-f:${stage}`, phase: 'Validate', schema: CR_SCHEMA }
     )
     if (result?.verdict === 'FAIL') {
-      log(`[STOP] ${check} FAIL — ${result?.criticalCount || 0}건 CRITICAL`)
-      return { error: `${check}-fail`, summary: result?.summary }
+      log(`[STOP] ${stage} FAIL — ${result?.criticalCount || 0}건 CRITICAL`)
+      return { error: `${stage}-fail`, summary: result?.summary }
     }
-    log(`[F] ${check}: ${result?.verdict}`)
+    log(`[F] ${stage}: ${result?.verdict}`)
   }
   // root-cause: crMode gate — 'degrade'/'off' skips codex-critic intentionally (not an error).
   let codexFinal = null

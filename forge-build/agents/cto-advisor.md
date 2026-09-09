@@ -7,7 +7,22 @@ description: |
 
   Use for: S4 기술 검토, 아키텍처 ADR 검증, 기술 스택 적합성 평가
 tools: Read, Grep, Glob, WebSearch, Write
-model: sonnet
+# ⚠️ 이 값을 내리지 마라 (2026-08-30 `sonnet` → `fable`).
+# 이 에이전트는 **채점자**다 — 메인 AI(Opus)가 쓴 `s4-development-plan.md` 를 7축으로 보고
+# `Verdict: PASS && Critical: 0` 으로 S4 게이트를 판정한다(`forge-s4-planning.md` S4-IRON-3).
+# `model-routing.md §워커 tier`: **verify/judge/review 는 대상 worker tier 이상(하향 금지)**.
+# 응시자가 Opus 인데 채점자가 Sonnet 이면 그 조항 위반이다.
+# 예외 판정(먼저 확인했다): 그 조항의 예외는 `forge-multi`/`cr-triple` 의 **고정 레그**(벤더 교차
+#   설계라 tier 축이 아니라 벤더 축으로 독립성을 얻는다)뿐이다. cto-advisor 는 거기 해당하지 않는다 —
+#   재현: `grep -c cto-advisor .claude/skills/forge-multi/workflow.js` → 0 (레그는 wOpus·wCodex·wGemini).
+#   호출처는 `/forge-plan` S4 Step 4-② 단독 스폰이다(`pipeline-p3-devplan.md:66`).
+# 왜 `opus` 가 아니라 `fable` 인가: ①Fable 5.1 ≥ Opus 5 라 하향금지를 충족한다 ②2026-08-22
+#   프런티어 승격으로 **판정 역할의 Claude 측 기본값이 이미 Fable 5.1** 다(검수 3레그·advisor 동일)
+#   ③작성자가 Opus 인데 심판도 Opus 면 동일모델 자기채점이다 — opus 승격은 tier 만 채우고 이 축을 놓친다.
+# Fable 미가용 시: 이 프런트매터는 `advisor-model-resolve.sh` 를 거치지 않아 폴백이 **자동이 아니다** —
+#   미가용 기간에는 이 값을 손수 `opus` 로 내리고(대체 1순위 sol 은 Agent 열거형에 없다), 복구되면 되돌린다.
+# 폐기조건: advisor 기본 모델이 Fable 5.1 가 아니게 되면 이 값을 그때의 기본값으로 맞춘다.
+model: fable
 ---
 
 ## Evaluator 핵심 원칙: 절대 관대하게 보지 마라

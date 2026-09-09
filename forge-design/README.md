@@ -21,8 +21,9 @@ claude plugin install forge-design
 | 도구 | 용도 | 설정 |
 |------|------|------|
 | `OPENAI_API_KEY` | image-orchestrate (gpt-image-1) | `~/.bashrc` export |
-| `GEMINI_API_KEY` | visual-loop, Gemini Vision | `~/.bashrc` export |
 | Playwright | visual-loop (브라우저 스크린샷) | `npx playwright install` |
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`GEMINI_API_KEY` | visual-loop, Gemini Vision | `~/.bashrc` export".
 
 > Figma MCP·OPENAI_API_KEY 없이도 `visual-loop`·`multiformat-image`는 단독 동작합니다.
 
@@ -59,7 +60,15 @@ GodBlade AI 이미지 생성 주 진입점. orchestrator.sh + nanobanana-wrapper
 
 **주요 기능**
 - **Primary**: gpt-image-1 (DALL·E 3) 생성
-- **Fallback**: nano-banana API 자동 폴백
+- **Fallback**: ⛔ **없습니다** — 옛 nano-banana 폴백은 내부적으로 Gemini(`provider_used = "nano-banana-gemini"`)를
+  거치는데, 2026-09-07 Gemini 전면 철수로 그 통로(MCP 서버·`GEMINI_API_KEY`)가 막혀 **사용할 수 없습니다.**
+  지금은 primary 가 실패하면 그대로 실패로 끝납니다(`ERROR: primary + fallback 모두 실패`).
+  대체 폴백은 아직 없습니다 — 정해지면 이 줄을 그 이름으로 다시 씁니다.
+  <!-- 사유: 구 표기 "nano-banana API 자동 폴백" 은 현재 기능 서술이라, 막힌 통로를 쓸 수 있는 것처럼
+       광고하고 있었습니다. 근거: nanobanana-wrapper.py:243 `provider_used = "nano-banana-gemini"` ·
+       :167 `fallback_nanobanana()` 가 MCP request 방식(2026-09-09 관측).
+       재현: grep -n 'nano-banana-gemini' "$FORGE_OUTPUTS/11-platform/pipelines/forge-dev/game-image-mvp/nanobanana-wrapper.py"
+       폐기조건: 대체 폴백 프로바이더가 배선되면 이 줄과 주석을 그 이름으로 교체합니다. -->
 - 카테고리별 경로 자동 라우팅 (`AI_Generated/{category}/`)
 - path-safe-storage.sh: 특수문자 파일명 안전 처리
 - quality-check.py: 생성 이미지 품질 자동 검증
@@ -108,12 +117,15 @@ PNG를 WebP/sprite-ready 형식으로 변환합니다. PIL(Pillow) 또는 ImageM
 
 ### visual-loop
 
-프론트엔드 변경 시 정적 분석 + 실제 렌더링 스크린샷(Playwright) + Gemini Vision 분석을 조합하여 closed loop 시각 검증을 수행합니다.
+프론트엔드 변경 시 정적 분석 + 실제 렌더링 스크린샷(Playwright) + Vision 분석을 조합하여 closed loop 시각 검증을 수행합니다.
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "**Gemini** Vision 분석을 조합" ·
+> "**Gemini Vision**으로 UI 변경 품질 자동 분석". Vision 레그는 구독 모델로 대체됩니다.
 
 **주요 기능**
 - 정적 코드 분석 (CSS/TS/JSX 변경 감지)
 - Playwright로 실제 브라우저 렌더링 스크린샷 캡처 (WSL2 지원)
-- Gemini Vision으로 UI 변경 품질 자동 분석
+- Vision 모델로 UI 변경 품질 자동 분석
 - 피드백 루프: 분석 결과 → 코드 수정 → 재캡처 → 재분석
 - Boris Cherny Chrome 확장 패턴의 WSL2 환경 대체 구현
 
@@ -136,7 +148,11 @@ PNG를 WebP/sprite-ready 형식으로 변환합니다. PIL(Pillow) 또는 ImageM
 | 에이전트 | 역할 |
 |----------|------|
 | `doc-writer` | 소스 코드 → Markdown 문서 자동 생성. 모듈·API·클래스·함수 문서화 전담. |
-| `gemini` | Gemini 2.5 Flash Vision/PDF 분석 + 광폭 컨텍스트 구조 리뷰. `mcp__gemini__analyze_media` / `mcp__gemini-text__generate_text` 연동. |
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`gemini` | Gemini 2.5 Flash Vision/PDF 분석 +
+> 광폭 컨텍스트 구조 리뷰. `mcp__gemini__analyze_media` / `mcp__gemini-text__generate_text` 연동."
+> `agents/gemini.md` 파일 자체는 forge SSoT sync 대상이라 남아 있으나
+> **`plugin.json` 등록에서 빠져 더 이상 로드되지 않습니다.**
 
 ---
 

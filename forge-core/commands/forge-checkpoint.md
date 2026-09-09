@@ -116,7 +116,7 @@ with open(path, 'a', encoding='utf-8') as f:
 
 ### 3. 파일 작성
 
-경로: `$CHECKPOINT_DIR/$(date +%Y-%m-%d-%H%M)-$(printf '%s' "${CLAUDE_SESSION_ID:-$$}" | tr -cd 'A-Za-z0-9-' | cut -c1-8).md` — 파일명은 date+세션ID(또는 PID) 앞 8자 자동 생성만(사용자 입력 삽입 금지), append-only(덮어쓰기 금지). 세션 접미사는 같은 분에 여러 세션이 저장할 때의 파일명 충돌을 막는다(M-1, 2026-08-15 — `session-recall.sh`의 파일명 파싱은 `YYYY-MM-DD(-HHMM)` **접두 매치**라 접미사가 붙어도 최신성 판정에 영향 없음, `key_for_file()` 확인 완료).
+경로: `$CHECKPOINT_DIR/$(date +%Y-%m-%d-%H%M)-$(printf '%s' "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-$$}}" | tr -cd 'A-Za-z0-9-' | cut -c1-8).md` — 파일명은 date+세션ID(또는 PID) 앞 8자 자동 생성만(사용자 입력 삽입 금지), append-only(덮어쓰기 금지). 세션 접미사는 같은 분에 여러 세션이 저장할 때의 파일명 충돌을 막는다(M-1, 2026-08-15 — `session-recall.sh`의 파일명 파싱은 `YYYY-MM-DD(-HHMM)` **접두 매치**라 접미사가 붙어도 최신성 판정에 영향 없음, `key_for_file()` 확인 완료).
 
 사전 캡처: `git status --short` / `git diff --stat HEAD` / `git log --oneline -3`.
 
@@ -128,7 +128,7 @@ model: opus
 slug: checkpoint-{요약}
 status: open
 project: forge
-session: "${CLAUDE_SESSION_ID:-unknown}"   # 소유 세션 식별자 — §6 재개 시 대조용(M-1/G-08)
+session: "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}"   # 소유 세션 식별자 — §6 재개 시 대조용(M-1/G-08)
 type: human-verify        # human-verify | decision | human-action | tdd-review
 ---
 
@@ -139,6 +139,7 @@ branch: {브랜치} ({repo 경로})
 ## 다음 스텝 (번호)
 ## 블로커
 ## 컨텍스트 메모 (compact 후 잊으면 안 되는 비자명 정보만)
+## 팀장 위임 기록 (팀slug | 보낸 브리프 | 수신 응답 | 방 상태 dormant/live — 없으면 "없음")
 
 <!-- 이하 계약 ⑦ 8절 — 해당 없으면 "없음" -->
 ## 미완료 태스크
@@ -151,7 +152,16 @@ branch: {브랜치} ({repo 경로})
 ## 백그라운드 워커 생존
 ```
 
-frontmatter는 handover와 같은 스키마를 쓴다 — 스캐너가 date로 최신성을 판정하기 때문이다(파일명 mtime 아님). `session:` 필드는 소유 세션 식별자(`${CLAUDE_SESSION_ID:-unknown}`)를 기록한다 — §6 재개와 `/forge-end` §7이 이 값으로 소유 검증을 한다. `CLAUDE_SESSION_ID`가 비어 있으면 `unknown`을 그대로 쓴다(거짓 식별자로 채우지 않음 — 소유 검증 쪽이 `unknown`을 "판별 불가"로 처리해 fail-open한다). ⚠️ **이 필드는 실값으로 치환해 기록한다** — `${CLAUDE_SESSION_ID:-unknown}` 문자열을 리터럴로 옮겨 적으면 소유 검증이 전부 판별 불가로 떨어진다(작성 전 `echo "$CLAUDE_SESSION_ID"` 로 실값 확인, cr-final MEDIUM 반영 2026-08-15). 보안 정보(토큰·패스워드) 기록 절대 금지. 20~50줄 유지.
+frontmatter는 handover와 같은 스키마를 쓴다 — 스캐너가 date로 최신성을 판정하기 때문이다(파일명 mtime 아님). `session:` 필드는 소유 세션 식별자(`${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}`)를 기록한다 — §6 재개와 `/forge-end` §7이 이 값으로 소유 검증을 한다. 두 변수가 모두 비어 있으면 `unknown`을 그대로 쓴다(거짓 식별자로 채우지 않음 — 소유 검증 쪽이 `unknown`을 "판별 불가"로 처리해 fail-open한다). ⚠️ **이 필드는 실값으로 치환해 기록한다** — `${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}` 문자열을 리터럴로 옮겨 적으면 소유 검증이 전부 판별 불가로 떨어진다(작성 전 `echo "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"` 로 실값 확인, cr-final MEDIUM 반영 2026-08-15). 보안 정보(토큰·패스워드) 기록 절대 금지. 20~50줄 유지.
+
+> **왜 변수를 둘 다 보나 (2026-08-29)**: 하네스가 실제로 주는 이름은 `CLAUDE_CODE_SESSION_ID` 다.
+> `CLAUDE_SESSION_ID` 는 **아무도 세팅하지 않는다** — 메인 세션·버스 워커·subagent 세 경로를
+> `/proc/<pid>/environ` 으로 직접 읽어 전부 UNSET 을 확인했다. 그래서 2026-08-24 에 만든 소유권
+> 판정이 **한 번도 작동한 적이 없었다**(없는 서랍을 열고 "번호표가 없네" 한 셈이다).
+> 구 이름을 **먼저** 두는 이유는 기존 테스트 하네스들이 그 이름으로 SID 를 주입하기 때문이다.
+> 재현: `bash shared/scripts/session-id-resolve.test.sh` · 상세: `harness-gaps/2026-08-29-session-id-env-name-mismatch.md`
+
+`## 팀장 위임 기록` 은 팀장에게 보낸 일과 받은 답을 1줄씩 남기는 절이다. **방 상태(dormant/live)의 출처는 위 §1 수집원 실측 블록**이다 — `BUS_WORKER_N=name|sid8|cwd|age|dormant` 가 dormant 방을, `WORKER_WORKTREE=` 가 live 프로세스를 가리킨다. ⚠️ `forge-session-bus.sh list` 에는 STATE 열이 없어서 거기서 dormant/live 를 읽으면 추측이다. 위임이 없었으면 `없음`. 작성법·팀 목록 전문 → `rules-on-demand/team-routing.md`
 
 ### 4. **[게이트] 자가 대조** (계약 ⑦(b))
 
@@ -193,7 +203,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-ind
    ```bash
    eval "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-landing.sh" "$(pwd)")"
    CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '^CHECKPOINT_LATEST=' | cut -d= -f2-)
-   MY_SID="${CLAUDE_SESSION_ID:-}"
+   MY_SID="${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
    if [ -n "$CP" ] && [ -f "$CP" ]; then
      CP_SID=$(grep -m1 '^session:' "$CP" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
      if [ -n "$MY_SID" ] && [ -n "$CP_SID" ] && [ "$CP_SID" != "unknown" ] && [ "$CP_SID" != "$MY_SID" ]; then
@@ -210,7 +220,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-ind
          [ "$fsid" = "$MY_SID" ] && { CP="$f"; break; }
        done < <(ls -t "$CHECKPOINT_DIR"/*.md 2>/dev/null)
      elif [ -z "$MY_SID" ]; then
-       echo "WARN: CLAUDE_SESSION_ID 미설정 — 소유 검증 생략(fail-open, 기존 동작 유지)"
+       echo "WARN: 세션 ID 미설정(CLAUDE_SESSION_ID·CLAUDE_CODE_SESSION_ID 둘 다) — 소유 검증 생략(fail-open, 기존 동작 유지)"
      elif [ -z "$CP_SID" ] || [ "$CP_SID" = "unknown" ]; then
        # cr-final MEDIUM 반영(2026-08-15): session 필드 부재·추출 실패를 침묵 통과시키지 않는다
        # — fail-open 은 유지하되 판별 불가였음을 명시한다(구형 체크포인트 호환).

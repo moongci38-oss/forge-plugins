@@ -1,5 +1,7 @@
 # Tool Usage Rules
 
+> 상세·근거·표는 `rules-on-demand/tool-rules-aux.md` 로 내렸다(2026-08-27 L1 슬림화 — 삭제 아님, 이동).
+
 ## 스킬 발동 기준 (CRITICAL — 2026-08-11 현실화, 구 "1% 임계값" 대체)
 
 **둘 중 하나면 반드시 호출한다:**
@@ -19,21 +21,11 @@
 
 **Subagent 예외**: 오케스트레이터가 파견한 subagent는 주어진 태스크를 직접 실행한다. 스킬 발동 임계값 재귀 체크는 오케스트레이터(메인 세션) 책임 — subagent 내부에서 재귀 스킬 호출 금지.
 
-**Subagent 재중첩(agent-of-agent)**: subagent 가 다시 Agent 툴로 subagent 를 띄우는 것은 **기본적으로 하지 않는다** — **깊이 2**(메인 → subagent)를 기본으로 본다. 더 필요하면 메인이 직접 분해해서 띄운다. 깊어질수록 브리프가 전달됐는지·산출물이 어디 떨어졌는지 추적이 끊기고, 착지 실측(`model-routing.md §착지 실측 의무`)을 할 주체가 사라진다.
-⚠️ 바로 위 항의 "재귀 **스킬** 호출 금지"와 **다른 축**이다 — 그건 스킬, 이건 에이전트다. 둘을 같은 규칙으로 읽지 말 것.
-근거: YT 분석 `nfUKLULchXE` 적용 계획서 P2-2 — 런타임 자체는 더 깊은 중첩을 허용한다(그 계획서가 인용한 공식 문서 기준 기본 3단계·최대 5단계, **원문 미검증**)는데 **우리 쪽 정책만 부재**했다. 사고 이력은 없다 — 이론 리스크라 문서화만 하고 hook 은 만들지 않는다.
-폐기조건: 깊이 3+ 가 실제로 필요했던 사례가 2건 이상 나오면 상향을 재검토한다.
+**Subagent 재중첩(agent-of-agent)**: subagent 가 다시 Agent 툴로 subagent 를 띄우지 않는다 — **깊이 2**(메인 → subagent)가 기본이다. 더 필요하면 메인이 직접 분해해서 띄운다. ⚠️ 바로 위 "재귀 **스킬** 호출 금지"와 **다른 축**이다(그건 스킬, 이건 에이전트). ⛔ 버스로 뜬 팀장의 일회성 워커는 버스(`session-bus send`)를 쓰지 않고 자기 팀장에게만 보고한다.
+왜·상세·폐기조건 → `rules-on-demand/tool-rules-aux.md §Subagent 재중첩 — 상세`
 
-⚠️ **`name` 지정 스폰 = 결과 무반환 (2026-08-13 실증)**: `Agent(name:"...", …)` 로 띄운
-subagent는 **in-process 팀원**이 되어 자기 턴이 끝나면 **idle 로 대기**한다 — 최종 산출물을
-호출자에게 자동 반환하는 경로가 아니다(`SendMessage`로 계속 대화해야 하는 구조). 최종 보고서가
-필요한 스폰에는 `name` 을 붙이지 않는다(이름 없음 = async agent, 완료 시 결과 포함 통지 자동 발송).
-실패가 조용해서(에러·타임아웃 없이 "idle" 만 옴) 원인을 엉뚱한 곳(모델 tier·토큰 상한)에서 찾기 쉽다.
-근거: 판별 시험(`name` 유무만 바꾼 대조) — 이름 있으면 무응답, 이름 없으면 즉시 반환. 같은 실수가
-2세션 연속 재발(2026-08-12·08-13, `ui-quality-checker` L3 시각 검수 착수 시도 4회 실패).
-관측 원기록: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/harness-gaps/2026-08-13-ui-quality-checker-no-return.md`
-(재현 = 같은 브리프로 `name` 지정/미지정 2회 스폰 후 반환 유무 대조 — 세션 행동 관측이라 셸 단독 재현 불가, cr-final pr267-chunk5 지적 반영).
-폐기조건: `name` 파라미터 자체의 툴 스키마 설명에 이 동작이 반영되면 이 문단은 삭제한다.
+⚠️ **`name` 지정 스폰 = 결과 무반환 (2026-08-13 실증)**: 최종 보고서가 필요한 스폰에는 `name` 을 붙이지 않는다 — 이름을 붙이면 in-process 팀원이 되어 결과를 반환하지 않고 idle 로 대기한다(실패가 조용하다).
+상세·재현 → `rules-on-demand/tool-rules-aux.md §name 지정 스폰 = 결과 무반환`
 
 ## 기사 URL → article 스킬
 - 사용자가 뉴스/블로그 기사 URL 전송 시 → `/article` 스킬로 분석
@@ -51,48 +43,34 @@ subagent는 **in-process 팀원**이 되어 자기 턴이 끝나면 **idle 로 �
 - 새 스킬 생성 시 반드시 `skill-creator` 스킬 사용. 직접 SKILL.md 작성 금지.
 
 ## 아티팩트 발행 — MD 원본 먼저 (2026-08-19 Human 지시)
+- 문서·계획서·리포트를 Artifact 로 발행할 때는 **레포 안 MD 원본이 먼저**고 아티팩트는 그 사본이다. 내용이 바뀌면 MD 를 먼저 고치고 재발행한다.
+- ⚠️ 아티팩트는 **계정에 묶인다** — 계정이 바뀌면 기존 URL 을 갱신·공유할 수 없다. MD 원본이 그때의 유일한 복구 수단이다.
+- 착지 경로·근거·폐기조건 → `rules-on-demand/tool-rules-aux.md §아티팩트 발행 — MD 원본 먼저`
 
-**문서·계획서·리포트를 Artifact 로 발행할 때는 레포 안에 MD 원본을 먼저 만들고, 아티팩트는
-그 사본으로 발행한다.** 내용이 바뀌면 **MD 를 먼저 고치고** 아티팩트를 재발행한다.
+## 리포트 발행 = 커밋까지가 완료 (Human 지시 2026-09-06)
 
-쉽게 말하면: **원고를 손에 쥐고 인쇄본을 돌리는 것**이다. 인쇄본만 있고 원고가 없으면,
-인쇄기(계정)가 바뀌는 순간 다시 찍을 방법이 없다.
+**`forge-reports.pages.dev` 에 올렸으면 그 산출물을 반드시 커밋한다.** 사이트는 접근 인증이 걸려 있고 정본은 `forge-outputs` 레포다 — 커밋을 안 하면 **팀원이 `git pull` 로 받을 방법이 없다**(벽보만 붙이고 원본은 서랍에 안 넣은 셈).
 
-- 착지: 내용 정본 = 프로젝트 문서 경로(예: `docs/analysis/<제목>.md`) · HTML 렌더 사본은
-  `…/artifacts/` · 그 사본으로 `Artifact` 발행.
-- ⚠️ **아티팩트는 계정에 묶인다** — 로그인 계정이 바뀌면 기존 URL 을 **갱신할 수도, 다른
-  계정과 공유할 수도 없다**. 그때 MD 원본이 있으면 새 URL 로 즉시 다시 찍는다.
-- 근거: DHS 프로젝트에서 계정 전환으로 아티팩트 URL **4개 이상**이 갱신 불가 상태가 됐다
-  (`ae4e60ba`·`333e4a54`·`3c2725f2`·`2b1355ca` — 2026-08-17~19 관측, 매번 새 파일 경로로
-  재발행해야 했다). 재현: 다른 계정으로 `/login` 후 그 URL 에 `Artifact` 재발행 시도 → 실패.
-- 폐기조건: 아티팩트가 계정 경계를 넘어 갱신·공유 가능해지면 이 절을 삭제한다.
+- 범위 = 사이트가 읽는 레인만(`01-research/{daily,weekly,videos/analyses,articles}`). ⛔ `git add -A` 금지 — 공유 트리라 **남의 미커밋까지 커밋**한다.
+- `report-site-publish.sh` 가 발행 직후 자동 커밋한다(끄기 `FORGE_PUBLISH_COMMIT=off`). **수동 발행이면 사람이 같은 범위를 커밋한다.**
+- ⚠️ 원격이 앞서면 커밋만 되고 푸시는 생략된다 — **커밋 = 팀 공유 아님.** 로그 사유를 보고 sync 한다.
 
-## /code-review ultra (구명 /ultrareview — W3 S-04 재표적)
+근거: 2026-09-06 실측 — 사이트 엔트리 1,772건인데 리포트 레인 미커밋 **41건**(전날 발행분 포함)이 쌓여 팀 공유가 끊겨 있었다.
+재현: `git -C ${FORGE_ROOT:-$HOME/forge}-outputs status --porcelain -- 01-research/daily 01-research/videos/analyses`
+폐기조건: 발행이 레포를 거치지 않는 구조로 바뀌면 삭제한다.
+
+## /code-review ultra (구명 /ultrareview)
 - 자동화 파이프라인(Forge Check, hook 등)에 배선 금지 · 고위험 PR에서만 수동 호출(사용자 트리거·과금).
-- 근거: census S-04 는 "빈 명령"으로 측정했으나 그것은 레포 grep 의 한계다 — 이 명령은 레포 스킬이
-  아니라 **CLI 내장 기능**이라 `find` 에 안 잡힌다(`/ultrareview` = `/code-review ultra` 의 구 별칭).
-  절 삭제 대신 현행 명칭으로 재표적해 정책(자동 배선 금지)을 보존한다.
-- 폐기조건: CLI 에서 이 명령이 제거되면 이 절을 삭제한다.
+- 재표적 근거·폐기조건 → `rules-on-demand/tool-rules-aux.md §/code-review ultra — 재표적 근거`
 
 ## UI/UX 작업
-
-### 디자인 도구 순위 (Human 확인 2026-08-14 — 이 순서를 임의로 바꾸지 않는다)
-
-| 순위 | 도구 | 배선 | 쓰는 때 |
-|:--:|---|---|---|
-| **1** | **Claude Design** (claude.ai/design) | `/forge-claude-design push\|pull\|status <slug>` (DesignSync). **MCP 아님 — 웹 제품** | **모든 UI/UX 작업의 시작점.** 레이아웃·컴포넌트·토큰 |
-| **2** | **Stitch** | `stitch` MCP(전역 등록) + `/forge-stitch` | 1순위로 안 되는 보조 작업. **Human 명시 호출 전용** |
-| — | ~~Figma~~ | — | ⛔ **사용 중단** — MCP 를 의도적으로 제거했다. 새로 제안하지 않는다 |
-
-⚠️ **MCP 목록만 보고 디자인 도구를 판단하지 마라.** 1순위 Claude Design 은 MCP 가 아니라서
-`$HOME/.claude.json` mcpServers 에 안 나온다 — 그걸 보고 "우리 디자인 도구는 stitch 뿐"으로 읽으면 틀린다.
-근거: 2026-08-14 실사고(에이전트가 MCP 목록만 보고 Stitch 를 주력으로 서술) ·
-2026-08-09 실사고(레퍼런스 표 오기재로 **정본에 없던 Figma·Stitch 를 제안**).
-폐기조건: Human 이 도구 순위를 다시 정하면 이 표를 그 값으로 교체한다.
-
-- 배선: `/forge-claude-design push|pull|status <project-slug>` (DesignSync 도구). 산문 아님 — 실행 경로다.
-- 결과물 받아서 Forge 파이프라인에 연결
-- 레퍼런스 소스(refero-craft 로컬 · Mobbin MCP · refero.design 본체 · 공개 DS 토큰)는 **도구 순위와 다른 축**이다 → `rules-on-demand/claude-design-workflow.md §레퍼런스 소스`
+- **순위(임의로 바꾸지 않는다)**: ①**Claude Design**(claude.ai/design, `/forge-claude-design`) = 모든 UI/UX 작업의 시작점 → ②**Stitch**(`/forge-stitch`) = Human 명시 호출 전용 보조 → ⛔ **Figma 사용 중단**(새로 제안하지 않는다).
+- ⚠️ **MCP 목록만 보고 디자인 도구를 판단하지 마라** — 1순위 Claude Design 은 MCP 가 아니라 `$HOME/.claude.json` 에 안 나온다(2026-08-14 실사고).
+- ⚠️ **`claude.ai/design`(웹)과 `frontend-design`(CLI 스킬)은 다른 것이다 (P2-3, 2026-09-06)**: 위 순위표의 ①은 **웹 제품**(브라우저에서 시안·디자인시스템을 만들고 `/forge-claude-design` 으로 왕복)이고, `frontend-design` 은 **이 CLI 안에서 프런트 코드를 직접 짜는 스킬**이다. **역할이 다르니 서로 대체하지 않는다** — 시안·토큰을 정하는 자리가 ①이고, 그 결정을 코드로 옮기는 자리가 `frontend-design` 이다. 순위표는 **전자만** 규정한다(후자는 순위 밖 구현 도구라 ①을 건너뛰는 근거가 되지 않는다).
+  ⚠️ **네이티브 `/design` 슬래시 커맨드는 없다**(2026-09-06 실측, CLI 2.1.261). 번들의 `"design"` 은 플러그인 **카테고리** 이름이고 `/design` 문자열은 `claude.ai/design` 같은 URL 조각이다 — 이름만 보고 있다고 단정하지 마라.
+  재현: `grep -aoE '"design"' "$(readlink -f "$(command -v claude)")" | wc -l` → 카테고리 목록 안에서만 나온다 · `ls ${FORGE_ROOT:-$HOME/forge}/.claude/commands/ | grep -x 'design.md'` → 0
+  근거: 순위표가 ①을 "모든 UI/UX 작업의 시작점"으로 못박는데, 이름이 비슷한 구현 스킬을 그것과 같은 것으로 읽으면 시작점을 건너뛴다. 폐기조건: 네이티브 `/design` 이 실제로 생기면 이 각주를 그 역할 설명으로 교체한다.
+- 표·근거·레퍼런스 소스 → `rules-on-demand/tool-rules-aux.md §디자인 도구 순위 — 표·근거`
 
 ## 스크립트 경로
 - Python/Bash 스크립트에서 CWD 상대경로 절대 금지

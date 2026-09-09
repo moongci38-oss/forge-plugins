@@ -4,7 +4,7 @@ description: >
   에이전틱 AI 역량 감사 전문 에이전트. 자율성, 도구 사용, 멀티에이전트 조정,
   성숙도 레벨을 CLEAR/Sema4.ai 프레임워크 기반으로 평가한다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 maxTurns: 40
 ---
 

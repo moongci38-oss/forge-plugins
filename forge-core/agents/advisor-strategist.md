@@ -1,7 +1,7 @@
 ---
 name: advisor-strategist
 description: >
-  Fable 5 기반 전용 조언자(기본 모델 2026-08-12 변경: Opus → Fable). 실행자(Opus·Sonnet·Haiku 워커)의
+  Fable 5.1 기반 전용 조언자(기본 모델 2026-08-12 변경: Opus → Fable). 실행자(Opus·Sonnet·Haiku 워커)의
   판단 지점에서 호출되며, 400~700 토큰 분량의 핵심 전략 조언만 제공한다. 도구를 직접 호출하거나
   최종 결과물을 생성하지 않는다. 설계 분기, 경계 판정, 비가역 변경, 검수 결론 확정,
   grants 전략, 보안 리스크 등 판단이 갈리는 지점 지원.
@@ -14,7 +14,7 @@ tools: Read, Grep, Glob
 **컨텍스트**: `Agent(subagent_type="advisor-strategist", prompt="...")`로 호출받습니다. 호출자(실행자)는 Sonnet 또는 Haiku 스킬입니다.
 **출력**: 400~700 토큰의 핵심 조언 (관찰 + 권장 + 신뢰도).
 
-# Advisor Strategist — 순수 조언 전용 Fable 5 에이전트
+# Advisor Strategist — 순수 조언 전용 Fable 5.1 에이전트
 
 > **Advisor 전략(2026-04-10 분석)의 Max 구독 기반 구현체.**
 > Anthropic 공식 `advisor_20260301` tool과 동일한 패턴을 Forge Subagent로 실현.
@@ -202,18 +202,32 @@ Agent(subagent_type="advisor-strategist", prompt="""
 
 ## 비용 특성
 
-- **기본 모델 = Fable 5** (frontmatter `model: fable`, 2026-08-12 변경 — 종전 Opus). 조언만 Fable 이고 구현은 워커 위임(영상 원칙).
-- ⛔ **리졸버 출력을 `Agent(model:$MODEL)` 에 그대로 넣지 말 것.** 리졸버는 `gpt-5.6-sol` 을 낼 수 있는데 Agent 의 model 열거형에는 codex 모델이 없어 스폰이 실패한다. 반드시 **분기**한다:
+- **기본 모델 = Fable 5.1** (frontmatter `model: fable`, 2026-08-12 변경 — 종전 Opus). 조언만 Fable 이고 구현은 워커 위임(영상 원칙).
+- ⛔ **리졸버 출력을 `Agent(model:$MODEL)` 에 그대로 넣지 말 것.** 리졸버는 `gpt-6-astra`(또는 `gpt-5.6-sol`)를 낼 수 있는데 Agent 의 model 열거형에는 codex 모델이 없어 스폰이 실패한다. 반드시 **분기**한다:
 
   | 리졸버 출력 | 스폰 방법 |
   |---|---|
-  | `claude-fable-5` | `Agent(subagent_type="advisor-strategist", model:"fable")` |
+  | `claude-fable-5-1` | `Agent(subagent_type="advisor-strategist", model:"fable")` |
   | `claude-opus-5` | `Agent(subagent_type="advisor-strategist", model:"opus")` |
-  | `gpt-5.6-sol` | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only) |
+  | `gpt-6-astra` (기본 대체, 2026-09-06 승격) | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only) |
+  | `gpt-5.6-sol` (한 칸 하향 — 정식 지원 중) | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only) |
   | 빈 출력·실행 실패 | `model:"opus"` 로 진행(non-blocking) |
 
 - **리졸버를 안 거치고 이 에이전트를 직접 부르면** frontmatter 기본값(Fable)으로 뜬다. 그래서 `FORGE_FABLE_AVAILABLE=0`·캡 초과 같은 가드가 **적용되지 않는다** — 가드를 태우려면 반드시 리졸버를 먼저 호출한다.
-- Opus 로 고정하고 싶으면 `FORGE_ADVISOR_MODEL=opus`.
+- Opus 로 고정하고 싶으면 `FORGE_ADVISOR_MODEL=opus`. astra 로 고정하려면 `FORGE_ADVISOR_MODEL=astra`.
+- **대체(fallback) 최상위가 `gpt-5.6-sol` → `gpt-6-astra` 로 승격됐다**(`FORGE_ADVISOR_FALLBACK` 기본값, 2026-09-06).
+  ⚠️ 구 표기 "대체 = `gpt-5.6-sol`" 은 폐기 — sol 은 폐지가 아니라 한 칸 아래로 내려온 것이다.
+  ⚠️ 로컬 codex CLI < **0.153.4** 면 astra 가 HTTP 400 이라 리졸버가 **sol 로 fail-open** 한다(막지 않는다).
+  재현: `codex --version` → `0.153.4` (2026-09-06 관측)
+- **`FORGE_ADVISOR_EXECUTOR` — 벤더 교차 자동화(신설 2026-09-06)**: `claude` → advisor=`gpt-6-astra` ·
+  `codex`/`gpt` → advisor=`claude-fable-5-1` · 미설정 → 현행(기본 Fable). `FORGE_ADVISOR_MODEL` 이 우선한다.
+  쉽게 말하면 **자기가 쓴 답안을 자기가 채점하지 않게** 하는 스위치다(종전엔 권고였다).
+  ⚠️ **2026-09-07 정정: 구 표기 "기본값을 바꾼 것이다" 는 과장이라 폐기 — 이건 `env opt-in` 이다.**
+  리졸버가 이 값을 **읽는** 배선은 실재하지만 **설정하는 프로덕션 호출자가 0곳**이라, 사람이
+  export 하지 않으면 종전대로 Fable 이 나간다(`배선: 세터 0곳 · 리더 1곳`).
+  재현: `grep -rn 'FORGE_ADVISOR_EXECUTOR=' --include='*.sh' --include='*.js' .` → 세터 0건.
+  근거: 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용).
+  폐기조건: 교차 조언 우위 근거가 2분기 연속 나오지 않으면 권고로 되돌린다.
 - **Max 구독 한도 내** — API 크레딧 불필요
 - 1회 호출당 약 2k~5k 토큰 소비 (실행자 + advisor subagent)
 - 공식 `advisor_20260301` tool보다 3~7배 토큰 오버헤드 있으나 API 불필요라는 장점
@@ -235,7 +249,7 @@ Agent(subagent_type="advisor-strategist", prompt="""
 - 1~2줄 수정·오타·포맷 정리 — 조언 오버헤드가 작업보다 크다(`model-routing.md §위임 임계값`)
 - 기계적 반복 적용 작업
 - 이미 명확한 판단 (경계가 아닌 경우)
-- **같은 벤더 자기훈수**: 메인이 Opus 인데 조언자도 Opus 면 관점이 겹친다 — 이때는 Fable(기본) 또는 `FORGE_ADVISOR_MODEL=sol` 로 벤더를 교차한다. 종전 "메인이 Opus면 호출 자체를 하지 말라"는 문구는 기본 조언자가 Opus 이던 시절의 것이라 폐기했다.
+- **같은 벤더 자기훈수**: 메인이 Opus 인데 조언자도 Opus 면 관점이 겹친다 — 이때는 `FORGE_ADVISOR_EXECUTOR=claude`(사람이 켜는 교차 → astra) 또는 `FORGE_ADVISOR_MODEL=astra` 로 벤더를 교차한다. ⚠️ 구 표기 "`FORGE_ADVISOR_MODEL=sol` 로 교차" 는 2026-09-06 폐기 — sol 도 여전히 유효하지만 대체 최상위는 astra 다. 종전 "메인이 Opus면 호출 자체를 하지 말라"는 문구는 기본 조언자가 Opus 이던 시절의 것이라 폐기했다.
 
 ---
 

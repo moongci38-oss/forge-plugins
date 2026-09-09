@@ -21,9 +21,9 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 | 기획 패키지 작성 | **Sonnet** | frontmatter `model: sonnet` |
 | 탐색(기존 spec/제품 인덱스·레포 확인) | **Haiku** | `Agent(model:"haiku")` subagent |
 | 기술 검토(7축 ADR) | (기존) | `cto-advisor` 에이전트/스킬 |
-| 비기술 전략 자문 | **Fable 5**(대체 `gpt-5.6-sol`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
+| 비기술 전략 자문 | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
 
-근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. ⚠️ 2026-08-12 부터 advisor 기본은 **Fable 5**다(구 "Opus 고정 · Fable 자동 없음" 폐기). 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
+근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. ⚠️ 2026-08-12 부터 advisor 기본은 **Fable 5**다(구 "Opus 고정 · Fable 자동 없음" 폐기, 2026-09-02: Fable 5.1 로 업그레이드). 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
 
 ## 사용법
 
@@ -148,7 +148,7 @@ features:
     stack: next.js      # 이 feature의 주 기술 스택
     mockup_refs:        # 연관 목업 파일 (key: 화면ID, value: 경로)
       {page-id}: s3-mockup/{page-id}.png
-    api_contract:       # 핵심 API 계약 (EP + 응답 1줄)
+    api키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:       # 핵심 API 계약 (EP + 응답 1줄)
       - "POST /endpoint → 201 {resultId}"
     aggregate: null     # DDD 집합체 (P3 기능명세 DDD 섹션 작성 후 채움 — 2차)
 ```
@@ -288,7 +288,7 @@ domains:
 
 ## 미결 항목
 - (없음)
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```
 
 **`_STATUS.md` 읽기/쓰기 규약**:
@@ -325,7 +325,7 @@ domains:
 - ② `cto-advisor` 에이전트 Subagent: `s4-development-plan.md` 7축(아키텍처·API·데이터모델·보안·성능·테스트전략·기술부채) 검토 — 부적절한 보안 `N/A`도 검토 → `{project-root}/docs/reviews/wave3-cto-{date}.md`
 - ③ `/forge-check-ui`: `s4-pages/`(또는 기존 `s4-ui-source/`) UI 품질. 초기 1회 + `critical_count` ≥1 시 `/visual-loop` 재시도 최대 2회(총 3회). 3회 후 잔존 → [STOP] → `{project-root}/docs/reviews/ui-check-{date}.json`
 
-**전략 advisor (조건부, advisory-only — cto-advisor 기술축과 별개)**: 비-기술 전략 분기에서 advisor-strategist(리졸버 기본 = Fable 5) 자문 — 트리거: MVP 범위 결정 분기 / L(대규모) 제품 순서·리소스 배분 / 타임라인-스코프 충돌. `Agent(subagent_type="advisor-strategist", prompt="<계획 맥락+전략 분기 500토큰> 범위·순서·리소스 권고 + trade-off 1~2개")`. 단순 계획(단일 제품·명확 범위)은 스폰 X. advisory only, non-blocking. 기술 결정(아키텍처·스택·보안)은 cto-advisor가 담당 — 중복 스폰 금지. 중첩 시 [→Lead 위임].
+**전략 advisor (조건부, advisory-only — cto-advisor 기술축과 별개)**: 비-기술 전략 분기에서 advisor-strategist(리졸버 기본 = Fable 5.1) 자문 — 트리거: MVP 범위 결정 분기 / L(대규모) 제품 순서·리소스 배분 / 타임라인-스코프 충돌. `Agent(subagent_type="advisor-strategist", prompt="<계획 맥락+전략 분기 500토큰> 범위·순서·리소스 권고 + trade-off 1~2개")`. 단순 계획(단일 제품·명확 범위)은 스폰 X. advisory only, non-blocking. 기술 결정(아키텍처·스택·보안)은 cto-advisor가 담당 — 중복 스폰 금지. 중첩 시 [→Lead 위임].
 
 ### Step 5 — 게이트 판정 (Check 4 — 모두 충족. 리포트 = 패턴 매칭 중 mtime 최신 1개 `ls -t {dir}/{pattern} | head -1`. 매칭 0개 = FAIL)
 <!-- mtime 기준 선정 이유: `-r2`/`-r3` 재시도 접미사는 사전순 정렬을 깨뜨림 (`-` 0x2D < `.` 0x2E → `...-r2.md`가 `....md`보다 사전순 앞섬), 따라서 `sort | tail -1`은 원본(stale) 리포트를 오선택할 수 있음 -->

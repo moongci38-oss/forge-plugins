@@ -62,7 +62,7 @@ Analyze 단계에서 5개 독립 agent를 `parallel()`로 동시 스폰:
 | by-page-type | `analyze:by-page-type` | 라우트 유형 분류 (auth/list/detail/dashboard/landing/form) |
 | by-interaction | `analyze:by-interaction` | 이벤트 핸들러·폼·내비게이션 패턴 |
 | by-css-token | `analyze:by-css-token` | CSS 변수·컬러 시스템·스페이싱 스케일 |
-| vision (skipGemini=false 시) | `analyze:vision` | Gemini Vision 레이아웃·UX 패턴 |
+| vision (skipVision=false 시) | `analyze:vision` | GPT-6 Astra(Codex 레그) 레이아웃·UX 패턴 |
 
 ### (e) Coverage Loop (completeness critic)
 
@@ -74,8 +74,9 @@ fan-out 완료 후 completeness critic agent가 미탐색 항목 식별:
 
 참조: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipGemini } })`
-skipGemini=true(Gemini 토큰 없는 경우 정적 분석만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 6 Phase 방식 fallback.
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipVision } })`
+skipVision=true(Vision 분석 없이 정적 분석만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 6 Phase 방식 fallback.
+⚠️ 구 표기 `skipGemini` 는 2026-09-07 폐기 — Gemini 전면 철수로 옵션명이 `skipVision` 으로 바뀌었다(코드는 이미 교체 완료, 문서만 지금 반영).
 
 ## 6 Phase 절차
 
@@ -105,8 +106,9 @@ CSS → `/style-forge` Mode A 호환 형식 (color palette / typography / spacin
 ### Phase 3 — 시각 분석
 
 핵심 화면 5-10개 선정 → `/screenshot-analyze` 호출:
-- Gemini Vision: 레이아웃 grid/flex + UX 패턴 분류 + 인터랙션 단서
+- GPT-6 Astra(Codex 레그, `codex-critic` 경유): 레이아웃 grid/flex + UX 패턴 분류 + 인터랙션 단서
 - 결과 → `components.md`
+- ⚠️ 구 표기 "Gemini Vision" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra 로 대체됐다.
 
 ### Phase 2.5 — 추론검증 (adversarial inference verification)
 

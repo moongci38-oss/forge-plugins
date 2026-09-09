@@ -22,8 +22,10 @@ model: sonnet
 |--------|------------------------|
 | 원본 JSON | `01-research/articles/{YYYY-MM-DD}/` |
 | 분석 리포트 | `01-research/articles/{YYYY-MM-DD}/` |
-| 시스템 비교 | `docs/reviews/` |
-| 적용 계획서 | `docs/planning/active/plans/` |
+
+> ⚠️ **`시스템 비교`·`적용 계획서` 두 산출물은 2026-09-03 폐지**(Human 지시) — 표에서 뺐다.
+> 종전엔 이 표가 둘을 **산출물로 명시**해서, 폐지 이후에도 모델이 표를 보고 다시 만들 소지가
+> 있었다(2026-09-06 발견). 옛 회차에 남은 파일은 그대로 두고 **신규 생성만 하지 않는다**.
 
 > **금지**: `forge/01-research/`, `forge/docs/` 등 forge 레포 안에 산출물 생성
 
@@ -49,26 +51,62 @@ $ARGUMENTS
 플래그:
 - `--deep` — 웹 리서치 + fact-checker 반드시 실행 (기본은 기사 카테고리 따라 자동)
 
-## 출력 형식 (Artifact — 파생 발행, 저장 후)
+## 출력 형식 (파일 저장 = 정본 · 발행은 사이트가 한다)
 
-<!-- root-cause(skills-1/S1-07, 2026-08-03 관측): 이 절이 원래 "파일 저장 불필요"라 했지만 Step 3(:236 "분석 리포트 저장")이 -analysis.md를 저장하고, 그 이후 Step 4 비교/계획서·대시보드 생성·텔레그램 발송·eval-rubric 채점(전부 저장된 파일을 Read해 동작)까지 전 단계가 그 저장 파일을 전제로 한다 — "저장 불필요"를 그대로 따르면 파이프라인이 끊긴다. "파일 저장=정본, Artifact=파생 발행"으로 단일화. -->
+<!-- 2026-08-25 정정(Human 지시): claude.ai Artifact 발행을 **폐지**하고 발행 대상을
+     https://forge-reports.pages.dev 하나로 단일화했다. 이유는 Artifact URL 이 **로그인 계정에
+     묶이기** 때문이다 — 계정이 바뀌면 갱신도 공유도 못 한다(DHS 에서 그렇게 죽은 URL 이 4개 이상).
+     구판이 말하던 "Artifact XML" 은 애초에 claude.ai 아티팩트가 **아니라** stdout 표시용 태그였고
+     공유 URL 을 만들지 않았다 — 이름만 같아서 "이미 발행됐다" 는 오독을 낳았으므로 함께 걷어낸다.
+     ⚠️ 파일 저장은 그대로 정본이다. 사이트 발행기가 저장된 파일을 훑어 올린다. -->
+§산출물대로 **파일 저장이 정본**입니다. 저장만 하면 **발행은 자동**입니다 —
+`report-site-publish.sh auto` 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
+텔레그램으로 링크를 보냅니다. **이 스킬이 발행을 직접 하지 않습니다.**
 
-`01-research/articles/{date}/...-analysis.md` 저장(Step 3) 후, 선택적으로 Artifact XML 형식으로도 발행할 수 있다(stdout 출력용 — 파일 저장을 대체하지 않는다):
+- 지금 당장 올리려면: `/forge-publish-report`
+- 발행 URL: `https://forge-reports.pages.dev/<kind>/<slug>/`
+- ⚠️ Artifact 도구를 호출하지 마십시오(폐지됨).
 
-```xml
-<artifact type="markdown" id="article-{date}-{hash}" title="{기사 제목}">
-{분석 내용 마크다운}
-</artifact>
-```
-
-- `report-formatter.mjs`의 `formatAsArtifact(title, content, 'markdown', id, true)` 사용
-- `stripFirstHeading: true` 옵션으로 첫 # 제목 자동 제거
+저장 경로(정본): `01-research/articles/{date}/...-analysis.md`(Step 3)
+— 이후 비교/계획서·대시보드·텔레그램 발송·eval-rubric 채점이 전부 이 파일을 Read 해 동작합니다.
 - `--skip-research` — Step 2.8 웹 리서치 스킵 (빠른 분석)
 - 복수 URL (공백 구분) 지원 — Step 6 종합 보고서 자동 생성
 
 ---
 
 ## 수행 절차
+
+### Step 0 — 중복 분석 게이트 (필수, 무엇보다 먼저)
+
+**이미 분석한 대상이면 다시 분석하지 않는다.** 트랜스크립트를 받기 전에, 링크를 열기 전에,
+무엇보다 먼저 이것부터 돌린다 — 뒤로 갈수록 되돌리는 비용이 커진다.
+
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/analysis-dedup-check.py" "<입력 URL>"
+#   exit 0 = 새 대상 → Step 1 로 진행
+#   exit 3 = 이미 분석함 → **분석을 중단**하고 출력된 링크를 사용자에게 그대로 안내한다
+```
+
+- **exit 3 이면 새 산출물을 만들지 않는다.** 기존 리포트 URL·분석일·중복 건수를 안내하고 끝낸다.
+  "이미 했습니다"만 말하지 말고 **링크를 같이 준다** — 안 그러면 사용자가 그 리포트를 찾으러
+  다시 물어야 해서 아낀 시간이 도로 나간다.
+- **사용자가 `--force` 를 줬으면 이 게이트를 건너뛴다.** 영상이 갱신됐거나 이전 분석이 부실할 때의
+  정당한 탈출구다. 이 경우 산출물 파일명이 기존 것과 날짜만 달라지므로 그대로 두면 된다.
+- ⚠️ **fail-open**: 스크립트가 없거나 실패해도(exit 0 이 아닌 값이 3 외의 것) **분석을 진행**한다.
+  가드가 분석을 못 하게 막는 장애가 되면 안 된다(AD-168 WARN-first).
+
+> **왜 이 게이트가 있나 (2026-09-03 실측)**: 사용자가 며칠 뒤 같은 URL 을 다시 보내면
+> 파이프라인이 **그냥 다시 분석했다.** 확인하는 코드가 어디에도 없었다 — `yt-analyzer.py` 0건,
+> 이 문서 0건, 봇의 `processed.json` 은 **메시지 ID** 만 기억해 새 메시지로 온 같은 URL 을 못 막는다.
+> 실측 피해: **영상 재분석 24회**(3회 분석 2건, 최장 간격 118일) · **기사 재분석 15회**(한 건은 5회)
+> — 1회 중앙값 $2.21 · 14.8분이므로 대략 **$86 · 9.6시간**.
+> 하필 `index.json` 은 같은 `video_id` 를 **덮어쓰기** 때문에 전부 고유로 보였다 — 장부가 사실을
+> 숨긴 것이다. 그래서 이 게이트는 인덱스가 아니라 **파일시스템**을 본다.
+> 재현: `bash shared/scripts/verify-analysis-dedup-check.sh` (21 PASS)
+>
+> ⚠️ 이 게이트가 무력화되는 입력: 같은 영상이 **다른 video_id 로 재업로드**된 경우 ·
+> 기사 URL 이 바뀐 경우(사이트 개편·단축 URL) · 산출물 파일명·URL 표기 규약이 바뀐 경우.
+> 셋 다 새 대상으로 보고 분석한다.
 
 ### Step 1 — 기사 추출 (WebFetch)
 
@@ -219,6 +257,37 @@ GTC-1에서 관련성 확인된 도구/플러그인/MCP/오픈소스/논문에 �
 
 > 형식적 1줄 요약 금지. 우리 시스템과 코드/설정 레벨 비교.
 
+### Step 2.88 — 추가 리서치 즉시 해소 (default-on, 2026-08-27 Human 지시)
+
+**"추가 리서치 필요"로 미룬 항목은 리포트를 저장하기 전에 이 자리에서 조사한다.**
+
+쉽게 말하면 **"이건 나중에 알아보자"를 리포트에 적어 넘기지 않는다** — 검색 도구를 이미 손에
+쥐고 있는 지금이 가장 싸게 알아볼 수 있는 순간이고, 넘긴 숙제는 대체로 아무도 안 한다.
+
+**절차**
+
+1. Step 2~2.87 진행 중 생긴 미해결 항목을 모은다 — fact-checker 의 `❓ 판정 보류`, 커버리지
+   게이트(2.82)가 2소스를 못 채운 P0/P1 주장, Step 1.5 의 `internal_links_priority` 중 아직
+   안 연 링크, 2.87 에서 원본을 못 연 도구·논문, 초안의 "추가 리서치 필요" 후보.
+2. 항목이 있으면 `yt-research-followup` 에이전트를 스폰해 **그 자리에서** 조사한다
+   (이름은 yt 유래지만 일반 웹 링크 조사에 그대로 쓴다 — Step 2(b) 와 같은 재활용).
+   항목이 3개를 넘으면 병렬로 나눠 띄운다.
+3. 결과를 해당 섹션 **본문에 병합**한다. 팩트체크 판정은 `❓` → `✅/⚠️/❌` 로 갱신한다.
+4. 조사했는데도 결론이 안 나는 항목만 "추가 리서치 필요"에 남기고, **왜 못 냈는지 1줄**
+   (유료 페이월·1차 자료 부재·상충 근거)을 함께 적는다. **사유 없는 이월은 금지.**
+
+**Skip 조건**: 미해결 항목 0건 — 그때만 이 절을 건너뛴다.
+⛔ `--deep` 여부·카테고리는 **더 이상 조건이 아니다**(Step 2(c) fact-checker 의 조건부 게이트는
+그대로 두되, 그 게이트에 걸려 조사되지 않은 주장은 여기서 다시 집는다).
+
+⚠️ **이 방어가 무력화되는 입력**: 초안이 "추가 리서치 필요" 항목을 **아예 안 적는** 경우 —
+모을 것이 없으니 조용히 통과한다. 그래서 1번은 초안 섹션만 보는 게 아니라 2.82·2.87·1.5 의
+미해결 상태를 함께 훑는다.
+
+근거: Human 지시(2026-08-27) — *"분석 시 추가로 분석해야 할 항목 같은 건 검색 시 바로 추가로
+확인하도록 해."*
+폐기조건: 이월 항목이 2분기 연속 0건이면 이 절을 조건부로 되돌린다.
+
 ### Step 2.9 — 시스템 비교분석 + 개선 제안
 
 **우리 시스템 현황** (GTC-3 Read 결과 사용, 추측 금지)
@@ -240,96 +309,45 @@ GTC-1에서 관련성 확인된 도구/플러그인/MCP/오픈소스/논문에 �
 
 Step 2(a~c) + Step 2.8 + Step 2.9 결과를 **"출력 형식"** 섹션 구조로 작성.
 
-### Step 4 — 비교 분석 & 적용 계획서 (tech/productivity 카테고리만)
+### Step 4.7 — 적대적 검수 (cr-triple 3레그, **분석 리포트 대상**)
 
-카테고리가 `tech/*` 또는 `productivity`가 아니면 Step 4 스킵하고 Step 5로.
+`-analysis.md` 를 저장한 뒤 **분석 리포트 자체를** 3레그로 적대적 검수한다.
 
-**4-1. 비교 분석 리포트**
-저장: `docs/reviews/{date}-{title-slug}-comparison.md`
-- 상세 비교 매트릭스 + GTC 통과 항목 하이라이트 + 원본 기사 링크
+> ⚠️ **2026-09-03 변경**: 종전에는 적용 계획서만 검수했고 계획서가 없으면 **검수를 통째로
+> 건너뛰었다.** 계획서 생산을 중단하면서 그 경로를 두면 검수가 **영영 안 돈다** —
+> 그래서 대상을 **분석 리포트로 옮긴다.** 검수해야 할 것은 애초에 "우리가 무엇을 할까"가
+> 아니라 **"이 분석이 사실인가"** 였다.
 
-**4-2. 적용 계획서**
-저장: `docs/planning/active/plans/{date}-{title-slug}-apply-plan.md`
-- P0/P1/P2 우선순위별 작업 항목
-- 각 항목: 현황 → 변경 내용 → 기대 효과 → 담당 프로젝트 (Business/Portfolio/GodBlade)
-- 실행 체크리스트
-
-### Step 4.7 — Codex Review Loop (개별 apply-plan adversarial 검증)
-
-**적용 대상**: Step 4-2의 개별 `-apply-plan.md`. 분석 리포트(`-analysis.md`)·비교 리포트(`-comparison.md`) = **대상 X** (콘텐츠 분석 ≠ Spec/Plan).
-
-**근거**: GTC 4-step은 self-validation → 중복 제안·YAGNI·근거 누락 detection 한계. Codex `cr-plan`은 동일 모델 맹점 보완.
-
-**Skip 조건** (3가지 중 하나):
-- 인자: `/article <URL> --skip-cr-plan`
-- 환경변수: `CODEX_REVIEW_AUTO_STAGES`에서 `article-apply-plan` 제거 또는 `=off`
-- 비기술/비productivity 카테고리 (Step 4 자체 skip): apply-plan 부재 → Step 4.7 자동 skip
-
-**호출 절차** (max=1 — 1회 review + 결과 표시, 자동 fix X. L-31/L-32/L-35 통합 적용):
-
-```bash
-[ "$SKIP_CR_PLAN" = "1" ] && exit 0  # 인자 skip
-
-PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
-[ -f "$PLAN_FILE" ] || exit 0
-
-/codex-review --stage article-apply-plan --target "$PLAN_FILE" --blocking
-REVIEW_JSON="forge-outputs/docs/reviews/codex/article-apply-plan/${date}-${title_slug}.json"
-# JSON parse fail-closed (1회 retry):
-if ! jq -e . "$REVIEW_JSON" >/dev/null 2>&1; then
-  echo "[Step 4.7] JSON parse 실패 1차 → 1회 retry"
-  /codex-review --stage article-apply-plan --target "$PLAN_FILE" --blocking
-  if ! jq -e . "$REVIEW_JSON" >/dev/null 2>&1; then
-    echo "[STOP] JSON parse 2회 실패 → Human 승인 게이트 (raw stdout 저장)"
-    exit 0
-  fi
-fi
-VERDICT=$(jq -r '.verdict // "FAIL"' "$REVIEW_JSON")
-CRITICAL_COUNT=$(jq '.issues | map(select(.severity=="critical")) | length' "$REVIEW_JSON")
-HIGH_COUNT=$(jq '.issues | map(select(.severity=="high")) | length' "$REVIEW_JSON")
-case "$VERDICT" in
-  PASS) echo "[Step 4.7] $PLAN_FILE PASS — 종결" ;;
-  WARN)
-    if [ "$HIGH_COUNT" -gt 0 ]; then
-      echo "[STOP] $PLAN_FILE WARN+high=$HIGH_COUNT → 사용자 검토 (자동 fix X)"
-      jq -r '.issues[] | select(.severity=="high" or .severity=="critical") | "  [\(.severity)] \(.message)"' "$REVIEW_JSON"
-    else
-      echo "[Step 4.7] $PLAN_FILE WARN — 권고 표시 후 종결"
-      jq -r '.issues[] | "  [\(.severity)] \(.message)"' "$REVIEW_JSON"
-    fi
-    ;;
-  FAIL)
-    if [ "$CRITICAL_COUNT" -eq 0 ] && [ "$HIGH_COUNT" -eq 0 ]; then
-      echo "[Step 4.7] $PLAN_FILE FAIL but c=0 h=0 — 종결 (L-31)"
-    else
-      echo "[STOP] $PLAN_FILE FAIL c=$CRITICAL_COUNT h=$HIGH_COUNT → 사용자 검토 (자동 fix X)"
-      jq -r '.issues[] | select(.severity=="critical" or .severity=="high") | "  [\(.severity)] \(.message)"' "$REVIEW_JSON"
-    fi
-    ;;
-esac
+```
+/cr-triple <analysis.md 절대경로> --stage final
 ```
 
-**Codex JSON parse 실패 시**: WARN 표기 + 종결 (FAIL 처리 X, 안전 측).
+**대상이 로더 상한(~15KB)을 넘으면 나눠서 호출한다** — 통째로 넣으면 `content_integrity=lost`
+로 검수가 **수행되지 않는다**(2026-09-02 실측: 크기가 다른 두 파일이 정확히 같은 15,493B 만
+확보됐다).
 
-**GTC-4 게이트와 이중 검증**: GTC-4는 P1 승격 조건만. cr-plan은 P0/P1/P2 전체의 구체성·중복·YAGNI·롤백을 adversarial 검증. 영역 다름.
+**결과 처리**
+- `PASS|WARN` → 진행 · `FAIL`·`hasCrit` → **[STOP]** 후 분석문 수정·재검수
+- `INVALID_INPUT`·`content_integrity=lost` → **판정이 아니다.** 대상을 쪼개 재호출하고,
+  이 상태로 "검수 통과"라고 적지 않는다
+- `degraded=true` → 진행하되 **보고에 명시**(벤더 교차가 무너진 검수는 근거등급이 낮다)
 
 ### Step 4.85 — HTML 대시보드 생성 (조사 리포트 공통)
 
-analysis md(+ comparison + apply-plan, 존재 시)를 단일 HTML 대시보드로 변환한다.
+`-analysis.md` 하나를 HTML 대시보드로 변환한다(2026-09-03: comparison·apply-plan 생산 중단으로 입력이 하나가 됐다).
 daily·weekly·yt 와 같은 변환기를 쓴다 — 이 단계가 없으면 기사만 md 로 남아
-`/forge-publish-report` 가 아티팩트를 md 로밖에 못 올린다(2026-07-27 배선).
+사이트 발행기가 `-dashboard.html` 을 못 찾고 **그 기사를 통째로 건너뛴다**
+(발행기는 `articles/**/*-dashboard.html` 을 훑는다 — `report-site-build.py`).
 
 ```bash
 ANALYSIS="{outputsRoot}/01-research/articles/{date}/{date}-{domain}-{title-slug}-analysis.md"
 python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
   "${ANALYSIS%-analysis.md}-dashboard.html" --title "기사 분석 — {제목}" \
   --subtitle "{도메인}" \
-  "$ANALYSIS" \
-  "{outputsRoot}/docs/reviews/{date}-{title-slug}-comparison.md" \
-  "{outputsRoot}/docs/planning/active/plans/{date}-{title-slug}-apply-plan.md"
+  "$ANALYSIS"
 ```
 
-- 존재하지 않는 입력(비기술 기사의 comparison/apply-plan)은 변환기가 자동 skip.
+- 변환기는 존재하지 않는 입력을 자동 skip 하므로, 옛 회차에 comparison·apply-plan 이 남아 있어도 해가 없다.
 - 산출물: `{analysis 경로}-dashboard.html` (md 원본 유지).
 - **산출물 사후 정정 시**: .md 수정 후 반드시 위 명령으로 HTML 재생성.
   md만 고치면 `dashboard.html` 이 silent stale 이 된다(false fact 잔존).
@@ -340,33 +358,30 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 
 1. 이번 세션에서 생성했어야 할 산출물의 절대경로를 나열한다 (outputs 루트 = `{forge루트}/../forge-outputs` 기준, `{date}`·`{domain}`·`{title-slug}`는 Step 1에서 확정된 값 그대로 사용):
    - `{outputsRoot}/01-research/articles/{date}/{date}-{domain}-{title-slug}-analysis.md`
-   - `{outputsRoot}/docs/reviews/{date}-{title-slug}-comparison.md` (Step 4 실행된 tech 카테고리만 — 비기술 카테고리로 Step 4 자체 skip이면 이 항목 제외)
-   - `{outputsRoot}/docs/planning/active/plans/{date}-{title-slug}-apply-plan.md` (Step 4 실행된 tech 카테고리만)
-   - 복수 URL(Step 6 실행 시): `{outputsRoot}/docs/planning/active/plans/{date}-article-{공통주제slug}-consolidated-apply-plan.md`
+   - `{outputsRoot}/01-research/articles/{date}/{date}-{domain}-{title-slug}-dashboard.html` (Step 4.85 산출물 — **이게 없으면 사이트 발행기가 기사를 통째로 건너뛴다**, 2026-08-28 corsair 실사고)
+   > ⚠️ **이 둘이 전부다**(2026-09-03). 종전엔 comparison·apply-plan·consolidated 도 셌는데
+   > 그 생산을 중단했다 — 없는 파일을 찾으면 게이트가 늘 exit 2 로 떨어져 **아무도 안 보게 된다.**
 2. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh <위에서 나열한 절대경로 전부>`
 3. 스크립트가 출력한 마크다운 표를 **그대로** 완료 보고로 사용한다. 표 밖에서 "전체 완료" 등 임의 서술 금지.
 4. exit 2(❌MISSING 또는 ⚠️0바이트 존재)면 "완료" 선언 금지 — 누락/손상 산출물을 재생성한 뒤 재검증(exit 0)될 때까지 Step 5(Notion 업로드)로 진행하지 않는다.
 
-### Step 4.95 — 학습노트 생성 + 텔레그램 전달 (장문 안전)
+### Step 4.95 — 텔레그램 전달 (기사당 정확히 1회)
 
-yt·daily와 동일 규약 (2026-07-18 배선):
+⚠️ **`tg-report-analysis.sh` 정확히 1회 호출**이다. 실패가 의심돼도 재호출하지 않는다 —
+스크립트가 자체 폴백하므로 호출자 재시도는 **중복 발송 위험만** 키운다(2026-07-23 실사고).
 
-1. `concept-notes-writer` 에이전트(sonnet) 스폰 — 입력: 이번 분석 리포트 md 절대경로. 출력: 같은 폴더에 `{filename}-study-notes.md` (개념 0개면 파일 미생성).
-2. 텔레그램 전달 (fail-open — 실패해도 스킬 verdict 불변). **아래 블록을 통째로 1회만 실행**한다:
-   ```bash
-   TLDR_FILE="${CLAUDE_JOB_DIR:-/tmp}/article-tldr-$(date +%s).md"
-   sed -n '/^## TL;DR/,/^## /p' "{분석 md}" | head -40 > "$TLDR_FILE"
-   bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/tg-report-analysis.sh \
-     "📰 기사 분석 — {제목}" \
-     "$TLDR_FILE" \
-     "{분석 md}" "{study-notes.md (있으면)}"
-   rm -f "$TLDR_FILE"
-   ```
-   - 요약은 줄 경계 분할 발송(잘림 없음), 전체 자료는 문서 첨부(길이 무제한).
-   - **process substitution(`<(...)`) 사용 금지** — 일부 spawn 환경에서 `[ -f /dev/fd/N ]` 판정이
-     불안정해 "실패한 것처럼 보여" 모델이 임시파일로 재시도하고, 그 결과 **동일 리포트가
-     텔레그램에 2번 올라가는 사고**가 실측됐다(2026-07-23, yt 에서 먼저 발생 — 같은 규약을 여기에도 적용).
-   - TL;DR 추출 실패 시 스크립트가 자체 폴백하므로 **호출자가 재시도하지 않는다.**
+```bash
+TLDR_FILE="${CLAUDE_JOB_DIR:-/tmp}/article-tldr-$(date +%s).md"
+sed -n '/^## TL;DR/,/^## /p' "{분석 md}" | head -40 > "$TLDR_FILE"
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/tg-report-analysis.sh \
+  "📰 기사 분석 — {제목}" "$TLDR_FILE" "{분석 md}"
+rm -f "$TLDR_FILE"
+```
+
+- **process substitution(`<(...)`) 사용 금지** — 일부 spawn 환경에서 판정이 불안정해
+  "실패한 것처럼 보여" 재시도를 유발하고 **같은 리포트가 두 번 올라간다.**
+- ⚠️ **학습노트 첨부는 2026-09-03 폐지**(Human 지시) — `concept-notes-writer` 스폰도 하지 않는다.
+- fail-open: 발송 실패해도 스킬 verdict 은 불변.
 
 ### Step 5 — Notion 업로드 (선택)
 
@@ -377,33 +392,54 @@ yt·daily와 동일 규약 (2026-07-18 배선):
 
 **Tier 1 절차:**
 1. `-analysis.md` 전체 내용 Read
-2. tech 카테고리면 `-apply-plan.md`도 Read
-3. `mcp__notion__notion-create-pages` 호출, `content` 필드에 전체 내용 삽입 (파일 경로 링크 금지)
+2. `mcp__notion__notion-create-pages` 호출, `content` 필드에 그 전문 삽입 (파일 경로 링크 금지)
+   — 2026-09-03: 적용 계획서 병합은 폐지(그 산출물을 더는 만들지 않는다)
 
 **Notion 인증 실패 시**: 사용자 메모리 규칙에 따라 묻지 말고 즉시 Tier 2로 전환.
 
-### Step 6 — 복수 URL 종합 보고서 (URL ≥ 2개 시)
+### Step 6 — 복수 URL 교차 정리 (URL ≥ 2개 시)
 
-복수 URL이 입력된 경우, 개별 분석 후 **단일 통합 적용 계획 보고서**를 추가 생성.
+복수 URL이면 개별 분석을 각각 저장한 뒤, **기사들 사이의 합의점·분기점만** 짧게 정리해
+각 `-analysis.md` 의 `## 시스템 비교 분석` 절 끝에 2~4줄로 덧붙인다.
 
-저장: `docs/planning/active/plans/{date}-article-{공통주제slug}-consolidated-apply-plan.md`
-
-절차:
-1. 모든 기사의 `-analysis.md`와 `-apply-plan.md`를 Read
-2. 중복/유사 제안 통합, 상충 제안 우선순위 취사선택
-3. 우리 시스템 현황 기준 실제 갭만 추출
-4. P0/P1/P2 체크리스트로 정리
-5. **Codex Review Loop (consolidated apply-plan 검증)** — Step 4.7과 동일 max 3 iter 루프를 consolidated 파일에 적용. `--skip-cr-plan` 인자 또는 `CODEX_REVIEW_AUTO_STAGES`에 `article-apply-plan` 부재 시 skip.
+> ⚠️ **별도 종합 계획서를 만들지 않는다**(2026-09-03 Human 지시). 종전엔
+> `consolidated-apply-plan.md` 를 추가 생성했는데, 그 계획서 계열이 쌓이기만 하고
+> 종결되지 않는 것이 폐지 이유다(실측: `docs/planning/active/` 327건 · 종결률 8.3%).
+> 교차 정리는 **분석문 안에서** 끝낸다 — 문서를 늘리지 않는다.
 
 ---
 
 ## 출력 형식 (analysis.md)
 
-리포트 본문 템플릿 전문(TL;DR·핵심 포인트·비판적 분석·팩트체크·관련성·인용 등 18개 절)은
-**`reference.md` 로 분리**했다 — 진입 판단에는 쓰이지 않고 **산출물을 쓸 때만** 필요한 형식이라,
-매 호출마다 적재할 이유가 없다(progressive disclosure).
+**절은 아래 6개가 전부다. 이 순서로, 내용이 있는 것만 쓴다** (2026-09-03 — 종전 18개 절에서 축소).
 
-→ **작성 직전 `reference.md` 를 Read 한 뒤 그 형식 그대로 채운다.**
+| # | 절 | 무엇을 담나 |
+|:-:|---|---|
+| 1 | `TL;DR` | 1~2문장. 머리말 줄에 매체·필자·날짜·카테고리를 함께 적는다 |
+| 2 | `핵심 포인트` | **사실 나열**. 판단은 넣지 않는다 |
+| 3 | `비판적 분석` | 주장별 `근거(실증/경험/의견) → 한계 → 반론`. **팩트체크 결과 표를 이 절 안에** 둔다 |
+| 4 | `내부 링크·참고 자료` | 링크 표. 0건이면 **절 자체를 쓰지 않는다** |
+| 5 | `시스템 비교 분석` | GTC 실측 대조표. 관련성 점수와 근거 1줄을 **여기 마지막에** 한 번만 |
+| 6 | `추가 리서치 필요` | Step 2.88 이 사유를 달아 이월한 것만 |
+
+### ⛔ 중복 금지 (2026-09-03 실측으로 신설)
+
+같은 내용을 여러 절에 반복하지 않는다. yt 리포트 실측에서 확인된 중복이 이 스킬에도 그대로 있었다:
+
+- **`핵심 인용` 절 폐지** — 인용이 `핵심 포인트`·`비판적 분석`과 3중으로 겹쳤다.
+  인용이 필요하면 그 자리에서 인용한다.
+- **`팩트체크 대상`과 `팩트체크 결과` 통합** — 대상 목록이 결과 표의 주장을 그대로 반복했다.
+  **결과 표만** 쓰고, 검증 못 한 것은 `❓ 미검증` + 사유로 남긴다.
+- **`필수 개선 제안`·`실행 가능 항목` 폐지** — 적용계획 폐지와 함께 없앤다.
+- **관련성 점수는 한 번만** — 별도 절을 만들지 않는다.
+
+**빈 절을 남기지 않는다.** 내용이 없으면 "없음"이라 적은 절을 만들지 말고 **절을 통째로 생략**한다.
+빈 칸이 많은 문서는 사람이 훑다가 그만둔다.
+
+⚠️ 예외: **`추가 리서치 필요`가 비었을 때만** "없음 — {사유}" 한 줄을 남긴다 —
+   '조사할 게 없었다'와 '조사를 안 했다'는 다르기 때문이다.
+
+⚠️ `reference.md` 의 구 18절 템플릿은 **이 표가 대체한다.** 충돌하면 이 표가 정본이다.
 
 ## 파일명 컨벤션 (wiki-sync 호환 필수)
 
@@ -413,7 +449,8 @@ yt·daily와 동일 규약 (2026-07-18 배선):
 
 - `{domain-slug}`: `news.hada.io` → `news-hada-io` (점 → 하이픈)
 - `{title-slug}`: 한글 기사는 영문 주제 키워드 추출 + kebab-case, 50자 이내
-- `{suffix}`: `article` (원본 JSON) / `analysis` (분석) / `comparison` (비교) / `apply-plan` (계획서)
+- `{suffix}`: `article` (원본 JSON) / `analysis` (분석) / `dashboard` (HTML)
+  — `comparison`·`apply-plan` 은 2026-09-03 생산 중단(옛 회차 파일은 그대로 남는다)
 - 이 규칙은 `/yt`와 동일해야 `/wiki-sync` Step 2 매칭 로직이 작동함
 
 ## Obsidian 연동
@@ -448,98 +485,20 @@ yt·daily와 동일 규약 (2026-07-18 배선):
 
 산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-> **codex-review vs eval-rubric**: Step 4.7의 `codex-review`는 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점 (clarity/consistency/completeness/safety). 둘 다 발화 — 영역이 다름.
+> **cr-triple vs eval-rubric**: Step 4.7의 `cr-triple`은 3레그 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점 (clarity/consistency/completeness/safety). 둘 다 발화 — 영역이 다름.
 
 - **target**: analysis md (`01-research/articles/{date}/{slug}-analysis.md`) 저장 직후
 - **case_id**: `EC-article-{N}` · **eval_cases**: `$HOME/.claude/skills/article/eval_cases.jsonl`
 
 ---
 
-## 호출 순서 합성 룰 (codex-review + eval-rubric)
+## 검증 게이트 2종 (cr-triple + eval-rubric)
 
-본 스킬은 두 개의 독립 검증 게이트를 모두 발화한다. 순서·결과 합성은 다음 룰을 따른다.
+성격이 다른 두 게이트를 **모두** 발화한다 — `cr-triple`(적대적 검증)과 `eval-rubric`
+(다축 정량 채점). 그 뒤 독립 Evaluator subagent 가 2차 검증한다(생성자 ≠ 평가자).
 
-### 발화 순서 (강제)
-
-```
-1. analysis md 저장 (01-research/articles/{date}/{slug}-analysis.md)
-2. /codex-review --stage article-apply-plan --target {apply-plan 경로} (adversarial extension)
-3. /eval-rubric --target {analysis 경로} (다축 정량 채점)
-4. 두 결과를 eval_cases.jsonl 별도 라인으로 append (skill 필드로 구분)
-   - skill="article-codex" + skill="article-rubric"
-```
-
-순서 이유:
-- codex-review = blocking 잠재 (FAIL 시 사용자 게이트). 먼저 통과해야 후속 의미.
-- eval-rubric = 정량 점수만 (자동 차단 X). 항상 마지막.
-
-### 결과 합성 룰
-
-| codex 결과 | eval-rubric 결과 | 종합 verdict | 처리 |
-|-----------|----------------|------------|------|
-| PASS | PASS | **PASS** | 종결 |
-| PASS | WARN (≤1축 0점) | **WARN** | rationale 사용자 알림 |
-| PASS | FAIL (≥2축 0점) | **WARN** | 사용자 결정 게이트 (적용 전) |
-| WARN | * | **WARN** | codex WARN 우선 + rubric 보조 |
-| FAIL (c=0,h=0) | * | **WARN** | L-31 적용. rubric으로 보강 |
-| FAIL (c≥1 또는 h≥1) | * | **FAIL [STOP]** | 사용자 검토 의무 (자동 fix X) |
-
-### 영역 차이 (왜 둘 다 필요한가)
-
-| 검증 | 영역 | 강점 | 약점 |
-|------|------|------|------|
-| codex-review | adversarial extension | 동일 모델 맹점 보완 (Claude/Codex 다른 모델) | 정량 점수 X |
-| eval-rubric | 다축 정량 | clarity/consistency/completeness/safety 4축 점수 | 모델 동일 (자체 편향 가능) |
-
-**상호 보완**: codex가 못 잡는 정량 측면 = eval-rubric 보강. eval-rubric이 못 잡는 적대적 견제 = codex 보강.
-
-### 비활성 조건
-
-- `EVAL_RUBRIC_AUTO=off` → eval-rubric만 스킵, codex-review는 진행
-- `--skip-cr-plan` 인자 → codex-review만 스킵, eval-rubric은 진행
-- 둘 다 스킵: `--skip-cr-plan` + `EVAL_RUBRIC_AUTO=off` 동시 적용
-
-### eval_cases.jsonl 표기
-
-두 결과 모두 누적 (별도 라인):
-
-```json
-{"case_id":"EC-article-codex-1","skill":"article-codex","target":"apply-plan.md","verdict":"PASS",...}
-{"case_id":"EC-article-rubric-1","skill":"article-rubric","target":"analysis.md","verdict":"WARN","scores":{...},...}
-```
-
-> 출처: AD-19 (eval-rubric 시스템 통합) + AD-21 (warn 기본). 합성 룰 = 본 작업 (2026-05-11).
-
----
-
-## 독립 Evaluator (하네스)
-
-기사 분석 리포트 완성 후 독립 Evaluator Subagent가 분석 품질을 검증한다.
-
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 독립 분석 품질 검증자입니다. article (기사 심층 분석) 결과물을 검토하세요.
-
-검증 항목:
-- 본문 핵심 주장이 정확히 파악됐는가?
-- 팩트체크 대상이 명시됐는가 (검증 필요 수치·주장)?
-- 내부 링크 파고들기가 실행됐는가 (--deep 모드)?
-- Forge 시스템 비교 분석이 구체적인가?
-- 적용 계획서의 액션 아이템에 담당·기한·의존성이 있는가?
-
-판정: PASS / FAIL
-피드백: [파일명+섹션] — [이유] → [방법]
-"""
-)
-```
-
-피드백 루프:
-- PASS → 파이프라인 계속 (저장/발행)
-- FAIL → 지적 항목 보완 후 Evaluator 재실행 (1회 한도)
-- 2회 연속 FAIL → [STOP] Human 에스컬레이션
+> **게이트를 돌릴 때 Read**: `reference.md §검증 게이트 합성 룰 + 독립 Evaluator`
+> — 발화 순서(강제)·결과 합성 룰·영역 차이·비활성 조건·Evaluator 프롬프트 전문이 거기 있다.
 
 ## Gotchas (흔한 실패 패턴 — 실증만, 증거 링크 의무)
 

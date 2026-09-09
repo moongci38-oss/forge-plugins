@@ -40,7 +40,7 @@ codex   # /login → moongci38 ChatGPT 계정 OAuth
 /codex-review --stage bugfix --target patches/fix-token-expiry.diff
 ```
 
-단축 래퍼: `/cr-plan`, `/cr-analysis`, `/cr-code`, `/cr-test`, `/cr-final`, `/cr-bug` (각각 stage 자동 매핑).
+단축 래퍼: `/forge-plan-review`, `/forge-analysis-review`, `/forge-code-review`, `/forge-test-review`, `/forge-final`, `/forge-bug-review` (각각 stage 자동 매핑).
 
 ---
 
@@ -171,14 +171,25 @@ fi
 
 ```bash
 # 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. codex 호출 $0(구독 포함).
-# ⚠️ 2026-08-22 Human 지시로 **기본값 상향**: 모델 gpt-5.6-terra → gpt-5.6-sol · effort medium → xhigh.
-#   이 파일이 `/cr-final`·`/cr-plan`·`/cr-code`·`/cr-test`·`/cr-bug`·`/cr-analysis` 6개 래퍼의
+# ⚠️ 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용)로 **기본값 재상향**: 모델 gpt-5.6-sol → gpt-6-astra.
+#   effort 는 xhigh 유지(5단계 low/medium/high/xhigh/max 중 max 승격은 이번 범위 아님).
+#   ⚠️ 구 표기 "기본값 상향: gpt-5.6-terra → gpt-5.6-sol"(2026-08-22)은 폐기 — 그때는 참이었고 지금 기본은 astra 다.
+#   ⚠️ 로컬 codex CLI < 0.153.4 는 astra 를 HTTP 400 으로 거부한다.
+#      ⚠️ **2026-09-07 정정: 구 표기 "그때는 sol 로 fail-open" 은 거짓이라 폐기.**
+#         자동 하향은 `advisor-model-resolve.sh`(advisor 레인)에만 있다 — **이 검수 레인은 가드가 없다.**
+#         구 CLI 머신에서는 Codex 레그가 400 으로 죽고 그 레그가 분모에서 빠져 조용히 2-레그로 축소된다.
+#         내리려면 사람이 `--sol`(codex:high)을 **직접** 준다(아래 §비용 절 같은 취지).
+#      재현: grep -c 'codex --version' .claude/skills/forge-multi/workflow.js → 0 (2026-09-07 관측)
+#      재현: codex --version → 0.153.4 (2026-09-06 관측)
+#   이 파일이 `/forge-final`·`/forge-plan-review`·`/forge-code-review`·`/forge-test-review`·`/forge-bug-review`·`/forge-analysis-review` 6개 래퍼의
 #   **실제 실행 경로**다 — 래퍼 문서만 고치면 값은 여기서 구 값으로 되돌아간다(PR #320 cr-final CRITICAL 실적발).
 # apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 API 가격 과금.
 # --sol/--terra/--luna: Codex 검수 레그 tier 선택 (model-registry SSoT).
-#   caller 인자 파싱: --sol→CODEX_TIER=max · --terra→high · --luna→low.
-#   미지정 시 기본 gpt-5.6-sol — 즉 `--sol` 은 no-op 이고 `--terra`/`--luna` 가 하향 스위치다.
-#   resolve 실패 시 fail-open → gpt-5.6-sol 폴백(하향하지 않는다). 모델 id SSoT = model-registry.json.
+#   caller 인자 파싱: --sol→CODEX_TIER=high · --terra→default · --luna→low (사다리 재지정 2026-09-06).
+#   미지정 시 기본 = codex:max = gpt-6-astra. 즉 `--sol`·`--terra`·`--luna` 는 **전부 하향 스위치**다.
+#   ⚠️ 구 표기 "`--sol` 은 no-op(이미 기본)" 은 2026-09-06 폐기 — sol 은 이제 한 칸 아래(codex:high)라
+#      명시하면 astra 에서 실제로 내려간다.
+#   resolve 실패 시 fail-open → gpt-6-astra 폴백. 모델 id SSoT = model-registry.json.
 # 기본 tier 도 registry 를 거친다 — 리터럴은 **resolve 실패 시 폴백**으로만 남는다.
 #   (구 코드는 CODEX_TIER 미지정 시 registry 를 건너뛰고 리터럴을 썼다. 그러면 registry 가
 #    max 티어 모델을 바꿔도 이 파일만 stale 해져 이번과 같은 드리프트가 재발한다 — PR #320 MEDIUM.)
@@ -190,7 +201,7 @@ if [[ -n "${CODEX_REVIEW_MODEL:-}" ]]; then
   MODEL="$CODEX_REVIEW_MODEL"
 else
   MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) \
-    || MODEL="gpt-5.6-sol"
+    || MODEL="gpt-6-astra"
 fi
 # effort: 2026-08-22 기본 xhigh. final 은 blocking 게이트라 **바닥값**을 xhigh 로 고정한다
 #   (구 코드는 여기서 "high" 로 덮어써서 --effort xhigh 를 조용히 무효화했다 — PR #320 CRITICAL).
@@ -276,7 +287,7 @@ Codex 출력을 다음 스키마로 정규화:
   ],
   "suggestions": ["..."],
   "delta_vs_claude": "agreement|disagreement|extension|null",
-  "model": "gpt-5.6-sol",
+  "model": "gpt-6-astra",
   "cost_usd": 0.0,
   "ts": "2026-05-07T05:30:00Z"
 }
@@ -445,27 +456,31 @@ fi
 | P7 Check 7-X | `final` | YES |
 
 ### 수동 전용 (파이프라인 미배선)
-- `analysis` — 분석노트·cross-repo·backlog·runbook doc. `/cr-analysis <path>` 수동 호출만. SDD/PGE/Forge Dev 자동 게이트에 배선하지 않음 (분석노트는 즉시 실행 가능 산출물이 아님 — plan/code/test 게이트와 성격 다름). `--stage plan`이 분석 doc에 잘못 걸리면 Step 1.6 auto-route가 가로챔.
+- `analysis` — 분석노트·cross-repo·backlog·runbook doc. `/forge-analysis-review <path>` 수동 호출만. SDD/PGE/Forge Dev 자동 게이트에 배선하지 않음 (분석노트는 즉시 실행 가능 산출물이 아님 — plan/code/test 게이트와 성격 다름). `--stage plan`이 분석 doc에 잘못 걸리면 Step 1.6 auto-route가 가로챔.
 
 ---
 
 ## 비용 통제
 
-**현재 설정**: auth_mode=`chatgpt` (OAuth), model=`gpt-5.6-sol` + `model_reasoning_effort="xhigh"` (`~/.codex/config.toml`, 2026-08-22 상향) → **구독 포함, API 과금 $0**.
+**현재 설정**: auth_mode=`chatgpt` (OAuth), model=`gpt-6-astra` + `model_reasoning_effort="xhigh"` (`~/.codex/config.toml`, 2026-09-06 상향) → **구독 포함, API 과금 $0**.
+> ⚠️ 구 표기 "model=`gpt-5.6-sol`(2026-08-22 상향)" 은 2026-09-06 폐기 — 현행 `gpt-6-astra`.
+> ✅ `gpt-6-astra` 는 ChatGPT OAuth 로 **호출 가능**하다(`gpt-6` 단독·`gpt-6-terra` 등은 OAuth 거부).
+> ⚠️ **로컬 codex CLI 0.153.4 이상 필요** — 그 아래(예: 0.144.3)는 astra 요청을 HTTP 400 으로 거부한다.
+>    재현: `codex --version` → `0.153.4` (2026-09-06 관측). 낮으면 `--sol` 로 한 칸 내려 쓴다.
 > apikey 폴백: `~/.codex/auth.json.apikey-backup-20260617` 복원 시 API 가격 과금(그때는 effort 도 비용에 직결).
 
 | Stage | 모델 | Reasoning Effort | 비용 (OAuth) | 비상 폴백 (apikey 시) |
 |-------|------|------------------|-------------|----------------------|
-| `plan` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
-| `analysis` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
-| `code` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
-| `test` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
-| `final` | **gpt-5.6-sol** | **xhigh** | **$0.00** | 종량 시 상승 |
-| `bugfix` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `plan` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
+| `analysis` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
+| `code` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
+| `test` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
+| `final` | **gpt-6-astra** | **xhigh** | **$0.00** | 종량 시 상승 |
+| `bugfix` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
 
 모델 override (env):
 ```
-export CODEX_REVIEW_MODEL="gpt-5.6-sol"            # 현재 기본값 (2026-08-22 상향)
+export CODEX_REVIEW_MODEL="gpt-6-astra"            # 현재 기본값 (2026-09-06 상향, 구: gpt-5.6-sol)
 export CODEX_REVIEW_DAILY_LIMIT=20
 export CODEX_REVIEW_MONTHLY_BUDGET_USD=20
 ```
@@ -492,7 +507,7 @@ forge-outputs/docs/reviews/
 
 - 1차 리뷰: `code-reviewer` 에이전트 (`forge/.claude/agents/code-reviewer/`)
 - 정책: `forge/dev/rules/codex-review-policy.md`
-- 단축 래퍼: `/cr-plan`, `/cr-analysis`, `/cr-code`, `/cr-test`, `/cr-final`, `/cr-bug`
+- 단축 래퍼: `/forge-plan-review`, `/forge-analysis-review`, `/forge-code-review`, `/forge-test-review`, `/forge-final`, `/forge-bug-review`
 - 통합 게이트: SDD Check C-1, PGE Phase 4.5, Forge Dev Phase 2~9
 - 프롬프트: `forge/.claude/prompts/codex-review-{stage}.md` (analysis stage = `codex-review-analysis.md`, backlog/runbook frontmatter도 공용)
 > 실패 시 [[pev-self-correction]] 적용

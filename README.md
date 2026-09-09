@@ -54,13 +54,34 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 
 ## 플러그인 목록
 
-| 플러그인 | 버전 | 설명 | 의존성 |
-|---------|------|------|--------|
-| **forge-core** | v0.7.9 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 5종** + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit) | 없음 (기반) |
-| **forge-build** | v0.4.20 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) | forge-core |
-| **forge-knowledge** | v0.2.18 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/forge-find-item, forge-tools MCP(ADR-174 unified_search) | forge-core |
-| **forge-design** | v0.2.13 | 디자인·에셋 — image-orchestrate/visual-loop/figma-screen-capture | forge-core |
-| **forge-game** | v0.1.15 | 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용) | forge-core, forge-design |
+| 플러그인 | 버전 | 스킬 / 커맨드 / 에이전트 | 설명 | 의존성 |
+|---------|------|------|------|--------|
+| **forge-core** | v0.7.17 | 23 / 22 / 6 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 3종** + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·axis 5축·migration-audit) + 저작 도구(skill-creator/subagent-creator/slash-command-creator/hook-creator) | 없음 (기반) |
+| **forge-build** | v0.4.24 | 32 / 24 / 7 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) + GitNexus 코드 인텔리전스 6종 | forge-core |
+| **forge-knowledge** | v0.2.22 | 15 / 7 / 6 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/daily-system-review + 문서 변환(pdf/docx/pptx), forge-tools MCP(ADR-174 unified_search) | forge-core |
+| **forge-design** | v0.2.17 | 7 / 4 / 2 | 디자인·에셋 — image-orchestrate/visual-loop/figma-screen-capture/style-forge/asset-critic | forge-core |
+| **forge-game** | v0.1.16 | 10 / 1 / 1 | 게임팩 — game-qa/game-asset-pipeline/asset-extract/dungeon 루프 2종 (Unity 전용) | forge-core, forge-design |
+
+> **이 표의 숫자를 어떻게 셌나** (2026-09-08 관측). 버전은 각 번들의 `plugin.json` 이 정본이고,
+> 개수는 폴더를 센 것입니다. 숫자가 의심스러우면 표를 믿지 말고 아래를 직접 돌려 보십시오.
+>
+> ```bash
+> # 버전
+> for p in forge-core forge-build forge-knowledge forge-design forge-game; do
+>   echo -n "$p: "; python3 -c "import json;print(json.load(open('$p/.claude-plugin/plugin.json'))['version'])"
+> done
+> # 개수 (스킬 = 폴더 수, 커맨드·에이전트 = .md 파일 수)
+> for p in forge-core forge-build forge-knowledge forge-design forge-game; do
+>   echo "$p: skills=$(ls -1 $p/skills 2>/dev/null|wc -l) commands=$(ls -1 $p/commands/*.md 2>/dev/null|wc -l) agents=$(ls -1 $p/agents/*.md 2>/dev/null|wc -l)"
+> done
+> ```
+>
+> ⚠️ 구 표기 `forge-core v0.7.9 · forge-build v0.4.20 · forge-knowledge v0.2.18 · forge-design v0.2.13 · forge-game v0.1.15` 은
+> 2026-09-08 폐기했습니다 — 손으로 적어 둔 값이라 실제 `plugin.json` 과 4단계 이상 벌어져 있었습니다.
+> ⚠️ 구 표기 "**세션관리 5종**" 도 같은 날 폐기 — 모델별 분기(`/start-opus`·`/end-sonnet` 등)가
+> 2026-08-01 에 통합돼, 지금 남은 세션 커맨드는 `/forge-start`·`/forge-checkpoint`·`/forge-end` **3종**과
+> 보조 `/forge-resume` 1종입니다
+> (재현: `ls forge-core/commands/ | grep -E 'forge-(start|end|checkpoint|resume)'` → 4건, 2026-09-08 관측).
 
 ---
 
@@ -107,18 +128,34 @@ Claude Code 세션 시작 시 `forge-core`의 SessionStart 훅이 자동 실행:
 
 ```
 [forge-onboard] orch-token.key created: ~/.config/forge/orch-token.key
-[forge-onboard] rules installed: forge-core.md
 [forge-onboard] rules installed: behavior-core.md
+[forge-onboard] rules installed: context-engineering.md
+[forge-onboard] rules installed: dev-workflow-rules.md
+[forge-onboard] rules installed: forge-core.md
+[forge-onboard] rules installed: model-routing.md
+[forge-onboard] rules installed: security-agent-input.md
+[forge-onboard] rules installed: success-is-silent.md
 [forge-onboard] rules installed: tool-rules.md
-[forge-onboard] handover dirs: $HOME/.claude/handover/sonnet/, $HOME/.claude/handover/opus/
-[forge-onboard] checkpoints dir: $HOME/.claude/checkpoints/
+[forge-onboard] session dir created: $HOME/.claude/handover/sonnet
+[forge-onboard] session dir created: $HOME/.claude/handover/opus
+[forge-onboard] session dir created: $HOME/.claude/checkpoints
+[forge-onboard] skill script installed: $HOME/.claude/skills/cr-multi/workflow.js
 ```
 
 - **orch-token.key** — forge approve-worker 인증 토큰 (없으면 자동 생성, 이후 스킵)
-- **rules** — `$HOME/.claude/rules/`에 forge 규칙 3종 설치 (이미 있으면 스킵)
-- **handover/checkpoints** — 세션관리용 디렉토리 자동 생성
+- **rules** — `$HOME/.claude/rules/` 에 번들 규칙 **전량** 설치. 개수를 손으로 박아 두지 않았습니다 —
+  훅이 `rules/*.md` 를 통째로 훑기 때문입니다(`forge-core/hooks/forge-onboard.sh` §2).
+  지금 몇 개인지는 `ls -1 forge-core/rules/*.md | wc -l` → **8** (2026-09-08 관측).
+  ⚠️ **이미 있는 파일은 덮어쓰지 않습니다** — 여러분이 고친 규칙이 업데이트로 날아가지 않도록 한 것이고,
+  뒤집어 말하면 **규칙 개선분은 자동으로 오지 않습니다**(받으려면 그 파일을 지우고 세션을 다시 여십시오).
+- **session dirs / skill scripts** — 세션관리 디렉터리와, 마켓플레이스 설치본에서 `/cr-multi`·`/approve-worker`
+  가 찾는 스크립트를 `$HOME/.claude/` 로 복사합니다(없을 때만).
 
 온보딩은 한 번만 실행됩니다. 이미 파일이 있으면 자동으로 스킵.
+
+> ⚠️ 구 표기 "forge 규칙 **3종** 설치"(forge-core·behavior-core·tool-rules)는 2026-09-08 폐기했습니다.
+> 훅은 처음부터 폴더를 통째로 훑는데 README 만 3개로 굳어 있었고, 그 사이 규칙이 8개로 늘었습니다.
+> 재현: `grep -n 'RULES_SRC"/\*.md' forge-core/hooks/forge-onboard.sh` → 반복문이 와일드카드입니다.
 
 ---
 
@@ -145,25 +182,65 @@ claude plugin update forge-build
 
 ## cr-* 커맨드 사전 조건
 
-`/cr-triple`, `/cr-double` 등 cr-* 계열은 **Codex MCP + Gemini MCP** 필수.
+`/cr-triple`, `/cr-double` 등 cr-* 계열은 **Codex MCP** 필수.
 MCP 없으면 cr-* 커맨드 동작 X.
 
-### Step 1 — API 키 환경변수 설정
+**왜 남의 모델을 부르나**: 자기가 쓴 답안을 자기가 채점하면 같은 착각을 두 번 합니다.
+그래서 검수는 **벤더가 다른 모델**에게 따로 시킵니다(tier 를 올리는 게 아니라 **출제자를 바꾸는** 설계입니다).
+
+| 레그 | 현행 기본 모델 | 경유 |
+|------|---------------|------|
+| Claude | **Fable 5.1** | 세션 내 subagent |
+| Codex | **gpt-6-astra** | Codex MCP |
+
+reasoning **effort = xhigh**.
+
+> 정본은 이 레포가 아닙니다 — `$HOME/.claude/rules/model-routing.md §세션 운영 모델` 입니다.
+> 모델은 자주 바뀌므로, 이 표와 정본이 어긋나면 **정본이 이깁니다**.
+> ⚠️ **2026-09-07 Gemini 전면 철수로 검수는 2벤더(Claude·Codex)가 되었습니다.**
+> 구 표기 "Codex MCP + **Gemini MCP** 필수 · 벤더가 다른 **세** 모델 · `| Gemini | gemini-3.8-flash | Gemini MCP |`"
+> 는 폐기했습니다. **종량 과금(API 키 과금) 벤더인 Gemini 를 끊고, 남은 레그는 구독 인증으로 씁니다.**
+> ⚠️ 이 말은 *"어떤 API 키도 안 쓴다"* 가 아닙니다 — 범위는 **Gemini 철수**입니다.
+> Codex 레그 인증은 아래 [Step 1](#step-1--codex-인증) 참고.
+> ⚠️ 구 표기 `Claude=Opus · Codex=gpt-5.6-sol · Gemini=gemini-3.5-flash` 는 2026-09-08 폐기했습니다
+> (근거: `model-routing.md §세션 운영 모델` — Codex 레그는 2026-09-06 에 `gpt-6-astra` 로 올라갔습니다).
+> ⚠️ `--sol`·`--terra`·`--luna` 는 이제 **셋 다 하향 스위치**입니다(예전엔 `--sol` 이 기본과 같아 아무 일도 안 했습니다).
+> `--fable` 은 이미 기본이라 no-op 입니다.
+
+### Step 1 — Codex 인증
+
+**권장 — 구독 로그인(API 키 불필요)**
+
+```bash
+codex login          # ChatGPT OAuth 로그인
+codex login status   # → "Logged in using ChatGPT" 면 완료
+```
+
+**대안 — API 키(종량 과금)**
 
 ```bash
 # ~/.bashrc 또는 ~/.zshrc 에 추가
-export OPENAI_API_KEY="sk-..."       # Codex MCP용
-export GEMINI_API_KEY="AIza..."      # Gemini MCP용
+export OPENAI_API_KEY="sk-..."       # 구독 로그인을 쓰지 않을 때만
 ```
+
+> **둘 중 하나만** 하면 됩니다. 구독 로그인이 권장입니다 — 쓴 만큼 돈이 나가는 종량 과금을 피하려고
+> Gemini 를 끊은 것이라, 같은 이유로 Codex 도 구독 쪽이 결이 맞습니다.
+> 실측(2026-09-08): 개발 머신에서 `OPENAI_API_KEY` 가 **미설정**이고
+> `~/.codex/auth.json` 의 `OPENAI_API_KEY` 가 **null** 인 상태로 `codex login status` 가
+> `Logged in using ChatGPT` 를 반환하며 Codex MCP 가 정상 동작합니다 — **키 없이 도는 것이 확인된 구성입니다.**
+> 재현: `codex login status` · `python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.codex/auth.json')))['auth_mode'])"`
+>
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `export GEMINI_API_KEY="AIza..."  # Gemini MCP용`.
+> ⚠️ 구 표기 "Step 1 — API 키 환경변수 설정"(키가 유일한 방법인 것처럼 읽혔음)도 같은 날 정정했습니다.
 
 ### Step 2 — MCP 서버 설치
 
 ```bash
 # Codex MCP (npm 전역 설치)
 npm install -g @openai/codex
-
-# Gemini MCP (npx 자동 설치 — 별도 설치 불필요)
 ```
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "Gemini MCP (npx 자동 설치 — 별도 설치 불필요)".
 
 ### Step 3 — ~/.claude.json MCP 서버 등록
 
@@ -177,38 +254,58 @@ npm install -g @openai/codex
       "command": "codex",
       "args": ["mcp-server"],
       "env": {}
-    },
-    "gemini": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@fre4x/gemini"],
-      "env": {
-        "GEMINI_API_KEY": "<your-gemini-api-key>"
-      }
     }
   }
 }
 ```
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `"gemini"` 블록(`@fre4x/gemini` + `GEMINI_API_KEY`).
+>
+> 🔁 **이미 예전 `setup.sh` 로 세팅한 분**은 `~/.claude.json` 에 `gemini`·`gemini-text` 가
+> **전역 등록된 채로 남아 있습니다** — 이번 변경은 앞으로 등록하지 않게 막았을 뿐이라 기존 등록은 안 지워집니다.
+> 확인·제거 절차는 `ONBOARDING.md` **§5-2-B (이미 쓰던 분은 이것도 지우세요)** 를 보세요.
+> 먼저 이 명령으로 남아 있는지부터 확인하시면 됩니다:
+> ```bash
+> python3 -c "
+> import json,os
+> ks=list(json.load(open(os.path.expanduser('~/.claude.json'))).get('mcpServers',{}).keys())
+> print('gemini 계열:', [k for k in ks if 'gemini' in k.lower()] or '(없음)')
+> "
+> ```
 
 ### Step 4 — Claude Code 재시작
 
 MCP 등록 후 재시작해야 적용됩니다.
 
 > MCP 없이도 forge-core 나머지 스킬과 forge-build/forge-knowledge/forge-design/forge-game 정상 동작.
+>
+> ⚠️ **단, `cr-*` 계열과 `/forge-pr` 은 예외입니다.** `/forge-pr` 은 기본값이 `--cr on` 이라 PR 을 열기 전에
+> `cr-final`(3레그 적대적 검수)을 **먼저 통과**시킵니다 — MCP 가 없으면 그 게이트에서 막힙니다.
+> 급하면 `--cr degrade`(Codex 레그 제외) 또는 `--cr off`·`--no-cr-final` 로 **명시적으로 낮춰야** 합니다.
+> 쉽게 말하면 **"검수 없이 통과"가 조용히 일어나지는 않습니다** — 낮추려면 본인이 그렇게 적어야 합니다.
+> 재현: `grep -n 'cr <on|degrade|off>' forge-build/commands/forge-pr.md` (2026-09-08 관측).
 
 ---
 
-## MCP API 키 설정 (선택)
+## MCP 인증 설정 (선택)
 
-`forge-core`는 Codex/Gemini MCP를 포함. 사용하려면 환경변수 설정:
+`forge-core`는 Codex MCP를 포함합니다. 인증은 **구독 로그인이 권장**입니다:
 
 ```bash
-# ~/.bashrc 또는 ~/.zshrc 에 추가
+codex login                          # 권장 — API 키 불필요
+# 또는 (대안, 종량 과금)
 export OPENAI_API_KEY="sk-..."       # Codex MCP (cr-triple 2차 검수)
-export GEMINI_API_KEY="AIza..."      # Gemini MCP (vision 분석)
 ```
 
+> 상세·실측 근거는 위 [Step 1 — Codex 인증](#step-1--codex-인증) 참고.
+> ⚠️ 구 제목 "MCP **API 키** 설정"은 키가 유일한 방법인 것처럼 읽혀 2026-09-08 정정했습니다.
+
+> ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`forge-core`는 Codex/**Gemini** MCP를 포함" 과
+> `export GEMINI_API_KEY="AIza..."  # Gemini MCP (vision 분석)`.
+
 > MCP 없이도 forge-core/forge-build 기본 스킬 정상 동작.
+> **예외는 위와 같습니다** — `cr-*` 계열과 `/forge-pr` 의 기본 검수 게이트는 MCP 를 요구합니다
+> ([cr-* 커맨드 사전 조건](#cr--커맨드-사전-조건)).
 
 ---
 
@@ -242,10 +339,14 @@ echo "GODBLADE_ROOT=$GODBLADE_ROOT" && ls "$GODBLADE_ROOT" 2>/dev/null || echo "
 
 | 이름 | 나오는 곳 | 본인 값으로 쓰려면 |
 |------|-----------|-------------------|
-| `${NOTION_DB_ID}` | `daily-analyze`·`daily-system-review`·`weekly-research` SKILL.md의 `DB URL:` 줄 | 그 줄을 직접 교체(업데이트 시 덮어써짐) 또는 **Notion MCP에서 대상 DB 지정**(권장) |
+| `${NOTION_DB_ID}` | `daily-analyze`·`daily-system-review` SKILL.md의 `DB URL:` 줄 (2건) | 그 줄을 직접 교체(업데이트 시 덮어써짐) 또는 **Notion MCP에서 대상 DB 지정**(권장) |
 | `${BOARDGAMES_ROOT}` | `game-qa/references/project-stacks.md` 참조표 | 그 문서를 본인 환경에 맞춰 읽고 판단 — 자동 해석 안 됨 |
 
 직접 확인: `grep -rn 'NOTION_DB_ID\|BOARDGAMES_ROOT' <플러그인>/` — 문서 줄에만 나옵니다.
+
+> ⚠️ 구 표기 "`weekly-research` SKILL.md 의 `DB URL:` 줄" 은 2026-09-08 폐기했습니다 — 그 파일엔 없습니다.
+> 재현: `grep -c NOTION_DB_ID forge-knowledge/skills/weekly-research/SKILL.md` → **0** ·
+> `grep -rn NOTION_DB_ID --include=SKILL.md .` → daily-system-review·daily-analyze **2건** (2026-09-08 관측).
 
 **왜 기본값을 안 넣었나**: 기본값에 실제 경로를 넣으면 공개 저장소에 개발 환경 구조가 그대로 실립니다.
 또 잘못된 기본 경로로 조용히 동작하는 것보다, 없으면 없다고 말하고 멈추는 편이 낫습니다 —
@@ -290,12 +391,22 @@ cd ~/forge-plugins-repo && git pull
 
 설치 완료 후 Claude Code 채팅창에서 `/` 입력하면 스킬 목록이 자동 표시됩니다.
 
+> 📖 **아래 표는 "전부"가 아니라 "자주 쓰는 것"입니다.** 손으로 관리하는 목록이라 새 스킬이 늘어도
+> 여기 자동으로 붙지 않습니다 — 실제로 2026-09-08 실측에서 forge-core 스킬 23개 중 이 표에 적힌 건
+> 절반뿐이었습니다. **채팅창의 `/` 자동완성이 항상 정답**이고, 파일로 세고 싶으면:
+>
+> ```bash
+> ls -1 forge-core/skills forge-build/skills forge-knowledge/skills forge-design/skills forge-game/skills
+> ls -1 forge-core/commands/*.md forge-build/commands/*.md   # 커맨드
+> ```
+
 ### forge-core (모든 역할 공통)
 
 | 스킬/커맨드 | 사용법 | 설명 |
 |------------|--------|------|
-| `/cr-triple` | `/cr-triple <파일>` | Opus+Codex+Gemini 3중 검수 (중요 Spec/PR) |
-| `/cr-double` | `/cr-double <파일>` | Codex+Gemini 2중 검수 (기본) |
+| `/cr-triple` | `/cr-triple <파일>` | Fable+Codex 검수 (중요 Spec/PR) — 모델은 위 [cr-* 사전 조건](#cr--커맨드-사전-조건) 표 |
+| `/cr-double` | `/cr-double <파일>` | Codex 검수 (기본) |
+| `/advisor` | `/advisor <질문>` | 갈림길에서 최상위 모델에게 400~700토큰 조언만 받기 (코드 작성 X) |
 | `/cr-multi` | `/cr-multi <파일>` | 멀티 검수 오케스트레이터 (double/triple 통합) |
 | `/cr-code` | `/cr-code <파일>` | 코드 전용 검수 |
 | `/cr-plan` | `/cr-plan <파일>` | 계획서/ADR 검수 |
@@ -338,6 +449,21 @@ cd ~/forge-plugins-repo && git pull
 
 `system-audit`이 스폰하는 6축 감사 에이전트(`advisor-strategist` + `axis-agentic`/`axis-context`/`axis-cost`/`axis-harness`/`axis-human-ai`)도 forge-core에 번들되어 있습니다.
 
+### forge-core — 하네스 저작 도구 (내 도구를 내가 만든다)
+
+| 스킬 | 사용법 | 설명 |
+|------|--------|------|
+| `/skill-creator` | `/skill-creator` | 새 스킬 생성 — ⛔ SKILL.md 직접 작성 금지, 항상 이걸 경유 |
+| `/subagent-creator` | `/subagent-creator` | 전용 시스템 프롬프트를 가진 서브에이전트 생성 |
+| `/slash-command-creator` | `/slash-command-creator` | 슬래시 커맨드 생성 |
+| `/hook-creator` | `/hook-creator` | 훅(자동 실행 규칙) 생성·설정 |
+| `/forge-loop-maker` | `/forge-loop-maker` | "자동으로 계속 돌게 해줘" → 정지조건까지 갖춘 루프 설계 |
+| `/eval-rubric` | `/eval-rubric <대상>` | 4축 0~2점 루브릭으로 산출물 정량 채점 |
+| `/rag-search` | `/rag-search <질문>` | forge-outputs 문서 벡터+BM25 하이브리드 검색 |
+
+> ⚠️ 위 7종은 2026-09-08 에 추가한 항목입니다 — 번들에는 진작 들어 있었는데 README 표에만 빠져 있었습니다
+> (재현: `ls -1 forge-core/skills | wc -l` → 23, 구 README 표에 적힌 건 12개뿐이었습니다).
+
 ### forge-build (개발자)
 
 | 스킬 | 사용법 | 설명 |
@@ -360,11 +486,21 @@ cd ~/forge-plugins-repo && git pull
 | `/forge-pge` | `/forge-pge <목표>` | Plan-Generate-Execute — 복잡한 구현 자동화 |
 | `/forge-fix` | `/forge-fix <이슈설명>` | Hotfix 흐름으로 빠른 버그 처리 |
 | `/forge-implement` | `/forge-implement` | Spec 기반 구현 (/spec-write → /forge-implement → /qa 순서) |
-| `/forge-pr` | `/forge-pr` | PR 자동 생성 (Check 9 기준 검증 + gh pr create) |
+| `/forge-pr` | `/forge-pr` | PR 생성 + `cr-triple` 적대적 검수 + 머지 게이트 (⛔ `gh pr create` 직접 호출로 우회 금지) |
 | `/forge-check-traceability` | `/forge-check-traceability` | 추적성 체크 (Spec → 코드 → 테스트 연결 검증) |
 | `/forge-check-ui` | `/forge-check-ui` | UI 품질 체크 (Lighthouse/a11y 기준) |
 
 > **참고**: `/migration-audit`는 `forge-core`(하네스/감사 흡수)에 있습니다. `/agent-drift-auditor` 는 2026-08-11 제거됐습니다(부분 대체: `/system-audit`).
+>
+> ⚠️ 구 표기 "`/forge-pr` = PR 자동 생성 (Check 9 기준 검증 + **gh pr create**)" 은 2026-09-08 폐기했습니다.
+> 지금 `/forge-pr` 은 `cr-triple` 적대적 검수와 머지 게이트를 **먼저** 통과시킨 뒤 PR 을 엽니다 —
+> `gh pr create` 를 직접 부르면 그 게이트를 통째로 건너뜁니다
+> (재현: `head -3 forge-build/commands/forge-pr.md`, 2026-09-08 관측).
+>
+> **위 표에 없는 forge-build 스킬**(2026-09-08 추가분): GitNexus 코드 인텔리전스 6종
+> (`gitnexus-exploring`·`-impact-analysis`·`-debugging`·`-refactoring`·`-guide`·`-cli` — "이걸 고치면 뭐가 깨지나"를
+> 호출 그래프로 답합니다) · `frontend-design`(프런트 코드 직접 작성) · `forge-check-docs` ·
+> `forge-check-security-exec`(정적 스캔이 놓치는 실행 경로 취약점) · `cto-advisor`.
 
 ### forge-build — 기획 (PM/기획자, v0.2.0 흡수)
 
@@ -385,7 +521,11 @@ cd ~/forge-plugins-repo && git pull
 | `/yt` | `/yt <URL>` | YouTube 영상 분석 |
 | `/site-deep-analyze` | `/site-deep-analyze <URL>` | 사이트 심층 분석 |
 | `/weekly-research` | `/weekly-research <주제>` | 주간 심층 리서치 파이프라인 |
-| `/forge-find-item` | `/forge-find-item <아이템>` | 특정 항목 탐색 |
+| `/daily-system-review` | `/daily-system-review` | AI 시스템 일일 경량 스캔 (Critical/Breaking/Deprecated 알람) |
+| `/forge-find-item` | `/forge-find-item <아이템>` | 비즈니스 아이템 후보 5신호 검증 |
+| `/grants` | `/grants <기관/사업명>` | 지원사업 파이프라인 (GR-1~6) |
+| `/meeting` | `/meeting` | 미팅/대화 구조화 저장 (메타데이터+결정+액션아이템) |
+| `/pdf`·`/docx`·`/pptx` | `/pdf <파일>` | 문서 읽기·생성·변환 |
 
 ### forge-knowledge — 지식·메모리 (구 forge-brain)
 
@@ -399,18 +539,36 @@ cd ~/forge-plugins-repo && git pull
 
 ### forge-design (디자이너)
 
-| 스킬 | 사용법 | 설명 |
-|------|--------|------|
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
 | `/image-orchestrate` | `/image-orchestrate` | 이미지 생성 오케스트레이션 |
+| `/generate-image` | `/generate-image <설명>` | 이미지 1장 생성 (gpt-image-1) — ⚠️ 2026-09-07 Gemini 전면 철수로 구 표기 "Gemini 폴백" 폐기 |
+| `/visual-loop` | `/visual-loop` | 프론트 변경을 실제 브라우저로 캡처해 Vision 분석 |
+| `/style-forge` | `/style-forge` | 참조 에셋에서 스타일 추출 → style-guide.md (에셋 생성 전 선행) |
+| `/asset-critic` | `/asset-critic <에셋>` | AI 생성 에셋을 6축 정량 루브릭으로 채점 |
+| `/figma-screen-capture` | `/figma-screen-capture <URL>` | Figma 화면 캡처 |
+| `/forge-design-review` | `/forge-design-review` | 디자인 검수 단일 진입 (게이트 → 필요 시 라이브 루프) |
+| `/forge-design` | `/forge-design [--track web\|game] <설명>` | PRD(web) / GDD(game) 기획서 작성 디스패처 |
+| `/clip` | `/clip` | 클립보드/경로 이미지를 대화에 붙이기 |
 
 ### forge-game (게임 개발자)
 
-| 스킬 | 사용법 | 설명 |
-|------|--------|------|
+| 스킬/커맨드 | 사용법 | 설명 |
+|------------|--------|------|
+| `/gdd` | `/gdd` | 게임 기획서(GDD) 작성 |
 | `/game-qa` | `/game-qa` | 게임 QA 파이프라인 |
 | `/game-asset-pipeline` | `/game-asset-pipeline` | 게임 에셋 파이프라인 |
 | `/game-asset-generate` | `/game-asset-generate` | 게임 에셋 생성 |
 | `/asset-extract` | `/asset-extract` | Unity 에셋 추출 |
+| `/game-logic-visualize` | `/game-logic-visualize` | FSM·확률표·전투공식을 Mermaid/Draw.io 로 그리기 |
+| `/gamedesign-analyze` | `/gamedesign-analyze` | 게임 디자인 분석 |
+| `/game-reference-collect` | `/game-reference-collect` | 경쟁작 레퍼런스(영상·스크린샷) 수집 |
+| `/dungeon-play-loop`·`/dungeon-uiux-loop` | — | Unity 던전 반복 검증 루프 (`GODBLADE_ROOT` 필요) |
+| `/game-bug-runtime-loop` | — | 런타임 버그 반복 수정 루프 |
+
+> ⚠️ 구 표기에서 forge-design 은 스킬 1개, forge-game 은 4개만 적혀 있었습니다 — 2026-09-08 폐기.
+> 실측은 각각 **7개·10개**입니다(재현: `ls -1 forge-design/skills | wc -l` → 7 ·
+> `ls -1 forge-game/skills | wc -l` → 10, 2026-09-08 관측).
 
 ### 빠른 시작 예시
 
@@ -458,10 +616,48 @@ claude plugin install forge-core
 
 ### 온보딩 훅이 실행 안 됨
 
+훅 파일의 위치는 설치 방식에 따라 다릅니다. **경로를 외우지 말고 찾아서 실행하십시오.**
+
+**1) 먼저 어디 있는지 봅니다** — 실행하지 말고 목록만 확인하십시오.
+
 ```bash
-# 수동으로 온보딩 실행
-bash $HOME/.claude/plugins/forge-core/hooks/forge-onboard.sh
+find "$HOME/.claude/plugins" -name forge-onboard.sh | sort
 ```
+
+> ⚠️ `2>/dev/null` 을 붙이지 마십시오. 붙이면 **권한 오류 같은 진짜 실패가 조용히 사라지고**
+> "0개"처럼 보입니다. 오류 줄이 뜨면 그건 "훅이 없다"가 아니라 **"못 읽었다"** 입니다.
+
+**2) 나온 줄 수에 따라 이렇게 합니다.**
+
+| 결과 | 할 일 |
+|------|------|
+| **오류 줄이 섞여 나옴** | 훅 문제가 아닙니다. 그 오류를 그대로 팀에 전달하십시오 |
+| **한 줄도 안 나옴** | 이 경로에서는 훅을 못 찾았습니다 — 위 [신규 설치](#신규-설치-팀원용) 를 먼저 확인하십시오 |
+| **정확히 1개** | 그 경로를 그대로 `bash <경로>` |
+| **2개 이상** | **어느 것이 맞는지 이 문서는 판정하지 않습니다** — 아래를 읽으십시오 |
+
+여러 개가 나올 때는 마켓플레이스 사본이나 여러 버전의 캐시 등이 함께 검색될 수 있습니다.
+**어느 것이 지금 활성인지는 경로 이름만 보고 알 수 없습니다** — 캐시에 남은 버전 번호가
+크다고 그게 지금 쓰이는 버전이라는 뜻은 아닙니다. 이 경우에는 **찾은 목록을 그대로 팀에 전달**하십시오.
+
+```bash
+# 실행은 위 목록에서 받은 경로 하나를 따옴표째 붙여넣는 방식으로만 하십시오
+bash "<위 목록에서 받은 경로>"
+```
+
+> ⚠️ **경로를 명령치환(`bash "$(find …)"`)으로 바로 넘기지 마십시오.** 하나도 못 찾으면 `bash ""` 가 되어
+> `bash: : No such file or directory` (rc=127) 라는 엉뚱한 오류만 뜹니다 —
+> "훅이 고장 났나?" 로 헤매게 됩니다. 실제 원인은 **설치가 안 된 것**입니다.
+> 재현: `HOME=/tmp/없는경로 bash -c 'bash "$(find "$HOME/.claude/plugins" -name forge-onboard.sh 2>/dev/null | head -1)"'`
+> → `bash: : No such file or directory` · rc=127 (2026-09-08 관측).
+
+> ⚠️ **폐기한 안내 2건** (2026-09-08):
+> ① 구 표기 `bash $HOME/.claude/plugins/forge-core/hooks/forge-onboard.sh` — **그 경로에는 아무것도 없습니다.**
+>    없는 폴더를 뒤져 놓고 "훅이 없네"라고 결론 내리게 만드는 안내였습니다.
+>    재현: `ls "$HOME/.claude/plugins/forge-core"` → `No such file or directory` (2026-09-08 관측).
+> ② 같은 날 제가 넣었던 `-path '*marketplaces*' … | head -1` 과 **"marketplaces 쪽이 최신"** 이라는 설명도
+>    함께 폐기합니다. 필터가 캐시 경로를 걸러내 **바로 윗줄 주석과 모순**됐고(캐시에만 있으면 조용히 실패),
+>    "marketplaces 가 최신"이라는 주장은 **근거를 대지 못했습니다** — 확인하지 않은 것을 단정했습니다.
 
 ### Marketplace 등록 오류
 
@@ -478,46 +674,84 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 ```
 forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
-├── forge-core/                        — (v0.7.9) 기반 + 하네스 정리 + AI 감사 흡수
+├── forge-core/                        — (v0.7.18) 기반 + 하네스 정리 + AI 감사 + 저작 도구
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/                        — 23개
 │   │   ├── approve-worker/            — forge 승인 워커
 │   │   ├── cr-multi/                  — 멀티 검수 오케스트레이터
 │   │   ├── rag-search/                — 하이브리드 RAG 검색
 │   │   ├── forge-loop-maker/          — Generic refinement loop
+│   │   ├── skill-creator/ subagent-creator/ slash-command-creator/ hook-creator/  — 저작 4종
+│   │   ├── eval-rubric/ doc-verifier/ office-hours/ product-manager-toolkit/
 │   │   ├── harness-legacy-scan/ harness-diet/ external-harness-sweep/  — 하네스 정리 3종
 │   │   └── system-audit/ audit-agentic/ audit-context/ audit-cost/ audit-harness/ audit-human-ai/ migration-audit/  — 감사 7종
 │   ├── agents/                        — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
 │   ├── commands/                      — 22개 슬래시 커맨드
-│   ├── hooks/
-│   │   ├── forge-onboard.sh           — SessionStart 자동 실행
-│   │   └── handover-manager.sh        — 핸드오버 원자적 쓰기 (flock)
-│   └── rules/
-│       ├── forge-core.md              — forge 전역 규칙
-│       ├── behavior-core.md           — 자율실행·외과적변경·존댓말 등
-│       └── tool-rules.md              — 도구 사용 정책
-├── forge-build/                       — (v0.4.20) 구 forge-dev + forge-plan 통합
+│   ├── hooks/                         — 실행본 7개 (+ 테스트 2개, lib/)
+│   │   ├── forge-onboard.sh           — SessionStart 자동 실행 (규칙·디렉터리·스크립트 설치)
+│   │   ├── main-write-guard.sh        — 배포 브랜치 직접 쓰기 차단
+│   │   ├── brain-integrity-check.sh / brain-placement-guard.sh   — 지식 레인 무결성
+│   │   ├── forge-plugin-learn-inject.sh / -reminder.sh           — learnings 주입·리마인드
+│   │   └── session-placement-advisory.sh
+│   └── rules/                         — 8개 (세션마다 자동 로드되는 전역 규칙)
+│       ├── forge-core.md              — 경로·보안·병렬 실행·Git
+│       ├── behavior-core.md           — 자율실행·외과적변경·완료선언 게이트·존댓말
+│       ├── tool-rules.md              — 도구·스킬 발동 정책
+│       ├── model-routing.md           — 모델 tier·advisor·검수 3레그 (검수 모델 정본)
+│       ├── context-engineering.md     — 컨텍스트 예산·subagent 위임·L1~L4
+│       ├── dev-workflow-rules.md      — 브랜치·배포·SDD 진입
+│       ├── security-agent-input.md    — 외부 입력 프롬프트 인젝션 방어
+│       └── success-is-silent.md       — 성공 시 침묵
+├── forge-build/                       — (v0.4.25) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 30개 (qa/healer/investigate/api-e2e + spec-write계열/writing-plans/autoplan 등)
-│   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + spec-write/forge-spec/prd/forge-plan 등)
+│   ├── skills/                        — 32개 (qa/healer/investigate/api-e2e + spec 계열/writing-plans/autoplan + gitnexus 6종 등)
+│   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + forge-spec/prd/forge-plan/forge-deploy 등)
 │   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
-├── forge-knowledge/                   — (v0.2.18) 구 forge-brain 개명 + forge-research 통합
+├── forge-knowledge/                   — (v0.2.22) 구 forge-brain 개명 + forge-research 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — learn/memory-manage/wiki-sync/site-deep-analyze/yt
-│   ├── commands/                      — article/yt/site-deep-analyze/weekly-research/forge-find-item/learn/memory-manage/wiki-sync
+│   ├── skills/                        — 15개 (learn/memory-manage/wiki-sync/yt/article/weekly-research/daily-system-review + pdf·docx·pptx 등)
+│   ├── commands/                      — 7개 (article/site-deep-analyze/forge-find-item/find-item/wiki-sync/grants/meeting)
 │   ├── agents/                        — 6개 (academic-researcher/article-analyst/fact-checker/yt-cross-analyst/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
-├── forge-design/                      — (v0.2.13)
-│   ├── skills/                        — image-orchestrate/visual-loop/figma-screen-capture
-│   └── agents/                        — doc-writer/gemini
-└── forge-game/                        — (v0.1.15)
-    ├── skills/                        — gdd/game-qa/game-asset-pipeline/asset-extract
-    └── agents/                        — gdd-writer
+├── forge-design/                      — (v0.2.18)
+│   ├── skills/                        — 7개 (image-orchestrate/visual-loop/figma-screen-capture/style-forge/asset-critic/doc-writer/design-plan-closeout)
+│   ├── commands/                      — 4개 (forge-design/forge-design-review/generate-image/clip)
+│   └── agents/                        — 1개 등록 (doc-writer) — ⚠️ 2026-09-07 Gemini 전면 철수로 구 표기 "2개 (doc-writer/gemini)" 폐기. `agents/gemini.md` 파일은 forge SSoT sync 대상이라 남아 있으나 **plugin.json 등록에서 빠져 로드되지 않습니다**
+└── forge-game/                        — (v0.1.17)
+    ├── skills/                        — 10개 (game-qa/game-asset-pipeline/asset-extract/game-logic-visualize/dungeon 루프 2종 등)
+    ├── commands/                      — 1개 (gdd)
+    └── agents/                        — 1개 (gdd-writer)
 ```
+
+> **세는 명령** (2026-09-08 관측):
+> `for p in forge-core forge-build forge-knowledge forge-design forge-game; do echo "$p: skills=$(ls -1 $p/skills 2>/dev/null|wc -l) commands=$(ls -1 $p/commands/*.md 2>/dev/null|wc -l) agents=$(ls -1 $p/agents/*.md 2>/dev/null|wc -l)"; done`
+>
+> ⚠️ **폐기한 서술 3건** (2026-09-08):
+> ① `handover-manager.sh` — **번들에 없습니다.** v0.7.0(2026-07-26)에 설치 블록을 지웠습니다.
+>    `/forge-start`·`/forge-end` 통합으로 참조가 0이 됐고, 안 쓰는 파일을 계속 심는 건 그 자체가 부채였습니다.
+>    재현: `ls forge-core/hooks/handover-manager.sh` → 없음 · 사유 원문은 `forge-core/hooks/forge-onboard.sh` §5 주석.
+> ② `rules/` 3개 나열 — 실제 **8개**입니다(재현: `ls -1 forge-core/rules/*.md | wc -l` → 8).
+> ③ 번들 버전·개수 — 위 세는 명령 결과와 어긋나 있었습니다(forge-build 스킬 30→**32**, forge-design 3→**7**, forge-game 4→**10**).
 
 ---
 
 ## Changelog
+
+### 2026-09-08 — forge SSoT 동기 (82 파일) + README 현행화
+
+**한 줄 요약**: 팀원이 받는 번들이 원본보다 82개 파일 뒤처져 있어 낡은 스킬·규칙을 쓰고 있었습니다. 맞췄습니다.
+
+- **동기 82개 파일** — forge-core 40 · forge-build 30 · forge-knowledge 9 · forge-design 3.
+  `forge-game` 은 변경 0이라 **버전을 올리지 않았습니다**(빈 업데이트를 밀지 않기 위해서입니다).
+  재현: `PLUGIN_ROOT=$(pwd) python3 scripts/sync-from-forge.py --verify` → `DRIFT_REMAINING=0` (2026-09-08 관측).
+- **버전 상향**: forge-core `0.7.16→0.7.17` · forge-build `0.4.23→0.4.24` ·
+  forge-knowledge `0.2.21→0.2.22` · forge-design `0.2.16→0.2.17` · forge-game `0.1.16` 유지.
+  ⚠️ 버전을 안 올리면 `claude plugin update` 가 "이미 최신"이라며 그냥 넘어가서 **파일을 고쳐도 도달하지 않습니다.**
+- **README 현행화** — 낡은 버전표·검수 모델명·온보딩 규칙 개수·파일 구조를 실측값으로 교체했고,
+  지운 자리마다 `⚠️ 구 표기 … 폐기` 흔적과 재현 명령을 남겼습니다.
+- **주의(알려진 미해결)**: `DRIFT_REMAINING=0` 은 "완전 동기화"가 아닙니다. forge SSoT 에 있으나
+  **어느 번들도 담지 않은 파일이 116개**(`INBOUND_NOT_CARRIED`) 있습니다 — 드리프트 수치에 안 잡힙니다.
+  전량 목록: `python3 scripts/sync-from-forge.py --verify --inbound-all`.
 
 ### v0.3.0 (2026-07-07) — 플러그인 통합 9→5
 - **forge-core v0.6.0**: 구 `forge-harness`(harness-legacy-scan/diet/external-sweep/agent-drift-auditor) + 구 `forge-audit`(system-audit/audit-agentic/context/cost/harness/human-ai/migration-audit) 흡수. axis-* 에이전트 6종(advisor-strategist 포함) 번들.

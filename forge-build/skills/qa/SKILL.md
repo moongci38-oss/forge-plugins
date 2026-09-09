@@ -81,7 +81,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
 
 > **Human 개입 없이 100% 자율 진행. Human은 develop 머지 후 final-qa-report만 검수.**
 
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-5.6-sol`이면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```
 [User] /qa --scope={domain|full}
    │
@@ -142,7 +142,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
    │           `--exhaustive` 시: 동일 헬퍼 `--crawl` 모드로 clickable 요소 전수 클릭·검증(파괴적 액션 스킵) — 결과가 Phase B scenarios.md를 보강하고 발견 버그는 동일 bugs[]로 흡수된다(신규 시나리오 카테고리 아님, 기존 8카테고리 그대로).
    │           `--accounts` 시: T1/T2가 계정별로 fan-out 실행되며(T3/T6/T7은 계정 무관 1회), 헬퍼 `--accounts <로그인시퀀스json>`으로 로그인 후 캡처 — 발견 버그는 `account` 필드로 태깅.
    │           ⚠️ 대량 동시 FAIL 감지(권장 기본: 동일 도메인/FR군 시나리오의 50%+ 또는 절대 5건+ 동시 FAIL, 튜닝 가능) 시
-   │              → 개별 bug-N 파일링·Lane A 위임 전에 advisor-strategist(리졸버 기본 = Fable 5) 자문:
+   │              → 개별 bug-N 파일링·Lane A 위임 전에 advisor-strategist(리졸버 기본 = Fable 5.1) 자문:
    │                Agent(subagent_type="advisor-strategist", prompt="<대량 FAIL 패턴 요약 500토큰> 구조적 단일결함 vs 개별버그 판단·접근 재정렬 조언 요청")
    │              구조적 단일결함이면 근본원인 1건으로 수렴(개별 N건 남발 방지). advisory only — 최종 판단 Human/오케스트레이터.
    │
@@ -161,7 +161,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
    │             • SPEC_STALE_CANDIDATE (B: 코드가 의도적 커밋으로 스펙보다 최신) → Reconciliation 게이트
    │             • AMBIGUOUS (신호부족/판별불가) → Reconciliation 게이트 (안전 기본값)
    │           Reconciliation 게이트:
-   │             1) advisor-strategist(리졸버 기본 = Fable 5) 자문 스폰 (main 컨텍스트 1-level; 중첩 시 [→Lead 위임])
+   │             1) advisor-strategist(리졸버 기본 = Fable 5.1) 자문 스폰 (main 컨텍스트 1-level; 중첩 시 [→Lead 위임])
    │             2) Human [STOP]: 판별 신호+advisor 권고 제시 → 2택
    │                - "스펙 노후 확정" → 스펙 정정(Human 승인 = sanctioned 사후 변경): .spec.md FR 갱신 → 시나리오 재생성 → 재검증
    │                - "코드 버그 확정" → Phase D~F Lane A 위임(코드 수정)
@@ -174,7 +174,7 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
    │             ① 조사·재현(RED, 게이트 R — 축별 실오라클 강제) [Phase C 아티팩트 재사용 가능]
    │             ② 리포트(6하원칙, bug-fix-plan.md)
    │             ③ 수정(healer a1~a3, cr-code blocking)
-   │             ④ 검수(GREEN, 게이트 G, healer a4~a7 + cr-bug/cr-code/cr-test/cr-final + Codex cr-final)
+   │             ④ 검수(GREEN, 게이트 G, healer a4~a7 + forge-bug-review/forge-code-review/forge-test-review/forge-final + Codex cr-final)
    │           UI버그: Vision evaluator(JSON schema) + pixel-diff-gate + forge-check-ui (Lane A 내부 적용)
    │           [UAT 진입점] --mode=uat 시: docs/qa/uat-scenarios.md 로드 → Lane A 수정 비활성 → 수동 검토 플로우
    │           ⚠️ qa는 발견만 담당 — 수정+검수 로직은 Lane A 재사용(로직 단일화). 상세 라우팅·게이트는 `commands/forge-fix.md` 참조.
@@ -203,11 +203,11 @@ route-centric route_map 시드만으로는 못 잡는 사각지대를 보완한�
 
 ### 자동 머지 조건 (9개 전부 충족)
 
-- [✓] /cr-bug PASS/WARN
-- [✓] /cr-code PASS/WARN
-- [✓] /cr-test PASS/WARN
-- [✓] /cr-final PASS/WARN (Claude Sonnet, 적대적)
-- [✓] Codex /cr-final PASS (third-party LLM — 미충족 시 develop 머지 X)
+- [✓] /forge-bug-review PASS/WARN
+- [✓] /forge-code-review PASS/WARN
+- [✓] /forge-test-review PASS/WARN
+- [✓] /forge-final PASS/WARN (Claude Sonnet, 적대적)
+- [✓] Codex /forge-final PASS (third-party LLM — 미충족 시 develop 머지 X)
 - [✓] 보안 CRITICAL 0건
 - [✓] 회귀 0건 (baseline 대조)
 - [✓] GitHub CI PASS
@@ -245,7 +245,7 @@ _QA 맥락 차별_: behavior-core.md의 red-green은 일반 버그수정 룰. �
 
 ## Hotfix 모드 폐지 — Lane A(`/forge-fix`)로 통합 (plan v1.1 D1, AD-95 대체)
 
-과거 `--mode=hotfix`(Phase B~C 스킵 + cr-test/cr-final 선택)는 **폐지**한다. 단일 알려진 버그는 `/forge-fix "<버그>"`로 직접 처리하며, 그 파이프라인도 4-스테이지(조사·재현→리포트→수정→검수) 전부와 게이트 R/G를 항상 통과해야 한다 — "가벼운 버그라 검증을 생략한다"는 경로는 더 이상 없다.
+과거 `--mode=hotfix`(Phase B~C 스킵 + forge-test-review/forge-final 선택)는 **폐지**한다. 단일 알려진 버그는 `/forge-fix "<버그>"`로 직접 처리하며, 그 파이프라인도 4-스테이지(조사·재현→리포트→수정→검수) 전부와 게이트 R/G를 항상 통과해야 한다 — "가벼운 버그라 검증을 생략한다"는 경로는 더 이상 없다.
 
 `/qa`는 spec 기반 전수 발견(Phase A~C, Lane B) 전용이며, 개별 버그의 경량 수정 진입점 역할은 하지 않는다. 발견된 버그의 수정·검수는 Lane A(`/forge-fix`)로 위임된다.
 
@@ -286,7 +286,7 @@ bash ${FORGE_ROOT:-$HOME/forge}/.claude/hooks/dispatch/phase-gate.sh phase-f-ent
 
 카테고리 표기 허용 형식(H27 훅 판정 기준, 하위호환): 필드형 `카테고리: N`(reference.md 시나리오 schema) 또는 헤딩형 `카테고리 N`/`### 카테고리 N: <이름>` — 콜론 유무 무관, 숫자 뒤 경계만 확인.
 면제 시: `면제 카테고리: [N] / 사유: <1줄>` 명시. 3건 이상 동시 면제 = [STOP].
-[STOP] 발동 전 advisor-strategist(리졸버 기본 = Fable 5) 자문: `Agent(subagent_type="advisor-strategist", prompt="<면제 제안 카테고리 N개+각 사유 요약 500토큰> 테스트 커버리지 축소 리스크·대안 조언 요청")` (중첩 시 [→Lead 위임]). advisor 응답(400~700토큰)을 [STOP] 보고에 포함 — advisory이며 면제 승인·최종결정은 Human. 3건 미만 면제는 스폰하지 않는다(비용).
+[STOP] 발동 전 advisor-strategist(리졸버 기본 = Fable 5.1) 자문: `Agent(subagent_type="advisor-strategist", prompt="<면제 제안 카테고리 N개+각 사유 요약 500토큰> 테스트 커버리지 축소 리스크·대안 조언 요청")` (중첩 시 [→Lead 위임]). advisor 응답(400~700토큰)을 [STOP] 보고에 포함 — advisory이며 면제 승인·최종결정은 Human. 3건 미만 면제는 스폰하지 않는다(비용).
 H28 gate: 카테고리 1·2·3·4·6·8 합산 5+건 직렬 시도 → 차단.
 상세 시나리오 schema + 병렬 실행 코드 → `reference.md` §Phase B 상세
 
@@ -300,7 +300,7 @@ qa 자체 Phase E는 폐지되었다(Phase D~F 위임, 위 §참조). 복잡도�
 
 ## qa 자체 advisor 자문 지점 (Q1/Q2 — 2026-07-04)
 
-버그 수정(Lane A)의 advisor T1~T4와 별개로, qa의 **discovery 국면 고위험 판단**에 advisor 를 자문한다(모델 = `advisor-model-resolve.sh` 출력, 기본 Fable 5):
+버그 수정(Lane A)의 advisor T1~T4와 별개로, qa의 **discovery 국면 고위험 판단**에 advisor 를 자문한다(모델 = `advisor-model-resolve.sh` 출력, 기본 Fable 5.1):
 
 | 지점 | 트리거 | 자문 목적 |
 |------|--------|----------|
@@ -308,7 +308,7 @@ qa 자체 Phase E는 폐지되었다(Phase D~F 위임, 위 §참조). 복잡도�
 | **Q2** | Phase C 대량 시나리오 동시 FAIL(구조적 의심) | 구조적 단일결함 vs 개별버그 판단 |
 | (Phase C.5) | spec-code 불일치 SPEC_STALE_CANDIDATE/AMBIGUOUS | 스펙정정 vs 코드수정 (기배선) |
 
-- 모델=`advisor-model-resolve.sh` 출력(기본 Fable 5 · 대체 `gpt-5.6-sol` — 2026-08-12 이전 "Opus(비-Fable)" 고정 폐기). `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only). advisory only([STOP]·최종판정 Human), 저빈도 고위험만, non-blocking(스폰 실패해도 Human 진행).
+- 모델=`advisor-model-resolve.sh` 출력(기본 Fable 5.1 · 대체 `gpt-5.6-sol` — 2026-08-12 이전 "Opus(비-Fable)" 고정 폐기). `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only). advisory only([STOP]·최종판정 Human), 저빈도 고위험만, non-blocking(스폰 실패해도 Human 진행).
 - **AMBIGUOUS 복잡도 버그의 advisor는 Lane A T1이 담당** — qa에서 중복 배선하지 않는다.
 
 상세 라우팅 코드 → `commands/forge-fix.md` (레거시 참조: `reference.md` §Phase E 상세)

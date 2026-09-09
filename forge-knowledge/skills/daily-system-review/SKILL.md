@@ -18,10 +18,22 @@ Recent commits: !git log --oneline -5
 
 **역할**: 당신은 6-Tier 소스에서 AI/Agentic 동향을 매일 경량 스캔하고 핵심 변동만 분석하는 AI 동향 모니터링 전문가입니다.
 **컨텍스트**: 매일 자동 실행되거나 `/daily-system-review` 호출 시 실행됩니다.
-<!-- root-cause(skills-1/S1-07, 2026-08-03 관측): 이 줄이 "Artifact XML로 stdout 출력"만 말해 아래 §산출물(3종/5종, :33-43)의 파일 저장 요구와 충돌했다 — 그 표는 `01-research/daily/{date}/`에 실제 파일명(ai-system-analysis.md 등)을 저장하도록 명시하고, Wave 0 완결성 게이트(:53-57)도 저장된 `ai-system-analysis.md` 존재를 전제로 WARN을 판정한다. "파일 저장=정본, Artifact=파생 발행"으로 단일화. -->
-**출력 형식**: §산출물(아래 표)대로 파일 저장이 정본이다. Artifact XML 발행은 저장 후 선택적 파생 출력(stdout 표시용)이며 파일 저장을 대체하지 않는다.
-  - `report-formatter.mjs`의 `formatAsArtifact(title, content, 'markdown', id, true)` 사용
-  - `stripFirstHeading: true` 옵션으로 첫 # 제목 자동 제거
+<!-- 2026-08-25 정정(Human 지시): claude.ai Artifact 발행을 **폐지**하고 발행 대상을
+     https://forge-reports.pages.dev 하나로 단일화했다. 이유는 Artifact URL 이 **로그인 계정에
+     묶이기** 때문이다 — 계정이 바뀌면 갱신도 공유도 못 한다(DHS 에서 그렇게 죽은 URL 이 4개 이상).
+     구판이 말하던 "Artifact XML" 은 애초에 claude.ai 아티팩트가 **아니라** stdout 표시용 태그였고
+     공유 URL 을 만들지 않았다 — 이름만 같아서 "이미 발행됐다" 는 오독을 낳았으므로 함께 걷어낸다.
+     ⚠️ 파일 저장은 그대로 정본이다. 사이트 발행기가 저장된 파일을 훑어 올린다. -->
+**출력 형식**: §산출물대로 **파일 저장이 정본**입니다. 저장만 하면 **발행은 자동**입니다 —
+`report-site-publish.sh auto` 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
+텔레그램으로 링크를 보냅니다. **이 스킬이 발행을 직접 하지 않습니다.**
+
+- 지금 당장 올리려면: `/forge-publish-report`
+- 발행 URL: `https://forge-reports.pages.dev/<kind>/<slug>/`
+- ⚠️ Artifact 도구를 호출하지 마십시오(폐지됨).
+
+저장 경로(정본): `01-research/daily/{date}/`(`ai-system-analysis.md` 등)
+— Wave 0 완결성 게이트가 저장된 `ai-system-analysis.md` 존재를 전제로 WARN 을 판정합니다.
 
 # AI 시스템 일일 분석 파이프라인
 
@@ -57,10 +69,8 @@ Recent commits: !git log --oneline -5
 | # | 문서 | 저장 위치 | 파일명 |
 |:-:|------|----------|--------|
 | 1 | AI 시스템 분석 리포트 | `01-research/daily/{date}/` | `ai-system-analysis.md` |
-| 2 | 적용 계획서 | `01-research/daily/{date}/` | `system-improvement-plan.md` |
 | 3 | HTML 대시보드 | `01-research/daily/{date}/` | `dashboard.html` (Wave 2.7) |
 | 4 | 관심종목 브리핑 | `01-research/daily/{date}/` | `stock-brief.md` (daily 경량, watchlist 없으면 생략) |
-| 5 | 학습노트 | `01-research/daily/{date}/` | `study-notes.md` (개념 후보 0개면 생략) |
 
 > **canonical 경로 = `01-research/daily/{date}/`** (daily-analyze 프로덕션 경로와 동일, weekly와 동형). `docs/reviews/`·`docs/planning/active/plans/`는 **deprecated** — 기존 레거시 3파일(2026-03-09·05-21·07-15)은 보존하되 신규 생성 금지.
 
@@ -95,8 +105,6 @@ RAW_JSON="01-research/daily/{date}/raw-data.json"
   무관 — 주식 뉴스는 일간 최신이고 학습노트는 완성 리포트만 필요하다). 구체적으로:
   - `daily-system-analyst` 스폰과 **병렬로** `stock-research-analyst`(agentType, `mode: daily`)를 스폰해
     `01-research/daily/{date}/stock-brief.md` 생성(워치리스트 없으면 skip, fail-open).
-  - 분석 리포트 완성 후 `concept-notes-writer`(agentType)를 스폰해
-    `01-research/daily/{date}/study-notes.md` 생성(개념 0개면 skip, fail-open).
   - **run.sh가 Step 1 collector로 raw-data.json을 먼저 만들므로 cron의 정상 경로는 항상 이 재분석 분기다.**
     따라서 이 두 스폰이 없으면 주식·학습노트는 프로덕션에서 영영 생성되지 않는다.
 
@@ -192,7 +200,9 @@ Lead가 5개 Teammate 결과를 종합하여 2개 문서 직접 작성:
 
 - **산출물 1**: AI 시스템 분석 리포트 (`01-research/daily/{date}/ai-system-analysis.md`) — Executive Summary, 업계 변화(6개 하위), 우리 시스템 현황(WARN 다이제스트 포함), 1:1 비교 분석, 갭 분석, 추천 목록, 학습노트, 출처.
   - **ACHCE 축 분류 필수**: 각 갭 항목을 A(Agentic)/C(Context)/H(Harness)/C(Cost)/E(Human-AI Escalation) 5축 중 하나로 분류한다.
-- **산출물 2**: 적용 계획서 (`01-research/daily/{date}/system-improvement-plan.md`) — P0/P1/P2 액션 아이템. 각 액션 = 액션명·영향범위·예상작업량·의존성·참조소스·`verify_cmd`·`verify_out`·`owner`(ai\|human)·`carry_count`.
+> ⚠️ **적용 계획서(`system-improvement-plan.md`)는 2026-09-03 폐지**(Human 지시).
+> 분석에서 나온 갭은 `ai-system-analysis.md` 본문에 사실로만 적고, 조치는 사람이 판단한다.
+> 폐지 근거: 계획서가 쌓이기만 하고 종결되지 않았다 — `docs/planning/active/` 327건 · 종결률 8.3%.
   - **규칙**: `verify_cmd` 없이 또는 `verify_out`이 빈 채로 제안을 생성하지 않는다. 실측 없는 제안은 오탐이다.
 
 > 정확한 마크다운 구조(섹션 헤딩·표 스켈레톤): `reference/wave2-templates.md` Read 후 그대로 따를 것.
@@ -205,70 +215,58 @@ Lead가 5개 Teammate 결과를 종합하여 2개 문서 직접 작성:
 
 ---
 
-### Wave 2.5 (독립 Evaluator subagent — Wave 2 완료 후, Wave 3 이전)
+> ⚠️ **Wave 2.4(미적용 백로그) 는 2026-09-06 폐지**(Human 지시). `apply-plan-backlog.py` 를
+> 호출하지 않고, `backlog-all-open.md` 도 만들지 않으며, 리포트에 `## 미적용 백로그` 절을
+> 붙이지 않는다.
+>
+> 왜: 이 절은 **적용계획서 더미를 읽어** 미반영 P0/P1/P2 를 세던 것이다. 그런데 계획서 생산
+> 자체가 2026-09-03 에 폐지됐다(위 §산출물 주석) — **더 안 만드는 서류의 잔량을 매일 세는**
+> 절만 남은 셈이었다. 쉽게 말하면 **폐업한 가게의 재고를 매일 방송하고 있었다.**
+>
+> 실측(2026-09-06 폐지 시점): 계획서 182건 · 미적용 **P0 52 / P1 92 / P2 149 = 293건**.
+> 이 목록은 사람이 닫지 않으면 줄지 않아(폐지 후 2026-09-06 점검까지 신규 생성 0건 —
+> 미래를 단정하는 말이 아니라 그 구간의 관측치다),
+> **매일 같은 293건이 반복 게시**돼 리포트 말미가 늑대소년이 돼 있었다.
+>
+> ⚠️ **함께 안 보이게 되는 것 3가지**(cr-final 2026-09-06 지적 — 293건만 적었던 것을 보완):
+>   ①`판정불가`(체크박스 0개인 계획서) ②`미측정 섹션` ③**계획서 생산이 실수로 재개되는 것**.
+>   ③이 특히 아프다 — 이 절이 그 재개를 **간접적으로 감지**하던 유일한 창구였다.
+>   지금은 총량이 늘어도 아무도 모른다. 저소음 카나리(신규 파일이 생기거나 총량이 늘 때만
+>   알림)는 **후속 과제**로 남긴다.
+>
+> ⚠️ **293건이 사라진 것은 아니다 — 안 보일 뿐이다.** 언제든 아래로 확인한다:
+> `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/apply-plan-backlog.py" "$(date +%F)" --all-open --summary`
+> 스크립트·검증기(`apply-plan-backlog.py` · `verify-apply-plan-backlog.sh`)는 **남겨 둔다**
+> — 나중에 서랍을 정리할 때 쓸 도구다.
+>
+> ⚠️ **세션 시작 배너는 별개 레인이다.** `/forge-start` 의 `session-recall.sh` 가 여전히
+> `ITEMS_OPEN`·`P0_OPEN` 을 센다(daily 리포트와 다른 경로). 그쪽도 끄려면 따로 정해야 한다.
+>
+> **복구 절차**(적용계획서 레인을 다시 쓰기로 한 경우): 이 블록을 지우고 **PR #501 의
+> 삭제분**을 되돌린다 — `git show <PR#501 머지커밋> -- <이 파일>` 로 원문(Wave 2.4 전체
+> 115줄)을 꺼내 붙이면 된다. 스크립트(`apply-plan-backlog.py`)와 검증기는 지우지 않았으므로
+> 그대로 동작한다. ⚠️ '조건'만 적고 '방법'을 안 적으면 되살릴 때 다시 설계하게 된다.
 
-> **핵심 원칙: Lead의 컨텍스트(의도, 가정)를 공유하지 않는 별도 에이전트가 검증한다.**
-> Wave 2 Lead 리포트 완성 직후, Wave 3(Notion 등록) 진행 전에 반드시 실행한다.
+### Wave 2.5~2.55 (독립 검증 + 적대적 검수 — Wave 2 완료 후, Wave 2.6 이전)
 
-```
-subagent_type: gemini  # 교차모델 — 동일모델(Claude) 평가는 편향 전파(arXiv 2606.20493 Contagion Networks). 미가용 시 general-purpose로 fail-open 폴백.
-```
+두 겹으로 검증하는데 **성격이 다르다.**
 
-**입력 파일 (대상 전문 인라인 — 직접 Read 아님)**: `gemini` 에이전트는 `Read`/`Bash`/`Glob` 도구가 없다(`agents/gemini.md` frontmatter 참조). 파일 경로만 넘기면 조용히 빈 근거 위에서 점수를 매긴다(D6, 반복 재발 — 2026-08-07 daily 세션 실측: 스킬 지시대로 경로만 넘겼다면 FAIL 35/100이 나와야 할 리포트가 근거 없이 통과했을 것). 아래 두 파일을 **호출자가 먼저 `Read`로 전량 확인한 뒤 전문을 프롬프트 본문에 인라인**해서 스폰한다:
-- `01-research/daily/{date}/ai-system-analysis.md`
-- `01-research/daily/{date}/system-improvement-plan.md`
+- **Wave 2.5(차단)** — Lead 의 컨텍스트를 공유하지 않는 별도 Evaluator 가 채점한다
+  (생성자 ≠ 평가자 — 자기평가 편향 방지). PASS 기준 70점, FAIL 이면 보완 후 재실행 1회,
+  **2회 연속 FAIL 시 [STOP] Human 에스컬레이션.** 여기를 통과해야 Wave 2.6 으로 넘어간다.
+- **Wave 2.55(비차단, WARN-first)** — **분석 리포트**(`ai-system-analysis.md`)에 cr-triple 3레그로 적대적 검수를 건다
+  > ⚠️ 2026-09-03 변경: 종전엔 계획서만 검수했고 계획서가 없으면 건너뛰었다 — 계획서를
+  > 폐지하면 검수가 **영영 안 돈다.** `content_integrity=lost`·`INVALID_INPUT` 은 판정이 아니라
+  > **검수 미수행**이니 대상을 쪼개 재호출한다(로더 ~15KB 상한, 2026-09-02 실측).
+  (2026-08-27 Human 지시). **WARN/FAIL 이어도 진행한다** — 지적을 **분석 리포트 말미** `## 검수 지적`
+  에 적고 넘어가며 [STOP] 을 걸지 않는다. cron 이 무인으로 도는 파이프라인이라 사람 없는
+  자리에서 멈추면 그날 리포트가 통째로 안 나오기 때문이다. 쉽게 말하면 **문을 잠그는 대신
+  쪽지를 붙인다.**
 
-**Rubric (100점 만점)**:
+> **이 두 Wave 를 돌릴 때 Read**: `reference/wave25-adversarial.md`
+> — Evaluator 프롬프트 전문·항목별 배점·개선 지시 형식·cr-triple 호출 규약이 거기 있다.
 
-| 항목 | 가중치 | 불합격 기준 |
-|------|:------:|-----------|
-| 6-Tier 커버리지 | 40% | Tier 1~6 중 2개 이상 미참조 시 즉시 FAIL |
-| 증거 검증 | 20% | `verify_out`이 비어 있는 제안이 1건이라도 있으면 감점, 3건 이상이면 0점 |
-| 인사이트 품질 | 20% | 갭 분석이 단순 나열(불릿만)이고 인과 설명 없으면 0점 |
-| 갭 정확도 | 10% | Critical/High/Medium 분류 근거가 없으면 감점 |
-| 액션 실현 가능성 | 10% | P0 항목에 담당자·예상 작업량 누락 시 감점 |
-
-**PASS 기준**: 70점 이상.
-
-**FAIL 처리**: Evaluator가 감점 항목별 위치 + 이유 + 개선 방법을 구체적으로 작성하여 Lead에 반환. Lead는 리포트 보완 재작성 후 Evaluator 재실행 (1회 한정). 2회 연속 FAIL 시 [STOP] Human 에스컬레이션.
-
-**출력**: `${FORGE_ROOT:-$HOME/forge}/.claude/state/DSR_EVAL.md`(절대경로 — 상대경로는 cwd에 따라 조용히 다른 곳에 쓰인다. root-cause: 2026-08-03 하네스 위생 조사, 앵커 없는 상대경로가 `shared/.claude/state/`에 산개해 있던 걸 실측)
-
-```markdown
-## Daily System Review Evaluator 결과
-
-**총점**: XX/100
-**판정**: PASS / FAIL
-
-### 항목별 점수
-- 6-Tier 커버리지 (40%): XX점 — [미참조 Tier 목록]
-- 증거 검증 (20%): XX점 — [verify_out 비어있는 제안 수]
-- 인사이트 품질 (20%): XX점 — [사유]
-- 갭 정확도 (10%): XX점 — [사유]
-- 액션 실현 가능성 (10%): XX점 — [사유]
-
-### 개선 지시 (FAIL 항목만)
-- [섹션 N] [항목]: [위치] → [이유] → [개선 방법]
-```
-
-PASS 확인 후 Wave 2.7(HTML 대시보드) → Wave 3(Notion 자동 등록)으로 진행한다.
-
----
-
-### Wave 2.6 (학습노트 생성 — Evaluator PASS 후, Wave 2.7 이전)
-
-그날 리포트에서 핵심 개념을 뽑아 학습노트를 생성한다.
-
-```
-subagent_type: general-purpose (agentType: concept-notes-writer)
-```
-
-- 입력(Read): `01-research/daily/{date}/ai-system-analysis.md` + (있으면) `01-research/daily/{date}/stock-brief.md`.
-- `concept-notes-writer`가 핵심 개념 1~3개(cap 3, 0개면 skip)를 선별해 `01-research/daily/{date}/study-notes.md`로 생성한다(상단 "🎓 오늘의 학습노트" + 생성일자, 투자 개념이면 투자자문 아님 배너 상속 — `agents/concept-notes-writer.md` 참조).
-- 리포트 본문 "## 6. 🎓 학습노트" 섹션에 요약 포함.
-- **fail-open** — 실패/개념 0개여도 기존 2종 리포트·대시보드·Notion 등록은 그대로 진행한다.
-
----
+> ⚠️ **학습노트 생성은 2026-09-03 폐지**(Human 지시) — `concept-notes-writer` 를 스폰하지 않는다.
 
 ### Wave 2.7 (HTML 대시보드 생성 — Evaluator PASS 후)
 
@@ -281,7 +279,6 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
   "${BASE}/01-research/daily/${DATE}/dashboard.html" --title "Daily System Review — ${DATE}" \
   --subtitle "AI 시스템 분석 + 적용 계획" \
   "${BASE}/01-research/daily/${DATE}/ai-system-analysis.md" \
-  "${BASE}/01-research/daily/${DATE}/system-improvement-plan.md"
 ```
 
 - 산출물: `01-research/daily/{date}/dashboard.html` (md 원본 유지 — HTML은 추가 뷰).
@@ -293,7 +290,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 
 **순서 원칙**: 파일검증 → (성공 시에만) Notion 등록/완료. Notion에 "완료"를 먼저 찍고 그 뒤 파일을 Read하는 순서는 저장 실패를 은폐한다 — 반드시 아래 게이트가 Wave 3보다 먼저 실행된다.
 
-1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "${BASE}/01-research/daily/${DATE}/ai-system-analysis.md" "${BASE}/01-research/daily/${DATE}/system-improvement-plan.md"`
+1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "${BASE}/01-research/daily/${DATE}/ai-system-analysis.md" "${BASE}/01-research/daily/${DATE}/dashboard.html"`
 2. 스크립트 출력 표를 완료 보고에 그대로 사용. 표 밖 임의 "완료" 서술 금지.
 3. exit 2(MISSING/0바이트)면 Notion "완료" 기록 금지 — 누락 산출물을 재생성한 뒤 재검증(exit 0) 통과 후에만 Wave 3으로 진행한다.
 
@@ -316,7 +313,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 `01-research/daily/{date}/index.json`을 원자적으로 기록한다. **Write 직접 수정 금지**:
 
 ```bash
-echo '{"date":"{date}","title":"{date} AI 시스템 분석","critical_gaps":<N>,"high_gaps":<N>,"medium_gaps":<N>,"p0_actions":<N>,"p1_actions":<N>,"files":{"ai_system_analysis":"01-research/daily/{date}/ai-system-analysis.md","system_improvement_plan":"01-research/daily/{date}/system-improvement-plan.md","stock_brief":"01-research/daily/{date}/stock-brief.md","study_notes":"01-research/daily/{date}/study-notes.md"},"notion_upload":"{Wave 3 결과}"}' \
+echo '{"date":"{date}","title":"{date} AI 시스템 분석","critical_gaps":<N>,"high_gaps":<N>,"medium_gaps":<N>,"p0_actions":<N>,"p1_actions":<N>,"files":{"ai_system_analysis":"01-research/daily/{date}/ai-system-analysis.md","stock_brief":"01-research/daily/{date}/stock-brief.md"},"notion_upload":"{Wave 3 결과}"}' \
   | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/daily-review/append_index_record.py
 ```
 
@@ -349,21 +346,19 @@ Skill(skill="wiki-sync", args="--auto")
 
 ### Wave 4 (대화창 전체 출력 — Wave 3 완료 후)
 
-두 산출물 파일을 Read하여 전체 내용을 대화창에 출력한다.
+분석 리포트를 Read하여 전체 내용을 대화창에 출력한다.
 
 ```
 Read("01-research/daily/{date}/ai-system-analysis.md") → 전체 내용 출력
-Read("01-research/daily/{date}/system-improvement-plan.md") → 전체 내용 출력
 ```
 
 출력 형식:
 ```
 ===== AI 시스템 분석 리포트 ({date}) =====
 {ai-system-analysis.md 전체 내용}
-
-===== 시스템 개선 계획서 ({date}) =====
-{system-improvement-plan.md 전체 내용}
 ```
+
+> ⚠️ 2026-09-03: 계획서 출력은 폐지됐다(그 산출물을 더는 만들지 않는다).
 
 ## 신뢰도 등급
 
@@ -389,9 +384,53 @@ daily 실행 시 override-rate.log 추세 체크: 5% 초과 → WARN (단, **tot
 
 ## Redundancy 스캔 (P2-1, 주간)
 
-매주 1회(weekly 실행 시) 3개 체크(신규 deprecated/orphan 스킬 감지 / Hook theater 신규 감지 / 규칙 파일 수 추세) 수행 → `01-research/daily/{date}/redundancy-scan.json`에 저장. 이상 감지 시 적용계획서에 "Redundancy 섹션" 추가.
+매주 1회(weekly 실행 시) 3개 체크(신규 deprecated/orphan 스킬 감지 / Hook theater 신규 감지 / 규칙 파일 수 추세) 수행 → `01-research/daily/{date}/redundancy-scan.json`에 저장. 이상 감지 시 **분석 리포트**(`ai-system-analysis.md`)에 "Redundancy 섹션" 추가.
+⚠️ 2026-09-06 정정: 종전엔 "적용계획서에 추가"였는데 그 계획서는 2026-09-03 에 폐지됐다 — **없는 문서에 쓰라는 지시라 그 정보가 갈 곳이 없었다**(조용한 유실). 붙일 곳을 분석문으로 옮긴다.
 
 > 실제 명령어(find/grep/ls 3종): `reference/redundancy-scan.md` Read.
+
+## 스킬 description 예산 감사 (2026-08-27 신설 — Redundancy 스캔의 토큰 축)
+
+매 실행 시 1줄 돌린다. description 은 스킬 본문과 달리 **매 세션 전량 주입**돼서, 하나가 길어지면 모든 세션이 그 비용을 나눠 문다(간판을 크게 달아 옆 가게를 가리는 격).
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-desc-budget.sh"
+```
+
+- 초과가 있으면 `<이름>\t<자수>` 목록 + `OVER=n/m` 이 나온다 → **분석 리포트**의 Redundancy 섹션에 그대로 싣는다(2026-09-06 정정 — 위 각주 참조).
+- 0건이면 `OK: … 0건` 1줄. 대상 폴더·python3 가 없으면 `SKIP:` 을 낸다 — **SKIP 을 0건으로 적지 않는다.**
+- 종료코드는 항상 0(감사 도구, AD-168 WARN-first) — 이 스텝이 daily 를 막지 않는다.
+
+## 지난 달 사용 0회 스킬 (2026-08-27 신설 — Redundancy 스캔의 사용량 축)
+
+**무엇을 내나**: 설치된 스킬 중 **지난 30일 동안 한 번도 안 불린 것**의 이름 목록. 위 Redundancy 스캔이 "선언이 낡았나"(deprecated·orphan)를 본다면, 이 스텝은 **"선언은 멀쩡한데 아무도 안 쓰나"**를 본다 — 서랍은 잘 정리돼 있는데 그 안의 물건을 1년째 안 꺼낸 상태다.
+
+**신호원(하나로 고정)**: `$HOME/.claude/projects/**/*.jsonl` 세션 로그의 `"skill":"<이름>"` 호출 기록.
+(왜 이것인가: 실측상 30일 내 12,718개 파일이 존재하고 스킬명이 그대로 찍힌다. `learnings-access.log` 는 **이 머신에 없어서** 신호원으로 쓰지 않는다 — 2026-08-27 확인.)
+
+```bash
+# 신호원 부재 분기 — 아래 출력 규약의 '측정 불가'를 코드로 구현한다(산문만으로는 안 지켜진다).
+if [ ! -d $HOME/.claude/projects ] || ! find $HOME/.claude/projects -name '*.jsonl' -mtime -30 -print -quit 2>/dev/null | grep -q .; then
+  echo '지난 달 사용 0회: 측정 불가 — 신호원($HOME/.claude/projects/**/*.jsonl) 없음'
+else
+  # 사용된 스킬(30일) — 결정론. 문자클래스에 대문자·점·슬래시 포함(경로 스코프 스킬명).
+  find $HOME/.claude/projects -name '*.jsonl' -mtime -30 -print0 \
+    | xargs -0 grep -hoa '"skill":"[A-Za-z0-9:/._-]*"' 2>/dev/null \
+    | sed 's/.*:"//;s/"//' | sort -u > /tmp/dsr-skills-used.txt
+  # 설치된 스킬 (comm 은 정렬 입력 필수 — 명시 sort)
+  ls -1 "${FORGE_ROOT:-$HOME/forge}/.claude/skills" | sort > /tmp/dsr-skills-all.txt
+  # 0회 = 차집합
+  comm -23 /tmp/dsr-skills-all.txt /tmp/dsr-skills-used.txt
+fi
+```
+
+**출력 규약 (침묵 금지)**
+- 0회 스킬이 있으면 → `지난 달 사용 0회: <이름1>, <이름2>, …` (N개)
+- 하나도 없으면 → `지난 달 사용 0회: 0건`
+- **신호원 자체가 없으면**(`$HOME/.claude/projects` 부재·로그 0개) → `지난 달 사용 0회: 측정 불가 — 신호원($HOME/.claude/projects/**/*.jsonl) 없음`
+  ⚠️ **"측정 불가"를 "0건"으로 적지 않는다.** 못 센 것과 세어 보니 없는 것은 다르다 — 없는 폴더를 뒤져놓고 "양말이 없네"라고 하면 안 된다.
+
+⚠️ **이 측정이 무력화되는 입력**: ①세션 로그 보존기간이 30일 미만이면 오래 안 쓴 스킬이 아니라 **로그가 지워진 스킬**이 잡힌다 ②`Skill` 툴이 아니라 슬래시 커맨드 경로로만 불리는 스킬은 `"skill":` 로 안 찍힐 수 있다 ③0회 = 삭제 근거가 **아니다**(분기 1회짜리 스킬이 있다) ④세션 로그에는 대화 내용도 찍힌다 — 이 문서를 읽거나 편집한 세션의 로그 속 `"skill":"이름"` 리터럴이 실호출로 오집계된다(사용량이 **과대** 방향으로 틀린다 = 0회 목록이 실제보다 짧아진다). 이 목록은 **검토 후보**이지 판결이 아니다.
 
 ## Gotchas (흔한 실패 패턴 — 실증만, 증거 링크 의무)
 

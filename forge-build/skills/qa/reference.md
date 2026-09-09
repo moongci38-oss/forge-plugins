@@ -503,13 +503,13 @@ Agent(
     """
 )
 ```
-이 게이트의 advisor 모델은 `advisor-model-resolve.sh` 출력을 따른다(기본 **Fable 5** · 대체 `gpt-5.6-sol`). 2026-08-12 이전 "Opus(비-Fable)" 고정은 폐기.
+이 게이트의 advisor 모델은 `advisor-model-resolve.sh` 출력을 따른다(기본 **Fable 5.1** · 대체 `gpt-5.6-sol`). 2026-08-12 이전 "Opus(비-Fable)" 고정은 폐기.
 
 ---
 
 ## §qa advisor 자문 지점 (Q1/Q2) 상세
 
-버그 수정(Lane A `/forge-fix`)의 advisor T1~T4·위 Phase C.5 Reconciliation 게이트와 별개로, qa 자신의 **discovery 국면**(Phase B/C)에도 2개 저빈도 고위험 자문 지점이 있다. 공통 규약은 Phase C.5 절의 것과 동일 — 모델은 `advisor-model-resolve.sh` 출력(기본 Fable 5), advisory only, non-blocking, `[→Lead 위임]`(중첩 시).
+버그 수정(Lane A `/forge-fix`)의 advisor T1~T4·위 Phase C.5 Reconciliation 게이트와 별개로, qa 자신의 **discovery 국면**(Phase B/C)에도 2개 저빈도 고위험 자문 지점이 있다. 공통 규약은 Phase C.5 절의 것과 동일 — 모델은 `advisor-model-resolve.sh` 출력(기본 Fable 5.1), advisory only, non-blocking, `[→Lead 위임]`(중첩 시).
 
 ### Q1 — Phase B 테스트 커버리지 3건+ 동시 면제
 
@@ -545,7 +545,7 @@ Agent(
 
 ### 공통 규약 (Q1/Q2)
 
-- 모델 = `advisor-model-resolve.sh` 출력을 따른다(기본 Fable 5 · 대체 `gpt-5.6-sol`). 2026-08-12 이전 문구는 "Opus 고정(리졸버 호출 불필요)"이었으나 `advisor-strategist` 기본이 Fable 로 바뀌어 폐기했다. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
+- 모델 = `advisor-model-resolve.sh` 출력을 따른다(기본 Fable 5.1 · 대체 `gpt-5.6-sol`). 2026-08-12 이전 문구는 "Opus 고정(리졸버 호출 불필요)"이었으나 `advisor-strategist` 기본이 Fable 로 바뀌어 폐기했다. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
 - advisory only: `[STOP]` 해제·자동재시도·최종판정 불가.
 - 저빈도 고위험 지점에만 스폰 — 매 시나리오·매 버그마다 스폰 금지(비용 방지).
 - non-blocking: advisor 스폰 실패/미가용 시에도 해당 [STOP]·판단은 그대로 Human에게 진행(advisor는 augmentation, 하드 의존 아님).
@@ -692,20 +692,29 @@ fi
 
 ## §Phase F~H 상세 코드
 
-### Phase F — cr-* queue 폴링
-```python
-queue_path = "docs/qa/cr-trigger-queue.jsonl"
-if os.path.exists(queue_path):
-    with open(queue_path) as f:
-        for line in f:
-            entry = json.loads(line)
-            if entry.get("status") == "pending":
-                # 1. /cr-bug {entry['bug_report']}
-                # 2. /cr-code {changed_files}
-                # 3. /cr-test {qa_report}
-                # 4. /cr-final {pr_body}
-                # 5. bash scripts/codex-cr-final.sh {pr_body}
+### Phase F — cr 검수 큐 소비 (실행)
+
+⚠️ **2026-09-07 정정**: 이 자리에 있던 것은 **주석뿐인 파이썬 블록**이었다 — 큐를 열어
+`pending` 을 찾은 뒤 할 일을 `# 1. /forge-bug-review ...` 처럼 **주석으로만** 적어 두고 끝났다.
+즉 문서상으로는 4단계 자동 검수가 있었지만 **실행하는 코드가 레포에 0건**이었다.
+실측(2026-09-07): `${FORGE_ROOT:-$HOME/forge}` 와 `${FORGE_ROOT:-$HOME/forge}-outputs` 의 큐에 2026-07-04 부터 **두 달 넘게
+pending 으로 방치된 줄 5건**, `cr-bug`·`cr-test` 는 증거 디렉터리조차 생긴 적이 없다.
+주문서만 뽑고 주방에 넘기는 사람이 없었던 셈이다. 이제 그 주방장이 있다.
+
+```bash
+# 무엇을 돌릴지 먼저 본다(큐를 바꾸지 않는다)
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py" --dry-run
+
+# 실제 소비 — stage 별 검수를 실행하고, 증거가 착지했는지 확인한 뒤 상태를 done/failed 로 되쓴다
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py"
 ```
+
+- stage 어휘는 `bugfix | code | test | final` 이다(커맨드 이름이 아니라 **인자**).
+  증거 디렉터리·머지 게이트 루프·큐가 전부 이 어휘를 쓴다.
+- 러너는 **증거 파일을 직접 쓰지 않는다.** 발행자는 `cr-evidence-emit.py` 하나뿐이고,
+  러너의 일은 **실행시키기**와 **착지 확인**이다. 착지가 없으면 `done` 으로 적지 않는다.
+- 끄는 법: `FORGE_CR_RUNNER=off` · 실행자 교체: `FORGE_CR_RUNNER_EXEC='<명령>'`
+  (stage 는 `$CR_STAGE`, 증거 경로는 `$CR_EVIDENCE_DIR` 환경변수로 들어온다)
 
 ### Phase G — PR + CI + develop 머지
 ```bash

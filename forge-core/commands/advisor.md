@@ -1,5 +1,5 @@
 ---
-description: "Fable 5(대체 gpt-5.6-sol)를 advisor로 Sonnet/Haiku 실행자와 결합 호출 (API + advisor_20260301 tool) MAS P1: +Codex critic 추가."
+description: "Fable 5.1(대체 gpt-6-astra)를 advisor로 Sonnet/Haiku 실행자와 결합 호출 (API + advisor_20260301 tool) MAS P1: +Codex critic 추가."
 argument-hint: "<task 설명> [파일 경로]"
 group: ops
 ---
@@ -13,30 +13,77 @@ Forge 하네스에서 **advisor 패턴**을 간편히 호출하는 래퍼. 내�
 **비용:** Anthropic API 크레딧 필요 (Max 구독과 별개 과금). 월 $10~30 예상.
 **진입점 구분:** `/advisor`=**API 과금**(advisor-assist.py 경유). Max 구독 내 **무과금** 조언은 `Agent(subagent_type="advisor-strategist")` 사용 — 동일 Advisor Strategy(executor 주도 + advisor 컨설트) 패턴을 API 없이 구현.
 
-## advisor 모델 (기본 Fable 5 · 대체 gpt-5.6-sol)
+## advisor 모델 (기본 Fable 5.1 · 대체 gpt-6-astra)
 
-**2026-08-12 Human 지시로 기본 조언자가 Opus → Fable 5 로 바뀌었다.** 쉽게 말하면 "물어보는 상대"가 바뀐 것이고, 일하는 모델(워커)은 그대로 저렴 tier다.
+**2026-08-12 Human 지시로 기본 조언자가 Opus → Fable 5 로 바뀌었다.** (2026-09-02: Fable 5.1 로 업그레이드) 쉽게 말하면 "물어보는 상대"가 바뀐 것이고, 일하는 모델(워커)은 그대로 저렴 tier다.
 
 모델 결정은 `shared/scripts/advisor-model-resolve.sh` **한 곳**이 한다 — 호출자는 그 출력만 믿는다.
 
 ```bash
-MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh")
-# claude-fable-5 (기본) | gpt-5.6-sol (대체) | claude-opus-5 (명시 요청 시)
+# 진입점은 **스폰 래퍼**를 부른다(2026-09-07, W6-R1·R2). 래퍼가 리졸버를 감싸며 두 가지를 더 한다:
+#   ① 세션 실행자를 판정해 FORGE_ADVISOR_EXECUTOR 를 설정 → 벤더 교차가 저절로 성립(R2)
+#   ② 그 모델이 최근 429(한도 초과)로 죽었으면 한 칸 내린 모델을 준다(R1)
+MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" resolve)
+# gpt-6-astra (기본) | claude-fable-5-1 (실행자가 Codex 일 때 교차) | gpt-5.6-sol (하향) | claude-opus-5 (명시)
+
+# 조언자 호출이 한도(429)로 **실패했을 때만** 그 에러를 래퍼에 먹여 하향 모델을 받고 1회 재시도한다.
+# 쿨다운이 찍히므로 그 다음 호출부터는 죽은 모델을 아예 고르지 않는다.
+# ⛔ **정상 응답 본문을 먹이지 마라 — 에러 채널(stderr)·실패 응답만이다.**
+#    리뷰 조언에는 "rate limited"·"status: 429" 같은 말이 흔해서, 본문을 먹이면 멀쩡한 모델이
+#    **머신 전역 60분** 쿨다운에 들어간다(한 방의 사고가 모든 세션의 조언자를 깎는다 — PR #511).
+#    종료코드를 알면 `--exit-code` 로 함께 넘겨라 — 0 이면 래퍼가 본문을 아예 보지 않는다.
+#   ALT=$(printf '%s' "$에러출력" | bash ".../advisor-spawn-guard.sh" observe "$MODEL" --exit-code "$rc")
 ```
+⚠️ 래퍼를 건너뛰고 리졸버를 직접 불러도 **동작은 한다**(그게 fail-open 설계다) — 다만
+그때는 벤더 교차 자동 설정과 429 쿨다운이 **둘 다 빠진다**. 새 코드는 래퍼를 부른다.
 
 | 상황 | 결과 |
 |---|---|
-| 기본(아무 설정 없음, 전 tier) | `claude-fable-5` |
-| `FORGE_ADVISOR_FABLE=off` (kill-switch) | `gpt-5.6-sol` |
-| `FORGE_FABLE_AVAILABLE=0` (미가용) | `gpt-5.6-sol` |
-| 사람이 켠 캡(`FORGE_ADVISOR_FABLE_CAP=N`) 초과 | `gpt-5.6-sol` (미설정 = 무제한) |
-| `FORGE_ADVISOR_MODEL=fable\|sol\|opus` | 그 값 (모든 가드보다 우선) |
-| `FORGE_ADVISOR_FALLBACK=opus` | 대체재를 sol 대신 Opus 로 (구현 경로용) |
+| `FORGE_ADVISOR_EXECUTOR=claude` (실행자가 Claude) | `gpt-6-astra` (벤더 교차) |
+| `FORGE_ADVISOR_EXECUTOR=codex\|gpt` (실행자가 Codex/GPT) | `claude-fable-5-1` (벤더 교차) |
+| 기본(아무 설정 없음, 전 tier) | `claude-fable-5-1` |
+| `FORGE_ADVISOR_FABLE=off` (kill-switch) | `gpt-6-astra` |
+| `FORGE_FABLE_AVAILABLE=0` (미가용) | `gpt-6-astra` |
+| 사람이 켠 캡(`FORGE_ADVISOR_FABLE_CAP=N`) 초과 | `gpt-6-astra` (미설정 = 무제한) |
+| `FORGE_ADVISOR_MODEL=fable\|astra\|sol\|opus` | 그 값 (모든 가드보다 우선) |
+| `FORGE_ADVISOR_FALLBACK=<값>` | 대체재를 덮어씀. **기본값이 `sol` → `astra` 로 승격**(2026-09-06) |
+| 로컬 codex CLI < **0.153.4** | astra 대신 `gpt-5.6-sol` 로 **fail-open**(막지 않고 한 칸 내려간다) |
+
+⚠️ **구 표기 폐기(2026-09-06)**: "대체 = `gpt-5.6-sol`" · "`FORGE_ADVISOR_FALLBACK=opus` — 대체재를 sol 대신" ·
+"`FORGE_ADVISOR_MODEL=fable|sol|opus`"(astra 누락). 그때는 참이었고, 이제 대체 최상위는 `gpt-6-astra` 다.
+⚠️ sol/terra/luna 는 **폐지되지 않았다 — 정식 지원 중**이다. 사다리에서 한 칸씩 내려왔을 뿐이다.
+
+### `FORGE_ADVISOR_EXECUTOR` — 벤더 교차의 자동화 (신설 2026-09-06)
+
+쉽게 말하면 **자기가 쓴 답안을 자기가 채점하지 않게** 하는 스위치다. 지금까지 "실행자와 조언자의
+벤더를 엇갈리게 하라"는 **권고**였고, 이 env 는 그것을 기계로 옮긴 것이다.
+
+✅ **2026-09-07(W6-R2) 배선 완료 — 이제 세터가 있다.** `advisor-spawn-guard.sh resolve` 가
+세션 실행자를 판정해(`CODEX_SANDBOX*` → codex · `CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` → claude)
+`FORGE_ADVISOR_EXECUTOR` 를 **설정한 뒤** 리졸버를 부른다. 진입점(`/advisor`·`/forge-pr`)이
+그 래퍼를 호출하므로 사람이 export 하지 않아도 교차가 성립한다.
+- `배선: 세터 1곳 · 리더 1곳` — 재현: `grep -rn 'FORGE_ADVISOR_EXECUTOR=' --include='*.sh' --include='*.js' .`
+- ⚠️ **판정 불가일 때는 아무 값도 만들어 내지 않는다**(빈 문자열 → 리졸버 기본값).
+  모르는 것을 `claude` 로 찍으면 결과가 기본값과 같아 **틀렸다는 사실조차 안 보인다.**
+- ⚠️ 이 방어가 무력화되는 입력: 래퍼를 건너뛰고 리졸버를 직접 부르는 옛 호출부 —
+  그때는 종전처럼 미설정이라 기본값(astra)이 나간다. 실행자가 실제로 codex 면 자기훈수가 된다.
+
+⚠️ **구 표기 폐기(2026-09-07)**: "**env opt-in** 이다 · 설정하는 프로덕션 호출자가 0곳 ·
+`배선: 세터 0곳 · 리더 1곳`". 그때는 참이었다 — 그날 오전까지 세터가 정말 없었다.
+
+- `claude` → advisor = **`gpt-6-astra`** (Claude 가 짰으니 OpenAI 가 본다)
+- `codex` 또는 `gpt` → advisor = **`claude-fable-5-1`** (Codex 가 짰으니 Claude 가 본다)
+- 미설정·그 외 값 → 현행 그대로(기본 Fable, 가드는 위 표대로)
+- `FORGE_ADVISOR_MODEL` 은 이 스위치보다 **우선**한다(사람이 명시한 값이 항상 이긴다).
+
+근거: 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용) — 같은 벤더끼리는 관점이 겹쳐
+자기훈수가 되는데, 그 회피를 사람 기억에 맡기면 대부분 그냥 기본값으로 흘러간다.
+폐기조건: 교차 조언이 동일 벤더 조언보다 낫다는 근거가 2분기 연속 나오지 않으면 권고로 되돌린다.
 
 - ⚠️ **출력이 `gpt-*` 면 `Agent()` 로 스폰하면 안 된다** — Agent 의 model 열거형에 codex 모델이 없다. `mcp__codex__codex`(sandbox=read-only)로 조언 레그를 띄운다.
 - ⛔ **리졸버를 건너뛰고 `Agent(subagent_type="advisor-strategist")` 를 직접 부르면 가드가 안 걸린다** — frontmatter 기본값(Fable)으로 그냥 뜬다. kill-switch·캡·미가용이 전부 우회된다.
 - **tier 인자(T1~T4)는 더 이상 모델을 가르지 않는다**(로그 기록용). 기존 호출부가 `... T4` 로 넘기던 것을 그대로 둬도 안전하다.
-- 💰 **과금 = 구독 정액**(Human 확인 2026-08-12) → **일일 캡 기본 0(무제한)**. 호출당 추가 과금이 없어 횟수를 막을 근거가 없다. 토큰·지연을 조이고 싶으면 `FORGE_ADVISOR_FABLE_CAP=N`(초과분 sol). 과금이 흔들린 경위 → `model-routing-rationale.md §Fable 5 과금 이력`
+- 💰 **과금 = 구독 정액**(Human 확인 2026-08-12 · 5.1 재확인 2026-09-02) → **일일 캡 기본 0(무제한)**. 호출당 추가 과금이 없어 횟수를 막을 근거가 없다. 토큰·지연을 조이고 싶으면 `FORGE_ADVISOR_FABLE_CAP=N`(초과분 astra — 구 표기 "초과분 sol" 은 2026-09-06 폐기). 과금이 흔들린 경위 → `model-routing-rationale.md §Fable 5 과금 이력`
 - 재현: `bash shared/scripts/test-advisor-model-resolve.sh` (52케이스 — peek 15 · 오타플래그 5 · stderr 청결 5 포함) · `bash shared/scripts/test-advisor-tier-gate.sh` (33케이스 — 역변조 3종 포함)
 
 **출처:** 2026-04-10 Advisor 전략 상세 분석 (`forge-outputs/01-research/ai-report/2026-04-10-advisor-strategy-detailed.md`)
@@ -68,7 +115,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "{task}" \
   --input {file} \
   --executor claude-sonnet-5 \
-  --advisor claude-fable-5 \
+  --advisor claude-fable-5-1 \
   --max-uses 3 \
   2>/tmp/advisor-usage.log
 ```
@@ -110,9 +157,17 @@ EOF
 
 **Agent 경로(무과금, 기본)**
 ```
-MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-model-resolve.sh")
+MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" resolve)
 # claude-* → Agent(subagent_type:"advisor-strategist", model:"fable"|"opus")
 # gpt-*    → mcp__codex__codex (sandbox=read-only)
+#
+# 429(한도 초과)로 실패했을 때 — 그 **에러 출력**을 래퍼에 먹이면 하향 모델을 주고 쿨다운을 찍는다(W6-R1):
+# ⛔ **정상 응답 본문을 먹이지 마라 — 에러 채널(stderr)·실패 응답만이다.**
+#    리뷰 조언에는 "rate limited"·"status: 429" 같은 말이 흔해서, 본문을 먹이면 멀쩡한 모델이
+#    **머신 전역 60분** 쿨다운에 들어간다(한 방의 사고가 모든 세션의 조언자를 깎는다 — PR #511).
+#    종료코드를 알면 `--exit-code` 로 함께 넘겨라 — 0 이면 래퍼가 본문을 아예 보지 않는다.
+#   ALT=$(printf '%s' "$에러출력" | bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" observe "$MODEL" --exit-code "$rc")
+#   → ALT 로 **1회만** 재시도한다(무한 재시도 금지 — non-blocking 계약 그대로).
 ```
 
 **API 경로(종량 과금)**
@@ -121,29 +176,32 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
   --task "{판단 요지 — 반대근거·실패시나리오 우선}" \
   --input {decision-doc.md} \
   --executor claude-sonnet-5 \
-  --advisor claude-fable-5 \
+  --advisor claude-fable-5-1 \
   --max-uses 2 \
   2>/tmp/advisor-fable-usage.log
 ```
 
-**미가용 시 자동 폴백:** Fable 미승인·접근거부 시 `advisor-assist.py`가 `claude-opus-5`로 폴백하고 stderr에 표시한다(`[advisor] ⚠️ claude-fable-5 unavailable (...) → claude-opus-5 fallback`). **크레딧 잔액 부족은 폴백 대상 아님**(Opus도 실패하므로 그대로 에러 표출).
+**미가용 시 자동 폴백:** Fable 미승인·접근거부 시 `advisor-assist.py`가 `claude-opus-5`로 폴백하고 stderr에 표시한다(`[advisor] ⚠️ claude-fable-5-1 unavailable (...) → claude-opus-5 fallback`). **크레딧 잔액 부족은 폴백 대상 아님**(Opus도 실패하므로 그대로 에러 표출).
 
-> ⚠️ **API 경로의 폴백은 `gpt-5.6-sol` 이 될 수 없다.** 이 스크립트는 Anthropic Messages API + `advisor_20260301` tool 전용이라 Codex 모델을 호출할 수단이 없다. sol 을 조언자로 쓰려면 Agent 경로(`mcp__codex__codex`)를 쓴다.
+> ⚠️ **API 경로의 폴백은 `gpt-6-astra`(또는 `gpt-5.6-sol`) 가 될 수 없다.** 이 스크립트는 Anthropic Messages API + `advisor_20260301` tool 전용이라 Codex 모델을 호출할 수단이 없다. astra·sol 을 조언자로 쓰려면 Agent 경로(`mcp__codex__codex`)를 쓴다.
+> ⚠️ 구 표기 "폴백은 `gpt-5.6-sol` 이 될 수 없다" 는 2026-09-06 갱신 — 문장의 논지는 같고 대체 최상위 id 만 astra 로 바뀌었다.
 
 ### Fable 을 쓰지 않는 경우 (되돌리기)
 
 | 원하는 것 | 하는 법 |
 |---|---|
 | 이 세션만 Opus 조언 | `export FORGE_ADVISOR_MODEL=opus` |
-| 이 세션만 sol 조언(벤더 교차) | `export FORGE_ADVISOR_MODEL=sol` |
-| Fable 전면 차단(kill-switch) | `export FORGE_ADVISOR_FABLE=off` → sol 로 감 |
-| 하루 N회로 제한 | `export FORGE_ADVISOR_FABLE_CAP=N` (미설정=무제한, 초과분 sol) |
+| 이 세션만 astra 조언(벤더 교차) | `export FORGE_ADVISOR_MODEL=astra` |
+| 이 세션만 sol 조언(한 칸 하향) | `export FORGE_ADVISOR_MODEL=sol` |
+| 실행자 벤더로 자동 교차 | `export FORGE_ADVISOR_EXECUTOR=claude` (또는 `codex`) |
+| Fable 전면 차단(kill-switch) | `export FORGE_ADVISOR_FABLE=off` → astra 로 감 |
+| 하루 N회로 제한 | `export FORGE_ADVISOR_FABLE_CAP=N` (미설정=무제한, 초과분 astra) |
 
 ⚠️ **캡 값에 오타를 내면 캡이 꺼지는 게 아니라 5 로 적용된다.** `CAP=5O`(영문 O) 같은 비숫자를 주면 무제한으로 뭉개지 않고 보수적 양수로 떨어뜨린다 — 변수를 준 것 자체가 "가드를 켜려는 의도"이기 때문이다. 정말 무제한을 원하면 `CAP=0` 을 명시하거나 변수를 지운다.
 
 - **집계**: Fable 디스패치 시 `/tmp/advisor-fable-usage.log`(또는 `FORGE_ADVISOR_FABLE_LOG`)에 기록 — 캡 카운트 + ROI 리뷰 겸용.
 - **범위 — 2026-08-22 부터 자문·검수 레그 모두 O**(구 제목 "검수 레그 X" 는 폐기): 2026-08-12 에 승격된 것은 **advisor 자문 레그**뿐이었다. `forge-pr`·`forge-plan` 의 advisor 자문도 이제 리졸버를 따른다(그 커맨드들의 "advisor = Opus 고정" 문구는 2026-08-12 폐기).
-  ✅ `cr-multi`/`cr-triple` 의 **검수 워커 레그**도 2026-08-22 부터 Fable 기본이다(구 금지 조항 폐기 — 2026-08-22 Human 지시로 해제(구독 3계정 정액 운용 — 호출당 비용 0)). 정본 → `model-routing.md §세션 운영 모델`.
+  ✅ `forge-multi`/`cr-triple` 의 **검수 워커 레그**도 2026-08-22 부터 Fable 기본이다(구 금지 조항 폐기 — 2026-08-22 Human 지시로 해제(구독 3계정 정액 운용 — 호출당 비용 0)). 정본 → `model-routing.md §세션 운영 모델`.
   ✅ 반면 `forge-deploy`·`forge-rollback`·`forge-check-*`·`forge-milestone-close`·`forge-dev-undo` 는 **advisor 자문 레그가 실재한다** — 이 PR 에서 그 커맨드들의 "Fable 5 미배선 · 리졸버 호출 금지" 문구를 **폐기**하고 리졸버 경유로 바꿨다. (2026-08-12 이전에 "그 커맨드들은 advisor 를 안 쓴다"고 적혀 있던 것은 사실이 아니었다.)
 - **구현(coder) 경로 예외**: `coder-model-resolve.sh` 는 `FORGE_ADVISOR_FALLBACK=opus` 를 박아 넘긴다 — `--coder fable` 이 안 될 때 벤더를 말없이 Codex 로 바꾸지 않기 위해서다(그 스크립트의 기존 계약 유지).
 
