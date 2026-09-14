@@ -1,7 +1,13 @@
 ---
 name: cr-multi
-description: "Multi-worker 검수(Codex+Gemini Double / Opus+Codex+Gemini Triple). 트리거: /cr-multi, /cr-double, /cr-triple, plan/spec 저장 후 자동, plateau 3회 자동승격."
+description: "Multi-worker 검수 — Claude(Fable 5.1) + Codex(GPT-6 Astra) 2벤더 교차, 가중 0.5/0.5. 트리거: /forge-multi, /cr-double, /cr-triple, plan/spec 저장 후 자동, plateau 3회 자동승격."
 ---
+
+> ⚠️ 구 이름 **`cr-multi`** 는 2026-09-07 개명했다(스킬·커맨드만). 헬퍼 스크립트 파일명
+> (`cr-multi-triage.py`·`cr-multi-*.test.sh`)·감사로그(`cr-multi-calls.jsonl`)·증거 경로
+> (`cr-evidence/`·`docs/reviews/cr-multi/`)는 **그대로 둔다** — 과거 증거 299건이 그 이름으로
+> 묶여 있어 경로를 바꾸면 통째로 안 보이게 된다.
+> 폐기조건: 옛 증거를 더 안 읽어도 되는 시점이 오면 헬퍼 파일명까지 후속 개명한다.
 
 ## 게이트 증거 — 발행 주체는 **훅**이다 (안 A, 2026-08-09 / D1-B 관측·판정 분리 유지)
 
@@ -36,7 +42,7 @@ diff·provenance)은 쓰지 않는다** — 그건 게이트가 계산한다.
 - **누가 판정하나**: `codex-gate-enforce.sh` 가 `review-evidence-verdict.py --compute` 로
   verdict 를 재계산하고, base_sha·diff 는 gh/git 에서 자체 취득한다.
 - **트리거**: `SubagentStop`(워크플로가 subagent 로 돈 경우) + `Stop`(Human 이 메인
-  세션에서 `/forge-pr`·`/cr-final` 을 **직접** 부른 경우 — G-3, 2026-08-09). Stop 등록은
+  세션에서 `/forge-pr`·`/forge-final` 을 **직접** 부른 경우 — G-3, 2026-08-09). Stop 등록은
   `bash shared/scripts/register-forge-hooks.sh`(사람 1스텝)가 담당한다.
 - **발행 조건**: stage ∈ {code,test,bugfix,final} + 워크플로 `status=completed`
   + `repoRoot` 인자 존재 + 워크플로 종료 후 1시간 이내(`CR_EVIDENCE_MAX_AGE_S`).
@@ -55,7 +61,7 @@ diff·provenance)은 쓰지 않는다** — 그건 게이트가 계산한다.
   바인딩을 날조하게 되기 때문이다.
   **발행/스킵/실패/비활성(off) 전부 원장 1줄** — 침묵 실패 없음.
   ⚠️ 단 이 보장은 **발행기가 실제로 실행된 경우**에 한한다. 훅은 세션의 workflows
-  디렉터리가 있을 때만 발행기를 띄우므로(비용 가드), cr-multi 를 한 번도 안 돌린 세션은
+  디렉터리가 있을 때만 발행기를 띄우므로(비용 가드), forge-multi 를 한 번도 안 돌린 세션은
   원장에 아무 줄도 남지 않는다 — 그 세션엔 애초에 발행 대상이 없다.
   ⚠️ **PR 컨텍스트 요건은 폐지됐다**(종전 `gh pr view` 선행 조건). 그 조건이 CWD 불일치
   시 조용한 skip 의 주 원인이었고(rootcause §4-2), 게이트는 어차피 head_sha 로 매칭하므로
@@ -63,9 +69,9 @@ diff·provenance)은 쓰지 않는다** — 그건 게이트가 계산한다.
 - kill-switch: `FORGE_CR_EVIDENCE_EMIT=off`(off 여도 원장에 `DISABLED` 1줄 — G-6).
   fail-open(AD-168) — 발행 실패가 검수·머지를
   막지 않는다.
-- ⚠️ **게이트가 소비하는 증거는 이 경로뿐이다.** `/cr-code`·`/cr-final` 등 `/codex-review`
+- ⚠️ **게이트가 소비하는 증거는 이 경로뿐이다.** `/forge-code-review`·`/forge-final` 등 `/codex-review`
   래퍼는 `docs/reviews/` 에 쓰므로 이 게이트를 통과시키지 못한다 — 게이트 stage 충족은
-  `/cr-triple`·`/cr-double`(= cr-multi) 경유로만 된다.
+  `/cr-triple`·`/cr-double`(= forge-multi) 경유로만 된다.
 - 자동 게이트는 기본 off(`CODEX_REVIEW_AUTO_STAGES`, `.env`). 검수 판정은 Workflow
   반환값(combined/verdict)으로 사람이 읽는다.
 
@@ -73,10 +79,9 @@ diff·provenance)은 쓰지 않는다** — 그건 게이트가 계산한다.
 ## Quick Start
 
 ```bash
-# Double (기본 — Codex + Gemini)
+# 어느 쪽을 불러도 같다 — Claude(Fable 5.1) + Codex(GPT-6 Astra) 2벤더 교차
+# ⚠️ 구 주석 "Double(기본 — Codex + Gemini) / Triple(plateau 승격)" 은 2026-09-07 폐기.
 /cr-double ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/my-plan.md
-
-# Triple (plateau 자동 승격 또는 중요 spec)
 /cr-triple ${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/forge-platform/specs/my-spec.md
 ```
 
@@ -105,7 +110,7 @@ diff·provenance)은 쓰지 않는다** — 그건 게이트가 계산한다.
 
 ## Corpus(대량 문서) 검수 — 3레그 필수화 (2026-07-23 HG-7)
 
-외부 인용이 많은 산출물(yt/daily/weekly 등 리서치 리포트, 코퍼스 전반)을 `/cr-multi`로
+외부 인용이 많은 산출물(yt/daily/weekly 등 리서치 리포트, 코퍼스 전반)을 `/forge-multi`로
 적대적 검수할 때는 아래 3가지를 **필수화**한다. 코드가 아니라 검수 절차 표준이다.
 
 **발화 사실**: 1차 corpus 검수가 `full_text`만 공급하고 웹 팩트체크 없이 내부 일관성만
@@ -133,19 +138,31 @@ raw 자료가 애초에 수집되지 않았거나 부분 공급된 경우는 `'�
 **`'provenance 결함'`**으로 분리해 명명한다 — 두 라벨을 섞으면 "확인 못 했다"가
 "거짓이다"로 승격돼 참인 사실이 오염된다.
 
-## 모드
+## 레그 구성 (모드 구분 폐지 — 2026-09-07)
 
-| 모드 | Worker | 합산 |
+| 레그 | Worker | 가중 |
 |------|--------|------|
-| Double | Codex + Gemini | `codex×0.6 + gemini×0.4` |
-| Triple | Opus + Codex + Gemini | `opus×0.35 + codex×0.35 + gemini×0.3` |
+| Claude | `advisor-strategist` (Fable 5.1) | **0.5** |
+| Codex | `mcp__codex__codex` (GPT-6 Astra) | **0.5** |
+
+`--mode double|triple` 은 **하위호환 no-op** 이다 — 값을 받되 구성을 바꾸지 않는다.
+Codex 가 빠지면(`--cr degrade`/`--no-codex`) Claude 레그 단독이 되는데, 그건 통과 경로가 아니라
+`quorumFail` → **verdict=FAIL** · `degraded=true` 다(벤더 하나로는 교차 검증이 성립하지 않는다).
+
+⚠️ **구 표기 폐기(2026-09-07 — Gemini 전면 철수)**:
+`Double = codex×0.6 + gemini×0.4` · `Triple = opus×0.35 + codex×0.35 + gemini×0.3`.
+구 triple 에서 opus:codex 가 이미 1:1(0.35:0.35)이었으므로, 3번째 표만 빠진 자리를 0.5/0.5 로 정규화했다.
+근거: 가중치 SSoT 는 이 문서가 아니라 `workflow.js` 와 `cr-multi-triage.py` 두 구현이고,
+훅 테스트 `cr-multi-weight-parity.test.sh` 가 그 둘을 대조해 드리프트를 막는다.
+폐기조건: 3번째 벤더가 검수 레그로 복귀하면 이 표를 그 벤더 이름으로 다시 쓰고 가중치를 재정규화한다.
 
 ## 산출물
 
 1. **Workflow 반환값** — 사람이 읽는 검수 결과(`verdict`/`combined`/`issues[]`/`degraded`/
    `evidence_tier`/`reviewedSha`/`single_executor_cap`/`distinct_executors`). 판정은 여기서 확인한다.
    - `distinct_executors` = **서로 다른 실행체 수**(레그 수가 아니다). 대체·출처미선언 레그는
-     대신 분석한 Claude 로 귀속해 세므로, 3레그가 다 살아 있어도 둘이 대체면 1 이다.
+     대신 분석한 Claude 로 귀속해 세므로, 2레그가 다 살아 있어도 Codex 레그가 대체면 1 이다.
+     ⚠️ 구 표기 "3레그가 다 살아 있어도 둘이 대체면 1" 은 2026-09-07 폐기 — 레그는 둘이다.
    - `single_executor_cap` = **실제로 PASS 를 WARN 으로 꺾었는가**(§리뷰 요청자 행동 규칙 ⑩).
      verdict 가 이미 WARN·FAIL 이었으면 꺾은 적이 없으므로 `false` 다 — **조건 충족 여부가 아니다.**
      조건만 보고 싶으면 `distinct_executors`(원자료)를 봐라.
@@ -164,15 +181,16 @@ raw 자료가 애초에 수집되지 않았거나 부분 공급된 경우는 `'�
 
 | `issues[].code` | 뜻 | 대응 |
 |---|---|---|
-| `too_large` | 청크 로더 상한(600줄)과 폴백 상한(256KB)을 **동시** 초과 | 논리 단위로 나눠 개별 호출 |
+| `too_large` | 청크 예산(30조각·조각당 10KB)과 폴백 상한(256KB)을 **동시** 초과 | 논리 단위로 나눠 개별 호출 — **줄 수 기준** |
 | `not_found` | 경로를 에이전트 셸에서 읽지 못함 | 존재 여부 + 경로 표기 확인(백슬래시는 슬래시로 정규화됨) |
+| ↳ `not_found` 중 **description 이 "정규 파일이 아니다" 계열**일 때 | 경로는 **존재하지만** 디렉터리 등 파일이 아님 | ⚠️ **경로를 뒤지지 말 것** — `<target-file>` 하나를 지정해 재호출(예: `<경로>/<target-file>`). 부재·오타 경로는 이 문장이 아니라 위 행("존재 여부 + 경로 표기")으로 온다 |
 | `content_mismatch` | 확보한 내용이 원문과 불일치(폴백이 요약했거나 리뷰 중 파일이 바뀜) | 나눠서 재호출 |
 
 ⚠️ **`INVALID_INPUT`은 PASS도 WARN도 FAIL도 아니다** — 머지·진행 판단의 근거로 쓰지 말고
 입력을 고쳐 **재호출**한다. 점수를 인용하지 말 것(`score`는 숫자가 아니라 `null`이다).
 `combined`·`scores`·`results`는 이 반환에 **없다**(검수가 수행되지 않았으므로) — 소비자는 null-safe로 다룰 것.
 
-**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex/Gemini 미가용으로 동일 모델 대체 등)면 사람이 보는 최종 결과(Workflow 반환값)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
+**degraded 표기 의무 (Batch 3 증거등급 정직화)**: `degraded=true`(worker 정족수 미달 — 외부 워커 Codex 미가용으로 동일 모델 대체 등 · ⚠️ 구 표기 "Codex/Gemini" 는 2026-09-07 폐기)면 사람이 보는 최종 결과(Workflow 반환값)에 `degradedBanner`("⚠️ DEGRADED: N/M worker 생존 — 근거등급 낮음") 필드가 additive로 포함된다. 이 검수 결과를 인용·보고할 때 배너를 함께 표기할 것 — "3-LLM 적대 검수"로 재현하지 않는다.
 
 **`evidence_tier` (증거등급, Batch 3-2)**: `degraded`·워커 생존 수 **그리고 원문 확보 등급**에서 파생되는 필드(신규 판정 로직 아님 — 두 입력의 낮은 쪽을 따른다).
 
@@ -193,6 +211,7 @@ raw 자료가 애초에 수집되지 않았거나 부분 공급된 경우는 `'�
 | `content_integrity` | 뜻 | `evidence_tier` 상한 | 머지 |
 |---|---|---|---|
 | `verified` | 청크 검증 로더가 전량 확보(바이트 정확 일치 + CRC) | 없음 | 진행 |
+| `partial` | 청크 로더가 **대부분** 확보(바이트+CRC)하고 실패 조각만 범위 폴백으로 메움 | `degraded` | 진행(고지) |
 | `unverified` | 폴백 스냅샷으로 확보 — **캡처 시점 바이트 대조는 통과**, 출처 검증 없음 | `degraded` | 진행(고지) |
 | `unchecked` | File Pre-load 로 확보 — **캡처 시점 대조가 아예 없음** | `unverified` | ⛔ [STOP] |
 | `lost` | 청크 유실 후 폴백도 실패 — **원문 없이 낸 판정** | `unverified` | ⛔ [STOP] |
@@ -205,9 +224,34 @@ raw 자료가 애초에 수집되지 않았거나 부분 공급된 경우는 `'�
 근거: PR #282 cr-final 2차 HIGH(codex 레그) — 코드가 `unverified` 를 쓰는데 이 표의 정의는
 "대조는 통과"였다. 정의와 코드가 어긋난 채로 두면 게이트가 아니라 장식이 된다.
 
+⚠️ **`partial` 은 `verified` 가 아니다 (2026-09-10 신설)**. 종전에는 조각 하나만 무결성 거부돼도
+**전량 포기**하고 폴백에 위임했다 — 실측 3회 모두 26조각 중 22조각이 성공했는데 전부 버렸고,
+폴백이 잘려 검수 자체가 반려됐다(문서 PR 한 건에 **9.70M 토큰 · 검수 0회**).
+지금은 성공한 조각의 검증본을 그대로 쓰고 **실패 조각만** 그 범위 폴백으로 메운다.
+쉽게 말하면 — 스물여섯 장 중 네 장이 어긋났다고 스물여섯 장을 다 버리던 것을, 네 장만 다시 받는다.
+⛔ 메운 조각은 바이트도 CRC 도 대조받지 않았으므로 **절대 `verified` 로 보고하지 않는다.**
+`content_integrity_reason` 에 **몇 조각 중 몇 개를 메웠는지 · 몇 바이트가 미검증인지**가 실려 나가고,
+메운 비율이 1/3 을 넘으면 부분 확보를 채택하지 않고 종전대로 전량 포기한다.
+근거: `harness-gaps/2026-08-23-chunk-loader-trailing-space-blindspot.md` §조치 제안 2.
+
+⚠️ **`partial` 에는 두 겹의 안전장치가 더 붙는다 (2026-09-10 PR #523 적대적 검수 반영)**.
+
+1. **메운 조각의 크기 하한.** 종전에는 "빈 문자열만 아니면" 채택했다. 그래서 4,000B 짜리 조각이
+   **1B 로 요약돼 와도** 통과했다 — 전체로 보면 손실 3.3% 라 하류 총량 게이트(5% AND 512B)의
+   임계 아래였기 때문이다. 지금은 **실패한 전사 시도에서 관측된 기대 바이트와 ±10% 안**이어야
+   채택한다. 기대 바이트를 한 번도 못 얻었으면 막지는 않되(fail-open) **"기대 바이트 미확보로
+   크기 대조 없음 N조각"** 이 사유에 실려 나간다 — 침묵 통과는 없다.
+   ⚠️ 이 대조는 **검증이 아니라 sanity 한계다**: 기준으로 쓰는 수가 CRC 가 어긋난 응답에서 온
+   값이라, "맞다"를 증명하지 않고 **명백히 틀린 것만** 걸러낸다.
+2. **하류 총량 검사가 안 돌면 통과하지 못한다.** `partial` 의 총량 검사는 오직 하류 FileLoad
+   무결성 게이트가 한다. 그런데 그 게이트는 세 갈래로 조용히 건너뛸 수 있다(경로가 화이트리스트
+   밖 · `wc -c` 에이전트 예외 · 반환 바이트 0). 그 경우 `partial` 은 **`unchecked` 로 강등**되고
+   `unchecked` 는 머지 차단 목록에 있으므로 ⛔ [STOP] 이 걸린다.
+   쉽게 말하면 — *검사를 못 했으면 "검사했는데 괜찮았다"가 아니라 "검사 못 했다"* 로 적는다.
+
 ⚠️ **`lost` 는 `PASS` 를 낼 수 없다 — 자동으로 `WARN` 으로 낮추고, `/forge-pr` 이 [STOP] 한다.**
 
-이 두 겹이 **둘 다 필요하다.** 처음엔 verdict 강등 하나로 닫았다고 생각했는데, PR #282 의 cr-final
+여기서 말하는 “두 겹”은 바로 위 `partial` 의 두 겹이 아니라 **`lost` 의 verdict 강등 + forge-pr 게이트**다(2026-09-10 검수 지적 — 사이에 partial 블록이 끼면서 지시 대상이 흐려졌다). 그 두 겹이 **둘 다 필요하다.** 처음엔 verdict 강등 하나로 닫았다고 생각했는데, PR #282 의 cr-final
 검수가 그게 **아무것도 막지 못한다**고 적발했다(HIGH): `forge-pr.md` 의 자동 머지 조건이
 `PASS/WARN → 자동 머지`라서, `PASS` 를 `WARN` 으로 낮춰봐야 **똑같이 머지된다.** 오직 `FAIL` 만 멈춘다.
 그래서 `forge-pr.md §Step 3` 에 `content_integrity` 처리표를 따로 넣었다(산문 지시 — 아래 ⚠️ 참조).
@@ -226,7 +270,7 @@ raw 자료가 애초에 수집되지 않았거나 부분 공급된 경우는 `'�
 
 근거: base64 청크 차단 갭(2026-08-17) — 58 레그 중 44 가 대상을 못 읽었는데 판정은 `PASS` 로 나갔다.
 차단 자체는 평문 전환으로 없앴지만 **"유실돼도 PASS 가 나가는 구조"** 는 그대로였고 그게 이 갭의 본체다.
-회귀 테스트: `tests/plaintext-chunk-integrity.test.mjs` T11~T13 (재현: `node --test .claude/skills/cr-multi/tests/plaintext-chunk-integrity.test.mjs`).
+회귀 테스트: `tests/plaintext-chunk-integrity.test.mjs` T11~T13 (재현: `node --test .claude/skills/forge-multi/tests/plaintext-chunk-integrity.test.mjs`).
 폐기조건: 청크 로더가 폴백 없이 항상 전량 확보를 보장하게 되면 `lost`/`unverified` 분기를 재검토한다.
 
 **`reviewedSha` (검수 대상 SHA 기록, 2026-07-26 G2)**: `repoRoot`가 pin됐을 때만
@@ -241,7 +285,7 @@ git SHA. `repoRoot` 미pin이거나 취득 실패면 `null`(오손값을 진짜�
 정상 차단한 상황), 40자 hex 형식이 완벽해서 아무도 걸러내지 못했다. 실측: PR #299 r4 의
 `reviewedSha=213bd55c…` 가 검수 대상(pr-b)이 아니라 **pr-d 브랜치**의 커밋이었다.
 근거: `harness-gaps/2026-08-19-reviewed-sha-wrong-branch-under-worktree-guard.md`.
-회귀 테스트: `tests/reviewed-sha.test.mjs` (재현: `node --test .claude/skills/cr-multi/tests/reviewed-sha.test.mjs`).
+회귀 테스트: `tests/reviewed-sha.test.mjs` (재현: `node --test .claude/skills/forge-multi/tests/reviewed-sha.test.mjs`).
 운영 지침은 그대로 유효하다 — **검수를 띄웠으면 결과를 받을 때까지 워크트리를 옮기지 않는다**
 (백그라운드 레그는 띄운 시점이 아니라 **그때그때의 세션 cwd** 를 따라간다).
 ⚠️ **게이트(`_cr_final_evidence_ok`)의 head_sha 와는 별개다** — 게이트 값은
@@ -280,9 +324,9 @@ critical/high 는 그대로 판정에 살아남는다.
 
 ## Cache Stats 로깅 (AD-105 H2)
 
-cr-multi 실행 후 usage 데이터 기록:
+forge-multi 실행 후 usage 데이터 기록:
 ```bash
-bash $HOME/.claude/scripts/cache-stats-logger.sh cr-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
+bash $HOME/.claude/scripts/cache-stats-logger.sh forge-multi "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" cr-review
 ```
 usage 필드는 Anthropic SDK response.usage 에서 추출. 미지원 시 0 기본값 사용.
 
@@ -293,7 +337,7 @@ mcp__codex__ codex-critic = verify hook이 read-only sandbox로 무조건 면제
 ```js
 // Workflow 실행 (GitNexus StructuralContext + 3-LLM parallel)
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/cr-multi/workflow.js"),
+  script: Bash("cat $HOME/.claude/skills/forge-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
@@ -326,22 +370,25 @@ caller 중 테스트 파일(`*.test.*`·`*_test.*`·`tests/`·`__tests__/`)을 `
 
 ## 참조
 
-- 명령: `${FORGE_ROOT:-$HOME/forge}/.claude/commands/cr-multi.md`
+- 명령: `${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-multi.md`
 - 룰: `$HOME/.claude/rules-on-demand/multi-gate-review.md`
 - Triage: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`
 - Plateau: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-plateau-guard.py`
 
 ## 이종 모델 검수 설계배경
 
-<!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 이 절 위에 있던 "Evaluator (Wave 2.5)" 산문(role/model/isolation 설명 + PASS/WARN/FAIL 템플릿)은 8개 SKILL.md에 동일 문구로 복제됐고 실제 Agent()/hook 배선이 0건이라 제거했다 — 판단 근거는 codex-review/SKILL.md의 동일 root-cause 주석 참조. 다만 아래 한 문단은 cr-multi 고유의 실제 설계 근거(다른 7개 파일에는 없음)라 보존한다. -->
+<!-- root-cause(skills-1/S1-06, 2026-08-03 관측): 이 절 위에 있던 "Evaluator (Wave 2.5)" 산문(role/model/isolation 설명 + PASS/WARN/FAIL 템플릿)은 8개 SKILL.md에 동일 문구로 복제됐고 실제 Agent()/hook 배선이 0건이라 제거했다 — 판단 근거는 codex-review/SKILL.md의 동일 root-cause 주석 참조. 다만 아래 한 문단은 forge-multi 고유의 실제 설계 근거(다른 7개 파일에는 없음)라 보존한다. -->
 
-Codex/Gemini/Haiku 등 이종·경량 모델을 리뷰 레그에 섞는 이유는 self-referential bias(모델이 자기 산출물을 검증할 때 관대해지는 편향) 완화에 있다 — 작성자 모델과 다른 모델이 검토하면 같은 편향을 반복할 확률이 낮아진다. 다만 **동일 모델계열 내 편향(예: 같은 Claude 계열끼리)은 이 구조로 완전히 제거되지 않는다** — 이종 모델 배치는 완화 장치이지 무편향을 보장하는 장치가 아니다.
+Codex 등 **다른 벤더**의 모델을 리뷰 레그에 섞는 이유는(⚠️ 구 표기 "Codex/Gemini/Haiku" 는 2026-09-07 폐기 — Gemini 전면 철수) self-referential bias(모델이 자기 산출물을 검증할 때 관대해지는 편향) 완화에 있다 — 작성자 모델과 다른 모델이 검토하면 같은 편향을 반복할 확률이 낮아진다. 다만 **동일 모델계열 내 편향(예: 같은 Claude 계열끼리)은 이 구조로 완전히 제거되지 않는다** — 이종 모델 배치는 완화 장치이지 무편향을 보장하는 장치가 아니다.
 
 > **명칭 각주 — 이 설계의 업계 통용명은 "Swiss cheese 모델"(스위스 치즈 모델)이다.** 구멍 뚫린 치즈 여러 장을 겹쳐 놓으면 한 장의 구멍을 다음 장이 막듯, 완벽하지 않은 방어층(레그)을 **구멍 위치가 서로 다르게** 여러 겹 쌓아 사고를 막는다는 뜻이다. 여기서 중요한 것은 **레그 수가 아니라 구멍이 겹치지 않는 것** — 같은 모델계열끼리 레그를 늘리면 치즈를 여러 장 겹쳤는데 구멍이 같은 자리에 뚫린 셈이라 방어가 늘지 않는다(그래서 벤더 교차가 tier 상향보다 우선한다).
 
 ## learnings 배경 주입 (수동 opt-in — 파일럿 2회 종료, 2026-08-17)
 
-검수 레그는 learnings.jsonl(과거 사고·도구 버전 등 "코드 밖 맥락")을 못 본다 — gemini 레그는 FS 접근이 없고 workflow 스크립트도 FS 접근이 없다. `args.learningsContext`(문자열)로 호출자가 주입하면 basePrompt 에 `<background-learnings data-only>` 블록으로 동봉되고, codex·gemini 레그 지시문의 전달 규약으로 외부 실모델까지 도달한다.
+검수 레그는 learnings.jsonl(과거 사고·도구 버전 등 "코드 밖 맥락")을 **자동으로는** 못 본다 — workflow 스크립트에 FS 접근이 없어 아무도 그 파일을 읽어 담아 주지 않기 때문이다. `args.learningsContext`(문자열)로 호출자가 주입하면 basePrompt 에 `<background-learnings data-only>` 블록으로 동봉되고, Codex 레그 지시문의 전달 규약으로 외부 실모델까지 도달한다.
+⚠️ **구 근거 폐기(2026-09-07)**: "gemini 레그는 FS 접근이 없고". Gemini 전면 철수로 그 레그가 없다. 남은 두 레그는 **둘 다 대상 파일을 직접 읽을 수 있다**(Claude 레그는 Read 도구, Codex 레그는 `sandbox=read-only` 로 대상 트리 접근) — 그래도 주입이 필요한 이유는 접근 권한이 아니라 **아무도 시키지 않으면 읽지 않기 때문**이다.
+근거: 없는 제약을 근거로 대면, 그 제약이 사라졌을 때 규약까지 불필요해 보인다.
+폐기조건: workflow 스크립트가 learnings 를 직접 읽어 담게 되면 이 수동 주입 규약을 삭제한다.
 
 - **생성 규약 (이 jq 만 사용 — 임의 텍스트 주입 금지)**:
   ```bash
@@ -361,14 +408,15 @@ Codex/Gemini/Haiku 등 이종·경량 모델을 리뷰 레그에 섞는 이유�
 
 ## 연속 실행 원칙 (No-Pause)
 
-cr-multi 실행 중 중간 확인 요청 금지:
-- 오케스트레이터는 Codex → Gemini → Opus 레그를 **중간 Human 확인 없이 연속 실행**한다.
+forge-multi 실행 중 중간 확인 요청 금지:
+- 오케스트레이터는 Codex → Claude 레그를 **중간 Human 확인 없이 연속 실행**한다.
+  ⚠️ 구 표기 "Codex → Gemini → Opus" 는 2026-09-07 폐기 — Gemini 전면 철수.
 - 각 레그 결과가 반환되면 즉시 다음 레그를 스폰한다 (중간 출력 보고 금지).
 - BLOCKED 판정이 반환되면 그 시점에만 [STOP] Human 에스컬레이션. 나머지는 자동 진행.
 
 ## 금지 행동
 
-cr-multi 워크플로 및 각 검수 레그가 반드시 준수해야 할 금지 사항:
+forge-multi 워크플로 및 각 검수 레그가 반드시 준수해야 할 금지 사항:
 
 ① **점수 조작 목적의 이슈 추가 금지** — 점수를 올리거나 내리기 위해 근거 없는 이슈를 생성하지 않는다.
 ② **이전 라운드와 동일 이슈 재제기 금지** — plateau 라운드에서 같은 이슈를 새 언어로 반복하는 것은 찾은 척(fabrication). 새 근거 없으면 해소된 것으로 간주.
@@ -378,7 +426,7 @@ cr-multi 워크플로 및 각 검수 레그가 반드시 준수해야 할 금지
 
 ## 리뷰 요청자 행동 규칙
 
-cr-multi를 호출하는 requester(오케스트레이터·Human)가 준수해야 할 규칙:
+forge-multi를 호출하는 requester(오케스트레이터·Human)가 준수해야 할 규칙:
 
 ⑥ **"간단한 변경이라" 리뷰 생략 금지** — 변경 크기와 무관하게 리뷰 단계 준수.
 ⑦ **Critical 이슈 무시 후 진행 금지** — Critical 미수정 = FAIL verdict 자동 발행 (기계 차단). 수동 override 시 Human 승인 필수 (AD-50).
