@@ -185,6 +185,17 @@ Codex 가 빠지면(`--cr degrade`/`--no-codex`) Claude 레그 단독이 되는�
 | `not_found` | 경로를 에이전트 셸에서 읽지 못함 | 존재 여부 + 경로 표기 확인(백슬래시는 슬래시로 정규화됨) |
 | ↳ `not_found` 중 **description 이 "정규 파일이 아니다" 계열**일 때 | 경로는 **존재하지만** 디렉터리 등 파일이 아님 | ⚠️ **경로를 뒤지지 말 것** — `<target-file>` 하나를 지정해 재호출(예: `<경로>/<target-file>`). 부재·오타 경로는 이 문장이 아니라 위 행("존재 여부 + 경로 표기")으로 온다 |
 | `content_mismatch` | 확보한 내용이 원문과 불일치(폴백이 요약했거나 리뷰 중 파일이 바뀜) | 나눠서 재호출 |
+| `rate_limited` | 원문 확보 에이전트 호출이 **전부** 사용량 한도로 실패(2026-09-15 G-6 — 종전엔 `too_large` 로 오분류됐다) | ⚠️ **나누지 마라** — 한도가 풀린 뒤 같은 인자로 재호출. 한도 실패와 다른 실패가 섞이면 이 코드가 아니라 종전 코드로 온다 |
+
+**검수 라운드 수렴 (2026-09-15, G-1·G-2·G-3)** — `--round-args` 로 r2 델타 인자를 받으면 payload 에 아래 키가 붙는다.
+결정(머지·재검수·[STOP]·재시도)은 `shared/scripts/cr-review-round.py record` 가 낸다(정본 `/forge-pr §3.0`).
+
+| 키 | 뜻 |
+|---|---|
+| `review_round` · `review_mode` | 몇 번째 검수인가 · `full`(전수) / `delta`(직전 reviewedSha 이후 PR 고유 변경분) |
+| `backlog_issues` | 델타 모드에서 **변경분 밖** 파일의 새 MEDIUM/LOW — 판정·dedup 에서 빠지고 백로그로 간다(HIGH/CRITICAL 은 범위 밖이어도 판정에 남는다) |
+| `prior_status_summary` | 직전 HIGH/CRITICAL 의 `resolved`/`unresolved`/`missing`. 한 레그라도 unresolved 거나 아무도 보고 안 하면 `hasHigh=true` |
+| `scope_drift_capped` | 코드·지시·계약·운영 경로가 아닌 **일반 문서**의 scope-drift HIGH 를 MEDIUM 으로 상한한 기록. `awaiting_human_approval=true`(사람 승인 대기 범위 확장)는 상한하지 않는다 |
 
 ⚠️ **`INVALID_INPUT`은 PASS도 WARN도 FAIL도 아니다** — 머지·진행 판단의 근거로 쓰지 말고
 입력을 고쳐 **재호출**한다. 점수를 인용하지 말 것(`score`는 숫자가 아니라 `null`이다).
@@ -335,9 +346,11 @@ usage 필드는 Anthropic SDK response.usage 에서 추출. 미지원 시 0 기�
 mcp__codex__ codex-critic = verify hook이 read-only sandbox로 무조건 면제 (approve-token 발행 불필요 — CI-2 감산 2026-07-23).
 
 ```js
-// Workflow 실행 (GitNexus StructuralContext + 3-LLM parallel)
+// Workflow 실행 (GitNexus StructuralContext + 2벤더 parallel)
+// 호출 규약(단일 — 2026-09-15 v2 C-2): 매 호출 SSoT 를 cat 한다(scriptPath 세션 사본·$HOME/.claude 미러 금지 — 낡은 사본은 엔진이 stale_engine 으로 거부).
+// stage=final 은 prNumber·repo 필수(/forge-pr §3.0 prepare 산출을 --round-args 로) — 없으면 unbound_final. PR 없는 수동 검수만 allowUnboundFinal: true.
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/forge-multi/workflow.js"),
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
