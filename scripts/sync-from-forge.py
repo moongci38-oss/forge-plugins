@@ -111,6 +111,15 @@ RE_HOME_FORGE = re.compile(r'/home/[^/\s]+/forge\b')
 RE_HOME_CLAUDE = re.compile(r'/home/[^/\s]+/\.claude\b')
 RE_HOME_ANY = re.compile(r'/home/[^/\s]+(?=/|\b)')
 RE_NOTION_ID = re.compile(r'(notion\.so/)[0-9a-f]{32}\b')
+# Claude Code 의 **프로젝트 슬러그**는 절대경로를 `/`→`-` 로 인코딩한다
+#   (`/home/<user>/forge-outputs` → `-home-<user>-forge-outputs`).
+#   위 `/home/...` 규칙은 **슬래시가 없어서 이 형태를 못 본다** — 실사고(2026-09-16):
+#   `forge-knowledge/skills/memory-manage/SKILL.md:22` 의 슬러그 1곳이 origin/main 까지 공개됐다.
+#   앵커를 `projects/` 로 좁힌다: 맨 `-home-` 는 `nav-home-link` 같은 평범한 슬러그와
+#   구분되지 않아 오탐을 낳는다("정밀도가 곧 가드의 수명이다" — §RE_LEAK 주석).
+# ⚠️ 무력화되는 입력: 사용자명에 `-` 가 들어간 경우(`-home-my-name-forge`)는 첫 세그먼트만
+#   치환되어 뒤가 남는다. 그 잔재는 아래 RE_LEAK 가 잡아 fail-closed 로 떨어뜨린다.
+RE_PROJECT_SLUG = re.compile(r'(projects/)-home-(?!<)[A-Za-z0-9_]+-')
 
 # 잔여 누출 탐지 — 치환 후에도 남은 사설 절대경로. 여기 걸리면 **쓰지 않는다**(fail-closed).
 #   제외 2종(오탐 내는 가드는 결국 무시당한다 — 정밀도가 곧 가드의 수명이다):
@@ -128,6 +137,9 @@ _WIN_SYSTEM = r'(?:Program(?:\\?[ ]|%20)Files(?:[ ]?\(x86\))?|Windows|ProgramDat
 RE_LEAK = re.compile(
     r'/home/(?!' + _PLACEHOLDER + r'/)[^/\s\x00]+/'
     r'|/mnt/[a-z]/(?![*\s])(?!' + _PLACEHOLDER + r')(?!' + _WIN_SYSTEM + r'\b)[^\s`"\')\x00]+'
+    # ④ 프로젝트 슬러그 형태(`projects/-home-<user>-…`) — 위 `/home/` 규칙은 슬래시가 없어
+    #    이 형태를 못 본다(2026-09-16 실사고). `<`로 시작하면 이미 일반화된 표기다.
+    r'|projects/-home-(?!<)[A-Za-z0-9_]+-'
 )
 
 def _load_redactions():
@@ -153,6 +165,7 @@ def transform_line(line: str) -> str:
     for literal, replacement in REDACTIONS:
         line = line.replace(literal, replacement)
     line = RE_NOTION_ID.sub(r'\1${NOTION_DB_ID}', line)
+    line = RE_PROJECT_SLUG.sub(r'\1-home-<user>-', line)
     # 윈도우 드라이브 **구간만** 원형 보존하고 나머지는 평소대로 치환한다.
     out = []
     for is_drive, seg in _split_drive_spans(line):

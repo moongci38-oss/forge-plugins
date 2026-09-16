@@ -134,6 +134,10 @@ for src, must_contain, must_not, why in [
     ("/home/u1/.claude/hooks/a.sh", "$HOME/.claude", "/home/u1", "사용자 홈 아래 .claude"),
     ("/home/u1/other/thing", "$HOME/other", "/home/u1", "그 밖의 사용자 홈"),
     ("https://www.notion.so/" + "0" * 32, "${NOTION_DB_ID}", "0" * 32, "Notion DB 식별자"),
+    # 2026-09-16 실사고: Claude Code 프로젝트 슬러그는 `/`→`-` 인코딩이라 위 `/home/` 규칙이
+    #   못 본다. memory-manage/SKILL.md 의 슬러그 1곳이 origin/main 까지 공개됐다.
+    ("$HOME/.claude/projects/-home-alice-forge-outputs/memory/MEMORY.md",
+     "-home-<user>-forge-outputs", "-home-alice-", "프로젝트 슬러그"),
 ]:
     out = mod.transform_line(src)
     if must_contain in out and must_not not in out:
@@ -144,7 +148,10 @@ for src, must_contain, must_not, why in [
 print()
 print("== 6. 누출 가드 판별력 (양방향 — 오탐 내는 가드는 무시당한다) ==")
 for src, should_flag, why in [
-    ("/home/damools/secret/x", True, "실제 사용자 홈"),
+    # ⚠️ 픽스처에 **실제 사용자명**을 쓰지 마라 — 이 레포는 PUBLIC 이다.
+    #   2026-09-16 실사고: 여기에 실사용자명이 박혀 origin/main 까지 공개 배포됐다.
+    #   SCAN_SELF_EXCLUDE 가 이 파일을 **파일 단위로** 제외해서 자기 가드가 못 봤다.
+    ("/home/realuser/secret/x", True, "실제 사용자 홈"),
     ("/mnt/z/secret/project/f.md", True, "미등록 사설 마운트 경로"),
     ("/mnt/c/Users/someone/Downloads/x", True, "윈도우 사용자 홈"),
     ("/home/<user>/...", False, "문서용 플레이스홀더"),
@@ -152,6 +159,9 @@ for src, should_flag, why in [
     ("/mnt/c/Program Files/Unity/Hub/Editor/Unity.exe", False, "표준 윈도우 설치 경로"),
     ("/mnt/e/* 또는 E:/* → windows", False, "WSL 드라이브 판별 glob"),
     ("${GODBLADE_ROOT}/loops/x", False, "치환 완료본"),
+    ("$HOME/.claude/projects/-home-alice-forge-outputs/x", True, "프로젝트 슬러그 형태"),
+    ("$HOME/.claude/projects/-home-<user>-forge-outputs/x", False, "치환 완료 슬러그"),
+    ('<a class="nav-home-link-active">', False, "평범한 CSS 슬러그(오탐 금지)"),
 ]:
     flagged = bool(mod.find_leaks(src))
     if flagged == should_flag:
