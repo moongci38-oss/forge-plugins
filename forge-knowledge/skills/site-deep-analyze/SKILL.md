@@ -62,7 +62,7 @@ Analyze 단계에서 5개 독립 agent를 `parallel()`로 동시 스폰:
 | by-page-type | `analyze:by-page-type` | 라우트 유형 분류 (auth/list/detail/dashboard/landing/form) |
 | by-interaction | `analyze:by-interaction` | 이벤트 핸들러·폼·내비게이션 패턴 |
 | by-css-token | `analyze:by-css-token` | CSS 변수·컬러 시스템·스페이싱 스케일 |
-| vision (skipVision=false 시) | `analyze:vision` | GPT-6 Astra(Codex 레그) 레이아웃·UX 패턴 |
+| vision (skipVision=false 시) | `analyze:vision` | GPT-5.6 Sol(Codex 레그) 레이아웃·UX 패턴 |
 
 ### (e) Coverage Loop (completeness critic)
 
@@ -72,9 +72,9 @@ fan-out 완료 후 completeness critic agent가 미탐색 항목 식별:
 3. 여전히 gap 있으면 round 2 (최대)
 4. **cap 2라운드** — 잔여 gap은 `log()`로 드롭 명시 후 Phase 2.5 진행
 
-참조: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
+참조: `~/.claude/rules-on-demand/research-verification-protocol.md` (coverage-loop)
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipVision } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipVision } })`
 skipVision=true(Vision 분석 없이 정적 분석만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 6 Phase 방식 fallback.
 ⚠️ 구 표기 `skipGemini` 는 2026-09-07 폐기 — Gemini 전면 철수로 옵션명이 `skipVision` 으로 바뀌었다(코드는 이미 교체 완료, 문서만 지금 반영).
 
@@ -106,7 +106,7 @@ CSS → `/style-forge` Mode A 호환 형식 (color palette / typography / spacin
 ### Phase 3 — 시각 분석
 
 핵심 화면 5-10개 선정 → `/screenshot-analyze` 호출:
-- GPT-6 Astra(Codex 레그, `codex-critic` 경유): 레이아웃 grid/flex + UX 패턴 분류 + 인터랙션 단서
+- GPT-5.6 Sol(Codex 레그, `codex-critic` 경유): 레이아웃 grid/flex + UX 패턴 분류 + 인터랙션 단서 (2026-09-17 — 구 표기 GPT-6 Astra 폐기, 최고급은 advisor 전용)
 - 결과 → `components.md`
 - ⚠️ 구 표기 "Gemini Vision" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra 로 대체됐다.
 
@@ -115,7 +115,7 @@ CSS → `/style-forge` Mode A 호환 형식 (color palette / typography / spacin
 Phase 2 정적 분석이 추론한 `apiEndpoints[]`·`components[]`를 Phase 5 산출물에 반영하기 전,
 이미 수집된 HAR·DOM 아티팩트만으로 각 추론의 근거를 역검증한다 (**신규 네트워크 호출 0**).
 
-**참조 표준**: `$HOME/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색
+**참조 표준**: `~/.claude/rules-on-demand/research-verification-protocol.md` #4 반증탐색
 
 검증 절차:
 1. **API 엔드포인트**: HAR 파일에서 해당 URL 패턴의 실제 요청 존재 여부 확인

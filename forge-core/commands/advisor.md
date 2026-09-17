@@ -1,5 +1,5 @@
 ---
-description: "Fable 5.1(대체 gpt-6-astra)를 advisor로 Sonnet/Haiku 실행자와 결합 호출 (API + advisor_20260301 tool) MAS P1: +Codex critic 추가."
+description: "advisor 패턴 래퍼 — 리졸버 기본 조언자는 GPT-6 Astra(실행자가 Codex 면 Fable 5.1 교차). 이 커맨드 자체는 Anthropic API 레인이라 Fable 로 돈다. MAS P1: +Codex critic 추가."
 argument-hint: "<task 설명> [파일 경로]"
 group: ops
 ---
@@ -13,9 +13,18 @@ Forge 하네스에서 **advisor 패턴**을 간편히 호출하는 래퍼. 내�
 **비용:** Anthropic API 크레딧 필요 (Max 구독과 별개 과금). 월 $10~30 예상.
 **진입점 구분:** `/advisor`=**API 과금**(advisor-assist.py 경유). Max 구독 내 **무과금** 조언은 `Agent(subagent_type="advisor-strategist")` 사용 — 동일 Advisor Strategy(executor 주도 + advisor 컨설트) 패턴을 API 없이 구현.
 
-## advisor 모델 (기본 Fable 5.1 · 대체 gpt-6-astra)
+## advisor 모델 (기본 **gpt-6-astra** · Fable 은 벤더 교차·명시 지정 전용)
 
-**2026-08-12 Human 지시로 기본 조언자가 Opus → Fable 5 로 바뀌었다.** (2026-09-02: Fable 5.1 로 업그레이드) 쉽게 말하면 "물어보는 상대"가 바뀐 것이고, 일하는 모델(워커)은 그대로 저렴 tier다.
+**2026-09-07 Human 지시로 기본 조언자가 Fable → Astra 로 바뀌었다.** 쉽게 말하면 "물어보는 상대"가 다시 바뀐 것이고, 일하는 모델(워커)은 그대로 저렴 tier다. 실행자가 거의 항상 Claude 라, 조언자를 OpenAI 쪽에 두면 **자기훈수**가 자동으로 깨진다.
+
+⚠️ **구 표기 "기본 Fable 5.1 · 대체 gpt-6-astra" 는 2026-09-17 폐기** — 2026-08-12~09-06 에는 참이었고, 2026-09-07 반전 이후로는 거짓이다. 같은 문서 안에서 표(:41)는 fable, 본문(:69)은 astra 라고 적어 **스스로 모순**이었다.
+실측 재현:
+```
+bash shared/scripts/advisor-model-resolve.sh     # → gpt-6-astra  ([advisor-resolve] -> astra (기본 조언자(2026-09-07 Fable→Astra)))
+bash shared/scripts/advisor-spawn-guard.sh resolve  # → gpt-6-astra
+```
+근거: 스크립트 머리말(`advisor-model-resolve.sh:6-11`)과 `§2.5`(`:335-340`)가 미설정 경로를 astra 로 끊는다. `rules/model-routing.md §세션 운영 모델` 도 "advisor 기본 = `gpt-6-astra`" 로 적는다.
+폐기조건: 사람이 기본 조언자를 다시 정하면 이 절과 아래 표를 함께 갱신한다.
 
 모델 결정은 `shared/scripts/advisor-model-resolve.sh` **한 곳**이 한다 — 호출자는 그 출력만 믿는다.
 
@@ -41,7 +50,7 @@ MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" 
 |---|---|
 | `FORGE_ADVISOR_EXECUTOR=claude` (실행자가 Claude) | `gpt-6-astra` (벤더 교차) |
 | `FORGE_ADVISOR_EXECUTOR=codex\|gpt` (실행자가 Codex/GPT) | `claude-fable-5-1` (벤더 교차) |
-| 기본(아무 설정 없음, 전 tier) | `claude-fable-5-1` |
+| 기본(아무 설정 없음, 전 tier) | **`gpt-6-astra`** (구 표기 `claude-fable-5-1` 은 2026-09-17 폐기 — 실측 불일치) |
 | `FORGE_ADVISOR_FABLE=off` (kill-switch) | `gpt-6-astra` |
 | `FORGE_FABLE_AVAILABLE=0` (미가용) | `gpt-6-astra` |
 | 사람이 켠 캡(`FORGE_ADVISOR_FABLE_CAP=N`) 초과 | `gpt-6-astra` (미설정 = 무제한) |
@@ -73,7 +82,7 @@ MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" 
 
 - `claude` → advisor = **`gpt-6-astra`** (Claude 가 짰으니 OpenAI 가 본다)
 - `codex` 또는 `gpt` → advisor = **`claude-fable-5-1`** (Codex 가 짰으니 Claude 가 본다)
-- 미설정·그 외 값 → 현행 그대로(기본 Fable, 가드는 위 표대로)
+- 미설정·그 외 값 → 현행 그대로(**기본 astra**, 가드는 위 표대로). 구 표기 "기본 Fable" 은 2026-09-17 폐기.
 - `FORGE_ADVISOR_MODEL` 은 이 스위치보다 **우선**한다(사람이 명시한 값이 항상 이긴다).
 
 근거: 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용) — 같은 벤더끼리는 관점이 겹쳐
@@ -109,9 +118,17 @@ MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" 
 
 ### Step 2 — Bash 호출
 
+> ⚠️ **여기서 `--advisor claude-fable-5-1` 이 박혀 있는 것은 오기가 아니다.** `advisor-assist.py` 는
+> **Anthropic Messages API + `advisor_20260301` tool 전용**이라 Codex 모델을 호출할 수단 자체가 없다
+> (`advisor-assist.py:64-69` 주석). 즉 **이 레인만 Anthropic 안에서 고른다.**
+> 위 §advisor 모델 의 리졸버(기본 astra)는 **무과금 스폰 레인**(`Agent(subagent_type="advisor-strategist")` /
+> `mcp__codex__codex`)을 가른다 — 두 레인은 다른 축이다.
+> 근거: 리졸버가 `gpt-*` 를 내놓아도 이 스크립트에 그대로 넣으면 API 가 400 을 낸다.
+> 폐기조건: `advisor-assist.py` 가 Codex 모델도 호출할 수 있게 되면 이 예외를 지우고 리졸버 출력을 그대로 넘긴다.
+
 **파일 입력 있을 때:**
 ```bash
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "{task}" \
   --input {file} \
   --executor claude-sonnet-5 \
@@ -123,7 +140,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 **파일 없이 대화형:**
 입력 내용을 사용자로부터 받아 stdin으로 전달:
 ```bash
-cat <<EOF | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py --task "{task}"
+cat <<EOF | python3 ~/forge/shared/scripts/advisor-assist.py --task "{task}"
 {사용자 제공 내용}
 EOF
 ```
@@ -172,7 +189,7 @@ MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" 
 
 **API 경로(종량 과금)**
 ```bash
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "{판단 요지 — 반대근거·실패시나리오 우선}" \
   --input {decision-doc.md} \
   --executor claude-sonnet-5 \
@@ -219,20 +236,20 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 
 ```bash
 # Executor를 Haiku로 (더 저렴)
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "판정" --executor claude-haiku-4-5-20251001 \
   --max-uses 2
 
 # Advisor 호출 횟수 증가 (더 많은 조언)
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "복잡한 전략 결정" --max-uses 5
 
 # JSON 출력
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "검토" --input file.md --format json > result.json
 
 # Dry run (API 호출 없이 요청 payload 확인)
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "test" --dry-run <<< "content"
 ```
 
@@ -241,7 +258,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 | 증상 | 원인 | 해결 |
 |---|---|---|
 | `credit balance is too low` | API 크레딧 부족 | https://console.anthropic.com/settings/billing 충전 |
-| `ANTHROPIC_API_KEY 미설정` | 환경변수 없음 | `source ${FORGE_ROOT:-$HOME/forge}/.env` 또는 export 직접 |
+| `ANTHROPIC_API_KEY 미설정` | 환경변수 없음 | `source ~/forge/.env` 또는 export 직접 |
 | advisor tool 응답 없음 | beta 헤더 누락 | script가 자동 설정하므로 정상 작동 예상 |
 | 과다 비용 | max_uses 설정 과다 | `--max-uses 1~2`로 축소 |
 | Fable 요청했는데 Opus로 응답 | Fable 미출시(~07-07)/usage-credits 미승인 | 자동 폴백 정상 — stderr 폴백 표시 확인, 크레딧이면 충전 |
@@ -253,7 +270,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
 ### Step 7 — 최종 전략 조언 (선택, 고가치 과제만)
 
 ```bash
-cat {project}/03-strategy.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+cat {project}/03-strategy.md | python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "평가위원 관점에서 감점 요인 3가지" \
   --executor claude-sonnet-5 \
   --max-uses 2 \
@@ -267,7 +284,7 @@ cat {project}/03-strategy.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts
 
 if 점수가 58~65점 사이면:
 ```bash
-cat work.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py \
+cat work.md | python3 ~/forge/shared/scripts/advisor-assist.py \
   --task "이 결과물의 PASS/FAIL 재판정" \
   --executor claude-haiku-4-5-20251001 \
   --max-uses 2
@@ -276,7 +293,7 @@ cat work.md | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.p
 
 ## 관련
 
-- 구현: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-assist.py`
+- 구현: `~/forge/shared/scripts/advisor-assist.py`
 - 분석 원본: `forge-outputs/01-research/ai-report/2026-04-10-advisor-strategy-detailed.md`
 - 적용 계획: `forge-outputs/01-research/ai-report/2026-04-10-forge-application-plan.md`
 - API docs: https://docs.claude.com/en/api/messages#advisor

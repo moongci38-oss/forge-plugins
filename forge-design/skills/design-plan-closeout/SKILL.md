@@ -1,6 +1,6 @@
 ---
 name: design-plan-closeout
-description: "design-plan-closeout 루프를 실행한다. 트리거: 사용자가 /design-plan-closeout 를 호출할 때만. 종료조건 — design-plan-verify.sh exit 0 — 디자인 품질 계획서 v3 의 완료 판정 측정명령 전량 PASS (P0.2/0.3/0.5 · P1.1~1.4 · P2 15축 · P3.1 SSoT · P4 지표하네스). Human 게이트 항목(P0.1/0.4 DesignSync write, P4 승격선 적용)은 예측에서 제외하되 DEFERRED 로 명시 출력한다."
+description: "디자인 품질 계획서 v3 의 완료 판정을 끝까지 돌리는 루프. 트리거: 사용자가 /design-plan-closeout 를 호출할 때만(자동 발동 없음). 종료조건은 design-plan-verify.sh exit 0."
 disable-model-invocation: true
 ---
 

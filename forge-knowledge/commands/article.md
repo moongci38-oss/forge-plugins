@@ -1,5 +1,5 @@
 ---
-description: "웹 기사 URL 심층 분석 — 본문 추출 + 내부 링크 파고들기 + 시스템 비교 + 적용 계획서 생성 (Agent Teams 4-Wave) MAS P1: Sonnet 1M 기본 + Gemini Pro 폴백 (50p+)."
+description: "웹 기사 URL 심층 분석 — 본문 추출 + 내부 링크 파고들기 + 시스템 비교 + 적용 계획서 생성 (Agent Teams 4-Wave)."
 argument-hint: <article-URL> [--deep] [--skip-research]
 allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, WebSearch, mcp__brave-search__brave_web_search, Agent
 model: sonnet
@@ -10,7 +10,7 @@ group: research
 
 **ARGUMENTS**: $ARGUMENTS
 
-`article` 스킬을 실행하여 입력된 URL(들)을 분석한다. 스킬 본체는 `$HOME/.claude/skills/article/SKILL.md`에 정의되어 있으며, 이 커맨드는 얇은 진입점 래퍼다.
+`article` 스킬을 실행하여 입력된 URL(들)을 분석한다. 스킬 본체는 `~/.claude/skills/article/SKILL.md`에 정의되어 있으며, 이 커맨드는 얇은 진입점 래퍼다.
 
 ## 실행
 
@@ -37,7 +37,7 @@ group: research
 
 ```bash
 A="${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/articles/{date}/{date}-{domain}-{slug}-analysis.md"
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
+python3 ~/forge/shared/scripts/report_to_html.py \
   "${A%-analysis.md}-dashboard.html" --title "기사 분석 — {slug}" \
   "$A" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/{date}-{slug}-comparison.md" \

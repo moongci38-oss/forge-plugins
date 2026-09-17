@@ -8,14 +8,20 @@ Managed Agents(Anthropic 클라우드)가 로컬 Forge 리소스에 접근하는
   python3 forge-tools-server.py stdio    # stdio 모드 (로컬 Claude Code)
 
 환경변수:
-  FORGE_MCP_TOKEN  인증 토큰 (SSE 모드 시 X-Forge-Token 헤더 검증)
+  FORGE_MCP_TOKEN  인증 토큰. **http 모드에서는 필수** — 미설정이면 서버가 기동을 거부한다.
+                   클라이언트는 매 요청에 `X-Forge-Token: <토큰>` 헤더를 넣어야 한다.
+                   stdio 모드는 HTTP 헤더 자체가 없으므로 이 토큰을 요구하지 않는다.
+                   발급: bash shared/scripts/forge-mcp-token.sh
+  FORGE_MCP_HOST   http 바인딩 주소 (기본: 127.0.0.1 — cloudflared 터널만 붙는 전제)
   FORGE_OUTPUTS    forge-outputs 경로 (기본: ~/forge-outputs)
   FORGE_ROOT       forge 루트 경로 (기본: ~/forge)
 """
 
+import hmac
 import os
 import re
 import sys
+import time
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -23,18 +29,18 @@ from typing import Optional
 
 from fastmcp import FastMCP
 
+# root-cause: 2026-08-27 — 17개 도구 전량 무기록 + 터널 레인은 로컬 훅이 못 본다(P0 #6 잔여 절반).
+sys.path.insert(0, str(Path(__file__).parent))
+import mcp_audit
+
 # ── 경로 설정 ──────────────────────────────────────────────────────────────
 HOME = Path.home()
 FORGE_OUTPUTS = Path(os.environ.get("FORGE_OUTPUTS", HOME / "forge-outputs"))
 FORGE_ROOT = Path(os.environ.get("FORGE_ROOT", HOME / "forge"))
 FORGE_MCP_TOKEN = os.environ.get("FORGE_MCP_TOKEN", "")
-
-# ⚠️ 이 레포는 PUBLIC 이다 — 사설 프로젝트 절대경로를 기본값으로 박지 않는다.
-#   `mcp/` 는 `sync-from-forge.py` 의 SUBDIRS(skills/commands/agents/rules) **밖**이라
-#   경로 치환도 누출 가드도 닿지 않는다. 여기서 직접 지켜야 한다(2026-08-06 3곳 회수).
-#   미설정 시 실재하지 않는 표식 경로가 되어, 호출부의 exists() 검사가
-#   "프로젝트 경로 없음: <set GODBLADE_ROOT>" 로 무엇을 설정해야 하는지 그대로 알린다.
-GODBLADE_ROOT = os.environ.get("GODBLADE_ROOT", "<set GODBLADE_ROOT>")
+# 기본 바인딩을 0.0.0.0 → 127.0.0.1 로 좁힌다. cloudflared 는 localhost 로 붙으므로
+# 터널 레인은 그대로 살고, LAN 에 열려 있던 문(門)만 닫힌다.
+FORGE_MCP_HOST = os.environ.get("FORGE_MCP_HOST", "127.0.0.1")
 
 # root-cause: AD-106 MCP-SEC — .env 자동 로드 = 파일 변조 시 토큰 오염 위험. shell env 직접 설정 필요.
 # (구) telegram-workspace .env 자동 로드 제거됨.
@@ -53,6 +59,157 @@ ALLOWED_SCRIPTS = {
 BLOCKED_PATHS = ["06-finance", "07-legal", "08-admin/insurance", "08-admin/freelancers"]
 
 mcp = FastMCP("forge-tools")
+
+
+# ── 감사 미들웨어 ──────────────────────────────────────────────────────────
+# 도구 17개에 데코레이터를 하나씩 붙이지 않고 여기 1곳만 두는 이유:
+# 앞으로 추가될 도구가 조용히 무기록으로 태어나는 것을 막는다.
+try:
+    from fastmcp.server.middleware import Middleware
+
+    class _AuditMiddleware(Middleware):
+        async def on_call_tool(self, context, call_next):
+            t0 = time.monotonic()
+            msg = getattr(context, "message", None)
+            name = getattr(msg, "name", "?")
+            args = getattr(msg, "arguments", None) or {}
+            try:
+                result = await call_next(context)
+            except Exception as exc:
+                mcp_audit.log_call(name, args, False, err=repr(exc),
+                                   dur_ms=int((time.monotonic() - t0) * 1000))
+                raise  # 원 예외를 반드시 되던진다 — 안 그러면 실패가 성공으로 둔갑한다
+            mcp_audit.log_call(name, args, True,
+                               dur_ms=int((time.monotonic() - t0) * 1000))
+            return result
+
+    mcp.add_middleware(_AuditMiddleware())
+except Exception as _audit_exc:  # fastmcp 버전차 등 — 기록을 못 붙여도 서버는 뜬다(AD-168)
+    print(f"[forge-tools] WARN: 감사 미들웨어 미배선 ({_audit_exc!r}) — 호출 기록 없음", file=sys.stderr)
+
+
+# ── 인증 미들웨어 ──────────────────────────────────────────────────────────
+# 이 서버는 cloudflared 터널로 인터넷에 열린다(forge-mcp-service.sh). 그 문 앞에 파일 쓰기·
+# git 커밋·스크립트 실행 도구가 17개 서 있는데 2026-08-27 까지 **문지기가 없었다** —
+# 배너만 "인증: 활성화"라고 찍고 헤더를 검증하는 코드는 0곳이었다.
+#
+# ⚠️ 여기는 AD-168 fail-open 의 예외다. 감사(위)는 장부를 못 적어도 손님을 들이지만,
+#    인증은 신분증 확인이 깨지면 **돌려보낸다**. 검증 도중 어떤 예외가 나도 거부다.
+#
+# 이 방어가 무력화되는 입력: **유효한 토큰을 손에 넣은 요청**. 헤더 값이 맞기만 하면
+#   출처가 어디든(터널 너머 임의의 IP, 유출된 토큰을 재사용하는 제3자) 통과한다.
+#   토큰은 bearer 자격증명이라 요청자를 구분하지 못한다 — 유출 시 즉시 재발급이 유일한 대응이다.
+#
+# ⚠️ 이 미들웨어가 덮지 않는 것(알고 남기는 경계):
+#   - `on_notification` 경로. MCP 스펙상 도구 실행은 request(`tools/call`)뿐이라 알림으로는
+#     도구가 돌지 않는다. 대칭성보다 표면적을 좁히는 쪽을 택했다.
+#   - `@custom_route`(health 엔드포인트 등). fastmcp 미들웨어는 JSON-RPC 레벨이라 그 경로는
+#     아예 지나지 않는다. 현재 이 서버에 custom_route 는 0곳이다 —
+#     재현: `grep -c custom_route shared/mcp/forge-tools-server.py`. **추가하면 그 순간 갭이 된다.**
+#
+# 토큰을 받는 헤더가 둘인 이유: Managed Agent(Anthropic 클라우드)는 MCP 서버 설정에
+#   `authorization_token` 만 넣을 수 있고 그것이 `Authorization: Bearer <토큰>` 으로 나간다
+#   (anthropic SDK 0.113.0 `BetaRequestMCPServerURLDefinitionParam` 필드 실측 — 커스텀 헤더 불가).
+#   `X-Forge-Token` 만 받으면 이 서버의 **존재 이유인 레인이 통째로 막힌다**.
+_AUTH_HEADER = "x-forge-token"
+_AUTH_WIRED = False
+
+try:
+    from fastmcp.exceptions import AuthorizationError
+    from fastmcp.server.dependencies import get_http_request
+    from fastmcp.server.middleware import Middleware as _AuthMiddlewareBase
+
+    def _http_request_or_none():
+        """현재 요청의 HTTP 컨텍스트. stdio·in-memory 면 None.
+
+        get_http_request() 는 HTTP 컨텍스트가 없을 때만 RuntimeError 를 던진다.
+        그 외 예외는 삼키지 않고 올려보낸다 — 호출부가 거부로 처리해야 하기 때문이다.
+        """
+        try:
+            return get_http_request()
+        except RuntimeError:
+            return None
+
+    def _serving_http() -> bool:
+        """이 프로세스가 http 서버로 떠 있는가. __main__ 이 기동 시 env 에 심는다.
+
+        요청 시점에 읽는다(import 시점 고정 X) — 테스트가 레인을 갈아끼울 수 있어야 한다.
+        """
+        return os.environ.get("FORGE_MCP_TRANSPORT") == "http"
+
+    def _presented_token(request) -> str:
+        """요청이 제시한 토큰. 두 형식을 받는다(둘 다 없으면 빈 문자열).
+
+        `X-Forge-Token: <토큰>`        — 직접 붙는 클라이언트
+        `Authorization: Bearer <토큰>` — Managed Agent (커스텀 헤더를 못 보낸다)
+        """
+        direct = request.headers.get(_AUTH_HEADER, "")
+        if direct:
+            return direct
+        authz = request.headers.get("authorization", "")
+        scheme, _, value = authz.partition(" ")
+        return value.strip() if scheme.lower() == "bearer" else ""
+
+    class _AuthMiddleware(_AuthMiddlewareBase):
+        # on_call_tool 이 아니라 on_request 에 건다 — tools/call 뿐 아니라 initialize·
+        # tools/list·resources/read 까지 한 지점에서 덮기 위해서다.
+        async def on_request(self, context, call_next):
+            try:
+                request = _http_request_or_none()
+                if request is None:
+                    # 컨텍스트가 없다 = stdio·in-memory 레인(함정 #1: 무영향).
+                    # ⚠️ 단 **http 로 떠 있는 프로세스**에서 컨텍스트가 없는 것은 정상이 아니다.
+                    #    "없으니 신뢰 레인"으로 읽으면 fastmcp 가 어떤 HTTP 경로에서 컨텍스트를
+                    #    심지 않게 되는 순간 그 경로가 조용히 무인증 통과한다 — fail-open 방향이다.
+                    #    그래서 http 프로세스에서는 컨텍스트 부재를 **이상 신호로 보고 거부**한다.
+                    if _serving_http():
+                        raise AuthorizationError(
+                            "unauthorized: http 레인인데 요청 컨텍스트가 없습니다"
+                        )
+                else:
+                    presented = _presented_token(request)
+                    # compare_digest = 상수시간 비교. `==` 는 앞자리부터 틀린 위치가
+                    # 응답 시간에 새어나가 토큰을 한 글자씩 맞출 수 있다.
+                    if not FORGE_MCP_TOKEN or not hmac.compare_digest(
+                        presented.encode("utf-8"), FORGE_MCP_TOKEN.encode("utf-8")
+                    ):
+                        # 토큰 값·기대값을 절대 찍지 않는다(LN-03).
+                        raise AuthorizationError(
+                            "unauthorized: X-Forge-Token(또는 Authorization: Bearer) 헤더가 "
+                            "없거나 올바르지 않습니다"
+                        )
+            except AuthorizationError:
+                self._audit_denial(context)
+                raise
+            except Exception as exc:  # fail-closed — 검증이 깨지면 통과가 아니라 거부다
+                self._audit_denial(context)
+                raise AuthorizationError(
+                    f"unauthorized: 인증 검증 실패 ({type(exc).__name__})"
+                ) from exc
+            return await call_next(context)
+
+        @staticmethod
+        def _audit_denial(context) -> None:
+            """거부를 장부에 직접 남긴다.
+
+            감사 미들웨어는 tools/call 만 본다. 그런데 인증은 initialize 부터 막으므로
+            거부된 요청은 대개 tools/call 에 닿지도 못한다 — 그러면 제일 보고 싶은 줄
+            (누가 문을 두드렸다)이 통째로 사라진다. 그래서 여기서 직접 적는다.
+            제시된 토큰 값은 적지 않는다(LN-03 — 오타 토큰도 시크릿일 수 있다).
+            """
+            mcp_audit.log_call(
+                f"auth-denied:{getattr(context, 'method', '?')}", {}, False,
+                err="unauthorized: X-Forge-Token missing or invalid",
+            )
+
+    # 감사 미들웨어 **뒤에** 등록한다. fastmcp 는 먼저 등록된 것이 바깥이라,
+    # 이 순서라야 인증 거부가 감사 장부에 ok=false 로 남는다(거부된 호출이 제일 중요한 줄이다).
+    mcp.add_middleware(_AuthMiddleware())
+    _AUTH_WIRED = True
+except Exception as _auth_exc:
+    # 여기서 서버를 죽이지 않는 이유: stdio 레인은 인증 대상이 아니라 계속 떠야 한다.
+    # http 레인은 아래 __main__ 에서 _AUTH_WIRED 를 보고 기동을 거부한다.
+    print(f"[forge-tools] WARN: 인증 미들웨어 미배선 ({_auth_exc!r})", file=sys.stderr)
 
 
 # ── 보안 헬퍼 ──────────────────────────────────────────────────────────────
@@ -99,6 +256,18 @@ def _validate_commit_files(files: list) -> None:
             raise PermissionError(f"git_commit: path traversal in file: {str(f)!r}")
         if str(f).startswith('/') or str(f).startswith('~'):
             raise PermissionError(f"git_commit: absolute path not allowed: {str(f)!r}")
+
+
+# 시크릿 마스킹은 shared/scripts/secret_mask.py 가 **단일 정의**로 소유한다.
+# root-cause(2026-08-14 cr-triple 3회차 HIGH): 여기에 2패턴짜리 축소판을 새로 짰는데,
+#   같은 레포에 이미 11패턴 유틸이 있었다(validate-evals.py) — 재사용 사다리 ② 위반이고,
+#   더 넓은 패턴이 필요한 자리에서 더 좁은 것을 고른 셈이었다. 합집합 모듈로 합쳤다.
+sys.path.insert(0, str(FORGE_ROOT / "shared/scripts"))
+try:
+    from secret_mask import mask_secrets as _mask_secrets
+except ImportError:  # 모듈 부재 시에도 노출을 막는다 — 마스킹 없이 통과시키지 않는다(fail-closed)
+    def _mask_secrets(text):
+        return "***(마스킹 모듈 부재 — 원문 보류)" if text else text
 
 
 # ── 파일 도구 ──────────────────────────────────────────────────────────────
@@ -180,7 +349,7 @@ def git_status(project: str = "forge") -> str:
     project_paths = {
         "forge": FORGE_ROOT,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        "godblade": Path(GODBLADE_ROOT),
+        "godblade": Path("/mnt/e/new_workspace/god_Sword/src"),
     }
     cwd = project_paths.get(project, Path(project))
     if not cwd.exists():
@@ -205,7 +374,7 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
         "forge": FORGE_ROOT,
         "forge-outputs": FORGE_OUTPUTS,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        "godblade": Path(GODBLADE_ROOT),
+        "godblade": Path("/mnt/e/new_workspace/god_Sword/src"),
     }
     cwd = project_paths.get(project, Path(project))
     if not cwd.exists():
@@ -401,14 +570,30 @@ def unified_search(
         sys.stderr.write(f"[unified_search] KnowledgeStore 오류: {e}\n")
 
     # T3 활성 시 FAISS T2도 추가 (RRF 블렌드)
-    if os.environ.get("FORGE_DB_URL"):
+    # root-cause(2026-08-14 cr-triple 지적): search.py 가 T3 URL 을 3개 변수에서 해석하도록
+    #   바뀌었는데(FORGE_T3_DB_URL > FORGE_DB_URL_SHARED > FORGE_DB_URL) 이 블록은 여전히
+    #   `FORGE_DB_URL` 하나만 보고 하나만 지웠다. 그러면 나머지 두 변수가 프로세스 env 에 실리는
+    #   순간 "진짜 T2 를 받으려던" 재호출이 **또 T3** 를 타고, RRF 블렌드가 T3+T2 가 아니라
+    #   T3+T3 가 되어 다양성 확보라는 설계 의도가 조용히 무너진다. 세 변수를 한 곳에서 다룬다.
+    #   ⚠️ 더 깊은 문제: env 에서 변수를 **지워도 소용이 없다.** search.py main() 은 `~/forge/.env` 를
+    #   읽어 `os.environ.setdefault()` 로 되채운다 — 지운 변수가 그대로 되살아나므로 "진짜 T2" 재호출은
+    #   애초에 성립한 적이 없다. 그래서 변수를 지우는 대신 search.py 가 **문서화한 스위치**
+    #   `FORGE_RAG_ENGINE=t2`("T3 시도 자체 생략")를 쓴다. 이건 .env 재로드에 영향받지 않는다.
+    # 변수 목록은 t3_url 모듈이 소유한다(SSoT). 여기 하드코딩하면 또 갈린다.
+    sys.path.insert(0, str(FORGE_ROOT / "shared/scripts/rag"))
+    try:
+        from t3_url import T3_URL_VARS as _T3_URL_VARS
+    except ImportError:
+        _T3_URL_VARS = ("FORGE_T3_DB_URL", "FORGE_DB_URL_SHARED", "FORGE_DB_URL")
+    if any(os.environ.get(v) for v in _T3_URL_VARS):
         try:
             # root-cause: C2 — ① --format json→--json(search.py:133 시그니처 정합)
-            #                  ② FORGE_DB_URL 제거해 진짜 T2 FAISS 결과 획득
+            #                  ② FORGE_RAG_ENGINE=t2 로 진짜 T2 FAISS 결과 획득(.env 재로드 무관)
             #                  ③ startswith 의존→try JSON parse 견고화
             faiss_args = [query, "--top-k", str(top_k * 2), "--json"]
             _validate_run_script_args(faiss_args)
-            faiss_env = {k: v for k, v in os.environ.items() if k != "FORGE_DB_URL"}
+            faiss_env = {k: v for k, v in os.environ.items() if k not in _T3_URL_VARS}
+            faiss_env["FORGE_RAG_ENGINE"] = "t2"
             faiss_proc = subprocess.run(
                 ["python3", str(ALLOWED_SCRIPTS["rag-search.py"])] + faiss_args,
                 capture_output=True, text=True, timeout=120,
@@ -477,10 +662,113 @@ def run_health_check(project: str = "forge", months: int = 12) -> str:
     project_paths = {
         "forge": str(FORGE_ROOT),
         "portfolio": str(HOME / "mywsl_workspace/portfolio-project"),
-        "godblade": GODBLADE_ROOT,
+        "godblade": "/mnt/e/new_workspace/god_Sword/src",
     }
     project_path = project_paths.get(project, project)
     return run_script("forge-codebase-health.sh", [project_path, str(months)])
+
+
+# root-cause(2026-08-14 실사고): 이 서버의 도구는 forge-outputs 안 파일읽기 + 허용 스크립트
+#   6개뿐이라, Managed Agent 는 로컬 하네스(.env·프로세스·터널·인덱스)를 **측정할 수단이 없었다.**
+#   그런데 daily/weekly 리포트는 하네스 상태를 단정해서 썼고, 실행한 적 없는 셸 명령을
+#   "(결과: 없음)"과 함께 근거로 제시했다 — 전부 추측이었다. 측정 수단이 없으면 추측이 나온다.
+#   → 추측을 금지하기 전에 **측정할 수 있게** 해준다. 이 도구가 그 유일한 창구다.
+# 보안(LN-03): 값은 절대 반환하지 않는다 — .env 는 **키 이름의 존재 여부(bool)** 만,
+#   DB URL·호스트·자격증명·비밀번호는 어떤 형태로도 출력하지 않는다.
+@mcp.tool()
+def harness_probe() -> str:
+    """로컬 Forge 하네스의 **실측** 상태 — 검색 계층(T3/T2)·터널·인덱스 신선도·설정 키 존재.
+
+    daily/weekly 리포트에서 하네스 상태를 언급하려면 **반드시 이 도구를 먼저 호출하고
+    그 출력을 인용**한다. 이 도구가 답하지 못하는 항목은 "측정 불가(도구 없음)"로 적는다 —
+    셸 명령을 실행한 것처럼 쓰거나, 값을 추측해서 적지 않는다.
+
+    반환에 시크릿은 없다(키 이름의 존재 여부만). 읽기 전용 — 아무 상태도 바꾸지 않는다.
+    """
+    lines: list[str] = ["# harness_probe (실측)"]
+
+    def sh(cmd: list[str], timeout: int = 20) -> tuple[int, str]:
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            return p.returncode, (p.stdout or p.stderr or "").strip()
+        except Exception as e:  # fail-open — 한 항목 실패가 전체를 막지 않는다
+            return -1, f"({type(e).__name__})"
+
+    # 1) 검색 계층 — 공용 T3 에 실제로 붙는가(질의 1회 왕복)
+    t3 = FORGE_ROOT / "shared/scripts/t3-check.sh"
+    if t3.exists():
+        _, out = sh(["bash", str(t3)])
+        lines.append(f"- 검색계층: {out or '(무출력)'}")
+    else:
+        lines.append("- 검색계층: 측정 불가(t3-check.sh 없음)")
+
+    # 2) SSH 터널 (공용 DB 는 터널로만 닿는다)
+    # 포트를 하드코딩하면 .env 에서 RAG_TUNNEL_LOCAL_PORT 를 바꾼 순간 이 줄만 0개로 오보고한다 —
+    # 바로 윗줄이 T3_OK 인데 아랫줄이 "터널 0개"로 모순되면 이 도구의 존재 이유(추측 금지)가 무너진다.
+    _tunnel_port = os.environ.get("RAG_TUNNEL_LOCAL_PORT", "15432")
+    # env 값이 그대로 정규식에 들어가면 메타문자 하나로 패턴이 깨져 터널 수를 오보고한다.
+    rc, out = sh(["pgrep", "-cf", rf"[s]sh.*-L {re.escape(_tunnel_port)}"], timeout=10)
+    lines.append(f"- SSH터널 프로세스: {out if out.isdigit() else '0'}개")
+
+    # 3) 로컬 T2 인덱스 신선도 — 강등 시 이 날짜의 지식만 보인다
+    idx = Path(os.environ.get("FORGE_RAG_INDEX_DIR", str(FORGE_OUTPUTS / ".rag-index")))
+    if idx.exists():
+        import datetime as _dt
+        # t3-check.sh local_index_build()과 **같은 파일·같은 순서**를 본다.
+        # 다른 기준을 쓰면 한 리포트 안에서 날짜가 갈리고(예: 07-07 vs 07-23), 읽는 사람은
+        # 어느 쪽이 맞는지 알 수 없다 — 숫자가 어긋나는 순간 리포트 전체 신뢰가 깎인다.
+        stamp = "unknown"
+        for cand in ("meta.json", "file_hashes.json", "docstore.json"):
+            f = idx / cand
+            if f.exists():
+                stamp = _dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d")
+                break
+        lines.append(f"- 로컬T2 인덱스: {idx} · 빌드 {stamp} (기준 = t3-check.sh와 동일)")
+    else:
+        lines.append(f"- 로컬T2 인덱스: 없음 ({idx})")
+
+    # 4) .env 설정 키 — **이름의 존재 여부만**. 값·호스트·비밀번호는 반환하지 않는다.
+    env_file = FORGE_ROOT / ".env"
+    watched = [
+        "FORGE_T3_DB_URL", "FORGE_DB_URL_SHARED", "FORGE_DB_URL", "RAG_DB_HOST", "RAG_DB_PORT",
+        "RAG_DB_USER", "RAG_DB_PASSWORD", "RAG_SSH_HOST", "RAG_SSH_USER",
+    ]
+    if env_file.exists():
+        try:
+            present = {
+                ln.split("=", 1)[0].strip()
+                for ln in env_file.read_text(errors="ignore").splitlines()
+                if "=" in ln and not ln.strip().startswith("#")
+            }
+            lines.append("- .env 키 존재여부(값 미노출): " + ", ".join(
+                f"{k}={'있음' if k in present else '없음'}" for k in watched
+            ))
+        except Exception:
+            lines.append("- .env 키 존재여부: 측정 불가(읽기 실패)")
+    else:
+        lines.append("- .env: 파일 없음")
+
+    # 5) 최근 재색인 결과 — 공유 DB 쓰기가 실제로 돌고 있는지
+    audit = FORGE_OUTPUTS / ".claude/audit/index-refresh.jsonl"
+    if audit.exists():
+        try:
+            tail = [ln for ln in audit.read_text(errors="ignore").splitlines() if '"rag"' in ln][-3:]
+            # ⚠️ 이 로그는 index.py 의 **가공되지 않은 stderr** 를 담는다(index-refresh.sh 가 의도적으로
+            #   버리지 않는다). DB 예외 메시지에 접속 문자열이 섞이면 harness_probe 의 "값 미노출" 계약이
+            #   이 경로로 우회된다(2026-08-14 cr-triple 지적). 내보내기 전에 자격증명을 지운다.
+            tail = [_mask_secrets(t) for t in tail]
+            lines.append("- 최근 RAG 재색인 3건:")
+            lines.extend(f"    {t[:180]}" for t in tail)
+        except Exception:
+            lines.append("- 최근 RAG 재색인: 측정 불가(로그 읽기 실패)")
+    else:
+        lines.append("- 최근 RAG 재색인: 로그 없음")
+
+    lines.append(
+        "\n※ 이 목록에 없는 항목(프로세스 목록·임의 파일·임의 셸 명령)은 이 서버가 제공하지 않는다. "
+        "그런 항목은 리포트에 '측정 불가(도구 없음)'로 적고, 실행하지 않은 명령을 근거로 인용하지 않는다."
+    )
+    return "\n".join(lines)
 
 
 # ── Telegram 알림 도구 ─────────────────────────────────────────────────────
@@ -663,17 +951,39 @@ def web_fetch(url: str, max_chars: int = 8000) -> str:
 
 if __name__ == "__main__":
     transport = "stdio" if len(sys.argv) > 1 and sys.argv[1] == "stdio" else "http"
+    os.environ.setdefault("FORGE_MCP_TRANSPORT", transport)
 
     if transport == "http":
+        # 기동 거부 2건 — 둘 다 "열린 채로 뜨느니 안 뜬다"는 같은 원칙이다.
+        if not _AUTH_WIRED:
+            print("[forge-tools] FATAL: 인증 미들웨어가 배선되지 않아 http 기동을 거부합니다.",
+                  file=sys.stderr)
+            print("  stdio 모드(로컬 Claude Code)는 영향 없습니다: python3 forge-tools-server.py stdio",
+                  file=sys.stderr)
+            sys.exit(1)
+        if not FORGE_MCP_TOKEN:
+            print("[forge-tools] FATAL: FORGE_MCP_TOKEN 미설정 — http 기동을 거부합니다.",
+                  file=sys.stderr)
+            print("  이 서버는 터널로 인터넷에 열리고 파일 쓰기·git 커밋·스크립트 실행 도구를 갖고 있어",
+                  file=sys.stderr)
+            print("  토큰 없이 뜨면 아무나 호출할 수 있습니다.", file=sys.stderr)
+            print("  발급: export FORGE_MCP_TOKEN=$(bash \"$FORGE_ROOT/shared/scripts/forge-mcp-token.sh\")",
+                  file=sys.stderr)
+            print("  토큰이 필요 없는 로컬 레인: python3 forge-tools-server.py stdio", file=sys.stderr)
+            sys.exit(1)
+
         print(f"Forge Tools MCP Server 시작 (streamable-http)")
-        print(f"  주소: http://0.0.0.0:8765/mcp")
+        print(f"  주소: http://{FORGE_MCP_HOST}:8765/mcp")
         print(f"  forge-outputs: {FORGE_OUTPUTS}")
         print(f"  forge-root: {FORGE_ROOT}")
-        print(f"  인증: {'활성화' if FORGE_MCP_TOKEN else '비활성화 (개발 모드)'}")
+        # 배너는 실제 동작만 말한다 — 종전 '활성화' 표기는 검증 코드가 0곳인 채로 찍혔다.
+        print(f"  인증: 활성화 — 모든 요청에 X-Forge-Token 헤더 필수 (없거나 틀리면 거부)")
         print(f"  허용 스크립트: {', '.join(ALLOWED_SCRIPTS.keys())}")
+        print(f"  감사로그: {mcp_audit.AUDIT_LOG}")
         print()
 
     if transport == "stdio":
+        # stdio 는 HTTP 헤더가 없는 레인이라 토큰을 요구하지 않는다(요구하면 로컬 MCP 가 죽는다).
         mcp.run(transport="stdio")
     else:
-        mcp.run(transport=transport, host="0.0.0.0", port=8765)
+        mcp.run(transport=transport, host=FORGE_MCP_HOST, port=8765)

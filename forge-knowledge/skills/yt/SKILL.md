@@ -102,10 +102,22 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/analysis-dedup-check.py" "<�
 아래 명령으로 영상 메타데이터, 트랜스크립트, 댓글을 추출합니다:
 
 ```bash
-python3 shared/scripts/yt-analyzer/yt-analyzer.py $ARGUMENTS
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analyzer/yt-analyzer.py" $ARGUMENTS
 ```
 
 실행 결과에서 JSON 파일 경로를 확인합니다.
+
+> ⚠️ **이 추출기는 레포에 없다 — 팀원 머신에는 없을 수 있다(2026-09-17 관측).**
+> `.gitignore:107` 이 `shared/scripts/yt-analyzer/` 를 통째로 무시한다. 그런데 **일부만 추적 중**이라
+> 폴더가 있는 것만 보고 "다 있다"고 읽으면 틀린다 — 추적되는 건 보조 4개
+> (`append_index_record.py`·`backfill-metadata.py`·`cluster.py`·`yt-sync-check.py`)뿐이고,
+> **본체 `yt-analyzer.py` 와 그것이 import 하는 `fetcher.py`·`transcript.py`·`reporter.py`·
+> `cache.py`·`config.py` 는 추적되지 않는다.** 이 PC 에는 실재하지만 `clone` 만 한 머신에서는
+> 이 명령이 `No such file or directory` 로 죽는다.
+> 그 경우 **분석을 진행하지 말고** "yt-analyzer 본체 미배포 — 발행 머신에서 실행 필요"로 보고한다.
+> 재현: `ls ~/forge/shared/scripts/yt-analyzer/` 와 `git -C ~/forge ls-files shared/scripts/yt-analyzer/`
+> 의 목록을 비교한다(전자 13개 · 후자 4개) · `grep -n yt-analyzer ~/forge/.gitignore` → `107:`
+> 폐기조건: `yt-analyzer/` 본체가 레포에 커밋되거나 별도 패키지로 배포되면 이 경고를 지운다.
 
 JSON 파일을 읽고 아래 신규 필드를 확인합니다:
 - `comments`: 상위 댓글 목록 (API 키 없으면 빈 배열)
@@ -323,9 +335,9 @@ Glob(파일명)만 보고 단정하지 않는다 — 내장 기능은 파일명�
 > **저장 직후 Read**: `reference.md §Step 3.5 타임스탬프 검증 게이트`
 > — 검증 명령·허용 오차·불일치 시 처리가 거기 있다.
 
-### Step 4.7 — 적대적 검수 (cr-triple 3레그, **분석 리포트 대상**)
+### Step 4.7 — 적대적 검수 (cr-triple 2레그, **분석 리포트 대상**)
 
-`-analysis.md` 를 저장한 뒤(Step 3·3.5 통과) **분석 리포트 자체를** 3레그로 적대적 검수한다.
+`-analysis.md` 를 저장한 뒤(Step 3·3.5 통과) **분석 리포트 자체를** 2레그로 적대적 검수한다.
 
 > ⚠️ **2026-09-03 변경**: 종전에는 적용 계획서만 검수했고 계획서가 없으면 **검수를 통째로
 > 건너뛰었다.** 계획서 생산을 중단하면서 그 경로를 두면 검수가 **영영 안 돈다** —
@@ -333,8 +345,10 @@ Glob(파일명)만 보고 단정하지 않는다 — 내장 기능은 파일명�
 > "우리가 무엇을 할까"가 아니라 **"이 분석이 사실인가"** 였다.
 
 ```
-/cr-triple <analysis.md 절대경로> --stage final
+/cr-triple <analysis.md 절대경로> --stage final --allow-unbound-final
 ```
+
+`--allow-unbound-final` 은 **빼지 마라** — 분석 리포트는 PR 이 없어 엔진이 `unbound_final` 로 거부한다(라운드 상한은 PR 단위로만 센다).
 
 **대상이 로더 상한(~15KB)을 넘으면 나눠서 호출한다** — 통째로 넣으면 `content_integrity=lost`
 로 검수가 **수행되지 않는다**(2026-09-02 실측: 크기가 다른 두 파일이 정확히 같은 15,493B 만
@@ -364,13 +378,13 @@ Glob(파일명)만 보고 단정하지 않는다 — 내장 기능은 파일명�
    - `{outputsRoot}/01-research/videos/analyses/{date}-{video_id}-{slug}-dashboard.html` (HTML 대시보드 — **이게 없으면 사이트 발행기가 영상을 통째로 건너뛴다**, 2026-08-28 article corsair 와 같은 결함)
    > ⚠️ **이 둘이 전부다**(2026-09-03). 종전엔 comparison·apply-plan·consolidated 도 셌는데
    > 그 생산을 중단했다 — 없는 파일을 찾으면 게이트가 늘 exit 2 로 떨어져 **아무도 안 보게 된다.**
-2. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh <위 절대경로 전부>`
+2. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh <위 절대경로 전부>`
 3. 스크립트 출력 표를 **그대로** 완료 보고로 사용. 표 밖에서 "완료" 임의 서술 금지.
 4. exit 2면 "완료" 선언 금지 — 누락 산출물 재생성 후 재검증(exit 0)까지 Step 5(Notion 업로드) 진행 금지.
 5. **타임스탬프 게이트(Step 3.5) 결과 1줄을 보고에 포함한다** — `drift N / ok N / 미검증 N`.
    이 줄이 없으면 미완료로 본다. 파일이 존재하는지(4.95)와 그 안의 링크가 맞는지는 다른 축이다:
    verify-outputs.sh 는 "만들어졌나"만 보고 "가리키는 곳에 실물이 있나"는 보지 않는다.
-   재현: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-timestamp-verify.py <analysis.md>` (dry-run, 무변경)
+   재현: `python3 ~/forge/shared/scripts/yt-timestamp-verify.py <analysis.md>` (dry-run, 무변경)
 
 ### Step 4.97: 텔레그램 전달 (영상당 정확히 1회)
 
@@ -380,7 +394,7 @@ Glob(파일명)만 보고 단정하지 않는다 — 내장 기능은 파일명�
 ```bash
 TLDR_FILE="${CLAUDE_JOB_DIR:-/tmp}/yt-tldr-$(date +%s).md"
 sed -n '/^## TL;DR/,/^## /p' "{analysis.md}" | head -40 > "$TLDR_FILE"
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/tg-report-analysis.sh \
+bash ~/forge/shared/scripts/tg-report-analysis.sh \
   "🎬 YT 분석 — {title}" "$TLDR_FILE" "{analysis.md}"
 rm -f "$TLDR_FILE"
 ```
@@ -414,7 +428,7 @@ rm -f "$TLDR_FILE"
    ```
 2. 스크립트로 원자적 추가:
    ```bash
-   echo '{"video_id":"abc123",...}' | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analyzer/append_index_record.py
+   echo '{"video_id":"abc123",...}' | python3 ~/forge/shared/scripts/yt-analyzer/append_index_record.py
    ```
 3. exit 0 확인 후 진행. **index.json은 절대 Write로 직접 수정 금지. 실패 시 수동 Write 폴백 금지 — 정지·보고.**
 
@@ -495,9 +509,9 @@ rm -f "$TLDR_FILE"
 산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
 - **target**: analysis md (`01-research/videos/analyses/{date}-{slug}-analysis.md`) 저장 직후
-- **case_id**: `EC-yt-{N}` · **eval_cases**: `$HOME/.claude/skills/yt/eval_cases.jsonl`
+- **case_id**: `EC-yt-{N}` · **eval_cases**: `~/.claude/skills/yt/eval_cases.jsonl`
 
-> **cr-triple vs eval-rubric**: Step 4.7의 `cr-triple`은 3레그 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점. 둘 다 발화 — 영역이 다름(순서·합성 룰 → `reference.md §검증 게이트 합성 룰 + 독립 Evaluator`).
+> **cr-triple vs eval-rubric**: Step 4.7의 `cr-triple`은 2벤더 교차 2레그 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점. 둘 다 발화 — 영역이 다름(순서·합성 룰 → `reference.md §검증 게이트 합성 룰 + 독립 Evaluator`).
 
 ---
 
@@ -513,4 +527,4 @@ rm -f "$TLDR_FILE"
 
 - **GTC 기구현 확인을 Glob(파일명)만으로 단정 금지** — 스킬/스크립트 '내용 grep' 없이 "미적용 갭"으로 단정해 false gap 2연속 발생. 내장 기능·런타임 기능은 파일명에 안 보인다. (증거: learnings `L-20260703T015846-3a9960f3`, `L-20260712T031446`)
 - **yt/ 폴더는 gitignore 상태에서 SKILL.md만 grandfathered tracked** — 신규 참조 파일(reference.md 등)을 폴더에 추가하면 커밋이 조용히 차단된다. 분할 배치 전 `.gitignore` 선확인. (증거: learnings `L-20260705T131617-185f0342`)
-- **Notion 인증 실패 시 즉시 Tier 2(index.json) 전환** — 질문 대기 금지. (증거: `$HOME/.claude/rules/tool-rules.md §Notion 인증 실패`)
+- **Notion 인증 실패 시 즉시 Tier 2(index.json) 전환** — 질문 대기 금지. (증거: `~/.claude/rules/tool-rules.md §Notion 인증 실패`)

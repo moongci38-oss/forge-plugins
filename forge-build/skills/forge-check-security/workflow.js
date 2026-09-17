@@ -4,7 +4,7 @@ export const meta = {
   description: 'OWASP Top 10 보안 스캔 — S1~S7 7종 parallel() + CRITICAL/HIGH/MEDIUM 등급 리포트',
   phases: [
     { title: 'Scan', detail: 'S1(시크릿)~S7(취약Python의존성) 7종 병렬 정적 분석' },
-    { title: 'Report', detail: '등급 집계 + PASS/WARN/FAIL 판정 + docs/qa/security-report.md 생성' },
+    { title: 'Report', detail: '등급 집계 + PASS/WARN/FAIL 판정 + docs/qa/security/<branch-slug>.md 생성' },
   ],
 }
 
@@ -63,7 +63,9 @@ if (valid.length === 0) {
 }
 if (valid.length < SCANS.length) log(`[WARN] 스캔 ${valid.length}/${SCANS.length} — 부분 보안 감사 (S7 pip-audit 미설치 시 정상)`) // root-cause: S7 pip-audit 미설치 환경 graceful 처리
 const report = await agent(
-  `보안 스캔 결과 집계 + docs/qa/security-report.md 생성. ` +
+  // G-5(2026-09-15): 브랜치별 파일로 쓴다 — 구 단일 롤링 파일은 병렬 PR 끼리 항상 충돌했다(구 경로는 읽기 전용).
+  `보안 스캔 결과 집계 + docs/qa/security/<branch-slug>.md 생성 ` +
+  `(경로: FORGE_SEC_SLUG=$(git branch --show-current | sed 's#[^A-Za-z0-9._-]#-#g') → docs/qa/security/\${FORGE_SEC_SLUG}.md · 구 docs/qa/security-report.md 에 쓰지 마라). ` +
   `스캔 결과: ${JSON.stringify(valid)}. ` +
   `판정 기준: CRITICAL≥1 → FAIL, HIGH≥1 → WARN, 없음 → PASS. ` +
   `report = 마크다운 (CRITICAL/HIGH/MEDIUM/LOW 섹션 + 판정 근거).`,

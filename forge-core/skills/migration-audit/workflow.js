@@ -253,7 +253,9 @@ if (crMode === 'on' || !crMode) {
     `Phase 4 멀티 적대적 검수 [게이트 3 — BLOCKING]. ` +
     `Phase 2 findings(${allFindings.length}건): ${JSON.stringify(allFindings.slice(0, 20))}. ` +
     `cr-triple 기준: 각 finding 동의편향 없이 재검. 요약 금지(원문 excerpt 필수). ` +
-    `확정 finding만 통과. verdict(PASS/WARN/FAIL) + criticalCount + confirmedFindings 반환.`,
+    `확정 finding만 통과. verdict(PASS/WARN/FAIL) + criticalCount + confirmedFindings 반환.\n` +
+    // 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — model 명시(미지정이면 ~/.codex/config.toml 핀 astra 로 떨어진다). 게이트 3 BLOCKING 이라 xhigh.
+    `- mcp__codex__codex 호출 시 model = "gpt-5.6-sol", config = {"model_reasoning_effort": "xhigh"}`,
     { label: 'phase-4:review', phase: 'Review', schema: REVIEW_SCHEMA, agentType: 'codex-critic' }
   )
 } else {

@@ -102,15 +102,15 @@ Choose colors that match your topic — don't default to generic blue. Use these
 
 ### For Each Slide
 
-**Every slide needs a visual element** — image, chart, icon, or shape. Text-only slides are forgettable. Use NanoBanana to generate illustrations, backgrounds, or diagrams when stock images are unavailable.
+**Every slide needs a visual element** — image, chart, icon, or shape. Text-only slides are forgettable. 스톡 이미지가 없으면 **GPT Image 2.5(구독)** 로 생성한다 → §Generating Visuals. 레인이 실제로 불가할 때만(codex 부재·미로그인·쿼터) 도형·차트·타이포로 구성하거나 라벨 붙은 자리표시자를 둔다.
 
 **Layout options:**
 - Two-column (text left, illustration on right)
 - Icon + text rows (icon in colored circle, bold header, description below)
 - 2x2 or 2x3 grid (image on one side, grid of content blocks on other)
 - Half-bleed image (full left or right side) with content overlay
-- UI mockup showcase (Stitch-generated screen with annotation callouts)
-- Variant comparison (2-3 Stitch variants in a labeled grid)
+- UI mockup showcase (Astra 코드 목업 캡처 + annotation callouts)
+- Variant comparison (Astra 목업 2-3벌을 라벨 붙여 격자로)
 
 **Data display:**
 - Large stat callouts (big numbers 60-72pt with small labels below)
@@ -181,13 +181,40 @@ Choose colors that match your topic — don't default to generic blue. Use these
 | 기술 데모 | L3.5c |
 
 **적용 방식:**
-- NanoBanana 이미지 생성 시 해당 레벨의 프롬프트 키워드 사전을 삽입
+- 이미지 생성 시 해당 레벨의 프롬프트 키워드 사전을 `--prompt` 에 삽입
 - 슬라이드 도형/배경/아이콘 스타일을 레벨에 맞게 차등 적용
-- L3 이상에서 다이어그램은 NanoBanana로 생성하여 삽입 (도형 직접 구성 대신)
+- L3 이상에서 다이어그램은 GPT Image 2.5(구독)로 생성하여 삽입 (도형 직접 구성 대신)
 
-## Generating Visuals with NanoBanana
+> ✅ 2026-09-15: 이미지 생성 레인 **재개**(§Generating Visuals — GPT Image 2.5). 구 ⛔ 중단 고지(2026-09-12)는
+> 폐기됐다 — 중단 근거였던 "구독 수단 없음"이 오판이었다.
 
-When stock images are unavailable, use the NanoBanana MCP (`generate-image` skill) to create custom visuals for slides.
+## Generating Visuals — GPT Image 2.5 (구독) · D9
+
+> ✅ **레인 재개(2026-09-15, 사람 결정 D9).** 2026-09-12 의 중단 근거("구독 레인에 이미지 생성 수단이 없다")는
+> **오판이었다** — `codex --help` 의 서브커맨드 목록만 보고 내린 결론인데 Codex **내장** 도구는 거기 안 나온다.
+> 실측: `codex features list | grep image_generation` → `stable true` · 실생성 1254×1254 PNG 확인.
+> **NanoBanana(Gemini)는 돌아오지 않는다** — Gemini 전면 철수(2026-09-07)와 같은 축이다.
+>
+> **지금 쓰는 경로**(건당 과금 없음 — 구독):
+> ```bash
+> bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image-codex.sh" \
+>   --prompt "<무엇을 그릴지>" --output "<절대경로>/_assets/bg-title.png" --aspect 16:9
+> ```
+> stdout 마지막 줄 = 저장된 절대경로 · exit 0=성공/2=실패. 계약·경계는 그 스크립트 머리말이 정본이다.
+>
+> ⛔ **`/generate-image`·`shared/scripts/generate-image.py`(API 종량 경로)로 우회하지 마라** — 다른 팀원이
+> 쓰는 별도 레인이고 과금 게이트가 따로 걸려 있다(사람 지시 2026-09-15 D7).
+>
+> **QA 채점 복원**: 중단 기간의 `N/A`·"감점 금지" 조항은 **해제한다.** 생성 경로가 살아 있으므로
+> 제목/섹션 슬라이드에 생성 배경이 없으면 다시 감점 대상이다. 단 **레인이 실제로 불가할 때**
+> (codex CLI 부재·미로그인·쿼터 소진)는 라벨 붙은 자리표시자가 그 줄을 통과시킨다 —
+> 판정 축은 "이미지가 있나"가 아니라 **"쓸 수 있는 레인을 썼나"** 다.
+>
+> 근거: 계획서 `forge-outputs/11-platform/pipelines/plans/2026-09-15-astra-lanes-plan.md` D9·단계 4 ·
+> 도구 순위 정본 `dev/global-rules/tool-rules.md §UI/UX 작업`(이미지 ①GPT Image 2.5 ②Claude Design).
+> 폐기조건: Codex 내장 `image_gen` 이 사라지거나 이미지 1순위가 바뀌면 이 절을 그 경로로 다시 쓴다.
+
+When stock images are unavailable, generate custom visuals with the subscription lane above.
 
 ### Slide Type → Image Guide
 
@@ -208,9 +235,10 @@ When stock images are unavailable, use the NanoBanana MCP (`generate-image` skil
 ### Workflow
 
 1. Decide color palette (see Design Ideas above)
-2. Generate background images for title + section divider slides via NanoBanana
-3. Generate content illustrations for key slides
-4. Save images to `_assets/` folder next to the output .pptx
+2. Generate background images for title + section divider slides via `generate-image-codex.sh` (구독)
+3. Generate content illustrations for key slides (같은 스크립트, `--aspect 1:1`)
+4. Save images to `_assets/` folder next to the output .pptx — `--output` 에 그 절대경로를 직접 준다
+   (스크립트가 상대경로를 거부한다. 홈·레포 루트 **바로 아래**도 거부하므로 반드시 `_assets/` 안을 가리켜라)
 5. Insert into slides using `slide.background` or `slide.addImage`
 6. Run QA loop to verify visual consistency
 
@@ -231,19 +259,33 @@ Clean up `_assets/` after final .pptx is confirmed (images are embedded in the f
 
 ---
 
-## UI Mockups & Layout with Stitch
+## UI Mockups & Layout — GPT 코더 (코드 목업 → 캡처) · D9
 
-Use Stitch MCP to generate UI mockups and explore slide layouts.
+> ⛔ **Stitch 사용 중단(2026-09-15, 사람 결정)** — Gemini 전면 철수와 같은 축이다. `stitch` MCP 도
+> `/forge-stitch` 도 **새로 호출하지 않는다**. 아래는 그 자리를 대신하는 경로다.
+> 근거: `dev/global-rules/tool-rules.md §UI/UX 작업`(퍼블리싱·HTML·프론트엔드 ①GPT 코더 상황별 ②Claude Design — 2026-09-17, 구 표기 ①GPT-6 Astra 폐기).
+> 폐기조건: 프론트 1순위가 바뀌면 이 절을 그 도구로 다시 쓴다.
+
+Astra 는 **그림이 아니라 코드**로 목업을 만든다 — HTML/CSS 를 짜게 하고, 브라우저로 **캡처**해서 슬라이드에 넣는다.
+그림 생성보다 나은 점: 토큰(색·폰트·간격)을 그대로 지킬 수 있고, 그 코드가 곧 구현 초안이 된다.
 
 ### Use Case 1: UI Mockup Slides (PRD/GDD presentations)
 
-When the presentation includes app/web UI concepts, generate actual screen mockups with Stitch and insert them into slides.
-
 **Workflow:**
-1. `create_project` — Create a Stitch project for the presentation
-2. `generate_screen_from_text` — Generate key screens (Desktop/Mobile)
-3. `generate_variants` — Create 2-3 layout/color variations for comparison slides
-4. Take screenshots of the Stitch output and insert into PPT via `slide.addImage`
+1. 디자인 토큰이 있으면 먼저 챙긴다(`DESIGN.md`) — 없으면 Design Ideas 팔레트를 쓴다.
+2. Astra 에게 **자립형 HTML 1파일**을 짜게 한다 — 외부 CDN·폰트 금지, 스타일 인라인:
+   ```bash
+   # 모델: 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 gpt-6-astra 폐기 → sol(`/forge-mockup` 신호 없음 기본과 동일)
+   codex exec --model gpt-5.6-sol --sandbox workspace-write \
+     --cd "<목업 폴더 절대경로>" --skip-git-repo-check --ephemeral \
+     -- "<화면 설명 + 토큰> 을 반영한 자립형 HTML 1파일을 screen.html 로 저장하라. 외부 요청 없이 렌더되어야 한다."
+   ```
+3. 캡처 → PNG: `/playwright-cli` 또는 `shared/scripts/` 의 캡처 경로를 쓴다(뷰포트를 슬라이드 비율에 맞춘다).
+4. `slide.addImage` 로 삽입. **HTML 원본은 버리지 않는다** — 구현 단계의 입력이다.
+
+**변형(variant) 비교 슬라이드**: 같은 프롬프트에 방향만 바꿔 2~3벌을 만들고 라벨을 붙여 격자로 배치한다.
+
+**화면 종류**: Desktop(대시보드·관리자) · Mobile(반응형) · Tablet — 뷰포트 크기로 가른다(도구 옵션이 아니다).
 
 **Slide patterns for UI mockups:**
 - **Single mockup**: Full-width or half-bleed image with annotations on the side
@@ -251,19 +293,13 @@ When the presentation includes app/web UI concepts, generate actual screen mocku
 - **Variant comparison**: 2-3 mockup variants in a grid with labels (pairs well with agent meeting comparison slides)
 - **Mobile + Desktop**: Side by side showing responsive design
 
-**Device types:**
-- `DESKTOP` — Dashboard, admin panel, web app screens
-- `MOBILE` — Mobile app, responsive views
-- `TABLET` — Tablet-optimized layouts
-
 ### Use Case 2: Slide Layout Reference
 
-When slide layout decisions are difficult, use Stitch to quickly explore arrangements.
-
-1. Describe the slide content to Stitch (`generate_screen_from_text` with `AGNOSTIC` device type)
-2. Review the generated layout's element placement proportions
-3. Translate to PptxGenJS coordinates
-4. This is **reference only** — use PptxGenJS to build the actual slide
+레이아웃 배치가 막히면 Astra 에게 배치안을 **코드로** 뽑게 하고 비율만 읽어 온다.
+1. 슬라이드 내용을 주고 16:9 뷰포트 기준 HTML 배치안을 짜게 한다
+2. 요소 배치 비율을 읽는다
+3. PptxGenJS 좌표로 옮긴다
+4. **참고용이다** — 실제 슬라이드는 PptxGenJS 로 만든다
 
 ---
 
@@ -334,16 +370,16 @@ Checklist:
 
 | Score | Criteria |
 |:-----:|----------|
-| 18-20 | Every slide has visual elements (images, charts, diagrams, shapes), NanoBanana backgrounds on title/section slides, Stitch UI mockups where applicable |
+| 18-20 | Every slide has visual elements (images, charts, diagrams, shapes), generated backgrounds on title/section slides (GPT Image 2.5 — 구독), Astra 코드 목업 캡처 where applicable |
 | 14-17 | Most slides have visuals, 1-2 text-heavy slides remain |
 | 10-13 | Half the slides are text-only or text+bullets |
 | 0-9 | Mostly text-only slides, no images or charts |
 
 Checklist:
-- Title/section slides have NanoBanana background images
+- Title/section slides have generated background images (GPT Image 2.5 — 구독). ⚠️ **레인이 실제로 불가할 때만**(codex 부재·미로그인·쿼터 소진) 도형 배경 또는 라벨 붙은 자리표시자로 PASS — 그 사유를 리포트에 1줄 적는다
 - Data slides have charts (BAR/PIE/LINE) not just tables
 - Process slides have flow diagrams (cards + arrows)
-- App/web presentations include Stitch UI mockups
+- App/web presentations include UI mockups (Astra 코드 목업 → 캡처)
 - No text-only slides (every slide has at least one visual element)
 - Concept illustrations where applicable
 
@@ -415,7 +451,7 @@ A. Layout & Alignment: overlaps, gaps, margins, alignment
 B. Color & Contrast: text readability, palette consistency, icon contrast
    → Deduct for: any unreadable text (-4), inconsistent palette (-2), low-contrast icons (-2), no bg overlay on images (-3)
 C. Visual Richness: images, charts, diagrams present (not just text+bullets)
-   → Deduct for: text-only slide (-8), bullets without visuals (-4), no NanoBanana images on title (-3), data as table instead of chart (-3)
+   → Deduct for: text-only slide (-8), bullets without visuals (-4), no generated image on title (-3 — ⚠️ 레인이 실제로 불가했다고 리포트에 적혀 있으면 감점하지 않는다), data as table instead of chart (-3)
 D. Typography: size hierarchy, font consistency, bold/accent usage
    → Deduct for: title < 36pt (-3), no size hierarchy (-4), centered body text (-2), accent lines under titles (-3)
 E. Cross-Slide Consistency: unified motif, card styles, color patterns
@@ -473,7 +509,7 @@ Score < 85? → FAIL — report to Human for manual review
 |-----------------|--------------|
 | **A. Layout** | Adjust x/y/w/h coordinates, add margins, increase gaps between elements |
 | **B. Color** | Add semi-transparent overlay on bg images, increase text color contrast, fix icon circles |
-| **C. Visual Richness** | Add NanoBanana images, convert tables to charts (maximize data-ink ratio — remove gridlines/borders), add flow diagrams, generate Stitch mockups |
+| **C. Visual Richness** | Add generated images (GPT Image 2.5 — `generate-image-codex.sh`), convert tables to charts (maximize data-ink ratio — remove gridlines/borders), add flow diagrams, generate Astra 코드 목업 캡처 |
 | **D. Typography** | Increase title size, enforce font pairing, add bold/color to key terms |
 | **E. Consistency** | Extract common styles into variables, apply same shadow/fill/motif to all slides |
 

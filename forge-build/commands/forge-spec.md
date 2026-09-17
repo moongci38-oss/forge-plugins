@@ -1,15 +1,19 @@
 ---
 description: Spec 작성 단독 명령 (옛 /sdd Phase 0~2)
 argument-hint: "<기능 설명> [--spec <기존 path>] [--plan <plan dir>] [--bulk <forge-context-path>] [--waves]"
-model: sonnet
+model: opus
 group: plan
 ---
 
-# /spec-write
+# /forge-spec
 
-Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
+Spec 작성 단독 실행. 옛 `/sdd` Phase 0~2 분리 명령 (AD-46).
 
-> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `$HOME/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
+> ⚠️ **구 표기 2건 2026-09-17 폐기**
+> ① 이 문서의 제목이 **`# /spec-write`** 였다 — 파일명은 `forge-spec.md` 인데 제목만 개명 전 이름으로 남아, 읽는 쪽이 "이건 그 폐기된 alias 인가?" 로 오해할 자리였다. `commands/spec-write.md` 는 `[DEPRECATED alias]` 이고 **이 파일이 정본**이다.
+> ② frontmatter `model: sonnet` — `model-routing.md §워커 tier` 기본값은 **Opus** 이고 Sonnet 은 "기계적·단일파일" 일 때만 내리는 값이다. Spec 본체 작성이 거기 해당한다는 근거가 없었다.
+
+> **상세 분리 (컨텍스트 비용 절감)**: 각 Phase 실행 세부는 `~/.claude/rules-on-demand/forge-spec-phases-detail.md`에 이관. core는 절차·게이트·판정만 잔류하고, 해당 Phase 실행 시점에만 상세를 Read한다. 게이트·Iron Law 문구·강제력은 그대로 보존.
 
 ## 모델 라우팅 (2026-07-04)
 
@@ -19,7 +23,7 @@ Spec 작성 단독 실행. `/sdd` Phase 0~2 분리 명령 (AD-46).
 | 탐색(기존 spec/ADR 충돌·데이터 스키마 확인) | **Haiku** | `Agent(model:"haiku")` |
 | 고위험 전략 자문(범위/NFR) | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
 
-근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. advisor 모델 = `advisor-model-resolve.sh` 출력(기본 Fable 5.1 · 대체 `gpt-6-astra`) — 구 "Opus 고정(Fable 자동 없음 — forge-fix T4 한정)" 은 2026-08-12 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
+근거: `~/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. advisor 모델 = `advisor-model-resolve.sh` 출력(기본 Fable 5.1 · 대체 `gpt-6-astra`) — 구 "Opus 고정(Fable 자동 없음 — forge-fix T4 한정)" 은 2026-08-12 폐기. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
 
 ## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
 
@@ -73,7 +77,7 @@ Phase-hard-gate 순서:
      - codex 가용 + FAIL 반환 → Spec 재작성 후 재통과 필수 (blocking 유지)
      - codex/MCP 미가용(도구 부재·인증 실패 등) → fail-open + WARN
        ("Codex 미가용 → advisory로 강등, 수동 리뷰 권고") 명시 후 Phase 진행
-       (근거: `$HOME/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
+       (근거: `~/.claude/rules/dev-workflow-rules.md` §전역 무블로킹 롤아웃 — Fail-open)
      ↓
   4. [STOP] Human 승인
      ↓
@@ -145,6 +149,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-contract-lint.py" <�
   그 흐름을 **인용·유지**한다. PRD 단계의 시각 자산이 구현 스펙에서 끊기면, 텍스트만 남은 스펙이
   다시 "사용자 흐름을 못 읽는" 원래 문제로 돌아간다.
   근거: 2026-08-06 YT 분석 `a1UFpF3sPe4` P2(원문은 Mermaid 기준 — 도구는 Human 결정으로 **D2**).
+  ⚠️ **P2 기획서(`/prd`)는 Mermaid, 여기(P4 Spec)는 D2 다 — 문서끼리 어긋난 게 아니라 단계가 다르다**(2026-09-17 명시). `/prd` 의 "≤15 노드 Mermaid 필수"는 **P2 기획서 안에서 그리는** 다이어그램 규약이고, 이 절은 **기획 폴더의 `flow.d2` 를 Spec 이 인용·유지**하라는 규약이다. 한쪽을 다른 쪽으로 통일하지 마라.
   폐기조건: 폴더형 기획이 2분기 연속 0건이면 이 절을 되돌린다.
 
 **Phase 0.5 — ADAPT 자동보완 분기** (absent=0, normalize/derive 감지 시)
@@ -163,7 +168,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-contract-lint.py" <�
 - 저장: `.specify/specs/YYYY-MM-DD-{slug}.md` (항상 SSoT).
 - **도메인 폴더 연계**: `--plan <dir>`가 도메인 폴더(`_registry.yaml`/`00-도메인개요.md` 존재)면 → `{domain}/spec/YYYY-MM-DD-{slug}.md`에도 미러 저장.
 - **미러 헤더 의무 + §데이터모델 provenance 태그**: 미러 저장·DB 스키마 §데이터모델 작성 시 필수. 실행 시 상세 Read: `rules-on-demand/forge-spec-phases-detail.md §Phase 2 미러 헤더·provenance`.
-> **원칙 — Spec은 1회성 handoff가 아니다**: human request → 기술 탐색 → mockup/explainer → refine → 재구현 → implementation notes 축적 → 필요 시 re-spec으로 이어지는 반복 프로세스다. 구현 중 발견된 기술 제약이 implementation notes로 축적되면 Human 승인 하 재-spec 사이클(`dev-workflow-rules.md` §Spec관리 (B) 배포 후 노후 예외와 연결)로 되먹인다. 단, AI가 승인 없이 자동으로 Spec을 변경하는 것은 여전히 금지 — 재-spec은 항상 Human 승인 게이트를 거친다.
+> **원칙 — Spec은 1회성 handoff가 아니다**: human request → 기술 탐색 → mockup/explainer → refine → 재구현 → implementation notes 축적 → 필요 시 re-spec으로 이어지는 반복 프로세스다. 구현 중 발견된 기술 제약이 implementation notes로 축적되면 Human 승인 하 재-spec 사이클(`dev-workflow-rules.md` §Spec 관리 (B) 배포 후 노후 예외와 연결)로 되먹인다. 단, AI가 승인 없이 자동으로 Spec을 변경하는 것은 여전히 금지 — 재-spec은 항상 Human 승인 게이트를 거친다.
 
 
 **Phase 2-W — 도메인 분해 병렬 작성 (`--waves` 옵트인, 2026-08-14 신설)**
@@ -182,7 +187,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-contract-lint.py" <�
 - **실행 레인 = Workflow**(Agent Teams 아님). 근거: 3단계+ barrier 구조 + 주관 판단 검증이 섞여
   AD-114 두 축에 걸친다 → `forge-core.md §병렬 실행` 라우팅 4분법 표 **각주 ①(상위 승격)**.
   ```
-  Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-spec-waves.workflow.js",
+  Workflow({ scriptPath: "~/forge/shared/scripts/forge-spec-waves.workflow.js",
              args: { specDir: ".specify/specs", domains: [{name, brief}, …], requestId } })
   ```
 - **파일 소유권**: Wave 1 은 도메인당 `{domain}.spec.md` **하나만** 쓴다(남의 도메인 파일 수정 금지).

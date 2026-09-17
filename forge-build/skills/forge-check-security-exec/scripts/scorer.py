@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """forge-check-security-exec scorer.py
+exit: 0=실행된 scorer 전부 PASS · 2=FAIL 1+ · 3=INCONCLUSIVE(실행된 scorer 0개 — 통과 아님)
 실행기반 보안 검증 — sql/safe_path/auth/email 4종 + todo(Node DoS) 5종.
 P3 advisory: loc_stats() — src vs test LOC 분리 (게이트 임계 변경 없음).
 tempfile.mkdtemp 격리 + importlib 로딩 + --selftest 1순위 게이트.
@@ -538,16 +539,32 @@ def run_selftest() -> int:
 
 # ── Target file discovery ──────────────────────────────────────────────────────
 
+# 탐색에서 통째로 잘라낼 디렉토리 — 의존성·빌드 산출물은 "이 프로젝트의 서버/모듈"이 아니다.
+# 근거(harness-gaps 2026-09-14 G-2): rglob 가 `node_modules/.pnpm/@lhci/cli/src/server/server.js`
+#   (lighthouse CI 서버)를 대상으로 골라 `FAIL todo: server exited on startup` → 거짓 [STOP].
+# 결과 필터가 아니라 os.walk 단계에서 prune 한다 — node_modules 는 수만 파일이라 다 읽고 거르는
+#   비용도 크고, 필터를 한 곳 빼먹으면 같은 오탐이 되살아난다.
+# ⚠️ 이 방어가 무력화되는 입력: 의존성을 다른 이름(`vendor/`·`.pnpm-store/`·`build/`)에 둔 레포 —
+#   거기 있는 server.js 는 여전히 후보가 된다. 그땐 --todo-file 로 명시한다.
+_DISCOVER_PRUNE = frozenset({"node_modules", ".next", "dist"})
+
+
 def _discover(target_dir: Path, patterns: list[str]) -> Path | None:
     for name in patterns:
         p = target_dir / name
         if p.exists():
             return p
-    # also search one level deep
-    for name in patterns:
-        found = list(target_dir.rglob(name))
-        if found:
-            return found[0]
+    # also search deeper (pruned walk — see _DISCOVER_PRUNE)
+    wanted = set(patterns)
+    hits: dict[str, Path] = {}
+    for root, dirs, files in os.walk(target_dir):
+        dirs[:] = sorted(d for d in dirs if d not in _DISCOVER_PRUNE)
+        for fn in files:
+            if fn in wanted and fn not in hits:
+                hits[fn] = Path(root) / fn
+    for name in patterns:  # 패턴 우선순위 유지(종전 rglob 루프와 같은 순서)
+        if name in hits:
+            return hits[name]
     return None
 
 
@@ -700,9 +717,30 @@ def main():
         for f in fails:
             print(f"   • {f['scorer']}: {f['reason']}")
         sys.exit(2)
-    else:
-        print("\n✅ All scorers PASS (or SKIP)")
-        sys.exit(0)
+
+    # INCONCLUSIVE — 5종 scorer 가 **하나도 실행되지 않았다**(전부 SKIP).
+    # 근거(harness-gaps 2026-09-14 G-2): Next.js route handler 레포는 Python 파일명 탐지 4종이 전부 SKIP 이고
+    #   서버 후보도 없다. 종전엔 이것이 "All PASS (or SKIP)" + exit 0 이라 게이트 문구
+    #   "대상 경로 케이스에 FAIL 0" 이 **통과로 읽혔다** — 아무것도 안 돌렸는데 초록불이다.
+    # 종료코드 3 = 레포 관례 "판정 불가 — 통과로 세지 않는다"(security-exec-gate-check.sh 와 같은 값).
+    #   0(PASS)·2(FAIL) 만 아는 소비자에게도 비0 이라 PASS 로 새지 않고 멈춘다(보수적 낙하).
+    # ⚠️ 이 판정이 무력화되는 입력: 무관한 파일 1개가 우연히 탐지돼 PASS 한 경우(예: 이름만 같은 `validators.py`) —
+    #   실행된 scorer 가 1개라도 있으면 exit 0 이다. 대상 경로를 실제로 쟀는지는 target_file 로 사람이 본다.
+    executed = [r for r in results if r.get("result") in ("PASS", "FAIL")]
+    if not executed:
+        reasons = "; ".join(f"{r['scorer']}={r.get('reason', '')}"
+                            for r in results if r.get("result") == "SKIP")
+        _emit([{"scorer": "overall", "result": "INCONCLUSIVE",
+                "reason": "no scorer executed (unsupported stack or no target found)",
+                "skips": reasons}], out_file)
+        print("\n❔ INCONCLUSIVE — 실행된 scorer 0개(대상 스택 미지원 또는 대상 미탐지). 통과 아님. (exit 3)")
+        print(f"   SKIP 사유: {reasons}")
+        print("   대상 파일을 --sql-file/--auth-file/--path-file/--email-file/--todo-file 로 명시해 재실행하거나,")
+        print("   해당 스택에 맞는 수동 실측(예: 실서버 curl 프로브) 증거를 PR 본문에 붙인다.")
+        sys.exit(3)
+
+    print("\n✅ All executed scorers PASS (SKIP 포함)")
+    sys.exit(0)
 
 
 if __name__ == "__main__":

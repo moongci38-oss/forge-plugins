@@ -81,8 +81,10 @@ web 또는 game track을 판별해 `/prd` 또는 `/gdd`로 위임합니다.
    [STOP] track을 감지할 수 없습니다.
    --track 인자로 명시해주세요:
      /forge-design --track web <기능설명>   → PRD (웹/앱)
-     /forge-design --track game <기능설명>  → GDD (게임)
+   (game 트랙은 2026-08-07 부터 미지원 — /gdd 는 commands-archived/ 로 이관됐다)
    ```
+   ⚠️ **구 표기 "`/forge-design --track game <기능설명>  → GDD (게임)`" 은 2026-09-17 폐기** — 같은 파일이 위에서 game 트랙 미지원을 선언해 두고, **사람에게 고르라고 내미는 안내문에는 죽은 선택지를 그대로 남겨** 두었다. 고르면 바로 `[STOP]` 이다.
+   재현: `ls .claude/commands/gdd.md` → 없음 · `ls .claude/commands-archived/gdd.md` → 있음(2026-09-17 실측)
 
 ## 사용법
 

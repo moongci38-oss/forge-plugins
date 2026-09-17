@@ -51,8 +51,27 @@ P7 PR 생성 직전 → 자동 실행
 
 1. 현재 브랜치 메트릭 측정
 2. `git stash` → develop 체크아웃 → baseline 측정 → 복귀
-3. 비교 리포트 생성
-4. 임계값 판정: PASS / WARN / FAIL
+3. **비교·판정·표 생성 = 스크립트**(LLM 아님 — 아래 §판정 스크립트)
+4. 임계값 판정: PASS / WARN / FAIL / INCONCLUSIVE
+
+## 판정 스크립트 (결정론 — 2026-09-17 LLM→프로그램 이관)
+
+**3·4단계는 빼기와 대소 비교뿐이다.** 두 번 잰 숫자로 몇 % 변했는지 구하고 고정 임계값표와
+견주는 일이라 사람이 볼 것이 없다 — 같은 숫자를 넣으면 늘 같은 답이 나와야 한다.
+
+```bash
+printf '%s' '{"feature":{"bundleKb":251,"testTimeSec":13.1,"apiP95Ms":120},"baseline":{"bundleKb":245,"testTimeSec":12.3,"apiP95Ms":118}}' \
+  | node "${FORGE_ROOT:-$HOME/forge}/shared/scripts/benchmark-verdict.mjs"
+```
+
+출력 JSON 의 `verdict`·`maxDeltaPct`·`report`(PR 삽입용 마크다운 표)를 **그대로** 쓴다 — 표를
+손으로 다시 그리지 않는다. `unmeasured` 에 실린 지표는 측정 단계(1·2)로 되돌아갈 신호다.
+
+⚠️ **측정 자체는 여전히 LLM 이 한다** — 어떤 빌드 명령을 고를지·어느 엔드포인트를 잴지는 판단이다.
+이 스크립트는 그 숫자의 진위를 보지 않는다(스크립트 머리 주석 §무력화되는 입력 ①).
+⚠️ 세 지표가 전부 미측정이면 `INCONCLUSIVE` 다 — "잴 게 없었다"를 PASS 로 바꾸지 않는다.
+
+재현: `bash shared/scripts/tests/benchmark-verdict.test.sh` · 역변조: 같은 명령 `--mutation`
 
 ## 임계값
 
@@ -146,36 +165,33 @@ playwright-cli eval "JSON.stringify(performance.getEntriesByType('navigation')[0
 
 ---
 
-## 독립 Evaluator (하네스)
+## 독립 Evaluator (재계산 diff — LLM 없음)
 
-benchmark 스킬 결과물 완성 후 독립 Evaluator Subagent가 품질을 2차 검증한다.
+> **원칙**: 생성자 ≠ 평가자. 다만 **판정이 결정론이 된 뒤로는 "다시 세는 것"이 곧 독립 검증**이다.
 
-> **원칙**: 생성자 ≠ 평가자. 자기평가 편향 방지.
+구 Evaluator 3기준은 전부 존재·산술이었다("3개 지표가 있나 / % 가 있나 / 판정이 붙었나").
+그래서 LLM 을 한 번 더 부르지 않고, **같은 입력으로 다시 계산해 기록과 맞춰본다**:
 
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 benchmark 스킬 결과물의 독립 품질 검증자입니다.
-
-아래 기준으로 결과물을 평가하세요:
-1. 번들 크기, 테스트 시간, API 응답 시간(또는 빌드 시간) 3개 지표가 모두 측정됐는지 확인한다. 적용 조건에 해당하는 지표가 누락됐으면 FAIL.
-2. 각 지표에 baseline(develop 브랜치) 수치 대비 % 변화량이 명시됐는지 확인한다. 절대 수치만 있고 % 변화가 없으면 FAIL.
-3. 임계값(PASS/WARN/FAIL 기준: +10%/+25%)이 결과물에 적용됐는지 확인한다. 수치가 있어도 판정 없이 끝났으면 FAIL.
-
-판정: PASS(기준 충족) / FAIL(재작업 필요)
-피드백 형식: [파일명+섹션] — [이유] → [방법]
-"""
-)
+```bash
+printf '%s' '{"feature":{...},"baseline":{...},"recorded":{"verdict":"WARN","maxDeltaPct":15}}' \
+  | node "${FORGE_ROOT:-$HOME/forge}/shared/scripts/benchmark-verdict.mjs" --self-check
 ```
 
-피드백 루프:
-- PASS → 파이프라인 계속
-- FAIL → 재작업 후 1회 재실행. 2회 연속 FAIL 시 [STOP] Human 에스컬레이션
-> 실패 시 [[pev-self-correction]] 적용
+- 종료코드 `0` = 기록과 재계산 일치 → 파이프라인 계속
+- 종료코드 `1` = **불일치** → [STOP]. 판정이 결정론이라 불일치는 "입력이나 기록이 틀렸다"는 뜻이다
+  — 재시도로 덮지 않는다(같은 입력이면 같은 답이 나온다 = 재시도는 loop theater).
+- 종료코드 `2` = 입력 오류 → 판정이 아니다. 입력 JSON 을 고쳐 다시 실행한다.
+- `evaluator.evalVerdict` = 구 3기준(C1 지표 3종 측정 / C2 변화율 존재 / C3 판정 적용) 판정을
+  **무손실로 옮긴 것**이다. `FAIL` 이면 측정 단계(워크플로 1·2)로 돌아간다.
+
+⚠️ 이 검증이 무력화되는 입력: 워크플로 **안에서** 바로 이어 돌리면 방금 그 스크립트의 출력과
+대조하는 셈이라 구조적으로 항상 일치한다(그때는 C1~C3 만 실효). 판별력은 **저장된 리포트**를
+대상으로 `--self-check` 를 돌릴 때 나온다.
+
+근거: 2026-09-17 스킬 LLM→프로그램 전수조사(G2) · 선례 = canary `canary-judge.mjs --self-check`
+폐기조건: benchmark 판정이 다시 주관 축(예: "이 회귀가 수용 가능한가")을 갖게 되면 LLM 레그를 되살린다.
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: sequential (git stash/checkout 직렬 필수).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/benchmark/workflow.js"), args: { branch, baseline } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/benchmark/workflow.js"), args: { branch, baseline } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 /benchmark 방식 fallback.

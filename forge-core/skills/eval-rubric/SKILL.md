@@ -93,7 +93,7 @@ model: sonnet
 ```bash
 python3 - <<'PY'
 import json, os
-p = os.path.expanduser("$HOME/.claude/skills/eval-rubric/eval_cases.jsonl")
+p = os.path.expanduser("~/.claude/skills/eval-rubric/eval_cases.jsonl")
 rows = [json.loads(l) for l in open(p, encoding="utf-8") if l.strip()]
 neg = [r for r in rows if "negative" in (r.get("tags") or [])]
 print("네거티브 %d / 전체 %d (%.0f%%)" % (len(neg), len(rows), 100*len(neg)/max(len(rows),1)))
@@ -151,7 +151,7 @@ target과 rubric을 별도 모델 호출(Sonnet)에 전달:
 입력:
 - 평가 대상: {target}
 - 채점 기준: {rubric_yaml}
-- 컨텍스트: {sprint키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다. 또는 spec 발췌 (있으면)}
+- 컨텍스트: {sprint_contract 또는 spec 발췌 (있으면)}
 
 출력 (JSON 강제):
 {
@@ -189,7 +189,7 @@ target과 rubric을 별도 모델 호출(Sonnet)에 전달:
 
 ### 3. Pass@k Reliability 측정 (선택, `--pass-at-k` 지정 시)
 
-> 출처: CLEAR 5차원 pass@k Reliability (arXiv:2511.14136) — `${FORGE_ROOT:-$HOME/forge}/.claude/agents/axis-harness.md` "핵심 지표"와 정렬(pass@8 ≥ 80% 미션크리티컬 기준).
+> 출처: CLEAR 5차원 pass@k Reliability (arXiv:2511.14136) — `~/forge/.claude/agents/axis-harness.md` "핵심 지표"와 정렬(pass@8 ≥ 80% 미션크리티컬 기준).
 
 단일 채점(§2)은 judge 모델 1회 호출의 스냅샷일 뿐 — 동일 target을 다시 채점해도 같은 verdict가 나오는지(일관성)는 측정하지 않는다. `--pass-at-k {k}` (k=3~8) 지정 시:
 
@@ -212,7 +212,7 @@ target과 rubric을 별도 모델 호출(Sonnet)에 전달:
 채점(§2, 필요 시 §3) 완료 직후, 다음 스크립트를 호출해 결과를 append한다(추측 python 한 줄 작성 금지 — 스크립트 재사용):
 
 ```bash
-python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases-append.py \
+python3 ~/forge/.claude/skills/eval-rubric/scripts/eval-cases-append.py \
   --skill {호출한 스킬 이름, 예: qa/codex-review/eval-rubric 자신} \
   --target "{평가 대상 경로 또는 식별자}" \
   --verdict {PASS|WARN|FAIL} \
@@ -223,7 +223,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases
   [--pass-at-k-verdicts '["PASS","PASS","WARN",...]']
 ```
 
-- 기록 위치(기본): `$HOME/.claude/skills/{skill}/eval_cases.jsonl` (런타임 미러 표준 경로 — 다른 스킬들의 기존 관례와 동일).
+- 기록 위치(기본): `~/.claude/skills/{skill}/eval_cases.jsonl` (런타임 미러 표준 경로 — 다른 스킬들의 기존 관례와 동일).
 - outcome 매핑: PASS → `"pass"` / WARN → `"regression_candidate"` / FAIL → `"new_failure"` (verdict 필드에 그대로 기록, 별도 outcome 필드 변환 불필요 — 소비자는 verdict로 판독).
 - dedupe: `sha256(skill + "|" + input_context)` — 동일 target 재실행 시 `observed_count++`만 기록(신규 case_id 아님, `record_type: "observation"`).
 - `--pass-at-k-verdicts` 지정 시 `pass_at_k: {k, verdicts, pass_count, pass_rate, threshold, reliability, gate:"advisory"}` 필드가 레코드에 추가된다.
@@ -231,7 +231,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases
   값이 `null`·비숫자인 축은 `--axis-health` 없이도 스크립트가 잡아 경고한다 — **0 으로 자동 환산하지 않는다.**
 - `dissent` 필드는 `scores` 에서 **자동 계산**된다(E4, 표시 전용 — verdict 미반영).
 - kill-switch: `EVAL_RUBRIC_AUTO=off` 환경변수 시 append 생략(exit 0, fail-open — 전역 무블로킹 롤아웃 원칙 §forge-core 준수).
-- SSoT는 `${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases-append.py` — 수정 시 이 파일을 편집 후 `forge-sync sync`로 미러 전파(직접 미러 편집 금지, AD-41 mirror-lock 대상은 아니나 관례 통일).
+- SSoT는 `~/forge/.claude/skills/eval-rubric/scripts/eval-cases-append.py` — 수정 시 이 파일을 편집 후 `forge-sync sync`로 미러 전파(직접 미러 편집 금지, AD-41 mirror-lock 대상은 아니나 관례 통일).
 
 ## Custom Rubric
 
@@ -241,7 +241,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases
 - **`rubrics/`** — 도메인 특화 루브릭 디렉토리
   - `rubrics/design.yaml` — 디자인 산출물 전용 (design_quality/originality/craft/functionality, 8점 만점)
 
-사용 예: `/eval-rubric --target output.md --rubric ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/rubrics/design.yaml`
+사용 예: `/eval-rubric --target output.md --rubric ~/forge/.claude/skills/eval-rubric/rubrics/design.yaml`
 
 ## 통합점
 
@@ -274,7 +274,7 @@ judge 호출 전 target 본문에서 다음 자동 제거 또는 마스킹:
 
 ### 외부 호출 정책
 - judge model = Sonnet (Anthropic) — 데이터 처리 정책 준수
-- API key fallback 시도 = `${FORGE_ROOT:-$HOME/forge}/.env` `EVAL_RUBRIC_MODEL` 명시 모델만
+- API key fallback 시도 = `~/forge/.env` `EVAL_RUBRIC_MODEL` 명시 모델만
 - OpenAI 등 타 provider 사용 시 사전 사용자 승인 필수
 
 ### Prompt Injection 방어

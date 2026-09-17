@@ -16,7 +16,7 @@
 **on-demand 룰 참조 섹션 필수 포함** (Key Documents 아래 추가):
 ```markdown
 ## 전역 on-demand 규칙
-작업 트리거 시 `$HOME/.claude/rules-on-demand/` 해당 룰 read:
+작업 트리거 시 `~/.claude/rules-on-demand/` 해당 룰 read:
 - **아키텍처 설계 / 레이턴시 판단** → `latency-reference.md`
 - **웹 검색** → `web-search-policy.md`
 - **Handover 작성** → `handover-canon.md`

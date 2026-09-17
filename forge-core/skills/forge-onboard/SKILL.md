@@ -20,7 +20,7 @@ model: sonnet
 
 | 항목 | 예시 | 필수 |
 |------|------|:----:|
-| 프로젝트 경로 | `$HOME/my-project` | **필수** |
+| 프로젝트 경로 | `/home/user/my-project` | **필수** |
 | 프로젝트 이름 | `my-project` (kebab-case) | **필수** |
 | 프로젝트 유형 | `web` / `game` | **필수** |
 | 설명 | "Next.js SaaS 플랫폼" | 권장 |
@@ -119,7 +119,7 @@ BLOCKER 없으면 → `precedence-check: PASS` 명시 후 Phase 1 진입.
 ### 1.1 manifest.json에 타겟 등록
 
 ```bash
-node $HOME/.claude/scripts/forge-sync.mjs init <project-path> \
+node ~/.claude/scripts/forge-sync.mjs init <project-path> \
   --name <project-name> \
   --scope all \
   --description "<description>" \
@@ -165,14 +165,14 @@ node $HOME/.claude/scripts/forge-sync.mjs init <project-path> \
 ## Phase 2: forge-sync 배포
 
 ```bash
-node $HOME/.claude/scripts/forge-sync.mjs sync --target <project-name> --include-recommended
+node ~/.claude/scripts/forge-sync.mjs sync --target <project-name> --include-recommended
 ```
 
 배포되는 항목:
 
 | 카테고리 | 경로 | 내용 |
 |---------|------|------|
-| Dev Rules | `$HOME/.claude/rules/`(global) | 이미 auto-load 됨 — 프로젝트 사본 불필요(2026-07-21 이중로드 방지) |
+| Dev Rules | `~/.claude/rules/`(global) | 이미 auto-load 됨 — 프로젝트 사본 불필요(2026-07-21 이중로드 방지) |
 | 공통 Rules | `.claude/rules/` | frontend-standards, plan-mode, pr-code-review-gate |
 | Templates | `.specify/templates/` | Spec·Walkthrough 템플릿 (+ game: element-task) — Plan·Tasks 는 별도 파일(`.specify/plans/` · `.specify/tasks/`, 2026-08-31 재편) |
 | GitHub Spec Kit | `.github/` + `scripts/` | CI 워크플로, 이슈/PR 템플릿 |
@@ -183,7 +183,7 @@ node $HOME/.claude/scripts/forge-sync.mjs sync --target <project-name> --include
 `forge-sync`가 EPERM 에러 시 수동 복사로 대체:
 
 ```bash
-for f in $HOME/.claude/forge/rules/*.md; do
+for f in ~/.claude/forge/rules/*.md; do
   cp "$f" "<project-path>/.claude/rules/$(basename $f)" 2>/dev/null
 done
 ```
@@ -211,7 +211,7 @@ brownfield 감지 시 "기존 파일이 있으면 Forge 참조만 추가" 규칙
 
 프로젝트 루트 CLAUDE.md에 `## 핵심정보` 섹션을 **반드시** 포함한다. 프로젝트 타입에 따라 타입별 템플릿(dev/grants/research/marketing)을 사용. 시크릿은 **평문 금지 — 참조 위치만** 기재 (`.env` ref 또는 `<설명>` placeholder).
 
-검증: 생성 후 `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/check-vitals-secrets.sh <CLAUDE.md 경로>` (exit 0 = OK, exit 2 = 평문 시크릿 BLOCK).
+검증: 생성 후 `bash ~/forge/shared/scripts/check-vitals-secrets.sh <CLAUDE.md 경로>` (exit 0 = OK, exit 2 = 평문 시크릿 BLOCK).
 
 > 상세 → `reference.md §3.1-C 핵심정보 타입별 템플릿` (필요 시 Read)
 
@@ -255,7 +255,7 @@ mkdir -p docs/{guides,tech,planning/{active/forge,done},reviews,infrastructure,w
 `forge/planning/templates/inspector-reference-template.md`를 `docs/references/inspector-reference.md`에 복사한다.
 
 ```bash
-cp ${FORGE_ROOT:-${FORGE_ROOT:-$HOME/forge}}/planning/templates/inspector-reference-template.md <project-path>/docs/references/inspector-reference.md
+cp ${FORGE_ROOT:-~/forge}/planning/templates/inspector-reference-template.md <project-path>/docs/references/inspector-reference.md
 ```
 
 프로젝트 유형별 초기값 조정 목록 → `references/scaffold-templates.md §3.5` (필요 시 Read)
@@ -298,7 +298,7 @@ Colyseus/React/Node.js/Unity/FastAPI, 미지원 시 exit 0 + WARN) ②`templates
 
 ## Phase 5: RAG 워크스페이스 등록
 
-`${FORGE_ROOT:-${FORGE_ROOT:-$HOME/forge}}/shared/scripts/rag/workspace.json`의 `sources`에 새 프로젝트를 추가한다.
+`${FORGE_ROOT:-~/forge}/shared/scripts/rag/workspace.json`의 `sources`에 새 프로젝트를 추가한다.
 
 ### 5.1 이미 등록됐는지 확인
 
@@ -336,16 +336,36 @@ Read → Edit으로 직접 수정한다:
 ### 5.4 등록 확인
 
 ```bash
-bash ${FORGE_ROOT:-${FORGE_ROOT:-$HOME/forge}}/shared/scripts/rag/rag-exec.sh index.py --workspace --incremental
+bash ${FORGE_ROOT:-~/forge}/shared/scripts/rag/rag-exec.sh index.py --workspace --incremental
 ```
 
 변경 없으면 "✅ 변경 없음" 출력. 새 프로젝트 파일이 있으면 자동 추가됨.
 
 ---
 
-## Phase 6: Claude Design 폴더 스캐폴딩
+## Phase 6: 디자인 레인 스캐폴딩 (1순위 Astra + 2순위 Claude Design)
 
-`web` / `app` 프로젝트에 Claude Design 파이프라인 진입점을 생성한다. `game` 프로젝트는 `assets/` 폴더만.
+`web` / `app` 프로젝트에 디자인 파이프라인 진입점을 생성한다. `game` 프로젝트는 `assets/` 폴더만.
+
+⚠️ 구 제목 "Phase 6: Claude Design 폴더 스캐폴딩" 은 2026-09-15 폐기 — 사람 순위 재지정.
+**Claude Design 은 지우지 않았다 — 2순위 폴더로 그대로 스캐폴딩한다(6.3).**
+근거: 사람 확정 2026-09-15 — 퍼블리싱·HTML·프론트엔드·디자인시스템/토큰 1순위 = GPT-6 Astra, 2순위 = Claude Design. (2026-09-17 개정: 최고급은 advisor 전용 → GPT 코더 상황별 luna/terra/sol)
+폐기조건: Human 이 순위를 다시 정하면 6.0 과 6.3 의 순서를 그 값으로 바꾼다.
+
+### 6.0 Astra 레인 스캐폴딩 (1순위 — web/app)
+
+디자인 파이프라인(디자인시스템 → `DESIGN.md` 토큰 → 스타일가이드)은 **순위와 무관하게 먼저** 거친다. `/forge-mockup` 은 그 토큰을 입력으로 받는다.
+
+```bash
+# 프로젝트 루트 = forge-outputs/02-product/<project-name>
+PROJ="${FORGE_OUTPUTS:-$HOME/forge-outputs}/02-product/<project-name>"
+mkdir -p "$PROJ/s3-mockup"
+[ -f "$PROJ/DESIGN.md" ] || printf '# %s — DESIGN 토큰\n\n## primitive\n[TODO]\n\n## semantic\n[TODO]\n\n## component\n[TODO]\n' '<project-name>' > "$PROJ/DESIGN.md"
+```
+
+- 이후 화면별로 `/forge-mockup <화면ID> --project "$PROJ"` → `s3-mockup/<화면ID>/screen.html` + `s3-mockup/<화면ID>.png`.
+- `DESIGN.md` 가 `[TODO]` 뿐이면 `/forge-plan` Step 3.0(디자인시스템)을 먼저 돌린다 — 토큰 없이 뽑은 시안은 구현에서 통째로 재작업이 난다.
+- ⚠️ **이 스캐폴딩이 무력화되는 입력**: `DESIGN.md` 를 만들어만 두고 `[TODO]` 를 채우지 않는 경우 — 스크립트는 파일을 찾으면 경고하지 않으므로 **빈 토큰이 그대로 목업에 들어간다**(차단하지 않는다, WARN-first AD-168).
 
 ### 6.1 프로젝트 유형 분기
 
@@ -360,7 +380,9 @@ game      → assets/ 폴더만 생성 (PART X)
 mkdir -p ${FORGE_OUTPUTS:-$HOME/forge-outputs}/05-design/projects/<project-name>/assets
 ```
 
-### 6.3 claude-design-prompts.md 생성 (web/app만)
+### 6.3 claude-design-prompts.md 생성 (web/app만 — **2순위 폴백 레인**)
+
+> 1순위(6.0 Astra)가 미가용이거나 실패했을 때 쓰는 경로다. **폴더·템플릿은 그대로 만든다** — 살아 있는 폴백이다.
 
 파일: `forge-outputs/05-design/projects/<project-name>/forge-claude-design-prompts.md`
 
@@ -443,7 +465,7 @@ mv <outputs-file> <project-path>/docs/_handover/  # 또는 문서 성격에 맞�
 ```
 [ ] manifest.json에 타겟 등록 확인
 [ ] .specify/config.json 존재 + Notion DB 연결
-[ ] 필수 rules 는 $HOME/.claude/rules/(global)에 이미 auto-load 됨 확인 (프로젝트 사본 불필요)
+[ ] 필수 rules 는 ~/.claude/rules/(global)에 이미 auto-load 됨 확인 (프로젝트 사본 불필요)
 [ ] .specify/templates/ 배포 확인
 [ ] CLAUDE.md 존재 + Forge 참조 포함
 [ ] .specify/constitution.md 존재
@@ -452,7 +474,8 @@ mv <outputs-file> <project-path>/docs/_handover/  # 또는 문서 성격에 맞�
 [ ] docs/ 폴더 구조 생성
 [ ] forge-workspace.json에 프로젝트 등록
 [ ] workspace.json sources에 프로젝트 등록 (Phase 5)
-[ ] 05-design/projects/{project}/forge-claude-design-prompts.md 생성 (web/app, Phase 6)
+[ ] 02-product/{project}/DESIGN.md + s3-mockup/ 스캐폴딩 (web/app, Phase 6.0 — 1순위 Astra 레인)
+[ ] 05-design/projects/{project}/forge-claude-design-prompts.md 생성 (web/app, Phase 6.3 — 2순위 폴백 레인)
 [ ] (brownfield 해당 시) Phase 0 감지 조건 2개 이상 충족 확인 기록
 [ ] (brownfield 해당 시) 추가 질문 5개 답변 수집 완료
 [ ] (brownfield 해당 시) CLAUDE.md autogen draft 사용자 검토·확정
@@ -462,7 +485,7 @@ mv <outputs-file> <project-path>/docs/_handover/  # 또는 문서 성격에 맞�
 ```
 
 ```bash
-node $HOME/.claude/scripts/forge-sync.mjs status
+node ~/.claude/scripts/forge-sync.mjs status
 ```
 
 ## 주의사항

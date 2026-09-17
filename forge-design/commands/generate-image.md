@@ -1,20 +1,61 @@
 ---
-description: 이미지 생성 — gpt-image-1 primary, Gemini 폴백.
-allowed-tools: Bash, Read, Write, mcp__plugin_forge-core_gemini__generate_image
-argument-hint: "<mode: generate|edit> <prompt or image-path> [--aspect 16:9|1:1|9:16] [--quality low|medium|high] [--output path] [--brand-guide path]"
+description: "⛔ 이 API 종량 경로는 중단(2026-09-12). 이미지는 만들 수 있다 — 1순위 /forge-image(Codex image_gen, 구독) · 2순위 Claude Design. 여기는 과금 예외 켜는 법만."
+allowed-tools: Bash, Read
+argument-hint: "(중단된 커맨드 — 호출하면 중단 사유와 대체 경로를 안내한다)"
 model: sonnet
 group: ops
 ---
 
-# AI Image Generation / Editing
+# ⛔ /generate-image — 이 **API 종량 경로**는 중단됨 (2026-09-12, 사용자 결정)
 
-이미지를 생성하거나 편집합니다: $ARGUMENTS
+> ⚠️ **이 문서를 읽고 "이미지를 못 만든다"로 결론 내지 마라.** 꺼진 것은 **이 커맨드(종량 과금 API 경로)** 하나다.
+> **이미지 작업은 된다** — 1순위 `/forge-image`(Codex 내장 `image_gen`, **구독**) · 2순위 Claude Design(`/forge-claude-design`).
+> 정본 = `dev/global-rules/tool-rules.md §UI/UX 작업`.
 
-## 실행 순서 (2단계)
+요청: $ARGUMENTS
 
-### 1단계 — 기본 경로: gpt-image-1
+쉽게 말하면 **회사가 "도구는 정액 구독으로만 쓴다"고 정해 뒀는데 이 경로만 쓴 만큼 돈이 빠지는 카드**였습니다.
+그래서 2026-09-12 사용자가 **이 경로 중단**을 결정했습니다. 같은 일을 **구독으로 하는 길은 그 뒤에 생겼습니다**(아래 표).
+
+## 왜 껐나
+
+- 조직 원칙 **"모든 모델은 구독으로만"** (정본 `~/.claude/rules/model-routing.md`).
+- `shared/scripts/generate-image.py` 는 `OPENAI_API_KEY` 로 `v1/images/generations` 를 직접 호출한다 = **종량 과금**.
+- 2026-09-07 Gemini 전면 철수도 같은 축(종량 벤더 제거)의 결정이었다. 원칙이 한쪽에만 적용돼 있던 상태를 맞춘 것이다.
+
+## 무엇이 되고 무엇이 안 되나 (뭉뚱그리지 말 것)
+
+| 하고 싶은 일 | 지금 쓸 것 | 상태 |
+|---|---|---|
+| **임의 래스터 이미지 생성**(히어로/배너/일러스트/썸네일/게임 에셋) | **1순위 `/forge-image`** (Codex 내장 `image_gen` — **구독**) · 2순위 `/forge-claude-design` | ✅ **된다** |
+| 기존 이미지 **편집** | **1순위 `/forge-image`** (같은 `image_gen`) | ✅ **된다** |
+| 화면 시안(목업) | **`/forge-mockup`** (GPT 코더 — 그림이 아니라 **코드**) | ✅ 된다 |
+| 시안·UI 화면·디자인시스템 컴포넌트 | `/forge-claude-design` (Claude Design — **구독**) | ✅ 살아 있음 |
+| 이미지·영상 **분석**(Vision) | `codex-critic` 에이전트 (**구독**) | ✅ 살아 있음 (이 레인은 건드리지 않았다) |
+| 이미지 생성 **API 종량 호출**(이 커맨드) | — | ⛔ **중단** — 사람이 과금 예외를 켤 때만(아래 §) |
+| 텍스트 → 화면 생성(Stitch) | — | ⛔ **중단**(2026-09-15 사람 결정) — `/forge-stitch`·`stitch` MCP 를 부르거나 제안하지 않는다 |
+
+**2순위는 폴백이다** — `/forge-claude-design` 은 1순위 `image_gen` 이 실패·미가용일 때 내려가는 자리다.
+그리고 다른 도구(스크린샷·Vision 분석 에이전트 등)를 "생성"·"편집"으로 둘러대지 않는다.
+
+## 호출을 받으면 어떻게 답하나
+
+우회하지 말고 그대로 보고한다:
+
+```
+이 커맨드(이미지 생성 API 종량 경로)는 2026-09-12 사용자 결정으로 중단됐습니다
+(조직 원칙 "모든 모델은 구독으로만"). 과금 예외 없이는 실행하지 않습니다.
+이미지 작업 자체는 됩니다 — 1순위 /forge-image(Codex 내장 image_gen, 구독), 불가 시 2순위 Claude Design.
+- 굳이 이 API 경로가 필요하면 사람이 과금 예외를 감수하고 켜야 합니다(아래 env).
+```
+
+## 과금 예외를 감수하고 켜는 법 (사람만)
+
+⚠️ **이건 대체 수단이 아니라 예외 승인이다.** 켜는 순간 종량 과금이 발생하며, 그 판단은 사람이 한다.
+AI 가 자기 판단으로 이 변수를 붙여 호출하지 않는다.
 
 ```bash
+FORGE_ALLOW_IMAGE_API_BILLING=1 \
 python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image.py" \
   --prompt "<프롬프트>" \
   --output "<저장경로>" \
@@ -22,68 +63,30 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image.py" \
   --quality <low|medium|high>
 ```
 
-- exit 0 → 성공. stdout 마지막 줄이 저장된 절대경로.
-- exit 2 → 실패(키 없음/SDK 없음/API 오류) → 2단계 폴백으로 전환.
+- env 없이 호출하면 **exit 2 + 중단 사유**만 나온다. 차단은 **키를 읽거나 네트워크를 부르기 전에** 일어난다(`main()` 첫 문장 `_billing_gate()`).
+- 켠 뒤의 exit code 해석(비일시적 vs 일시적)은 **정본이 스크립트 머리말 docstring** 이다 → `shared/scripts/generate-image.py`.
+- 스크립트는 **삭제하지 않았다** — 결정이 뒤집히면 env 기본값만 되돌리면 된다(가역).
 
-### 2단계 — 폴백: Gemini (1단계가 exit 2로 실패한 경우에만)
+> 근거: 조직 원칙 "모든 모델은 구독으로만" 과 종량 과금 경로가 정면 충돌했고, 중단 시점(2026-09-12)에는 구독 레인에 대체 수단이 없어
+> 사용자가 중단을 선택했다. **그 뒤 2026-09-15 에 구독 대체 수단(`image_gen`)이 생겼지만 이 API 경로는 그대로 꺼 둔다** — 구독 수단이 있는데 종량을 켤 이유가 없다.
+> 폐기조건: 과금 예외가 공식 승인되면 기본값을 뒤집고 이 중단 문서를 회수한다.
 
-`mcp__plugin_forge-core_gemini__generate_image` 도구를 호출한다.
+---
 
-**폴백 사용 시 반드시 다음을 명시**:
-```
-gpt-image-1 실패 → Gemini 폴백
-```
+## 이력 — 2026-09-17 본문에서 내린 구 서술
 
-## 모드
+> ⚠️ **아래는 폐기된 서술이다. 판단 근거로 쓰지 마라.** 본문에 남겨 두니 새로 읽는 사람이 매번 "이미지를 못 만든다"로 결론 내려서 내렸다
+> (감사 C그룹 §G6 — "정정 배너가 쌓이면 본문보다 덜 읽힌다": 배너 1줄이 본문 5곳을 부정하는데 표가 더 눈에 띄었다).
+> 규약 "지우지 말고 옮긴다"에 따라 **삭제 대신 이 절로 이동**했다.
 
-### `generate` — 텍스트에서 이미지 생성
+| 구 서술 (폐기) | 왜 틀렸나 |
+|---|---|
+| "구독 레인에 이미지 생성 수단이 **아예 없다**" (+ codex CLI·플러그인·MCP 3줄 실측) | 2026-09-12 시점에는 사실이었으나 **2026-09-15 에 Codex 내장 `image_gen` 이 확인됐다**(`codex features list` → `image_generation stable true`) |
+| "**임의 래스터 생성** ⛔ 현재 지원 수단 없음" | `/forge-image` 가 한다(구독) |
+| "**기존 이미지 편집** ⛔ 현재 지원 수단 없음 (Gemini `edit_image` 철수 + wrapper 미지원)" | 같은 `image_gen` 이 편집도 한다 |
+| "`/forge-stitch` — Human 명시 호출 전용 ✅ 살아 있음" | **Stitch 는 2026-09-15 사람 결정으로 중단** |
+| "⛔ `/forge-claude-design` 으로 대체된다고 안내하지 마라" | 지금은 **2순위 폴백이 맞다**(1순위 `image_gen` 실패·미가용 시) |
+| "`gpt-6-astra` 는 추론·코딩 모델이라 그림을 만들지 못한다" | 문장 자체는 참이지만 "그래서 옮길 곳이 없다"는 결론이 폐기됐다. 덧붙여 **`gpt-6-astra` 는 2026-09-17 부터 advisor 전용**이다 |
 
-위 2단계 순서를 그대로 따른다.
-
-**인자 파싱:**
-- 첫 번째 인자: 프롬프트 텍스트
-- `--aspect`: `16:9` (히어로/배너), `1:1` (정사각), `9:16` (모바일)
-- `--model`: `gpt-image-1`(기본, 비파괴) / `gpt-image-2`(2026-04 플래그십 — 2K·추론 강화, `generate-image.py` 코드 주석 근거)
-- `--quality`: `low` / `medium`(기본) / `high`
-- `--output`: 저장 경로 (기본: `05-design/images/`)- `--brand-guide`: 브랜드 가이드 파일 절대경로(선택) — 프롬프트에 접두 병합. allowlist(FORGE_OUTPUTS/cwd)·symlink거부·100KB 상한·시크릿 패턴 스캔 fail-closed(위반 시 거부)
-
-**예시:**
-```
-/generate-image generate "포트폴리오 히어로 이미지, 미니멀 디자인, 파란 그라데이션" --aspect 16:9
-/generate-image generate "AlbaNow 프로젝트 쇼케이스 썸네일" --aspect 1:1
-/generate-image generate "마케팅 캠페인 배너, 모던 SaaS 스타일" --aspect 16:9 --output 03-marketing/assets//generate-image generate "포트폴리오 히어로 이미지" --aspect 16:9 --brand-guide 05-design/brand-guide.md
-```
-
-### `edit` — 기존 이미지 편집
-
-gpt-image-1 wrapper는 편집을 지원하지 않는다 — edit는 `mcp__plugin_forge-core_gemini__generate_image`(Gemini edit_image)가 유일한 수단이다.
-
-**인자 파싱:**
-- 첫 번째 인자: 편집할 이미지 파일 경로
-- 두 번째 인자: 편집 지시사항
-- `--output`: 저장 경로 (기본: 원본과 같은 디렉토리, `-edited` 접미사)
-
-**예시:**
-```
-/generate-image edit 05-design/images/my-project/thumbnail.png "해상도 개선, 색감 보정"
-/generate-image edit 03-marketing/assets/banner.png "텍스트 제거하고 배경만"
-```
-
-## 기본 출력 경로
-
-| 용도 | 경로 |
-|------|------|
-| 프로젝트 갤러리 | `05-design/images/` |
-| 마케팅 비주얼 | `03-marketing/assets/` |
-| 블로그 이미지 | `04-content/images/` |
-| 디자인 목업 | `05-design/mockups/` |
-
-## 비용 원칙
-
-- 호출자: `game-asset-generate`(게임 에셋 파이프라인) + Human 명시 호출(마케팅/블로그 이미지 등).
-- 개발·구현 파이프라인(forge-implement/forge-pge/forge-design)은 이 커맨드를 호출하지 않는다 — 그 단계의 이미지는 Claude Design/Stitch 산출물이거나, 없으면 없는 대로 진행한다.
-- 디자인 시안은 Human이 /forge-claude-design(메인) 또는 /forge-stitch(서브)를 직접 호출한다.
-- 검증 게이트에서 사용 금지(부가 기능)
-- 생성 후 파일 크기/포맷 수동 확인
-
-> 이 커맨드는 프롬프트를 보고 도구를 판정하지 않는다. 디자인 시안이 필요하면 Human이 /forge-claude-design 또는 /forge-stitch를 직접 호출한다.
+근거: 사람 결정 2026-09-15(도구 순위 재지정) · 2026-09-17(최고급 모델 advisor 전용) · 감사 C그룹 §③·§16
+폐기조건: 이미지 1순위가 다시 바뀌면 이 표를 그때 서술로 갈아 끼운다.

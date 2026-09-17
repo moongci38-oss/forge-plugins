@@ -58,7 +58,7 @@ raw-data.json의 `claude_search_needed` 항목에 대해 검색 수행:
 ## Step 3: 우리 시스템 현황 스냅샷
 
 **인프라 레이어:**
-- Read: `$HOME/.claude/forge/rules/` (최근 수정 파일)
+- Read: `~/.claude/forge/rules/` (최근 수정 파일)
 - Read: `.claude/skills/`, `.claude/agents/`
 - Read: `docs/planning/active/plans/` (미처리 액션 확인)
 
@@ -109,7 +109,7 @@ raw-data.json의 `claude_search_needed` 항목에 대해 검색 수행:
 
 **순서 원칙**: 파일검증 → (성공 시에만) Notion 등록. 검증 없이 Notion "완료"부터 기록하는 순서 금지.
 
-1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/ai-system-analysis.md" "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md"`
+1. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/ai-system-analysis.md" "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md"`
    - 인자는 **절대경로**여야 한다 — 상대경로는 cwd 에 따라 다른 곳을 보고, 없는 파일을 "없음"이 아니라 "다른 위치"로 오판하게 만든다.
    - **조건부 산출물은 생성했을 때만 인자에 추가**한다: `stock-brief.md`(관심종목 스킵 시 미생성), 개념 학습노트(미생성 가능). 생성해 놓고 인자에서 빠뜨리면 그 산출물은 **검증 없이 통과**한다.
 2. 스크립트 출력 표를 완료 보고에 그대로 사용. 표 밖 임의 "완료" 서술 금지.
@@ -121,7 +121,7 @@ raw-data.json의 `claude_search_needed` 항목에 대해 검색 수행:
 
 **Notion DB 정보:**
 - Data Source ID: `43829f7b-8d3f-47f1-90a1-84f40d39239e`
-- DB URL: `https://www.notion.so/${NOTION_DB_ID}`
+- DB URL: `https://www.notion.so/b3a833acdc1644c99acf81e7da25a268`
 
 **실행 순서:**
 
@@ -182,7 +182,7 @@ Step 4/3.5/4.6/5에서 만든 산출물을 `01-research/daily/{date}/index.json`
    ```
 2. 원자적 기록:
    ```bash
-   echo '<레코드 JSON>' | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/daily-review/append_index_record.py
+   echo '<레코드 JSON>' | python3 ~/forge/shared/scripts/daily-review/append_index_record.py
    ```
 3. exit 0 확인. **fail-open**: 스크립트 실패해도 이미 생성된 2~4종 산출물은 그대로 유지 — index.json 갱신 실패만 로그하고 Step 6으로 진행한다(수동 Write 폴백 금지).
 

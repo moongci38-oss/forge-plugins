@@ -139,7 +139,7 @@ PASS 판정 직전 마지막 절차:
 
 ## 4-Level 검증 모델
 
-> **Canonical SSoT = `$HOME/.claude/rules-on-demand/verification-patterns.md`.** 아래는 검증 실행 편의 요약 — Level 정의·Stub 패턴 변경 시 verification-patterns.md를 우선 갱신(drift 방지).
+> **Canonical SSoT = `~/.claude/rules-on-demand/verification-patterns.md`.** 아래는 검증 실행 편의 요약 — Level 정의·Stub 패턴 변경 시 verification-patterns.md를 우선 갱신(drift 방지).
 
 검증 깊이를 4단계로 분류한다. 상위 Level은 하위를 포함한다.
 
@@ -386,9 +386,17 @@ High FR 1개+ 누락 → FAIL
 ## Walkthrough 크로스 체크 (선택)
 
 Walkthrough 파일이 존재하면 추가 검증:
-- "Files Changed" 섹션의 모든 파일이 실제 존재하는지 확인
-- "Spec 대비 검증" 섹션의 상태와 본 체크 결과가 일치하는지 확인
+- **"Files Changed" 섹션의 모든 파일이 실제 존재하는지**는 `test -e` 한 줄짜리 확인이라 LLM이
+  아니라 스크립트가 한다(2026-09-17 LLM→프로그램 전수조사 ②-2):
+  ```bash
+  bash shared/scripts/walkthrough-files-exist-check.sh <walkthrough.md> <project_root> --json
+  ```
+  `missing > 0` 이면 그 목록을 그대로 WARN 근거로 인용한다 — LLM은 결과를 재확인하지 않는다
+  (재확인은 이중작업이지 검증 강화가 아니다).
+- "Spec 대비 검증" 섹션의 상태와 본 체크 결과가 일치하는지 확인(이건 의미 판단 — LLM 유지)
 - 불일치 시 WARN 추가
+
+재현: `bash shared/scripts/tests/walkthrough-files-exist-check.test.sh`
 
 ## Traceability Matrix JSON 표준 포맷
 
@@ -416,8 +424,8 @@ Walkthrough 파일이 존재하면 추가 검증:
 
 ## Workflow 통합 (계획서 P1)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: parallel() 4축(FR→코드/테스트, API계약, 데이터모델) → 집계.
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/spec-compliance-checker/workflow.js"), args: { specPath, branch } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/spec-compliance-checker/workflow.js"), args: { specPath, branch } })`
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 Subagent 격리 방식 fallback.
 
 ## 참조
-- 4-level 검증 모델 상세: `$HOME/.claude/rules-on-demand/verification-patterns.md`
+- 4-level 검증 모델 상세: `~/.claude/rules-on-demand/verification-patterns.md`

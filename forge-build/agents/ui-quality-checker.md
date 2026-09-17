@@ -31,6 +31,21 @@ tools: Read, Grep, Glob
 - 변경된 프론트엔드 파일 목록 (*.tsx, *.jsx, *.css, *.scss)
 - Spec 파일 (UI 섹션 참조)
 - dev 서버 URL (선택 — Lighthouse 연동 시)
+- **기계 축 판정 JSON** (`checkId: "check-8.6-mechanical"`) — 호출자가 스폰 **전에**
+  `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/ui-a11y-lint.sh --root <프로젝트> -- <변경 파일...>` 를 돌려 넣어 준다.
+
+## 기계 축 입력 처리 (2026-09-17 — 기계가 본 축은 다시 보지 않는다)
+
+U-2(alt 누락)·U-4(ARIA 유효성·필수 속성)는 `eslint-plugin-jsx-a11y` 가, U-5(모션 사용 여부)는 grep 이 먼저 잰다.
+U-1·U-3·U-7 은 이 에이전트의 몫이다. (6-Pillar L3 호출에서는 이 절이 적용되지 않는다.)
+
+- **JSON 의 `axes` 중 `status` 가 `PASS`·`WARN`·`FAIL` 인 축은 확정값이다 — 다시 판정하지 마라.**
+  `status`·`issues` 를 출력 `axes` 에 그대로 옮기고, 그 축을 위해 파일을 다시 Grep 하지 않는다.
+- `status` 가 `UNDECIDED` 인 축은 **`residual` 과 `llmInstruction` 이 가리키는 부분만** 판정한다
+  (예: `alt=""` 가 decorative 인가, role 이 필요한 커스텀 컴포넌트인가, 모션이 전역에서 reduced-motion 처리되는가).
+- `status` 가 `UNAVAILABLE`(eslint·jsx-a11y **미설치 — 판정 불가**, 또는 린트 실행 실패)인 축은 아래 U-축 정의대로
+  **직접** 판정한다. 도구가 없었다는 사실을 해당 축 `issues` 에 1줄 남긴다 — 없는 도구로 PASS 가 난 것처럼 보이면 안 된다.
+- **JSON 이 프롬프트에 없거나 파싱되지 않으면** 아래 정의대로 전 축을 직접 판정한다(fail-open).
 
 ## 검증 축 (6축)
 

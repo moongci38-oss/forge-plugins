@@ -6,7 +6,8 @@ group: verify
 
 # /codex-review
 
-> **인터페이스 구분(harness #3 2026-07-30)**: 이 문서 = **수동 슬래시 인터페이스**(`/codex-review --stage ...`). 자동/파이프라인(P3~P7 자동 호출)은 `skills/codex-review/SKILL.md`. 의도적 이중 인터페이스 — 한쪽 삭제 금지, 로직 변경 시 양쪽 동기.
+> **인터페이스 구분(harness #3 2026-07-30)**: 이 문서 = **수동 슬래시 인터페이스**(`/codex-review --stage ...`). 자동/파이프라인 레인(P3~P7)은 `skills/codex-review/SKILL.md`. 의도적 이중 인터페이스 — 한쪽 삭제 금지, 로직 변경 시 양쪽 동기.
+> ⚠️ **그 자동 레인은 기본 꺼져 있다**(`CODEX_REVIEW_AUTO_STAGES` 미설정 = off — 아래 §Step 1.5). 구 표기 "P3~P7 **자동 호출**" 은 2026-09-17 폐기 — 켜야 도는 것을 "자동" 으로만 읽으면 아무도 안 도는 게이트를 믿게 된다. 재현: `echo "[${CODEX_REVIEW_AUTO_STAGES:-미설정}]"` → `[미설정]`
 
 Claude 자체 리뷰(1차)의 **동일 모델 맹점**을 보완하기 위해 OpenAI Codex로 **2차 게이트 리뷰**를 호출한다. SDD·PGE·Forge Dev 모든 단계에서 사용 가능. 단계별 정책(차단/권고)은 `--stage`로 분기.
 
@@ -15,6 +16,47 @@ Claude 자체 리뷰(1차)의 **동일 모델 맹점**을 보완하기 위해 Op
 - Codex 2차 리뷰는 **추가** (이중 검증)
 - 결과는 표준 JSON 스키마 + Markdown 동시 저장
 - Claude 결과 존재 시 자동 diff 생성
+
+---
+
+## ⛔ 이 커맨드를 건너뛰고 `mcp__codex__codex` 를 직접 부르지 마라
+
+직접 호출하면 **검수의 실체가 통째로 빠진다.** 프롬프트만 비슷하고 게이트는 하나도 안 걸린다:
+
+| 이 커맨드가 주는 것 | 직접 호출 시 |
+|---|---|
+| `docs/reviews/{stage}/` 에 점수·verdict JSON + INDEX 기록 | **아무것도 안 남는다** |
+| 재호출 **cap=1** → 2회째 FAIL 은 `/cr-triple` 에스컬레이션 의무(§Step 7) | 상한이 없어 **같은 게이트를 무한히 돈다** |
+| stage별 고정 rubric(`prompts/codex-review-*.md`) | 매번 호출자가 프롬프트를 새로 써 **채점 축이 흔들린다** |
+| Step 1.6 auto-route · Step 5 `delta_vs_claude` | 없다 |
+
+⚠️ **이 커맨드는 단일 Codex 레인이다 — "2벤더 교차" 를 준다고 적지 마라**(2026-09-13 cr-final HIGH
+지적으로 정정). 2벤더 교차(Claude Opus + Codex Sol — 2026-09-17, 구 Fable+Astra)는 `/cr-triple`·`/cr-double`(= `forge-multi`)이고,
+`/forge-pr §Step 3` 이 부르는 것도 그쪽이다. **두 레인은 증거를 다른 곳에 쓴다.**
+
+**판별(사후에라도 확인하라)** — 레인마다 볼 경로가 다르다:
+
+```bash
+# ① codex-review 레인(이 커맨드·/forge-final 등 래퍼)
+find "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews" -newermt "$(date +%F)" -type f | wc -l
+# ② forge-multi 레인(/cr-triple·/cr-double — /forge-pr 이 부르는 정규 경로)
+find "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-evidence" -newermt "$(date +%F)" -type f | wc -l
+# 둘 다 0 이면 그날 "검수했다"는 보고는 근거가 없다.
+```
+
+⛔ **①만 보고 판정하지 마라.** `forge-multi` 의 `docs/reviews/` 발행은 **2026-07-24 에 폐지**됐다
+(`skills/forge-multi/SKILL.md §산출물`). 그래서 정규 경로로 제대로 검수해도 ①은 **항상 0** 이다 —
+①만 보면 멀쩡한 검수를 "근거 없음" 으로 오판한다.
+
+근거: 2026-09-13 PR #545 에서 이 커맨드를 건너뛰고 MCP 를 직접 호출해 **같은 게이트를 5라운드**
+돌았다. 문서 결함은 2라운드에 0 이 됐는데 cap=1·에스컬레이션 규약이 경로 밖이라 적용되지 않았다
+(`harness-gaps/2026-09-13-cr-final-vs-string-contract-test-has-no-termination-rule.md`).
+⚠️ **그 갭 리포트가 처음 근거로 든 "산출물 0건" 은 무효다** — 위 폐지 시점(07-24)과 겹쳐 생긴
+오독이었고, 같은 날 cr-final 이 그 오류를 잡았다. 우회 사실은 **호출 기록**으로 확인할 일이지
+이 판별 명령이 증명해 주지 않는다.
+⚠️ **이 경고가 무력화되는 입력**: 이것은 문서 규약일 뿐 실행 차단이 아니다 — 호출자가 읽지 않으면
+그대로 우회된다.
+폐기조건: MCP 직접 호출을 감지·차단하는 훅이 생기면 이 절을 그 훅 설명으로 바꾼다.
 
 ---
 
@@ -135,7 +177,7 @@ fi
 # --cr 게이트: cr-mode.sh로 effective mode 결정 (우선순위: --cr 인자 > FORGE_AUTO_CR env > on)
 # codex-review = 단일 Codex 경로 → degrade/off 모두 "Codex 호출 없음"과 동일 → skip
 # --cr on이면 CODEX_REVIEW_AUTO_STAGES=off보다 위에서 이미 빠져나갔으므로 여기서 on = 통과만
-CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh "${CR_ARG:-}")
+CR_MODE=$(~/forge/shared/scripts/cr-mode.sh "${CR_ARG:-}")
 if [[ "$CR_MODE" == "off" || "$CR_MODE" == "degrade" ]]; then
   echo "[codex-review] --cr $CR_MODE → Codex 호출 생략"
   exit 0
@@ -171,29 +213,51 @@ fi
 
 ```bash
 # 모델·effort 선택 — 2026-06-17 OAuth(chatgpt) 전환 완료. codex 호출 $0(구독 포함).
-# ⚠️ 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용)로 **기본값 재상향**: 모델 gpt-5.6-sol → gpt-6-astra.
+# ⚠️ 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" 로 **기본값 하향**: gpt-6-astra(codex:max) → gpt-5.6-sol(codex:high).
+#   최고급 codex:max 는 advisor 전용이다. 이하 astra 서술(2026-09-06 재상향·CLI 0.153.4 가드)은 그 시점의 역사 기록이다.
+# (구) 2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용)로 기본값 재상향: 모델 gpt-5.6-sol → gpt-6-astra.
 #   effort 는 xhigh 유지(5단계 low/medium/high/xhigh/max 중 max 승격은 이번 범위 아님).
 #   ⚠️ 구 표기 "기본값 상향: gpt-5.6-terra → gpt-5.6-sol"(2026-08-22)은 폐기 — 그때는 참이었고 지금 기본은 astra 다.
 #   ⚠️ 로컬 codex CLI < 0.153.4 는 astra 를 HTTP 400 으로 거부한다.
 #      ⚠️ **2026-09-07 정정: 구 표기 "그때는 sol 로 fail-open" 은 거짓이라 폐기.**
-#         자동 하향은 `advisor-model-resolve.sh`(advisor 레인)에만 있다 — **이 검수 레인은 가드가 없다.**
-#         구 CLI 머신에서는 Codex 레그가 400 으로 죽고 그 레그가 분모에서 빠져 조용히 2-레그로 축소된다.
-#         내리려면 사람이 `--sol`(codex:high)을 **직접** 준다(아래 §비용 절 같은 취지).
-#      재현: grep -c 'codex --version' .claude/skills/forge-multi/workflow.js → 0 (2026-09-07 관측)
+#         자동 하향은 `advisor-model-resolve.sh`(advisor 레인)에만 있다 — **이 검수 레인은 버전 가드가 없다.**
+#         그래서 구 CLI 머신에서는 Codex 호출이 400 으로 죽는다. 내리려면 사람이 `--sol`(codex:high)을
+#         **직접** 준다(아래 §비용 절 같은 취지).
+#      ⚠️ **2026-09-12 정정: 구 표기 "그 레그가 분모에서 빠져 조용히 2-레그로 축소된다" 는 폐기.**
+#         두 군데가 틀렸다. ①**조용하지 않다** — `forge-multi/workflow.js` 가 죽은 레그를 무효 처리하고
+#         (`r._error === true` 필터) `expected` 와 어긋나면 `⚠️ DEGRADED` 배너 +
+#         "근거등급은 낮다(상관된 맹점 공유)" 를 찍는다.
+#         ⚠️ **구 표기의 줄번호 좌표(`:2564`·`:2330`·`:2327`)는 2026-09-17 폐기 — 셋 다 전혀 다른 줄을 가리키고 있었다**
+#            (엔진이 커지면서 밀렸다). 주장 자체는 여전히 참이고 **틀린 것은 좌표뿐**이었다.
+#            줄번호 대신 **문자열 앵커**를 쓴다 — 엔진이 바뀌어도 따라간다:
+#              grep -n "_error === true" .claude/skills/forge-multi/workflow.js      # 무효 레그 필터
+#              grep -n "LOADFAIL-REJECT" .claude/skills/forge-multi/workflow.js      # 로딩 실패 거부 블록
+#              grep -n "_mkDegradedBanner\|DEGRADED" .claude/skills/forge-multi/workflow.js  # 배너
+#            근거: 줄번호는 커밋 한 번에 썩는데 아무도 갱신하지 않는다. 실제로 이 파일이 그걸 근거로
+#            갭 리포트 초판을 틀리게 썼다(아래 2026-09-12 항 참조) — 좌표를 지우는 것이 그 재발을 막는다.
+#            폐기조건: 위 앵커 문자열이 엔진에서 사라지면 그때의 앵커로 바꿔 적는다.
+#         ②"**2-레그로 축소**" 는 Gemini 3레그 시절 표현이다 — 2레그 체제에서 탈락하면 1레그다.
+#         ⚠️ 이 구 문구에 실제로 속은 사례가 있다(2026-09-12, 주석을 1차 자료로 써서 갭 리포트
+#            초판이 "조용히 축소된다"고 단정 → 같은 날 코드 실측으로 철회).
+#            경위 → `forge-outputs/…/harness-gaps/2026-09-12-codex-cli-version-gate-silent-leg-loss.md`
+#         ⚠️ 단, **이 파일(codex-review)은 단일 Codex 경로**다 — 여기서 400 이 나면 축소가 아니라
+#            그 검수 자체가 실패한다(아래 §Step 2 실패 처리).
+#      재현: grep -c 'codex --version' .claude/skills/forge-multi/workflow.js → 0 (버전 가드 부재 — 2026-09-12 재확인)
+#      재현: grep -n "? _a.crMode : 'on'" .claude/skills/forge-multi/workflow.js → 439 (명시 호출 기본 on)
+#      재현: grep -c DEGRADED .claude/skills/forge-multi/workflow.js → 1+ (배너 실재)
 #      재현: codex --version → 0.153.4 (2026-09-06 관측)
 #   이 파일이 `/forge-final`·`/forge-plan-review`·`/forge-code-review`·`/forge-test-review`·`/forge-bug-review`·`/forge-analysis-review` 6개 래퍼의
 #   **실제 실행 경로**다 — 래퍼 문서만 고치면 값은 여기서 구 값으로 되돌아간다(PR #320 cr-final CRITICAL 실적발).
 # apikey 폴백: ~/.codex/auth.json.apikey-backup-20260617 복원 가능. 폴백 시 API 가격 과금.
 # --sol/--terra/--luna: Codex 검수 레그 tier 선택 (model-registry SSoT).
 #   caller 인자 파싱: --sol→CODEX_TIER=high · --terra→default · --luna→low (사다리 재지정 2026-09-06).
-#   미지정 시 기본 = codex:max = gpt-6-astra. 즉 `--sol`·`--terra`·`--luna` 는 **전부 하향 스위치**다.
-#   ⚠️ 구 표기 "`--sol` 은 no-op(이미 기본)" 은 2026-09-06 폐기 — sol 은 이제 한 칸 아래(codex:high)라
-#      명시하면 astra 에서 실제로 내려간다.
-#   resolve 실패 시 fail-open → gpt-6-astra 폴백. 모델 id SSoT = model-registry.json.
+#   미지정 시 기본 = codex:high = gpt-5.6-sol(2026-09-17). 즉 `--sol` 은 no-op(이미 기본) · `--terra`·`--luna` 가 하향 스위치다.
+#   ⚠️ 구 표기 "미지정 기본 = codex:max = gpt-6-astra · `--sol` 도 하향"(2026-09-06)은 2026-09-17 폐기.
+#   resolve 실패 시 fail-open → gpt-5.6-sol 폴백. 모델 id SSoT = model-registry.json.
 # 기본 tier 도 registry 를 거친다 — 리터럴은 **resolve 실패 시 폴백**으로만 남는다.
 #   (구 코드는 CODEX_TIER 미지정 시 registry 를 건너뛰고 리터럴을 썼다. 그러면 registry 가
 #    max 티어 모델을 바꿔도 이 파일만 stale 해져 이번과 같은 드리프트가 재발한다 — PR #320 MEDIUM.)
-CODEX_TIER="${CODEX_TIER:-max}"
+CODEX_TIER="${CODEX_TIER:-high}"   # 2026-09-17: max(astra, advisor 전용) → high(sol)
 # 우선순위: CODEX_REVIEW_MODEL(사람 명시) > registry(codex:$CODEX_TIER) > 리터럴 폴백.
 #   ⚠️ 구판은 `resolve || MODEL="${CODEX_REVIEW_MODEL:-...}"` 라 **resolve 가 성공하면 env 가 아예
 #   평가되지 않았다** — 문서는 "override" 라 안내하는데 실제로는 무시됐다(PR #320 r4 cr-final MEDIUM).
@@ -201,7 +265,7 @@ if [[ -n "${CODEX_REVIEW_MODEL:-}" ]]; then
   MODEL="$CODEX_REVIEW_MODEL"
 else
   MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) \
-    || MODEL="gpt-6-astra"
+    || MODEL="gpt-5.6-sol"
 fi
 # effort: 2026-08-22 기본 xhigh. final 은 blocking 게이트라 **바닥값**을 xhigh 로 고정한다
 #   (구 코드는 여기서 "high" 로 덮어써서 --effort xhigh 를 조용히 무효화했다 — PR #320 CRITICAL).
@@ -287,7 +351,7 @@ Codex 출력을 다음 스키마로 정규화:
   ],
   "suggestions": ["..."],
   "delta_vs_claude": "agreement|disagreement|extension|null",
-  "model": "gpt-6-astra",
+  "model": "gpt-5.6-sol",
   "cost_usd": 0.0,
   "ts": "2026-05-07T05:30:00Z"
 }
@@ -318,7 +382,7 @@ CLAUDE_JSON="${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/claude/${STAGE}/
 CODEX_JSON="${OUT_DIR}/${DATE}-${SLUG}.json"
 
 # 비교 알고리즘 → "agreement" | "disagreement" | "extension" | "null"
-DELTA=$(python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
+DELTA=$(python3 ~/forge/shared/scripts/codex-delta-compute.py "$CLAUDE_JSON" "$CODEX_JSON" 2>/dev/null || echo "null")
 
 # JSON 갱신 (delta_vs_claude 필드 자동 기록)
 jq --arg d "$DELTA" '.delta_vs_claude = $d' "$CODEX_JSON" > "$CODEX_JSON.tmp" \
@@ -364,16 +428,73 @@ fi
 
 ### Step 7 — Blocking 처리
 
+**차단선은 `verdict` 가 아니라 `severity` 다.** `verdict` 는 검수기가 자유롭게 정하므로
+critical/high 가 **0건인데도** medium/low 몇 건만으로 `FAIL` 이 나온다. 그대로 막으면
+"고쳐야 할 치명적 결함은 없는데 진행이 막히는" 상태가 무한히 이어진다.
+
 ```bash
 if [[ "$BLOCKING" == "true" ]]; then
-  VERDICT=$(jq -r '.verdict' "${OUT_DIR}/${DATE}-${SLUG}.json")
+  J="${OUT_DIR}/${DATE}-${SLUG}.json"
+  VERDICT=$(jq -r '.verdict' "$J")
+  # 차단 대상은 critical/high 뿐이다. medium/low 는 권고다.
+  # ⚠️ `ascii_downcase` 필수 — 외부 워커가 'Critical'·'HIGH' 로 내면 엄격 비교는 0 으로 센다.
+  #    workflow.js 가 2026-08-11 에 같은 결함을 겪고 toLowerCase 로 고친 전례가 있다.
+  # ⛔ **강등 자격을 먼저 검사한다 — 이게 fail-closed 의 실체다.**
+  #    ⚠️ `.issues[]?` 와 `.severity//""` 는 스키마 이탈을 **전부 삼켜 0 을 만든다**.
+  #    그래서 "숫자가 아니면 차단" 만으로는 JSON 파싱 오류 하나밖에 못 잡는다 —
+  #    issues 부재·null·문자열·키명 변경·미지 severity 가 전부 "critical/high 0건" 으로
+  #    통과했다(2026-09-13 cr-final 2차 HIGH, jq 6케이스 실측).
+  #    자격 조건 셋을 **모두** 만족해야만 강등을 검토한다:
+  #      ①`.issues` 가 배열  ②모든 severity 가 {critical,high,medium,low} 중 하나
+  #      ③총 issues ≥ 1  (FAIL 인데 0건 = 검수를 못 한 것이지 통과가 아니다)
+  ELIGIBLE=$(jq -r '
+    if (.issues|type) != "array" then "no-array"
+    elif (.issues|length) == 0 then "empty"
+    elif ([.issues[] | (.severity//""|ascii_downcase|gsub("^\\s+|\\s+$";""))
+           | select(. != "critical" and . != "high" and . != "medium" and . != "low")] | length) > 0
+      then "bad-severity"
+    else "ok" end' "$J" 2>/dev/null)
+  if [[ "$ELIGIBLE" != "ok" ]]; then
+    echo "⛔ 강등 자격 없음(${ELIGIBLE:-jq-failed}) — 판정 불가다. verdict 를 그대로 적용한다."
+    echo "   (issues 가 배열이 아니거나 비었거나 severity 가 규격 밖이다 — '0건이라 안전' 이 아니다)"
+    [[ "$VERDICT" == "FAIL" ]] && { echo "보고: ${OUT_DIR}/${DATE}-${SLUG}.md"; exit 1; }
+  fi
+  BLOCKERS=$(jq '[.issues[]? | select((.severity//""|ascii_downcase|gsub("^\\s+|\\s+$";"")) as $s | $s=="critical" or $s=="high")] | length' "$J")
+  ADVISORY=$(jq '[.issues[]? | select((.severity//""|ascii_downcase|gsub("^\\s+|\\s+$";"")) as $s | $s=="medium" or $s=="low")] | length' "$J")
+  if [[ ! "$BLOCKERS" =~ ^[0-9]+$ ]]; then
+    echo "⛔ severity 집계 실패(BLOCKERS='${BLOCKERS}') — 판정 불가. 강등하지 않고 차단한다."
+    echo "보고: ${OUT_DIR}/${DATE}-${SLUG}.md"
+    exit 1
+  fi
+  if [[ "$VERDICT" == "FAIL" && "$BLOCKERS" -eq 0 && "$ELIGIBLE" == "ok" ]]; then
+    echo "⚠️ verdict=FAIL 이나 critical/high 0건 — WARN 으로 강등하고 진행한다."
+    echo "   권고 ${ADVISORY}건은 보고에 그대로 싣는다(무시가 아니라 비차단이다)."
+    VERDICT=WARN
+    # 강등 사실을 **산출물에도** 남긴다 — Step 6 이 INDEX 에 이미 FAIL 을 적었으므로,
+    # 기록만 FAIL 이고 진행은 WARN 인 어긋남을 여기서 닫는다.
+    TMP_J="$(mktemp)"
+    jq --arg r "critical/high 0건 — severity 차단선에 의한 강등" \
+       '.effective_verdict="WARN" | .downgrade_reason=$r' "$J" > "$TMP_J" && mv "$TMP_J" "$J"
+    echo "   ↳ INDEX 행을 'FAIL→WARN(severity-downgrade)' 로 정정하라(Step 6 산출물)."
+  fi
   [[ "$VERDICT" == "FAIL" ]] && {
-    echo "❌ Codex 2차 리뷰 FAIL — 진행 차단"
+    echo "❌ Codex 2차 리뷰 FAIL — critical/high ${BLOCKERS}건 — 진행 차단"
     echo "보고: ${OUT_DIR}/${DATE}-${SLUG}.md"
     exit 1
   }
 fi
 ```
+
+⚠️ **이 강등은 `codex-review` 레인 한정이다.** `/forge-pr §Step 3` 이 부르는 정규 경로
+(`/cr-triple` = `forge-multi`)는 **다른 판정선**을 쓴다 — `combined<60` 이면 critical/high 0 이어도
+`FAIL` 이고, `forge-pr` 은 그 FAIL 을 `[STOP]` 으로 받는다. 두 레인의 차단선을 하나로 합치는 것은
+별건이다(`harness-gaps/2026-09-13-…-no-termination-rule.md §추가 제안 5`).
+
+근거: 2026-09-13 PR #545 에서 2~5라운드가 전부 **CRITICAL/HIGH 0 + MEDIUM 몇 건**으로 `FAIL` 이
+나왔다. 차단선과 개선 제안이 한 등급판에 섞여 있어서, 고칠 치명적 결함이 없는데도 게이트가 계속
+닫혔다. ⚠️ **이 강등이 무력화되는 입력**: 검수기가 실제 critical 을 medium 으로 낮춰 적으면
+그대로 통과한다 — 등급 자체의 타당성은 이 로직이 보지 않는다.
+폐기조건: 검수기 rubric 에 "무엇이 차단인가" 가 직접 박히면 이 강등 로직을 지운다.
 
 #### FAIL 후 에스컬레이션 경로 (WAVE-2 P3 — bound=1, light-touch)
 
@@ -462,25 +583,25 @@ fi
 
 ## 비용 통제
 
-**현재 설정**: auth_mode=`chatgpt` (OAuth), model=`gpt-6-astra` + `model_reasoning_effort="xhigh"` (`~/.codex/config.toml`, 2026-09-06 상향) → **구독 포함, API 과금 $0**.
-> ⚠️ 구 표기 "model=`gpt-5.6-sol`(2026-08-22 상향)" 은 2026-09-06 폐기 — 현행 `gpt-6-astra`.
+**현재 설정**: auth_mode=`chatgpt` (OAuth), 이 레인 기본 model=`gpt-5.6-sol`(codex:high) + `model_reasoning_effort="xhigh"` → **구독 포함, API 과금 $0**.
+> ⚠️ 구 표기 "model=`gpt-6-astra`(2026-09-06 상향)" 은 2026-09-17 폐기 — 최고급 astra 는 advisor 전용(사람 지시). 아래 astra 호출 조건은 advisor·사람 override(`CODEX_REVIEW_MODEL`) 용 참고다.
 > ✅ `gpt-6-astra` 는 ChatGPT OAuth 로 **호출 가능**하다(`gpt-6` 단독·`gpt-6-terra` 등은 OAuth 거부).
 > ⚠️ **로컬 codex CLI 0.153.4 이상 필요** — 그 아래(예: 0.144.3)는 astra 요청을 HTTP 400 으로 거부한다.
->    재현: `codex --version` → `0.153.4` (2026-09-06 관측). 낮으면 `--sol` 로 한 칸 내려 쓴다.
+>    재현: `codex --version` → `0.153.4` (2026-09-06 관측).
 > apikey 폴백: `~/.codex/auth.json.apikey-backup-20260617` 복원 시 API 가격 과금(그때는 effort 도 비용에 직결).
 
 | Stage | 모델 | Reasoning Effort | 비용 (OAuth) | 비상 폴백 (apikey 시) |
 |-------|------|------------------|-------------|----------------------|
-| `plan` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
-| `analysis` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
-| `code` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
-| `test` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
-| `final` | **gpt-6-astra** | **xhigh** | **$0.00** | 종량 시 상승 |
-| `bugfix` | gpt-6-astra | xhigh | **$0.00** | 종량 시 상승 |
+| `plan` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `analysis` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `code` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `test` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
+| `final` | **gpt-5.6-sol** | **xhigh** | **$0.00** | 종량 시 상승 |
+| `bugfix` | gpt-5.6-sol | xhigh | **$0.00** | 종량 시 상승 |
 
 모델 override (env):
 ```
-export CODEX_REVIEW_MODEL="gpt-6-astra"            # 현재 기본값 (2026-09-06 상향, 구: gpt-5.6-sol)
+export CODEX_REVIEW_MODEL="gpt-5.6-sol"            # 현재 기본값 (2026-09-17 하향, 구: gpt-6-astra — advisor 전용)
 export CODEX_REVIEW_DAILY_LIMIT=20
 export CODEX_REVIEW_MONTHLY_BUDGET_USD=20
 ```
@@ -506,7 +627,7 @@ forge-outputs/docs/reviews/
 ## 관련
 
 - 1차 리뷰: `code-reviewer` 에이전트 (`forge/.claude/agents/code-reviewer/`)
-- 정책: `forge/dev/rules/codex-review-policy.md`
+- 정책: `forge/dev/rules-on-demand/codex-review-policy.md`
 - 단축 래퍼: `/forge-plan-review`, `/forge-analysis-review`, `/forge-code-review`, `/forge-test-review`, `/forge-final`, `/forge-bug-review`
 - 통합 게이트: SDD Check C-1, PGE Phase 4.5, Forge Dev Phase 2~9
 - 프롬프트: `forge/.claude/prompts/codex-review-{stage}.md` (analysis stage = `codex-review-analysis.md`, backlog/runbook frontmatter도 공용)

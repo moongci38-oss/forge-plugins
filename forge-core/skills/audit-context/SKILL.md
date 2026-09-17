@@ -9,10 +9,10 @@ model: sonnet
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
 > (2026-08-04 관측).
 
 
@@ -42,7 +42,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
+| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/skills/` + `memory/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `.claude/`, `docs/` 등) |
 
 ## 실행 흐름
@@ -137,7 +137,7 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `ls $HOME/.claude/rules/ $HOME/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
+1. `ls ~/.claude/rules/ ~/.claude/rules-on-demand/ 2>/dev/null` → 전체 규칙 파일 목록
 2. 각 파일의 frontmatter `name:` + 첫 번째 헤딩 추출 → 목적/주제 매핑
 3. 유사 주제 파일 쌍 탐지 (예: plan-* 3개 / 같은 경로를 서술하는 룰 2개+)
 4. 중복률 = (중복 파일 쌍 수 × 2 / 전체 규칙 파일 수) × 100
@@ -221,14 +221,24 @@ Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
 
 > **원칙**: Generator(감사 수행자) ≠ Evaluator. 감사자가 자신의 감사를 평가하면 자기평가 편향이 발생한다.
 
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 audit-context 결과물의 독립 품질 검증자입니다.
+### 1단계 — 구조 린트 (스크립트, LLM 없음)
 
-아래 기준으로 결과물을 검토하고 PASS 또는 FAIL을 판정하십시오.
+형식·개수·존재·산술은 스크립트가 판정한다 — 기계가 이미 본 축을 LLM 이 다시 보지 않는다
+(`rules-on-demand/machine-vs-llm-boundary.md`). 스크립트는 **확실할 때만** PASS/FAIL 을 확정하고,
+표기가 달라 판단이 필요한 항목과 질적 항목은 `residual` 로 넘긴다.
+
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/audit-report-structure-lint.py" \
+  --skill audit-context --report "<보고서 경로>" > /tmp/audit-lint-audit-context.json
+echo "lint rc=$?"
+```
+
+- `rc=1`(구조 FAIL) → **LLM Evaluator 를 띄우지 않고 FAIL 확정.** 피드백 = JSON `items[].checks` 중 `FAIL` 의 `check`·`detail`.
+- `rc=2`(입력 오류) → 판정이 아니다. 보고서 경로를 고쳐 재실행한다.
+- `rc=0` + `residual` 비어 있음 → **PASS 확정**(LLM Evaluator 생략).
+- `rc=0` + `residual` 있음 → 2단계.
+
+### 판정 기준 원문 (무손실 이관 — 〔분담〕 표기만 추가)
 
 **평가 기준 (4항목 모두 충족해야 PASS):**
 
@@ -236,23 +246,48 @@ Agent(
    - [위치] JSON `system_prompt_design` ~ `structured_note_taking` 섹션 또는 보고서 "컨텍스트 구성 체크리스트" 표
    - [이유] 한 층이라도 누락되면 전체 컨텍스트 아키텍처 평가가 불완전해짐
    - [방법] System Instructions / Persistent Memory / Retrieved Data / Available Tools / Output Specifications / Conversation History / Structured Data 7개 레이어 각각에 True/False + 실측 근거(파일경로:라인)가 존재하는지 확인
+   - 〔분담〕 스크립트 = 섹션/키·7개 레이어 존재·True/False 표기·근거 `파일경로:라인`(경로만 있거나 미구현 상태면 UNDECIDED) / LLM = UNDECIDED 만
 
 2. **RAG Faithfulness/Precision 지표 존재**
    - [위치] JSON `rag` 섹션 또는 보고서 "RAG" 항목
    - [이유] RAG 스크립트 존재 여부만 확인하면 품질 측정이 안 됨; Faithfulness/Precision 언급 없으면 미완
    - [방법] `rag_scripts`, `rag_index`, `rag_skill` 외에 RAG 품질 지표(Faithfulness/Precision/Recall) 측정 방법 또는 "미측정(런타임 데이터 필요)" 명시 여부 확인
+   - 〔분담〕 스크립트 = Faithfulness/Precision/Recall 언급 또는 RAG 줄의 "미측정" 명시 / LLM = 없음
 
 3. **Context Saturation Gap(Δ) 정량화**
    - [위치] JSON `system_prompt_design.total_bytes` 및 추정 토큰 수, 또는 보고서 "컨텍스트 구성" 섹션
    - [이유] 토큰 포화 갭이 수치화되어야 최적화 우선순위 결정 가능
    - [방법] `total_bytes ÷ 4`로 추정 토큰 수가 계산되고 기준값(< 12,000 토큰) 대비 갭(Δ)이 명시됐는지 확인
+   - 〔분담〕 스크립트 = `total_bytes ÷ 4` 검산(±2%)·기준 12,000 표기·Δ(또는 갭 수치) / LLM = 토큰 수 라벨이 달라 UNDECIDED 인 경우만
 
 4. **메모리 유형 분류 완성 (Token/Parametric/Latent)**
    - [위치] JSON `short_term_memory`, `long_term_memory` 또는 보고서 "메모리 시스템 평가" 섹션
    - [이유] 메모리 유형 분류 없이는 어떤 유형의 메모리가 누락됐는지 알 수 없음
    - [방법] Token Memory(세션 내), Parametric Memory(파인튜닝), Latent Memory(MEMORY.md/learnings.jsonl) 3유형 각각의 현황이 명시됐는지 확인
+   - 〔분담〕 스크립트 = Token/Parametric/Latent Memory 3유형 이름 존재 / LLM = 없음
 
 **판정**: PASS(기준 4항목 모두 충족) / FAIL(1항목 이상 미충족)
+**피드백 형식**: [파일명+섹션] — [이유] → [방법]
+
+### 2단계 — 질적 판정 (LLM Evaluator, residual 만)
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  prompt="""
+당신은 audit-context 결과물의 독립 품질 검증자입니다.
+
+구조 검사(섹션 존재·빈 셀·개수·산술)는 audit-report-structure-lint.py 가 이미 PASS 로 확정했습니다 — 다시 보지 마십시오.
+아래 residual 목록의 항목만 판정하십시오.
+
+**residual (스크립트 출력 /tmp/audit-lint-audit-context.json 의 residual 배열 그대로):**
+{residual}
+
+**해당 번호의 판정 기준 원문 (SKILL.md "판정 기준 원문" 에서 residual 의 criterion 번호 블록을 그대로 붙인다):**
+{criteria_for_residual}
+
+**판정**: PASS(residual 전 항목 충족) / FAIL(1항목 이상 미충족)
 **피드백 형식**: [파일명+섹션] — [이유] → [방법]
 """
 )

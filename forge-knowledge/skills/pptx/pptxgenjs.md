@@ -130,7 +130,14 @@ Shadow options:
 
 To cast a shadow upward (e.g. on a footer bar), use `angle: 270` with a positive offset — do **not** use a negative offset.
 
-**Note**: Gradient fills are not natively supported. Generate a gradient image via NanoBanana MCP, then use it as `slide.background = { path: "gradient.png" }`. See SKILL.md "Generating Visuals with NanoBanana" for prompt patterns.
+**Note**: Gradient fills are not natively supported. 그라데이션 이미지를 **GPT Image 2.5(구독)** 로 만들어 `slide.background = { path: "gradient.png" }` 로 쓴다:
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image-codex.sh" \
+  --prompt "Minimal abstract gradient background for presentation slide, <팔레트>, no text, clean professional" \
+  --output "<출력폴더>/_assets/gradient.png" --aspect 16:9
+```
+레인이 불가하면(codex 부재·미로그인·쿼터) 반투명 도형을 겹쳐 유사 그라데이션을 만들거나(`addShape` + `transparency`) 단색 배경 + 액센트 도형으로 간다. 프롬프트 패턴 → SKILL.md §Generating Visuals — GPT Image 2.5.
+⚠️ 구 서술(2026-09-12 "생성 레인 중단" · NanoBanana MCP)은 2026-09-15 폐기 — 중단 근거였던 "구독 수단 없음"이 오판이었다.
 
 ---
 

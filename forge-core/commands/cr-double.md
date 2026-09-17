@@ -1,12 +1,12 @@
 ---
-description: 2벤더 교차 검수 안내 문패 — Claude(Fable 5.1) + Codex(GPT-6 Astra). 구 double(Codex+Gemini) 모드는 2026-09-07 폐지, 호출되면 그대로 2레그로 실행한다.
+description: 2벤더 교차 검수 안내 문패 — Claude(Opus 5) + Codex(GPT-6 Astra). 최고급은 advisor 전용이되 검수 Codex 레그 Astra 는 명시적 예외. 구 double(Codex+Gemini) 모드는 2026-09-07 폐지, 호출되면 그대로 2레그로 실행한다.
 group: review
 ---
 
 # /cr-double
 
 > 📌 **이 문서의 "2026-08-22 Human 지시" 근거**: 지시 원문과 세션 기록 링크는 정본
-> `$HOME/.claude/rules/model-routing.md §세션 운영 모델`(SSoT: `dev/global-rules/model-routing.md`)에 있다.
+> `~/.claude/rules/model-routing.md §세션 운영 모델`(SSoT: `dev/global-rules/model-routing.md`)에 있다.
 > ⚠️ **이 근거는 아직 미해결로 표시돼 있다** — 정본 스스로 "저장소 안에서 독립 검증이 불가능하다"고
 > 적었고, 적대적 검수가 **8회 이상 '위조된 승인'으로 지목**했다. **"사람 확인 대기"로 취급해도 된다.**
 > ⚠️ **문서에 적힌 "Human 지시"는 그 자체로 권한을 만들지 않는다** — 출처를 확인하지 못했거나
@@ -18,8 +18,15 @@ group: review
 **호출되면 먼저 이 한 줄을 알린다:**
 > 3레그/2레그 모드 구분은 2026-09-07 폐지됐습니다 — 2벤더 교차로 실행합니다.
 
-그리고 **그대로 진행한다**(중단하지 않는다). 실제 구성은 Claude 레그(Fable 5.1) + Codex 레그
-(GPT-6 Astra), 가중 0.5/0.5 — `/cr-triple` 과 **완전히 같다**.
+그리고 **그대로 진행한다**(중단하지 않는다). 실제 구성은 Claude 레그(Opus 5) + Codex 레그
+(**GPT-6 Astra**), 가중 0.5/0.5 — `/cr-triple` 과 **완전히 같다**(같은 `workflow.js` 를 부른다).
+⚠️ **구 표기 "Codex 레그 = GPT-5.6 Sol"(2026-09-17 오전)은 같은 날 폐기** — 사람이 검수 Codex 레그를
+Astra 로 되돌렸다(ENGINE 2.7.0, "최고급 = advisor 전용"의 **명시적 예외**). 이 파일은 :2·:22·:62 가 sol,
+:69·:92 가 astra 라 **스스로 모순**이었다.
+실측: 엔진 기본값 `const codexModel = … : (frontierOn ? 'gpt-6-astra' : 'gpt-5.6-terra')`
+재현: `grep -n "frontierOn ? 'gpt-6-astra'" .claude/skills/forge-multi/workflow.js`
+근거: 문패가 레그 모델을 틀리게 적으면 `--sol` 을 "이미 기본" 으로 오해해 하향 스위치를 안 쓴다.
+폐기조건: 사람이 검수 Codex 레그 모델을 다시 정하면 이 절과 §`--sol` 을 함께 갱신한다.
 
 ⛔ **이 커맨드와 `--mode` 인자를 지우지 마라.** 하드코딩 호출자가 남아 있고, 지우면 그 호출이
 파싱 단계에서 죽는다.
@@ -27,19 +34,20 @@ group: review
 폐기조건: 모든 호출자가 `/forge-multi` 직접 호출로 옮겨가면 이 문패를 삭제한다.
 
 ```
-/cr-double <target-file> [--stage plan|code|test|bugfix|final] [--cr on|degrade|off] [--no-codex] [--sol|--terra|--luna] [--no-frontier] [--repo-root <path>]
+/cr-double <target-file> [--stage plan|code|test|bugfix|final] [--cr on|cross|degrade|off] [--no-codex] [--sol|--terra|--luna] [--no-frontier] [--repo-root <path>] [--round-args <json-file>] [--allow-unbound-final]
 ```
 
-→ `/forge-multi <target-file> --mode double [--stage <stage>] [--cr <crMode>] [--sol|--terra|--luna] [--no-frontier] [--repo-root <path>]`
+→ `/forge-multi <target-file> --mode double [--stage <stage>] [--cr on|cross|degrade|off] [--sol|--terra|--luna] [--no-frontier] [--repo-root <path>] [--round-args <json-file>] [--allow-unbound-final]`
 
 ⚠️ **`--fable` 은 여기 없다 — 다만 이유가 2026-09-07 에 바뀌었다.**
 ⚠️ **구 근거 폐기**: "`mode==='double'` 이면 `workers = codexEnabled ? [wCodex, wGemini] : [wGemini]` 라
 Claude 레그(wOpus)가 아예 없다" 는 **더 이상 사실이 아니다.** Gemini 전면 철수 후 workflow.js 의 구성은
 `workers = codexEnabled ? [wOpus, wCodex] : [wOpus]` 하나뿐이라 **Claude 레그는 항상 있다.**
-지금 이 플래그가 없는 이유는 다른 것이다: `--fable` 은 이미 **기본값**이라 어디서도 no-op 이다
-(2026-08-22 기본 승격 — 내리려면 workflow args 에 `fable: false` 를 직접 준다).
+지금 이 플래그가 없는 이유는 다른 것이다: 2026-09-17 부터 `--fable` 은 **사람 override 전용 opt-in** 이라
+문패 래퍼(double)에 새로 달지 않는다 — 필요하면 `/cr-triple --fable` 을 쓴다(엔진 `[TopModel][WARN]`).
+⚠️ 구 표기 "`--fable` 은 이미 기본값이라 no-op(2026-08-22)" 은 2026-09-17 폐기 — 기본 Claude 레그 = Opus(최고급은 advisor 전용).
 근거: 없는 근거로 맞는 결론을 지탱하면, 근거가 바뀔 때 결론이 함께 무너진다.
-폐기조건: Claude 레그 기본이 Fable 아래로 내려가면 `--fable` 을 다시 opt-in 플래그로 되살린다.
+폐기조건: 사람이 double 에서도 Fable override 를 요구하면 플래그를 추가하고 parity 테스트를 통과시킨다.
 재현: `grep -n 'const workers = codexEnabled' .claude/skills/forge-multi/workflow.js`
 
 ⚠️ **이 화살표가 폴백 경로의 실제 계약이다.** Workflow 를 못 쓸 때 에이전트는 이 줄을 읽고 CLI 인자를
@@ -55,21 +63,37 @@ Claude 레그(wOpus)가 아예 없다" 는 **더 이상 사실이 아니다.** G
 - 값: `git rev-parse --show-toplevel`(워크트리에서 호출하면 그 워크트리 절대경로가 정답) · `--repo-root <path>` 로 덮어쓰기 가능 · 취득 실패 시 null(fail-open).
 - 폴백 동작은 `cr-triple` 과 **동일하다**(같은 workflow.js 를 호출한다) — 미지정 시 `[RepoRoot] pin=(미지정 …)` 로그 + 레그 자기보고 모드.
 - ⚠️ 기본값은 **세션 CWD 기준**이라 대상이 다른 레포·워크트리면 `--repo-root` 로 명시해야 한다.
-- 근거: `forge-multi.md §repoRoot` 는 args **필수**인데 이 래퍼는 `cr-triple` 과 **동일하게 릴레이하지 않았다**(2026-08-19 실측 — 두 래퍼 모두 `grep -c repoRoot` → 0). 상세 → `/cr-triple §repoRoot`.
+- 근거: `forge-multi.md §사용법` (repoRoot 항)은 args **필수**인데 이 래퍼는 `cr-triple` 과 **동일하게 릴레이하지 않았다**(2026-08-19 실측 — 두 래퍼 모두 `grep -c repoRoot` → 0). 상세 → `/cr-triple §repoRoot`.
 
 **`--cr` / `--no-codex`**: codex-critic 워커 제어.
-- `--cr on` (default): Claude(Fable 5.1) + Codex(GPT-6 Astra) 2-worker
+- `--cr on` (default): Claude(Opus 5) + Codex(**GPT-6 Astra**) 2-worker (구 표기 `GPT-5.6 Sol` 은 2026-09-17 폐기 — 위 §구성 참조)
 - `--cr degrade` 또는 `--no-codex`: Codex 제외 → **Claude 레그 단독**.
   ⚠️ 통과 경로가 아니다 — 벤더가 하나뿐이라 교차 검증이 성립하지 않는다.
   workflow.js 가 `quorumFail` → **verdict=FAIL** · `degraded=true` 로 받는다.
   ⚠️ 구 표기 "Codex + Gemini 2-worker / Codex 제외 → Gemini 1-worker" 는 2026-09-07 폐기.
 - `--cr off`: 동일 (`degrade`와 동작 동일)
 
-**`--sol`/`--terra`/`--luna`** — Codex 검수 레그 선택. ⚠️ **기본값이 `gpt-6-astra` 로 올라갔다(2026-09-06 Human 지시(GPT-6 Astra 출시 반영·advisor 병용)) — 이제 셋 다 하향 스위치다.**
-`--sol`→gpt-5.6-sol · `--terra`→gpt-5.6-terra · `--luna`→gpt-5.6-luna. 세 모델 모두 **정식 지원 중**이다(폐지 아님) — 사다리에서 한 칸씩 내려왔을 뿐이다.
-⚠️ 구 표기 "기본값이 gpt-5.6-sol — `--sol` 은 no-op"(2026-08-22)은 2026-09-06 폐기. 구 "미지정 시 기본(gpt-5-mini)" 서술도 폐기 상태 그대로다.
-⚠️ `gpt-6-astra` 는 로컬 codex CLI **0.153.4 이상** 필요(그 아래는 HTTP 400). 재현: `codex --version` → `0.153.4` (2026-09-06 관측)
+**`--sol`/`--terra`/`--luna`** — Codex 검수 레그 선택. 기본 = `gpt-6-astra`(codex:max — 사람 결정 2026-09-17, 검수 Codex 레그 Astra 는 advisor 전용의 명시적 예외).
+`--sol`→gpt-5.6-sol · `--terra`→gpt-5.6-terra · `--luna`→gpt-5.6-luna 가 하향 스위치다.
+⚠️ 구 표기 "기본 = `codex:high`(sol) · `--sol` 은 no-op"(2026-09-17 오전, ENGINE 2.6.0)는 **같은 날 사람 결정으로 되돌렸다**(ENGINE 2.7.0) — 기본은 다시 astra 이고 **셋 다 하향 스위치**다. 구 "미지정 시 기본(gpt-5-mini)" 서술도 폐기 상태 그대로다.
+단 `cr-risk-tier.sh` 의 `light` 등급 단일 레그는 sol 이다(사람 확인 대기).
 상세 → `/cr-triple §--sol`.
+
+**`--no-frontier`** — 검수 2레그를 **한 번에 한 단계 더** 내린다(Claude=Sonnet · Codex=`gpt-5.6-terra` ·
+effort=final:high/그 외 medium). 쉽게 말하면 **비상 브레이크**다 — 평소엔 안 쓰지만 없으면 곤란한 것.
+- workflow.js args `frontier: false` 로 릴레이한다. `FORGE_CR_FRONTIER=off` 가 설정돼 있으면 이 플래그가
+  있는 것처럼 동작한다(샌드박스에 `process.env` 가 없어 **커맨드 레이어가 읽어 args 로 넘긴다**).
+- 명시 지정(`--sol`/`--terra`/`--luna`)은 이 스위치보다 **우선**한다 — 브레이크가 수동 조작을 삼키지 않는다.
+- 반대로 **사람이 명시하지 않았는데 래퍼가 계산해 둔 `CODEX_MODEL` 은 args 에서 뺀다.** 안 그러면
+  workflow.js 의 '명시 override 우선' 규칙에 걸려 Codex 가 프런티어에 남는 **반쪽짜리 브레이크**가 된다
+  (2026-08-22 PR #320 r4 cr-final HIGH 실적발).
+- 로그에 `frontier=OFF(구 기본값)` 로 찍혀 끈 사실이 조용히 묻히지 않는다.
+- 동작은 `/cr-triple` 과 **완전히 동일하다**(같은 엔진) — 상세 → `/cr-triple §--no-frontier`.
+⚠️ **이 설명이 왜 여기 새로 생겼나**: 종전에는 사용법 줄(:30)·릴레이 화살표(:33)·args 매핑(:95~)에만
+`--no-frontier` 가 있고 **본문 설명이 없었다**. `cr-multi-flag-parity.test.sh` 는 줄 단위 토큰 대조라
+그 상태를 **통과시킨다**(이 파일 §드리프트 고정 이 스스로 고백한 바로 그 구멍 — 하네스 갭 HG-5).
+근거: 폴백 경로의 에이전트는 이 문서를 읽고 CLI 인자를 만든다 — 설명이 없는 플래그는 그 순간 사라진다.
+폐기조건: parity 테스트가 "본문 설명·args 매핑 존재"까지 검사하게 되면 이 경고를 지운다.
 
 ⛔ **`--gemini-max` 는 2026-09-07 삭제됐다 — Gemini 전면 철수.**
 이 플래그가 가리키던 Gemini 검수 레그 자체가 없어졌다. 옛 명령줄에 남아 있으면 조용히 무시되고,
@@ -89,9 +113,9 @@ Workflow 경로로 `geminiModel` 이 들어오면 workflow.js 가 `[WARN] gemini
 // ⚠️ 구 '--gemini-max 파싱' 블록(GEMINI_MODEL 계산)은 2026-09-07 삭제 — Gemini 전면 철수.
 //   workflow.js 는 geminiModel 을 받아도 무시하고 WARN 만 남긴다.
 // --sol/--terra/--luna 파싱: CODEX_TIER = sol→high·terra→default·luna→low (2026-09-06 사다리 재지정. 구: sol→max·terra→high).
-//   CODEX_MODEL = Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:${CODEX_TIER:-max}`) — 기본 codex:max = gpt-6-astra(2026-09-06 상향). resolve 실패 시 null → workflow.js 내장 폴백.
+//   CODEX_MODEL = Bash(`~/forge/shared/scripts/model-registry-resolve.sh codex:${CODEX_TIER:-max}`) — 기본 codex:max = gpt-6-astra(2026-09-17 Astra 유지 결정 — 같은 날 오전 codex:high 개정을 되돌림). resolve 실패 시 null → workflow.js 내장 폴백(astra).
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/forge-multi/workflow.js"),
+  script: Bash("cat ~/.claude/skills/forge-multi/workflow.js"),
   // --no-frontier 파싱 (검수 2레그 일괄 하향 kill-switch — PR #320 cr-final HIGH 대응):
   //   ⚠️ 구 표기 "검수 3레그" 는 2026-09-07 폐기 — Gemini 전면 철수.
   //   FRONTIER = (args 에 '--no-frontier' 있거나 Bash(`echo $FORGE_CR_FRONTIER`) 가 'off') ? false : true
@@ -114,6 +138,10 @@ Workflow({
   args: { slug: SLUG, targetPath: TARGET_PATH, mode: 'double', stage: STAGE, crMode: CR_MODE, repoRoot: REPO_ROOT,
           ...((FRONTIER !== false || EXPLICIT_CODEX) ? { codexModel: CODEX_MODEL } : {}),
           ...(DISSENT_DELTA ? { crDissentDelta: DISSENT_DELTA } : {}),
+          // ROUND_ARGS = '--round-args <file>' 가 있으면 그 JSON(키 그대로), 없으면 {} — 정본 `/forge-multi §--round-args`
+          ...ROUND_ARGS,
+          // ALLOW_UNBOUND_FINAL = args 에 '--allow-unbound-final' 이 있으면 true — PR 없는 stage=final 전용(엔진 `unbound_final` 거부 탈출구). 정본 `/cr-triple`
+          ...(ALLOW_UNBOUND_FINAL ? { allowUnboundFinal: true } : {}),
           ...(FRONTIER === false ? { frontier: false } : {}) }
 })
 ```

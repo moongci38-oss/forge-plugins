@@ -42,7 +42,7 @@ P3 advisory: `loc_stats()` — src vs test LOC 분리 (JSONL INFO 항목, 게이
 
 ```bash
 # 기본: 프로젝트 루트 자동 탐지
-python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-check-security-exec/scripts/scorer.py \
+python3 ~/forge/.claude/skills/forge-check-security-exec/scripts/scorer.py \
   --target <프로젝트_루트>
 
 # entry point 명시 (자동 탐지 실패 시)
@@ -69,7 +69,8 @@ python3 scorer.py --selftest
 | email | emailval.py / email_validator.py / validators.py / email.py | is_valid_email / validate_email / valid_email / is_email / check_email |
 | todo | server.js / app.js / index.js | Node 서버 스폰 (`node not on PATH` → SKIP) |
 
-파일 탐지 실패 시 해당 scorer SKIP (오탐 방지, 강제 FAIL 금지).
+파일 탐지 실패 시 해당 scorer SKIP (오탐 방지, 강제 FAIL 금지). 5종 전부 SKIP 이면 전체 판정은 INCONCLUSIVE(exit 3).
+탐지 시 `node_modules`·`.next`·`dist` 하위는 보지 않는다.
 todo: `shutil.which("node")` 없으면 SKIP (FAIL 아님).
 
 ## Sandbox 격리
@@ -89,6 +90,21 @@ import 후 tmpdir 즉시 삭제. in-memory sqlite3 사용 (파일시스템 DB �
 ```
 
 판정: PASS(safe=1) / FAIL(safe=0, exit 2) / SKIP(파일 없음 or node 없음) / INFO(loc advisory).
+
+**종료코드 계약** (2026-09-15 — harness-gaps 2026-09-14 G-2):
+
+| exit | 뜻 | 게이트에서 |
+|---|---|---|
+| 0 | 실행된 scorer 가 1개 이상이고 FAIL 0 | 통과 |
+| 2 | FAIL 1개 이상 | **[STOP]** |
+| 3 | **INCONCLUSIVE** — 5종이 전부 SKIP(대상 스택 미지원·대상 미탐지). JSONL 에 `{"scorer":"overall","result":"INCONCLUSIVE"}` | **통과 아님** — 대상 파일을 `--*-file` 로 명시해 재실행하거나 스택에 맞는 수동 실측 증거를 붙인다. 증거 없으면 [STOP] |
+
+⚠️ 종전(~2026-09-14)엔 전부 SKIP 이 exit 0 "All PASS (or SKIP)" 였다 — Next.js route handler 레포처럼
+**아무것도 안 돌린 경우가 통과로 읽혔다.** 0·2 만 아는 소비자는 3 을 비0 으로 보고 멈춘다(보수적 낙하).
+
+자동 탐지는 `node_modules`·`.next`·`dist` 를 **탐색 단계에서 잘라낸다**(의존성 안의 `server.js` 를
+대상 서버로 오인해 거짓 FAIL 을 내던 결함). 다른 이름의 의존성 폴더(`vendor/` 등)는 여전히 후보가 되므로
+그때는 `--todo-file` 로 명시한다.
 
 ## Opt-In 게이트 (default-on 금지)
 
@@ -114,5 +130,5 @@ scorer가 틀리면 eval 자체가 무의미 → **selftest가 1순위 게이트
 ## forge-sync
 
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
+node ~/forge/dev/scripts/forge-sync.mjs sync
 ```

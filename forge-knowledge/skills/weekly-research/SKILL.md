@@ -20,7 +20,7 @@ model: sonnet
      공유 URL 을 만들지 않았다 — 이름만 같아서 "이미 발행됐다" 는 오독을 낳았으므로 함께 걷어낸다.
      ⚠️ 파일 저장은 그대로 정본이다. 사이트 발행기가 저장된 파일을 훑어 올린다. -->
 **출력 형식**: §산출물대로 **파일 저장이 정본**입니다. 저장만 하면 **발행은 자동**입니다 —
-`report-site-publish.sh auto` 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
+`report-site-cron.sh`(빌더 pull → 발행) 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
 텔레그램으로 링크를 보냅니다. **이 스킬이 발행을 직접 하지 않습니다.**
 
 - 지금 당장 올리려면: `/forge-publish-report`
@@ -42,7 +42,7 @@ model: sonnet
 
 - 이 스킬은 **Managed Agent(클라우드)** 로도 실행된다. 그때 우리 머신에 대해 쓸 수 있는 도구는
   `forge-outputs` 안 파일읽기 + 허용 스크립트 몇 개 + `harness_probe()` 뿐이다.
-  **임의 셸 명령·`${FORGE_ROOT:-$HOME/forge}` 밖 파일읽기·프로세스 조회는 존재하지 않는다.**
+  **임의 셸 명령·`~/forge` 밖 파일읽기·프로세스 조회는 존재하지 않는다.**
 - **실행하지 않은 명령을 근거로 적지 않는다.** 명령과 결과를 지어내면 리포트 전체가 무효다.
 - `harness_probe()` 가 답하지 못하는 항목은 **`측정 불가(도구 없음)`** 로 적는다 —
   **못 본 것과 없는 것은 다르다.** "없음"·"미설정"으로 단정하지 않는다.
@@ -153,7 +153,7 @@ fi
 
 **Workflow 실행 (권장)**:
 ```js
-Workflow({ script: Bash("cat $HOME/.claude/skills/weekly-research/workflow.js") })
+Workflow({ script: Bash("cat ~/.claude/skills/weekly-research/workflow.js") })
 ```
 
 **Agent Teams fallback** (`CLAUDE_CODE_DISABLE_WORKFLOWS=1` 또는 Workflow 실패 시): 아래 Wave 1~3 직접 실행.
@@ -196,7 +196,7 @@ Agent 도구로 3개 Subagent를 동시에 스폰한다. 의존성이 없으므�
 
 프롬프트에 아래를 포함하여 스폰:
 - 분석 기준 날짜: `$ARGUMENTS`
-- **거래 시장 우선 (2026-08-19 Human 지시 — `/forge-find-item §제1원칙` 이식)**: 아이템은 **실제 거래가 일어나는 시장**에서 찾는다. **마켓 표면 체크리스트**(Play·App Store·Chrome·Shopify·WordPress·AppSumo·Product Hunt·업무툴 마켓·각국 로컬 스토어) 중 카테고리 해당 **3개+ 실제 조회**하고, 못 뒤진 표면은 `미조회(사유)`로 적는다. **어느 국가 스토어를 봤는지 명시**. 정본 표 → `$HOME/.claude/commands/forge-find-item.md §마켓 표면 체크리스트`
+- **거래 시장 우선 (2026-08-19 Human 지시 — `/forge-find-item §제1원칙` 이식)**: 아이템은 **실제 거래가 일어나는 시장**에서 찾는다. **마켓 표면 체크리스트**(Play·App Store·Chrome·Shopify·WordPress·AppSumo·Product Hunt·업무툴 마켓·각국 로컬 스토어) 중 카테고리 해당 **3개+ 실제 조회**하고, 못 뒤진 표면은 `미조회(사유)`로 적는다. **어느 국가 스토어를 봤는지 명시**. 정본 표 → `~/.claude/commands/forge-find-item.md §마켓 표면 체크리스트`
 - **거래 실증이 후보 입장권**: 가격 + 거래량 근사치(설치 수·리뷰 수·LTD 판매·랭킹) 중 **2개 이상을 마켓 리스팅에서 직접 실측(A등급)**하지 못한 아이템은 최종 선정 후보에 올리지 않는다.
 - ⛔ **기사·뉴스·리스티클은 아이템 근거 불인정** — 배경 맥락까지만. 기사에서 힌트를 얻었으면 **그 제품의 마켓 리스팅·리뷰로 내려가** 1·2차 증거를 직접 확보한 뒤 후보로 세운다(`§소스 우선순위`).
 - WebSearch/`brave_web_search`: 마켓 리스팅·리뷰 우선(`site:apps.shopify.com`, `site:play.google.com`, `site:appsumo.com`), 통증은 `site:reddit.com` 반복 스레드로 보완
@@ -265,9 +265,27 @@ Wave 1의 4개 Subagent가 모두 완료되면 Lead가 그 원시 소스 목록�
 > **(e) coverage loop** — deep-research 메커니즘. **cap 2라운드**, 무한루프 금지.
 > 소스 카운트뿐 아니라 **소스 모달리티별 커버리지** 체크 추가: 논문/repo/news 각 최소 1건.
 
-Wave 1 완료 후 각 토픽(`tech-trends.md`, `biz-trends.md`)을 Read하여 두 가지 기준을 확인한다.
+Wave 1 완료 후 각 토픽(`tech-trends.md`, `biz-trends.md`)의 커버리지를 확인한다.
 
-**판정 기준 (completeness critic)**:
+**⚠️ 세는 일은 LLM 이 하지 않는다 — 스크립트가 한다**(2026-09-17 LLM→프로그램 분할선 조사 G1).
+아래 표의 5행은 전부 "몇 건인가"라 계산이다. 파일을 통째로 Read 해서 눈으로 세면 회차마다
+수가 흔들리고 재현 명령도 안 남는다. 판정은 이 한 줄이 한다:
+
+```bash
+# tech-trends 는 마켓 표면 행을 적용하지 않는다(아래 ⚠️ 적용 범위 각주)
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/source-modality-critic.py" \
+  "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/tech-trends.md"
+# 아이템·수익화 산출물에만 마켓 표면 행을 건다
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/source-modality-critic.py" --market-surface \
+  "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/biz-trends.md"
+# rc 0 = gap 없음(Wave 2 진행) · rc 1 = gap 있음(아래 재검색 절차) · rc 2 = 판정 불가
+```
+
+⚠️ **rc 2 를 "gap 0"으로 적지 마라** — 못 센 것과 세어 보니 없는 것은 다르다.
+LLM 몫은 **재검색 질의를 무엇으로 짤 것인가**와 `[신뢰도 낮음]` 플래그 문구뿐이다.
+세는 법(호스트 allow-list)·무력화되는 입력은 스크립트 헤더 주석이 정본이다.
+
+**판정 기준 (completeness critic — 위 스크립트가 구현한다)**:
 
 | 체크 | 조건 | 재검색 트리거 |
 |------|------|-------------|
@@ -311,7 +329,7 @@ Round 2:
 3개 Subagent 완료 확인 후:
 1. 3종 파일 존재 여부를 실행 커맨드로 확인 (서술형 확인 금지):
    ```bash
-   bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh \
+   bash ~/forge/shared/scripts/verify-outputs.sh \
      "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/tech-trends.md" \
      "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/biz-trends.md" \
      "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/{project}/{date}-s1-research.md"
@@ -334,8 +352,9 @@ Round 2:
 검증한다. Wave 2 취합 직후 **반드시** 실행한다 — 생성자가 자기 결과를 채점하면 편향이 걸리기
 때문이다. 판정은 PASS / FAIL(AUTO-PROCEED) 두 갈래다.
 
-**Wave 2.55** — **분석 리포트**(`tech-trends.md` · `biz-trends.md`)에 cr-triple 3레그로
-적대적 검수를 건다(2026-08-27 Human 지시). **비차단(WARN-first)** — WARN/FAIL 이어도 지적을
+**Wave 2.55** — **분석 리포트**(`tech-trends.md` · `biz-trends.md`)에 cr-triple
+**2벤더 교차 2레그**로 적대적 검수를 건다(2026-08-27 Human 지시 · ⚠️ 구 표기 "3레그" 는
+2026-09-12 폐기 — Gemini 전면 철수). **비차단(WARN-first)** — WARN/FAIL 이어도 지적을
 **리포트 말미 `## 검수 지적`** 에 적고 진행하며 [STOP] 을 걸지 않는다(cron 무인 실행이라
 멈추면 그 주 리포트가 통째로 안 나온다).
 
@@ -358,7 +377,7 @@ Round 2:
 ```bash
 DATE={date}
 WD="${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/${DATE}"
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
+python3 ~/forge/shared/scripts/report_to_html.py \
   "${WD}/dashboard.html" --title "Weekly Research — ${DATE}" \
   --subtitle "기술 동향 + 비즈니스 동향 + 사업 아이템" \
   "${WD}/tech-trends.md" "${WD}/biz-trends.md"
@@ -422,7 +441,7 @@ Skill(skill="wiki-sync", args="--auto")
 Wave 1 워커 산출물을 Wave 2 에서 취합할 때, **결론·순위를 좌우하는 주장은 표본 3건+ 원출처를 Lead 가 직접 재확인**한다(가격·수치·"없다/미기재" 류 부재 주장 우선). 재확인 결과는 위 축으로 표기하고, 어긋나면 정정 이력을 산출물에 남긴다.
 
 - ⛔ **워커의 판정 라벨을 그대로 옮기지 않는다** — "KILL 이다"·"근거 미기재다" 같은 라벨은 관측이지 사실이 아니다.
-- 근거: `learnings` **L-20260819T081207** + 2026-08-19 idea-hunt 실측 — 워커 라벨 오보고 2건(Kill 근거 "미기재"·조건부 PASS 를 KILL 로 오분류)과 수치 오보고 2건(Dubsado 가격·InvoiceHome 유저수)이 **전부 spot-check 로만** 잡혔다. 4건 중 3건은 cr-triple 3레그도 통과했다.
+- 근거: `learnings` **L-20260819T081207** + 2026-08-19 idea-hunt 실측 — 워커 라벨 오보고 2건(Kill 근거 "미기재"·조건부 PASS 를 KILL 로 오분류)과 수치 오보고 2건(Dubsado 가격·InvoiceHome 유저수)이 **전부 spot-check 로만** 잡혔다. 4건 중 3건은 cr-triple 검수도 통과했다(**당시 3레그** — 2026-09-07 철수 전 구성).
 - 폐기조건: 2분기 연속 spot-check 적발 0건이면 표본 수 하향을 재검토한다.
 
 ## Forge 연동
@@ -443,7 +462,7 @@ Wave 1 워커 산출물을 Wave 2 에서 취합할 때, **결론·순위를 좌�
 
 Wave 1~4 병렬 실행 = Workflow 도구 사용 가능. `workflow.js` 진입점 (PoC PASS, 시간 ~20% 단축 + resume 지원).
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/weekly-research/workflow.js") })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/weekly-research/workflow.js") })`
 
 Agent Teams 방식(현행)과 병행 운용. 중단 복구 필요 시 Workflow 우선.
 
@@ -451,7 +470,7 @@ Agent Teams 방식(현행)과 병행 운용. 중단 복구 필요 시 Workflow �
 
 Workflow 실행 완료 후 usage 데이터 기록:
 ```bash
-bash $HOME/.claude/scripts/cache-stats-logger.sh weekly-research "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" wave-orchestrator
+bash ~/.claude/scripts/cache-stats-logger.sh weekly-research "$MODEL" "$CACHE_READ" "$CACHE_CREATION" "$RAW_INPUT" wave-orchestrator
 ```
 usage 필드는 Workflow agent() 반환값에서 추출. 미지원 시 0 기본값 사용.
 
@@ -487,4 +506,4 @@ Agent(
 
 - **weekly full run은 라이브 미검증 상태** — daily만 3회 실증, weekly 전체 완주는 1회 필요하며 **텔레그램 실발신은 Human 승인 후**. 완주 전 "동작한다" 단정 금지. (증거: MEMORY §주식리서치+학습노트 — 관측성 후속)
 - **raw-data.json이 이미 있으면 수집 단계를 재실행하지 말 것** — `/weekly-analyze` 재분석 진입점이 그 낭비를 막으려고 존재한다. (증거: `weekly-analyze` 스킬 description 경위)
-- **대용량 수집 결과를 메인 컨텍스트에서 직접 분석 금지** — weekly-research-analyst subagent로 격리(수집 출력이 메인 오염 시 후속 품질 저하). (증거: `$HOME/.claude/rules/context-engineering.md §도구 응답 관리`)
+- **대용량 수집 결과를 메인 컨텍스트에서 직접 분석 금지** — weekly-research-analyst subagent로 격리(수집 출력이 메인 오염 시 후속 품질 저하). (증거: `~/.claude/rules/context-engineering.md §도구 응답 관리`)

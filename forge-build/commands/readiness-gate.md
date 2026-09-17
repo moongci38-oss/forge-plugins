@@ -101,16 +101,27 @@ forge-plan/gdd/prd에서 기존 자산 탐지 시 자동 진입.
 4. **Output**: 출처 태깅 (기존 vs 신규 추가 구분)
 
 ### 대체형(Substitution) 추출 규칙
-Figma/이미지 시안을 다른 자산으로 대체하는 경우:
+기존 시안(Figma·이미지)을 다른 자산으로 대체하는 경우:
+
+⛔ **Figma 는 신규 생성 중단이다 — 이 표는 "이미 있는 자산을 인정한다"는 읽기용 목록이지 "Figma 로 새로 만들라"는 지시가 아니다**(`tool-rules.md §UI/UX 작업`: *"⛔ Figma 중단"*). 아래 `Figma export(.fig)` 행은 **철수 이전 산출물의 소급 인정** 전용이다. 신규 시안 1순위는 `/forge-mockup` 코드 목업이다.
+근거: 사람 결정(Figma·Stitch 중단) · 폐기조건: 남은 `.fig` 자산이 전부 교체되면 그 행을 지운다.
+
 | 대체 자산 | 대체 가능 조건 | 신뢰도 |
 |---------|------------|-------|
-| HTML/CSS 코드 | style-guide + 화면정의 동시 존재 | MEDIUM |
+| **코드 목업 `s3-mockup/{화면 ID}/screen.html`** (`/forge-mockup` — 1순위 산출물) | 화면 ID 1:1 매핑 확인 (캡처 PNG 동반 여부는 **묻지 않는다**) | HIGH |
+| HTML/CSS 코드 (그 밖의 손수 작성분) | style-guide + 화면정의 동시 존재 | MEDIUM |
 | 스크린샷(.png/.webp) | 화면 ID 1:1 매핑 확인 | HIGH |
-| Figma export(.fig) | 화면 ID 포함 | HIGH |
+| Figma export(.fig) — ⛔ **신규 생성 중단, 기존 자산 인정만** | 화면 ID 포함 | HIGH |
 | 서술형 UI 명세 | 화면 레이아웃 항목 포함 | LOW |
 | 구현체(implemented screens) | 화면 ID 1:1 매핑 확인(구현 후 P3 소급 백필 사례) | HIGH |
 
 LOW 신뢰도 대체형 = 도메인 폴더 `_registry.yaml`에 `substitute: low` 태그 기록 → Phase 5 이후 실 시안으로 교체 권고.
+
+⚠️ **이 표가 무력화되는 입력**: `s3-mockup/` 안에서 `*.png` 만 세는 옛 판정 — `/forge-mockup` 이 만든 코드 목업만 있는 프로젝트를 "시안 없음"으로 오판한다. **판정은 화면별 산출물 존재로 한다** — `s3-mockup/<화면ID>/screen.html`(PNG 없어도 인정) **또는** `s3-mockup/<화면ID>.png|webp|fig` 이 하나라도 있어야 준비 완료다(`.claude/hooks/forge-plan-mockup-warn.sh` `_has_mockup_artifact` 가 같은 기준이다).
+⚠️ 구 표기 "판정은 디렉터리 존재로 한다" 는 **2026-09-16 폐기**(PR #573 cr-final C-5 실측 — 빈 `s3-mockup/` 만 만든 프로젝트가 pass 로 인정됐다). 빈 폴더는 시안이 아니다.
+근거: 사람 확정 2026-09-15(시안 1순위 = `/forge-mockup` 코드 목업) + 배선 실측 `shared/scripts/forge-mockup.sh` (산출물 = `<project>/s3-mockup/<화면ID>/screen.html` + `<화면ID>.png`).
+⚠️ **이 게이트는 모델을 가르지 않는다 — 산출물 존재만 본다.** 목업을 어느 모델로 뽑든 판정은 같다. 구 표기 "1순위 = GPT-6 Astra" 는 2026-09-17 이후 오해를 부른다 — `gpt-6-astra` 는 advisor 전용이 됐고, GPT 코더는 난도별로 `luna`·`terra`·`sol` 을 쓴다(목업은 `ASTRA_MODEL=gpt-5.6-sol`, 상세 → `prd.md` 8번 항목 · 판정표 `forge-implement.md §3.6`). 판정 기준 자체는 그대로다.
+폐기조건: `/forge-mockup` 레인이 사라지거나 `s3-mockup/` 규약이 바뀌면 이 항과 위 행을 함께 지운다.
 
 ### orphan 심각도
 | orphan 유형 | 심각도 | 처리 |
@@ -138,7 +149,7 @@ LOW 신뢰도 대체형 = 도메인 폴더 `_registry.yaml`에 `substitute: low`
 |----|------|---------|
 | A | P2 기획서 | s3-prd.md / s3-gdd.md 또는 동등 기획 문서 |
 | B | 스타일가이드 | 디자인 원칙·컬러·타이포 (s3-style-guide 또는 동등) |
-| C | 목업/와이어프레임 | 핵심 화면 레이아웃 (s3-mockup/ 또는 동등) |
+| C | 목업/와이어프레임 | 핵심 화면 레이아웃 (s3-mockup/ 또는 동등) — **코드 목업(`{화면 ID}/screen.html`)과 캡처/그림 PNG 를 모두 인정**. ⚠️ 구 판정 "PNG 가 있어야 시안" 은 2026-09-15 폐기(1순위 `/forge-mockup` 산출물이 코드다) |
 | D | 기능 기준선 | P2 FR 초안 또는 기능 목록 |
 | E | 선행 Phase 상태 | `{domain}/_STATUS.md` 의 `stage` 가 **P2 미완을 명시하지 않을 것** — 아래 §선행 Phase 게이트 |
 
@@ -280,7 +291,7 @@ forge-design(P2) / forge-plan(P3) / forge-spec(P4) 전환 시 EXIT self-check + 
 
 | Stage | EXIT 검사 항목 | FAIL 기준 |
 |-------|------------|---------|
-| **P2 (forge-design)** | ① s3-prd/gdd 존재 ② s3-style-guide 존재 ③ s3-mockup/ 존재 ④ admin_required 헤더 선언 | 항목 1개+ absent |
+| **P2 (forge-design)** | ① s3-prd/gdd 존재 ② s3-style-guide 존재 ③ **s3-mockup/ 존재** — 코드 목업(`{화면 ID}/screen.html`, `/forge-mockup` 1순위)·캡처 PNG·그림 시안(`{화면 ID}.png\|fig`, 2순위 Claude Design) **어느 형태든 인정**(판정은 화면별 산출물 1개+ 존재 — 빈 폴더는 absent) ④ admin_required 헤더 선언 | 항목 1개+ absent |
 | **P3 (forge-plan)** | ① 도메인 폴더 구조 완성 ② _registry.yaml 존재 ③ M3 gate PASS ④ Check 4 전체 PASS ⑤ _STATUS.md P3_DONE | 항목 1개+ 미충족 |
 | **P4 (forge-spec)** | ① .specify/specs/*.md 존재 ② FR 전수 acceptance_predicate ③ codex-review PASS ④ conflict-detection PASS | 항목 1개+ 미충족 |
 
@@ -364,7 +375,8 @@ stale 전파 완료 후 `_STATUS.md` 변경 이력 `전파 상태: DONE` + 재�
 
 ## M9 세션 재진입 안전성 (resumability) — P2~P4 적용
 
-forge-plan / forge-spec / forge-design 등 **도메인 재호출 시** 반드시 아래 규약을 순서대로 실행한다. 신규 메커니즘 신설 금지 — forge-resume / checkpoint 기존 메커니즘 재사용.
+forge-plan / forge-spec / forge-design 등 **도메인 재호출 시** 반드시 아래 규약을 순서대로 실행한다. 신규 메커니즘 신설 금지 — `/forge-start`(새 세션 재개) / `/forge-checkpoint`(체크포인트) 기존 메커니즘 재사용.
+<!-- 2026-09-17: 구 표기 "forge-resume / checkpoint" 폐기 — `/forge-resume` 은 실호출 0 으로 삭제됐다(`.claude/commands/forge-resume.md`). -->
 
 ### 규약 1 — 진입 시 `_STATUS.md` read 필수
 
@@ -425,4 +437,4 @@ resume 모드 진입 시 아래 블록을 **반드시** 사용자에게 출력 �
 | 마일스톤 완료 | `/forge-end` 실행 + `_STATUS.md` 최종 stage 기록 |
 | 재진입 | `_STATUS.md` read(규약 1) → handover 문서 read → resume 판정(규약 2) 순 |
 
-handover 문서 경로: `${FORGE_ROOT:-$HOME/forge}-outputs/.claude/handover/{sonnet|opus}/` (기존 경로 재사용, 신규 경로 신설 금지).
+handover 문서 경로: `~/forge-outputs/.claude/handover/{sonnet|opus}/` (기존 경로 재사용, 신규 경로 신설 금지).

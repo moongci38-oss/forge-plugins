@@ -50,7 +50,7 @@ fi
 ## Step 3: 토큰 발행
 
 ```bash
-python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
   --task "{task_id}" \
   --worker "{worker}" \
   --tools "{tool1},{tool2}" \
@@ -66,7 +66,7 @@ python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
 ## Step 4: 토큰 검증 (선택)
 
 ```bash
-python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
+python3 ~/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
   --task "{task_id}" \
   --nonce "{nonce_from_output}" \
   --worker "{worker}" \
@@ -77,12 +77,12 @@ python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
 
 ```bash
 # 이 훅이 없으면 위에서 발행한 토큰을 **아무도 검증하지 않는다** — 승인 절차가 형식만 남는다.
-if grep -q "multiagent-approval-verify" $HOME/.claude/settings.json; then
+if grep -q "multiagent-approval-verify" ~/.claude/settings.json; then
   echo "hook 등록됨 — 토큰 검증이 실제로 걸린다"
 else
   echo "[STOP] multiagent-approval-verify.sh 미등록 — 발행한 승인 토큰을 검증하는 주체가 없다."
   echo "       이 상태로 WRITE 권한 워커를 스폰하면 승인 게이트는 **연극**이다."
-  echo "       재등록 후 진행하라(설정 편집은 Human): $HOME/.claude/settings.json PreToolUse"
+  echo "       재등록 후 진행하라(설정 편집은 Human): ~/.claude/settings.json PreToolUse"
   exit 1
 fi
 ```
@@ -90,8 +90,14 @@ fi
 > ⚠️ **2026-08-09 실사고**: 훅 감산 작업에서 이 훅을 등록 해제했는데, 종전 Step 5 는 결과를
 > `echo` 로 **출력만** 했다. 그래서 "hook 미등록" 한 줄이 찍혀도 절차가 그대로 진행됐다.
 > 확인은 했는데 **멈추지 않는 확인은 확인이 아니다** — `exit 1` 로 승격한다.
-> approve-worker 를 참조하는 스킬 4종(site-deep-analyze · system-audit ·
-> visual-loop)이 모두 이 게이트 위에 서 있다.
+> approve-worker 를 참조하는 스킬 **7종**(forge-check-ui · screenshot-analyze · style-forge ·
+> system-audit · visual-loop · site-deep-analyze · forge-multi)이 모두 이 게이트 위에 서 있다.
+> ⚠️ 구 표기 **"4종(site-deep-analyze · system-audit · visual-loop)"** 은 2026-09-17 폐기 —
+> **개수는 4 라 적고 이름은 3 개만 적어** 그 자체로 모순이었고, 실측은 7종이다.
+> 재현: `grep -rl -- "approve-worker" .claude/skills/*/SKILL.md .claude/skills/*/workflow.js | grep -v "skills/approve-worker/"`
+> (2026-09-17 관측 — `site-deep-analyze` 는 SKILL.md 가 아니라 `workflow.js` 에서 참조한다)
+> 근거: 이 게이트를 지우거나 해제할 때 영향 범위를 세는 숫자다 — 틀리면 과소평가한다.
+> 폐기조건: 참조 스킬 집합이 바뀌면 위 재현 명령을 다시 돌려 갱신한다.
 > 폐기조건: 토큰 검증 주체가 다른 방식(예: 런타임 권한 시스템)으로 대체되면 이 절을 지운다.
 
 ## Step 6: 토큰 만료 처리
@@ -107,7 +113,7 @@ find ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals -name "*.yaml
 
 ```bash
 # skill 비활성
-mv $HOME/.claude/skills/approve-worker $HOME/.claude/skills/_archive/approve-worker-$(date +%Y-%m-%d)
+mv ~/.claude/skills/approve-worker ~/.claude/skills/_archive/approve-worker-$(date +%Y-%m-%d)
 
 # secret 폐기 (신규 발행 불가)
 shred -u ~/.config/forge/orch-token.key
