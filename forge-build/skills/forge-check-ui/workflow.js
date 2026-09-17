@@ -1,5 +1,5 @@
 // root-cause: 정적+Vision+반응형+화면명세매핑 4축 병렬화. 계획서 P1-9, doc-oracle-pev A2.
-// root-cause: Vision 벤더 전환(2026-09-07) — Gemini 전면 철수로 Vision 레그가 Codex(GPT-6 Astra)다.
+// root-cause: Vision 벤더 전환(2026-09-07) — Gemini 전면 철수로 Vision 레그가 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-5.6 Sol)다.
 // ⚠️ Phase 0 전제: Vision 용 codex-critic approve-worker 토큰 외부 선발행 필수.
 //
 // P1.1(2026-08-06): SKILL.md 의 19패턴·WCAG표·10카테고리가 **프롬프트에 주입되지 않던** 상태를 봉합.
@@ -10,7 +10,7 @@ export const meta = {
   name: 'forge-check-ui',
   description: 'UI 품질 Check 8.6 — 정적/Lighthouse/반응형/화면명세매핑/소스품질 5축 parallel() 동시 검증',
   phases: [
-    { title: 'Check', detail: '정적 + Lighthouse(Codex Astra) + 반응형 + 화면명세↔라우트 매핑 + 소스품질(U-1~U-7) 5축 병렬' },
+    { title: 'Check', detail: '정적 + Lighthouse(Codex sol) + 반응형 + 화면명세↔라우트 매핑 + 소스품질(U-1~U-7) 5축 병렬' },
     { title: 'L3', detail: '하위 층 WARN 이상일 때만 — 적대적 6-Pillar 심화 감사' },
     { title: 'Verdict', detail: '5축 + (조건부)L3 종합 PASS/WARN/FAIL' },
   ],
@@ -32,6 +32,16 @@ const AXIS_SCHEMA = {
     findings: { type: 'array', items: { type: 'string' } },
   },
   required: ['verdict'],
+}
+
+// ui-a11y-lint.sh 실행기 결과 — stdout 원문만 받는다(요약 금지).
+const MECH_SCHEMA = {
+  type: 'object',
+  properties: {
+    exitCode: { type: 'number' },
+    stdout: { type: 'string' },
+  },
+  required: ['exitCode', 'stdout'],
 }
 
 // L3 6-Pillar 심화 감사 결과 스키마. score = 6필러 평균(0~10).
@@ -121,9 +131,10 @@ const url = _a?.url || 'http://localhost:3000'
 const projectRoot = _a?.projectRoot || '.'
 const oracleManifestPath = `${projectRoot}/.specify/oracle-manifest.json`
 // root-cause: Workflow 샌드박스는 Bash 불가 → model-registry-resolve.sh 를 직접 못 부른다.
-//   cr-multi/workflow.js:454 관례대로 codex:max 현행 id 를 코드 기본값으로 둔다.
-//   SSoT = shared/config/model-registry.json (codex.tiers.max).
-const codexUiModel = _a?.codexModel || 'gpt-6-astra'
+//   codex:high 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high).
+// 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 codex:max(gpt-6-astra) 기본값 폐기 → sol · effort xhigh 유지(UI 품질 게이트).
+//   ⚠️ 무력화되는 입력: 호출자가 args.codexModel 로 최고급 id 를 넘기면 그대로 쓴다(사람 override).
+const codexUiModel = _a?.codexModel || 'gpt-5.6-sol'
 
 // ── Phase 1: Check (5축 parallel()) ──────────────────────────────────────────
 phase('Check')
@@ -133,13 +144,13 @@ const [staticCheck, lighthouse, responsive, screenMapping, sourceQuality] = awai
     { label: 'static', phase: 'Check', schema: AXIS_SCHEMA }
   ),
   () => agent(
-    // root-cause: Gemini 전면 철수(2026-09-07) — Lighthouse/Vision 레그를 Codex(GPT-6 Astra)로 교체.
-    //   계획서: ${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+    // root-cause: Gemini 전면 철수(2026-09-07) — Lighthouse/Vision 레그를 Codex(현행 GPT-5.6 Sol)로 교체.
+    //   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
     //   ⚠️ Astra 는 로컬 파일(리포트·스크린샷)을 절대경로로 직접 읽는다 — 인라인 불필요.
     `${RUBRIC_LIGHTHOUSE}\n\n검사 대상 URL: ${url}\n프로젝트 루트(절대경로 기준): ${projectRoot}\n` +
     `**mcp__codex__codex 실제 호출** (ToolSearch 로 스키마 선로드 필요) — Claude 자체 추론으로 점수 생성 금지:\n` +
     `- prompt = 위 루브릭 전문 + 검사 대상 URL/프로젝트 루트. 참고 산출물(Lighthouse 리포트·스크린샷)은 **절대경로로 직접 읽어라**.\n` +
-    `- model = "${codexUiModel}" (UI 검증 레그 tier — codex:max)\n` +
+    `- model = "${codexUiModel}" (UI 검증 레그 tier — codex:high)\n` +
     `- sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "xhigh"}\n` +
     `Codex 응답(JSON) 파싱 → StructuredOutput(AXIS_SCHEMA: axis/score/verdict/findings).`,
     { label: 'lighthouse', phase: 'Check', schema: AXIS_SCHEMA, agentType: 'codex-critic' }
@@ -169,13 +180,34 @@ style-guide 정적 분석 = WARN만 (runtime computed-style = OPTIONAL, 블로�
   // P1.3: forge-check-ui 이원화 해소 — commands/ 경로가 쓰던 ui-quality-checker(U-1~U-7)를
   // skills/ 경로에서도 같은 임계값 집합(shared/design-tokens/design-axes.json)으로 호출한다.
   // 이전에는 두 진입점이 서로 다른 루브릭(4축 vs U-rubric)을 봐서 판정이 갈렸다.
-  () => agent(
-    `소스 레벨 UI 품질 검증 (U-1~U-7). 프로젝트 루트: ${projectRoot}
+  // 2026-09-17: U-2·U-4(eslint-plugin-jsx-a11y)·U-5(grep)는 기계가 먼저 잰다 — ui-a11y-lint.sh.
+  //   Workflow 샌드박스에 Bash 가 없고 ui-quality-checker 도 Bash 가 없어 **실행기 1회**를 앞에 둔다.
+  //   ⚠️ 이 배선이 무력화되는 입력: 실행기가 stdout 을 요약·재작성해 넘기는 경우 — 그래서 원문 문자열만
+  //   받는 스키마로 묶고, JSON 이 아니면 체커가 전 축을 직접 판정한다(fail-open, 에이전트 정의 §기계 축 입력 처리).
+  async () => {
+    const changed = Array.isArray(_a?.changedFiles) ? _a.changedFiles : null
+    const listCmd = changed
+      ? `다음 목록을 그대로 쓴다 → ${JSON.stringify(changed)}`
+      : `프로젝트 루트의 작업트리·스테이징 변경 파일(추가·수정·이름변경) 합집합. 비어 있으면 마지막 커밋의 변경 파일`
+    const mech = await agent(
+      `실행기다. 분석·판정 금지. 아래를 순서대로 하고 결과만 반환하라.
+1) 변경 파일 목록: ${listCmd}
+2) Bash 1회: bash "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/ui-a11y-lint.sh" --root "${projectRoot}" -- <1의 파일들>
+3) exitCode = 종료코드, stdout = 표준출력 **원문 그대로**(요약·수정 금지).`,
+      { label: 'ui-a11y-lint', phase: 'Check', schema: MECH_SCHEMA }
+    )
+    const mechJson = (mech && mech.exitCode === 0 && typeof mech.stdout === 'string')
+      ? mech.stdout : '없음(스크립트 실패 — 전 축 직접 판정)'
+    return agent(
+      `소스 레벨 UI 품질 검증 (U-1~U-7). 프로젝트 루트: ${projectRoot}
 임계값 정본 = shared/design-tokens/design-axes.json (터치타겟 2단: 터치 48dp / 비터치 24px+간격).
 변경된 프론트엔드 파일(*.tsx, *.jsx, *.css, *.scss)을 대상으로 U-1~U-7 을 판정한다.
-U-6(Lighthouse 런타임)은 이 워크플로의 lighthouse 축이 담당하므로 여기서는 SKIP 한다.`,
-    { label: 'source-quality', phase: 'Check', schema: AXIS_SCHEMA, agentType: 'ui-quality-checker' }
-  ),
+U-6(Lighthouse 런타임)은 이 워크플로의 lighthouse 축이 담당하므로 여기서는 SKIP 한다.
+기계 축 판정 JSON(PASS/WARN/FAIL 축은 확정값 — 다시 판정하지 말고 반영만 한다. UNDECIDED 는 residual 만, UNAVAILABLE 은 직접 판정):
+${mechJson}`,
+      { label: 'source-quality', phase: 'Check', schema: AXIS_SCHEMA, agentType: 'ui-quality-checker' }
+    )
+  },
 ])
 
 // ── Phase 2: Verdict ──────────────────────────────────────────────────────────

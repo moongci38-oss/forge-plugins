@@ -47,7 +47,7 @@ pass_criteria:
   fail: "총합 < 3.0 OR design_quality = 0"
 
 usage:
-  example: "/eval-rubric --target path/to/design-output.md --rubric ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/rubrics/design.yaml"
+  example: "/eval-rubric --target path/to/design-output.md --rubric ~/forge/.claude/skills/eval-rubric/rubrics/design.yaml"
   use_cases:
     - "포트폴리오 UI 리뷰"
     - "GodBlade 화면 검수"

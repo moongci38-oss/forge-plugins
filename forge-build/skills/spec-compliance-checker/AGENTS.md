@@ -13,7 +13,10 @@
 
 - **Matrix 우선**: `.specify/traceability/{spec}-matrix.json` 존재 시 우선 사용. 미존재 시 Spec에서 직접 추출.
 - **데이터 모델 일치**: Spec의 Entity/Interface 정의와 실제 코드가 일치하는지 확인.
-- **Walkthrough 크로스 체크**: Files Changed 목록의 모든 파일이 실제 존재하는지 확인.
+- **Walkthrough 크로스 체크**: Files Changed 목록의 모든 파일이 실제 존재하는지는
+  `bash shared/scripts/walkthrough-files-exist-check.sh <walkthrough.md> <project_root> --json` 로
+  확인한다(2026-09-17 이관, `test -e` 한 줄짜리 일이라 LLM 몫이 아니었다). "Spec 대비 검증" 섹션과의
+  의미 일치 여부만 LLM이 본다.
 
 ## 판정
 

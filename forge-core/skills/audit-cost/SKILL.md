@@ -9,10 +9,10 @@ model: sonnet
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
 > (2026-08-04 관측).
 
 
@@ -42,7 +42,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
+| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -119,7 +119,7 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `find $HOME/.claude/skills -name "eval_cases.jsonl" | xargs wc -l 2>/dev/null` → 스킬별 eval 호출 수
+1. `find ~/.claude/skills -name "eval_cases.jsonl" | xargs wc -l 2>/dev/null` → 스킬별 eval 호출 수
 2. eval_cases.jsonl 0건 or 파일 없는 스킬 = 미사용 후보
 3. 미사용 스킬의 SKILL.md 토큰 수 추정: `wc -c SKILL.md` ÷ 4 × cascade 로딩 횟수
 4. 비용 추정: 미사용 스킬 cascade 토큰 합산 → 월 세션 수(~150) × 토큰당 비용($0.003/1K)
@@ -200,14 +200,24 @@ Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
 
 > **원칙**: Generator(감사 수행자) ≠ Evaluator. 감사자가 자신의 감사를 평가하면 자기평가 편향이 발생한다.
 
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 audit-cost 결과물의 독립 품질 검증자입니다.
+### 1단계 — 구조 린트 (스크립트, LLM 없음)
 
-아래 기준으로 결과물을 검토하고 PASS 또는 FAIL을 판정하십시오.
+형식·개수·존재·산술은 스크립트가 판정한다 — 기계가 이미 본 축을 LLM 이 다시 보지 않는다
+(`rules-on-demand/machine-vs-llm-boundary.md`). 스크립트는 **확실할 때만** PASS/FAIL 을 확정하고,
+표기가 달라 판단이 필요한 항목과 질적 항목은 `residual` 로 넘긴다.
+
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/audit-report-structure-lint.py" \
+  --skill audit-cost --report "<보고서 경로>" > /tmp/audit-lint-audit-cost.json
+echo "lint rc=$?"
+```
+
+- `rc=1`(구조 FAIL) → **LLM Evaluator 를 띄우지 않고 FAIL 확정.** 피드백 = JSON `items[].checks` 중 `FAIL` 의 `check`·`detail`.
+- `rc=2`(입력 오류) → 판정이 아니다. 보고서 경로를 고쳐 재실행한다.
+- `rc=0` + `residual` 비어 있음 → **PASS 확정**(LLM Evaluator 생략).
+- `rc=0` + `residual` 있음 → 2단계.
+
+### 판정 기준 원문 (무손실 이관 — 〔분담〕 표기만 추가)
 
 **평가 기준 (4항목 모두 충족해야 PASS):**
 
@@ -215,23 +225,48 @@ Agent(
    - [위치] JSON `cost_tracking.cpt_measured` 또는 보고서 "비용 추적 메커니즘" 항목
    - [이유] CPT 추적 없이는 최적화 효과를 수치로 검증할 수 없음
    - [방법] `cpt_measured: true`인 경우 추적 메커니즘(로그 파일 경로 또는 측정 스크립트)이 실제 Glob으로 확인됐는지 검증; `false`인 경우 "미측정 — CPT 수집 방법 미정의" 명시 여부 확인
+   - 〔분담〕 스크립트 = `cpt_measured` true → 경로 실존(이 머신에 없으면 UNDECIDED), false → "미측정" 명시 / LLM = 키 없이 서술만 있어 UNDECIDED 인 경우만
 
 2. **Cache Hit Rate > 60% 달성 여부**
    - [위치] JSON `optimization_gaps` 배열의 `프롬프트 캐싱` 항목 또는 보고서 "비용 최적화 패턴 적용 현황" 표
    - [이유] 캐시 히트율은 비용 최적화에서 가장 임팩트가 큰 지표(80-90% 절감 가능)
    - [방법] `applied: true/false` 외에 실제 캐시 히트율 수치 또는 "미측정(런타임 데이터 필요)" 명시 여부 확인; 단순 "캐싱 적용됨" 판정은 불충분
+   - 〔분담〕 스크립트 = 캐시 히트율 줄·열에 % 수치 또는 "미측정" 명시(단순 "캐싱 적용됨"은 FAIL) / LLM = 없음
 
 3. **모델 라우팅 전략 명시**
    - [위치] JSON `model_routing` 섹션 또는 보고서 "모델 라우팅 현황" 섹션
    - [이유] 라우팅 전략 없이는 어떤 작업에 어떤 모델을 써야 하는지 명확하지 않음
    - [방법] `model_routing.layers`에 Opus/Sonnet/Haiku 각 모델의 적합 작업 유형이 정의됐는지, `unnecessary_heavy_usage` 패턴이 실측(Grep 결과)으로 뒷받침됐는지 확인
+   - 〔분담〕 스크립트 = 섹션/`model_routing`·Opus/Sonnet/Haiku 이름 존재 / LLM = `unnecessary_heavy_usage` 실측 뒷받침·적합 작업 정의 타당성(질적 — 항상 residual)
 
 4. **P95 토큰 폭주 플래그 정의 여부**
    - [위치] JSON `cost_tracking.p95_flag` 또는 보고서 "토큰 예산 강제" 항목
    - [이유] P95 임계값 없이는 이상 세션 조기 감지 불가
    - [방법] `p95_flag: true`인 경우 실제 플래그 정의 위치(파일경로)가 명시됐는지 확인; `false`인 경우 "P95 기준 미정의 — 에이전틱 토큰 폭주 위험" 이슈로 등록됐는지 확인
+   - 〔분담〕 스크립트 = `p95_flag` true → 파일경로, false → 이슈 목록에 P95 등록 / LLM = 키·이슈 없이 서술만 있어 UNDECIDED 인 경우만
 
 **판정**: PASS(기준 4항목 모두 충족) / FAIL(1항목 이상 미충족)
+**피드백 형식**: [파일명+섹션] — [이유] → [방법]
+
+### 2단계 — 질적 판정 (LLM Evaluator, residual 만)
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  prompt="""
+당신은 audit-cost 결과물의 독립 품질 검증자입니다.
+
+구조 검사(섹션 존재·빈 셀·개수·산술)는 audit-report-structure-lint.py 가 이미 PASS 로 확정했습니다 — 다시 보지 마십시오.
+아래 residual 목록의 항목만 판정하십시오.
+
+**residual (스크립트 출력 /tmp/audit-lint-audit-cost.json 의 residual 배열 그대로):**
+{residual}
+
+**해당 번호의 판정 기준 원문 (SKILL.md "판정 기준 원문" 에서 residual 의 criterion 번호 블록을 그대로 붙인다):**
+{criteria_for_residual}
+
+**판정**: PASS(residual 전 항목 충족) / FAIL(1항목 이상 미충족)
 **피드백 형식**: [파일명+섹션] — [이유] → [방법]
 """
 )

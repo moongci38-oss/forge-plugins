@@ -38,7 +38,7 @@ group: ops
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect "$(pwd)"
 ```
 
-8 수집원 → 체크포인트 본문 8절에 1:1 반영. **해당 없으면 `없음` 명시**(절 생략 = 게이트 FAIL).
+수집원 → 체크포인트 본문 각 절에 1:1 반영(개수는 `CHECKLIST_SECTIONS` 출력이 정본 — 여기 숫자를 박지 않는다). **해당 없으면 `없음` 명시**(절 생략 = 게이트 FAIL).
 
 **백그라운드 워커 생존 절은 checkpoint에서 특히 중요하다** — compact가 대화 이력을 압축하면 워커 로스터(누가 무엇을 하고 있었는지)가 소실돼 재스폰이 불가능해진다(2026-07-26 워커 6기 유실 실사고). 워커 1기당 **브리프 영속 경로 + 생존 실측(`recent_changes`·`last_change` 수치) + 재개 1줄**을 적는다. "실행 중" 텍스트 단정 금지. `WORKER_BRIEF_PERSISTED`가 `yes`가 아닌 활성 워커가 있으면 **영속화 후에만 저장**(미영속 = 게이트 FAIL).
 
@@ -55,7 +55,7 @@ else
 fi
 ```
 
-**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)다. 세션 버스 워커(`--resume` 방식)는 `$HOME/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이며, 15분+ 무변화 사망 판정 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태).
+**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)다. 세션 버스 워커(`--resume` 방식)는 `~/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이며, 15분+ 무변화 사망 판정 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태).
 
 `## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. "인계 지시"는 AI가 판단(다음 세션이 이 워커에 시킬 일 1줄, 없으면 `-`):
 
@@ -98,7 +98,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.py" --gap-new-sin
 ```bash
 python3 -c "
 import json, os, sys, datetime
-outputs = os.environ.get('FORGE_OUTPUTS', os.path.expanduser('${FORGE_ROOT:-$HOME/forge}-outputs'))
+outputs = os.environ.get('FORGE_OUTPUTS', os.path.expanduser('~/forge-outputs'))
 path = os.path.join(outputs, '.claude', 'audit', 'hook-fp-telemetry.jsonl')
 rec = {
     'ts': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -139,9 +139,15 @@ branch: {브랜치} ({repo 경로})
 ## 다음 스텝 (번호)
 ## 블로커
 ## 컨텍스트 메모 (compact 후 잊으면 안 되는 비자명 정보만)
+### 바뀐 것
+- 바뀐 것: {옛 이름} → {새 이름} · 발효: {develop 반영됨 | PR #N 브랜치만 | 미러 sync 필요} · 재현: {명령}
+<!-- 바뀐 게 없으면 `- 바뀐 것: 없음` 한 줄. 비워 두면 verify 가 FAIL 한다.
+     ⚠️ handover 는 이 절을 `## 다음 세션이 이어받을 것` 안에 둔다 — 거긴 다음 **세션**이 읽는
+     자리고, 체크포인트는 **같은 세션**이 compact 후 읽는 자리라 부모 절이 다르다.
+     verify 는 두 부모를 모두 인정한다(session-record-audit.sh §바뀐 것 자리 검사). -->
 ## 팀장 위임 기록 (팀slug | 보낸 브리프 | 수신 응답 | 방 상태 dormant/live — 없으면 "없음")
 
-<!-- 이하 계약 ⑦ 8절 — 해당 없으면 "없음" -->
+<!-- 이하 계약 ⑦ 잔여 절 — 해당 없으면 "없음" -->
 ## 미완료 태스크
 ## 승인 대기([STOP])
 ## 미커밋 변경
@@ -237,10 +243,10 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-ind
 ## 체크리스트
 
 - [ ] 3분법 판정 (계속 쓴다 = checkpoint가 맞나)
-- [ ] `session-record-audit.sh collect` → 8 수집원 실측
+- [ ] `session-record-audit.sh collect` → 수집원 실측 (개수는 `CHECKLIST_SECTIONS` 출력이 정본)
 - [ ] 세션 버스 워커 로스터 대조 실행 (0기/실행실패도 각각 명시 — 침묵 금지)
 - [ ] 착지 = `$FORGE_OUTPUTS/.claude/checkpoints` (워크트리여도 동일)
 - [ ] 하네스 갭 후보(신규) 실행 — 0건도 명시 출력, 1건+ 이면 판정 후 DISPOSED append
-- [ ] frontmatter 5필드 + 8절 작성 ("없음" 명기)
+- [ ] frontmatter 5필드 + 전 절 작성 ("없음" 명기)
 - [ ] 백그라운드 워커: 브리프 영속 경로 + 생존 실측 수치 + 재개 1줄 (미영속이면 영속화 후 저장)
 - [ ] `verify` PASS 후에만 compact 안내

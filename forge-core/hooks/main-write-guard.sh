@@ -28,6 +28,8 @@
 
 set -uo pipefail
 
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gap-telemetry.sh" 2>/dev/null || true
+
 # stdin 배수 후 종료 — 미배수 exit 은 생산자에게 EPIPE 를 던진다(A4, 2026-08-07 재현)
 [ "${FORGE_MAIN_GUARD:-on}" = "off" ] && { cat >/dev/null 2>&1 || true; exit 0; }
 
@@ -106,4 +108,5 @@ cat >&2 <<EOF
   우회(비권장, 사람만 — 세션 시작 전 export 필요):
     export FORGE_MAIN_GUARD=off
 EOF
+type gap_log >/dev/null 2>&1 && gap_log BLOCK "main-write-guard" "main 브랜치 직접 쓰기 시도" || true
 exit 2

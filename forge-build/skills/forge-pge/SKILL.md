@@ -30,7 +30,7 @@ AI 출력 품질의 핵심 변수는 모델이 아니라 **구조(하네스)**�
 /forge-pge <task description>
 /forge-pge --rubric custom  # 커스텀 Rubric 사용
 /forge-pge --cycles 2       # maxCycles=2 (기본 3). max_cycles·same_issue 트리거가 이 값에 연동됨 (하드코딩 아님)
-/forge-pge --coder codex:max  # Generator를 Codex로 라우팅(Evaluator는 독립 Claude 고정). claude:tier|codex:tier|sol|terra|luna|ab
+/forge-pge --coder codex:high  # Generator를 Codex(sol)로 라우팅(Evaluator는 독립 Claude 고정). claude:tier|codex:tier|sol|terra|luna|ab — codex:max(Astra)는 advisor 전용(2026-09-17)
 /forge-pge --coder claude:high --advisor sol  # Opus 구현 + Codex sol advisor(무료·독립). --advisor sol|terra|opus|fable
 ```
 
@@ -64,7 +64,7 @@ PGE 기구(Rubric/Sprint Contract/Evaluator/Codex 2차)는 무겁다. 진입 시
 
 > **적용 조건**: 산출물이 **신규 UI 화면 빌드**(트랙 B — 웹/앱 화면을 처음 생성)일 때만 실행한다. 기존 화면 수정·버그수정·비-UI 산출물(서버 로직/문서/게임 연출 등)은 이 Phase를 **skip**하고 바로 Phase 0으로 진행한다(1줄 명시: "Phase -1 스킵 — 신규 UI 화면 아님").
 
-**이유**: 사용자 규칙(`tool-rules.md`) — "모든 UI/UX 작업의 시작점은 Claude Design(claude.ai/design)". Design source 없이 Generator가 UI를 생성하면 rubric Phase 0의 anti-slop 축(G7·G10-b, 라인 62)이 사후 감점만 할 뿐 애초에 근거 없는 디자인이 만들어지는 것을 막지 못한다 — Phase -1은 그 사전 게이트다.
+**이유**: 디자인 파이프라인(`DESIGN.md` 토큰)을 먼저 거친다(`tool-rules.md §UI/UX 작업`). Design source 없이 Generator가 UI를 생성하면 rubric Phase 0의 anti-slop 축(G7·G10-b, 라인 62)이 사후 감점만 할 뿐 애초에 근거 없는 디자인이 만들어지는 것을 막지 못한다 — Phase -1은 그 사전 게이트다.
 
 **절차**:
 1. Design source 확정 순서 (먼저 매칭되는 것을 채택):
@@ -96,7 +96,7 @@ Evaluator가 사용할 평가 기준을 Generator 실행 **전**에 명시한다
 PGE Workflow 시작 시 Planner가 다음 contract를 작성. Generator·Evaluator 양쪽이 참조.
 
 ```yaml
-sprint키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:
+sprint_contract:
   scope: "이번 반복에서 다룰 것 (구체적 기능 / 파일 / 출력)"
   out_of_scope: "명시적 제외 (다음 반복에서 다룸 또는 영구 제외)"
   done_criteria: "Evaluator가 PASS 판정하는 객관적 조건"
@@ -120,8 +120,8 @@ sprint키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 �
 1. `{project_root}/.claude/reference/` 존재 확인 → 태스크 유형에 맞는 파일 Read (하단 Reference 로딩 표 참조)
 1b. **과거 PGE 실패·버그 패턴 로드 (compounding — 필수)**:
    ```bash
-   LEARN_BY=pge bash $HOME/.claude/scripts/learnings.sh load pge-failure 2>/dev/null
-   LEARN_BY=pge bash $HOME/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
+   LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load pge-failure 2>/dev/null
+   LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
    ```
    → `pge-failure` 항목의 `apply` = "이 방식은 이전 PGE에서 FAIL했음 — 피하라". 실행 계획에 반영. (access.log 자동 기록.)
 2. 작업 요구사항 분석
@@ -171,7 +171,15 @@ Planner 산출 직후 Codex 2차 게이트 실행. PGE_SPEC.md의 요구 명확�
 > 이유: Planner 분석 결과와 이전 실패 맥락을 그대로 보유한 상태에서 구현해야 한다.
 
 **Generator 실행자 라우팅 (--coder, DMC 트랙C — 2026-07-15)**: `--coder` 지정 시 **Generator(코드 생성)만** Claude/Codex/ab로 라우팅한다. **Phase 3 Evaluator는 항상 독립 Claude subagent 고정**(무변경) — Grader Isolation 원칙(자기평가 금지)은 어느 모델이 생성했든 유지된다. 즉 Codex가 Generator여도 Evaluator는 Codex를 상속·검수하지 않는다(구현자≠검증자).
-  - CODER_SPEC 파싱 → `MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")`. **미지정 = 기존 메인 컨텍스트 직접 생성(무변경, no-op)**.
+  - CODER_SPEC 파싱. **미지정이면 `coder-lane-detect.sh "$WORKTREE"` 가 기본 레인을 정한다**(2026-09-15 D2 · 2026-09-17 난도별): 프론트면 난도별 `codex:low`(luna)·`codex:default`(terra)·`codex:high`(sol), 그 밖은 `claude:default`(= 기존 메인 컨텍스트 생성과 같다). Planner 가 태스크 성격을 알면 `--task <유형>` 을 넘긴다. ⛔ `codex:max`(Astra)는 advisor 전용이라 자동으로 안 나온다(구 서술 "프론트면 codex:max(Astra)" 는 2026-09-17 폐기). 판정표 정본 = `forge-implement.md §3.6`.
+    **같은 실패 2회(Evaluator FAIL 반복) → `--escalate 2` 로 재판정**(한 단계 상향, high 가 상한 — 더 막히면 Claude(Opus) 폴백 또는 사람 판단).
+    ⚠️ **순서가 계약이다** — 레인 기본값을 **먼저** 채우고 그 다음에 모델을 푼다. 거꾸로 하면 프론트 판정이 `codex:*` 를 내도 MODEL 은 이미 Claude 로 굳어 있다(PR #573 검수 MED-6 · `forge-implement.md §3.6` 과 같은 순서).
+    인자는 `$WORKTREE` 다 — 이 문서에 정의가 없으므로 **여기서 정한다**(r3 L8): `WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"` = Generator 가 쓰는 체크아웃의 루트(아래 `coder-attribution.sh write "$WORKTREE"` 와 같은 값). 종전 `$REPO_ROOT` 도 정의가 없어 **빈 문자열**로 넘어갔는데(MED-7), 빈 인자는 `coder-lane-detect.sh` 의 `ROOT="${1:-…}"` 폴백(`git rev-parse --show-toplevel || pwd`)으로 **CWD 의 toplevel** 을 판정한다 — 워크트리 안이면 워크트리, 워크트리를 만들고 cd 하지 않은 세션이면 메인 체크아웃이다(구 서술 "항상 메인 체크아웃" 은 실측과 다르다. 재현: `cd <워크트리> && bash shared/scripts/coder-lane-detect.sh ""`, 2026-09-16).
+    ⚠️ **미리 정한 값을 덮어쓰지 않는다**(r4 R4): 오케스트레이터가 **메인 체크아웃에 남은 채** Generator 만 별도 워크트리에서 돌릴 때는 이 줄 **앞에서** `WORKTREE=<그 워크트리 절대경로>` 를 먼저 정한다(`forge-implement.md §Preflight-1.5` 의 worktree 격리와 같은 축) — 폴백은 CWD 의 toplevel 이라 그 경우 메인 체크아웃을 판정한다. 무력화되는 입력: WORKTREE 를 빈 문자열로 export 해 둔 셸 — `${WORKTREE:-…}` 는 빈 값도 미정으로 보고 폴백한다.
+    `WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"`
+    `CODER_SPEC=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-lane-detect.sh" "$WORKTREE" --coder "$CODER_SPEC" ${FRONT_TASK:+--task "$FRONT_TASK"} ${ESCALATE:+--escalate "$ESCALATE"})`
+    `MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")`
+    ⚠️ **Phase 3 Evaluator 는 이 변경과 무관하게 독립 Claude 고정**이다(Grader Isolation) — 프론트 레인이 열려도 채점자는 바뀌지 않는다.
   - **codex:tier** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=현재 워크트리, model=$MODEL). PGE_SPEC.md·Sprint Contract·Rubric·Planner 분석을 프롬프트에 주입(Codex 재탐색 방지). Codex 산출물은 표시·커밋 전 `secret-content-scan.sh` 경유(LN-03 마스킹). Codex는 메인 컨텍스트를 상속하지 못하므로 Planner 결과를 명시 주입해야 한다(위 no-op 경로의 "맥락 보유" 이점은 Codex 라우팅 시 프롬프트 주입으로 대체).
   - **Unity/게임 프로젝트 감지(`ProjectSettings/ProjectVersion.txt` 또는 Unity .cs 수정 포함) → Claude 폴백**. Codex Linux 샌드박스는 Unity batchmode 불가(실측 확정 2026-07-15). PGE의 Unity .cs 경로(Phase 2 항목 2·6)는 Codex로 라우팅하지 않는다.
   - **advisor tier-gate (2026-07-16 · 2026-08-12 판정 기준 변경)**: `GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")`. **`skip`**(Generator tier ≥ **현재 advisor tier**) → Phase 1.5 Codex Plan Review의 strategic 조언 성격은 유지하되 advisor 접근조언은 **생략**(tier 역전 방지). **`advise`**(Generator tier < advisor tier) → advisor 조언을 Generator 프롬프트에 주입.
@@ -179,7 +187,7 @@ Planner 산출 직후 Codex 2차 게이트 실행. PGE_SPEC.md의 요구 명확�
     재현: `bash shared/scripts/advisor-tier-gate.sh opus` → `advise` · 전수 판정표는 `shared/scripts/test-advisor-tier-gate.sh` (33케이스).
     ⚠️ **bounding/STOP·T4는 tier 무관 유지**. (Phase 3 Evaluator 독립은 별개 — 무변경.)
   - **--advisor 오버라이드 (2026-07-16)**: `--advisor <spec>`(sol/terra/opus/fable)로 advisor 모델을 경우별 선택. `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → 결과가 gpt/codex면 **`mcp__codex__codex`(sandbox=read-only)로 advisor 스폰**(sol/terra, Plus 정액=무료·독립 관점), claude면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`(opus/fable). 미지정=리졸버 기본(2026-08-12 부터 **Fable 5**, 못 쓰면 `gpt-5.6-sol` — 구 "Opus + tier-gate" 폐기 · 2026-09-02: Fable 5.1 로 업그레이드). ⚠️ **독립성: advisor 벤더 ≠ 구현자 벤더 권고**(같은 벤더=자기훈수 무의미 → Codex 구현엔 opus/fable advisor, Claude 구현엔 sol/terra advisor). fable 은 **구독 정액**(Human 확인 2026-08-12 · 5.1 재확인 2026-09-02)이라 sol(Plus 정액)과 **동급으로 자유 선택 가능**하다 — 호출당 추가 과금이 없다. 일일 캡은 기본 0(무제한)이며 필요하면 `FORGE_ADVISOR_FABLE_CAP=N` 으로 켠다. advisor-model-resolve 가드는 kill-switch·가용성 폴백만 상시 동작한다.
-  - **coder-attribution (기계 강제)**: Generator 직후 `coder-attribution.sh write "$WORKTREE" "$MODEL"` → Phase 1.5 Codex Plan Review 및 후속 cr-* 진입 시 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")`를 `--cr $MODE`로 전달(codex Generator→`degrade`=codex 레그 배제 / 그 외→`on` / 무마커→`on` fail-open). Phase 3 Evaluator(Claude subagent)는 원래 독립이라 별개. 자기검수 방지 = 스크립트 강제.
+  - **coder-attribution (기계 강제)**: Generator 직후 `coder-attribution.sh write "$WORKTREE" "$MODEL"` → Phase 1.5 Codex Plan Review 및 후속 cr-* 진입 시 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")`를 `--cr $MODE`로 전달(codex Generator→`cross`=**2레그 유지 + 교차 승인 강제**, `author-vendor` 출력을 workflow args `authorVendor` 로 동반 / 그 외→`on` / 무마커→`on` fail-open. ⚠️ 2026-09-15 `degrade` 배제 방식 폐기 — 생존 1레그는 `quorumFail` 로 FAIL 이 확정됐다). Phase 3 Evaluator(Claude subagent)는 원래 독립이라 별개. 자기검수 방지 = 스크립트 강제.
   - kill-switch `FORGE_DUAL_CODE=off` → codex 요청도 Claude(메인) 대체. Codex 미가용 = Claude 폴백(로그+경고, fail-open). 모델 id = `model-registry.json` SSoT(버전무관).
 
 1. `{project_root}/.claude/state/PGE_SPEC.md` 읽기 (Phase 1에서 이미 작성했으므로 컨텍스트에 있음)
@@ -264,10 +272,21 @@ QA Agent (별도 subagent, 독립 컨텍스트)
 > **반드시 subagent로 스폰한다. 메인 컨텍스트에서 실행하지 않는다.**
 > 이유: Generator와 같은 컨텍스트에서 평가하면 자기평가 편향이 발생한다.
 
+```bash
+# ⛔ --coder 를 상속하지 않는다. 채점자는 항상 독립 Claude `claude:high` 레인으로 고정한다.
+# 2026-09-17 사람 결정 — Evaluator 등급 확정(상향). 최고급(claude:max=Fable 5.1)은 advisor 전용이라 쓰지 않고,
+#   Generator 상한이 claude:default(Opus)/codex:high(sol) 이므로 claude:high 로도 "채점자 ≥ 응시자" 가 성립한다.
+EVAL_MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" claude:high)"
+# → claude-opus-5. Agent(subagent_type="general-purpose", model=$EVAL_MODEL)
 ```
-subagent_type: general-purpose
-model: sonnet
-```
+
+> **왜 여기만 고정인가** — 두 축이 동시에 걸린다. ①`model-routing.md §워커 tier`: verify/judge/review 는 **대상 worker 의 tier 이상이고 하향 금지**다. 이 스킬의 Generator 는 `claude:default`(Opus) 또는 `codex:high`(sol)까지 올라가는데(§Phase 2 `--coder`) 채점자를 그 아래로 두면 **응시자가 채점자보다 높아진다**. ②Generator 가 Codex 로 갔을 때 Evaluator 까지 같은 벤더면 **자기검수**가 된다 — 독립 Claude 고정(벤더 교차)이 이 Phase 의 존재 이유다. 선례: `frontend-design/SKILL.md §Phase 3` 이 2026-09-15 에 같은 실패를 같은 방식으로 이미 고쳤다.
+> ⚠️ 구 표기 `model: sonnet` 고정은 **2026-09-17 폐기** — Generator 상한이 Opus/sol 로 올라가 채점자가 응시자보다 낮아졌다.
+> ⚠️ **Grader Isolation 은 이 등급의 근거가 아니다(정정).** `.claude/rules-on-demand/opus-5-best-practices.md §PGE Evaluator` 가 이 핀의 유지 근거로 적던 **Grader Isolation(컨텍스트 격리)** 과 "동일-모델 맹점은 **별도 Codex 2차 리뷰**(§Phase 4.5)가 보완한다"는 서술은 **그대로 유효하다** — 다만 그것이 정당화하는 것은 "Evaluator 를 subagent 로 띄운다"이지 **등급이 아니다.** 격리와 tier 는 다른 축이고, 등급의 근거는 위 ①②다. (구 표기 "그 근거로 sonnet 을 유지한다" 는 2026-09-17 폐기.)
+> ⚠️ **이 방어가 무력화되는 입력**: 호출자가 "비용 아끼자"며 Evaluator 에도 `--coder`/`model` 을 넘기는 경우 — 이 Phase 는 그 값을 **무시하고** `claude:high` 로 간다. 낮추려면 규칙(`model-routing.md §워커 tier`)을 먼저 고쳐야 한다.
+> 근거: 사람 결정 2026-09-17(Evaluator 등급 상향 · 최고급은 advisor 전용) + `model-routing.md §워커 tier` "verify/judge/review 는 대상 worker 의 tier 이상(하향 금지)".
+> 재현: `grep -n 'coder-model-resolve.sh" claude:high' .claude/skills/forge-pge/SKILL.md` · `bash shared/scripts/coder-model-resolve.sh claude:high` → `claude-opus-5` (2026-09-17 실측)
+> 폐기조건: verify/judge tier 하향 금지 규칙이 폐기되거나 Evaluator 를 벤더 교차 밖으로 빼기로 하면 이 고정을 푼다.
 
 subagent에 전달하는 정보:
 - `{project_root}/.claude/state/current-analysis.md` (분석 기준)
@@ -431,7 +450,7 @@ Evaluator 가 3사이클 후에도 FAIL 이면 **접근 자체가 막혔다는 �
 |------------|---------|
 | **Unity 클라이언트** | `key-file-map.md`, `code-snippets.md`, `pre-modification-analysis-detail.md` |
 | **서버 / 웹 / 앱** | `codebase-analysis.md` (존재 시), `key-file-map.md`, `code-snippets.md`, `golden-rules.md` |
-| **웹 / 앱 UI** | `${FORGE_ROOT:-$HOME/forge}/shared/design-tokens/design-rules.md` |
+| **웹 / 앱 UI** | `~/forge/shared/design-tokens/design-rules.md` |
 | 프로토콜 / 네트워크 | `key-file-map.md`, `protocol-ranges.md`, `tech-stack.md` |
 | 빌드 / 배포 | `build-commands.md`, `dependency-order.md` |
 
@@ -474,13 +493,13 @@ Evaluator 가 3사이클 후에도 FAIL 이면 **접근 자체가 막혔다는 �
 산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
 - **target**: {산출물 경로} — Evaluator subagent 결과(PGE Phase 4 종료) 직후
-- **case_id**: `EC-forge-pge-{N}` · **eval_cases**: `$HOME/.claude/skills/forge-pge/eval_cases.jsonl`
+- **case_id**: `EC-forge-pge-{N}` · **eval_cases**: `~/.claude/skills/forge-pge/eval_cases.jsonl`
 
 ## Workflow 통합 (계획서 P1)
 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Plan→Generate→Evaluate (Evaluator에 plan 미전달 격리).
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/forge-pge/workflow.js") })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-pge/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

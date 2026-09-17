@@ -26,7 +26,7 @@
 
 ```
 Workflow({
-  script: Bash("cat $HOME/.claude/skills/external-harness-sweep/workflow.js"),
+  script: Bash("cat ~/.claude/skills/external-harness-sweep/workflow.js"),
   args: {
     target_url: "<url>",
     target_name: "<name>",
@@ -38,8 +38,8 @@ Workflow({
 ## 산출물
 
 결과를 다음 경로에 저장:
-- 채택 매트릭스: `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/final/<name>-sweep.json`
-- 리포트: `${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/reports/<name>-forge-analysis-<YYYY-MM-DD>.md`
+- 채택 매트릭스: `~/forge-outputs/docs/reviews/final/<name>-sweep.json`
+- 리포트: `~/forge-outputs/11-platform/reports/<name>-forge-analysis-<YYYY-MM-DD>.md`
 
 ## 후속 작업
 

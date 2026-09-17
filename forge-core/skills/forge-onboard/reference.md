@@ -6,7 +6,7 @@
 
 프로젝트 루트 CLAUDE.md에 `## 핵심정보` 섹션을 **반드시** 포함한다. 프로젝트 타입에 따라 아래 템플릿을 사용. 시크릿은 **평문 금지 — 참조 위치만** 기재 (`.env` ref 또는 `<설명>` placeholder).
 
-검증: 생성 후 `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/check-vitals-secrets.sh <CLAUDE.md 경로>` (exit 0 = OK, exit 2 = 평문 시크릿 BLOCK).
+검증: 생성 후 `bash ~/forge/shared/scripts/check-vitals-secrets.sh <CLAUDE.md 경로>` (exit 0 = OK, exit 2 = 평문 시크릿 BLOCK).
 
 **dev (web/game/backend):**
 ```markdown
@@ -146,7 +146,12 @@ SENTRY_ORG=your-org-slug-here
 SENTRY_PROJECT=your-project-slug-here
 ```
 
-## §6.3 claude-design-prompts.md 전체 템플릿 (web/app)
+## §6.3 claude-design-prompts.md 전체 템플릿 (web/app — **2순위 폴백 레인**)
+
+> 1순위는 Phase 6.0 Astra 레인(`DESIGN.md` 토큰 + `/forge-mockup` → `s3-mockup/<화면ID>/screen.html`)이다.
+> 이 템플릿은 1순위 미가용·실패 시의 **살아 있는 폴백**이라 그대로 유지한다.
+> 근거: 사람 확정 2026-09-15(프론트·디자인시스템 1순위 = GPT-6 Astra, 2순위 = Claude Design) (2026-09-17 개정: 최고급은 advisor 전용 → GPT 코더 상황별 luna/terra/sol).
+> 폐기조건: Human 이 순위를 다시 정하면 이 머리말을 그 값으로 교체한다.
 
 파일: `forge-outputs/05-design/projects/<project-name>/forge-claude-design-prompts.md`
 
@@ -156,8 +161,8 @@ SENTRY_PROJECT=your-project-slug-here
 # {ProjectName} — Claude Design 파이프라인 프롬프트
 
 > 작성: {YYYY-MM-DD} · 프로젝트: {project-name}
-> 파이프라인: Claude Design (Main) → 레포 통합
-> 워크플로우 정본: `$HOME/.claude/rules-on-demand/claude-design-workflow.md`
+> 파이프라인: Claude Design (**2순위 폴백** — 1순위는 `/forge-mockup`(GPT 코더 상황별 — 2026-09-17, 구 표기 GPT-6 Astra 폐기)) → 레포 통합
+> 워크플로우 정본: `~/.claude/rules-on-demand/claude-design-workflow.md`
 
 ---
 

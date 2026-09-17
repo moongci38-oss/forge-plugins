@@ -23,9 +23,9 @@ group: research
 | 0 | URL boundary + robots.txt + ToS 확인 | hook + WebFetch |
 | 1 | 사이트 매핑 (depth/pages/viewport 캡처) | playwright-cli |
 | 2 | DOM 컴포넌트 + CSS 토큰 + API endpoint 추론 | DOM 파싱 |
-| 3 | Gemini Vision 시각 분석 (핵심 화면 5-10개) | /screenshot-analyze |
+| 3 | Vision 시각 분석 (핵심 화면 5-10개) — `codex-critic` 에이전트 (Codex 레인). ⚠️ 모델명은 여기서 못 박지 않는다 — 정본은 `.claude/agents/codex-critic.md` frontmatter 다 (아래 각주) | /screenshot-analyze |
 | 4 | 시맨틱 추출 (JS 렌더링) | Tavily tavily_extract |
-| 4.5 | Computer Use 시나리오 (--cu) | cu-runner.py |
+| 4.5 | Computer Use 시나리오 (--cu) | `.claude/skills/site-deep-analyze/scripts/cu-runner.py` |
 | 5 | 산출물 7종 생성 | 자동 |
 | 6 | 다음 액션 안내 | 자동 |
 
@@ -50,6 +50,21 @@ group: research
 # dry-run (estimate만 출력, 실제 분석 X)
 /site-deep-analyze https://example.com --dry-run
 ```
+
+<!--
+2026-09-17 정정 2건 (감사 C그룹 §2-7·§22):
+① Phase 3 의 구 표기 "GPT-6 Astra(codex-critic)" 폐기 — 2026-09-17 사람 결정으로 최고급 모델(Fable 5.1·gpt-6-astra)은
+   advisor·cto-advisor 전용이 됐고 Vision 은 advisor 레인이 아니다(정본 `~/.claude/rules/model-routing.md §워커 tier`).
+   ✅ **뿌리를 고쳤다 (2026-09-17)** — `.claude/agents/codex-critic.md` 가 이제 레인별로 갈라 적는다.
+   Vision 레그 = `codex:high`(`gpt-5.6-sol`) 고정 · 검수 2레그 = `codex:max`(Astra) — "최고급은 advisor 전용" 의 명시적 예외라 그대로 둔다.
+   그 에이전트는 screenshot-analyze·video-reference-guide·forge-check-ui·visual-loop·system-audit 의 Vision 레그를 함께 담당하므로
+   커맨드 한 곳에서 모델명을 다르게 못 박으면 문서끼리 어긋난다. 그래서 여기서는 여전히 **에이전트를 가리키기만** 한다.
+   ⚠️ 구 표기 "뿌리는 아직 안 고쳐졌다 — frontmatter 가 여전히 `GPT-6 Astra`" 는 2026-09-17 폐기.
+   재현: `grep -n 'Vision 레그 모델' ~/forge/.claude/agents/codex-critic.md` → `codex:high`(= `gpt-5.6-sol`) 고정 (2026-09-17 관측)
+② Phase 4.5 의 구 표기 `cu-runner.py`(경로 없음) 폐기 — `shared/scripts/` 에는 없다.
+   재현: `find ~/forge -name cu-runner.py -not -path '*/.git/*'` → `~/forge/.claude/skills/site-deep-analyze/scripts/cu-runner.py` 1건 (2026-09-17 관측)
+폐기조건: codex-critic 의 모델 핀이 정리되면 ①을, cu-runner.py 가 옮겨지면 ②를 갱신한다.
+-->
 
 ## 산출물 경로
 

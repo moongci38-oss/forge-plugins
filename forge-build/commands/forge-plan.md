@@ -1,7 +1,7 @@
 ---
 description: "Forge 기획 파이프라인 P3 — 상세 기획 패키지 작성 (PRD/GDD → s4 산출물 3종 + 검증 3종 + 게이트)"
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
-argument-hint: "<프로젝트 slug 또는 Phase 3 PRD/GDD 경로>"
+argument-hint: "<프로젝트 slug 또는 P2 PRD/GDD 경로>"
 model: sonnet
 group: plan
 ---
@@ -12,7 +12,7 @@ group: plan
 
 P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 **P3 상세 기획 패키지**를 작성하는 단일 진입 커맨드.
 
-> 절차 정본 = `${FORGE_ROOT:-$HOME/forge}/pipeline.md` "## P3: Dev Plan+Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 3 게이트). 본 커맨드는 그 절차의 실행 래퍼.
+> 절차 정본 = `~/forge/pipeline.md` "## P3: Dev Plan+Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 3 게이트). 본 커맨드는 그 절차의 실행 래퍼.
 
 ## 모델 라우팅 (2026-07-04)
 
@@ -23,14 +23,18 @@ P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 *
 | 기술 검토(7축 ADR) | (기존) | `cto-advisor` 에이전트/스킬 |
 | 비기술 전략 자문 | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
 
-근거: `$HOME/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. ⚠️ 2026-08-12 부터 advisor 기본은 **Fable 5**다(구 "Opus 고정 · Fable 자동 없음" 폐기, 2026-09-02: Fable 5.1 로 업그레이드). 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
+근거: `~/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. ⚠️ 2026-08-12 부터 advisor 기본은 **Fable 5**다(구 "Opus 고정 · Fable 자동 없음" 폐기, 2026-09-02: Fable 5.1 로 업그레이드). 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
 
 ## 사용법
 
 ```
-/forge-plan <프로젝트 slug>          # forge-outputs/02-product/<slug>/ 에 s3-* 존재
-/forge-plan <Phase 3 PRD/GDD 경로>   # 경로에서 프로젝트 추론
+/forge-plan <프로젝트 slug>       # forge-outputs/02-product/<slug>/ 에 s3-* 존재
+/forge-plan <P2 PRD/GDD 경로>     # 경로에서 프로젝트 추론
 ```
+
+⚠️ **같은 파일에서 "P3" 가 두 가지를 뜻하던 것을 2026-09-17 에 정리했다** — 제목·본문의 `P3` 는 **이 커맨드가 만드는 상세 기획 패키지**이고, 구 표기 `Phase 3 PRD/GDD`·`Phase 3 기획서` 는 **레거시 번호**라 새 번호로는 **P2**(= `/prd`·`/forge-design` 산출물)다. 둘을 같은 이름으로 부르면 "P3 를 먼저 하라"는 안내가 자기 자신을 가리키게 된다.
+근거: `pipeline.md §Legacy Phase 매핑` — `Phase 3 Design Doc | P2 Design Doc` · 재현: `grep -n 'Phase 3' pipeline.md`
+폐기조건: 레거시 번호 표기가 레포에서 전부 사라지면 이 각주를 지운다.
 
 ## 적용 범위 (스코프 가드 — P5)
 
@@ -115,12 +119,17 @@ Step 1 실행 전 기존 도메인 폴더 유무 확인:
 
 > **➕ M8 mid-session 재트리거 (freshness check, WARN-first, fail-open)**: 위 pull-only 갭 보완 — forge-plan 재호출 없이도 **같은 세션 내에서** Step 2~6 각 진입 직전, P2 기획서 mtime을 직전 생성된 P3 산출물(Step 1 `_registry.yaml` 또는 도메인 폴더) mtime과 비교:
 > ```
-> # ⚠️ 리터럴 파일명 금지 — 쓰는 쪽(`prd.md:34,52`)은 `YYYY-MM-DD-s3-prd.md` 로 **날짜 접두**를 붙인다.
+> # ⚠️ 리터럴 파일명 금지 — 쓰는 쪽(`prd.md` 의 "산출물: `YYYY-MM-DD-s3-prd.md`" 항과 "**저장**:" 항)은
+> #    `YYYY-MM-DD-s3-prd.md` 로 **날짜 접두**를 붙인다. (⚠️ 줄번호로 가리키지 않는다 — 리팩터마다 조용히 거짓이 된다)
 > # 구 표기 `"{project-root}/s3-prd.md"` 는 실존 파일과 안 맞아 P2_MTIME 이 **항상 공백** →
 > # 아래 `[ -n "$P2_MTIME" ]` 가 늘 실패 → fail-open 으로 조용히 통과 = 이 WARN 이 **한 번도
 > # 발화할 수 없었다**(2026-08-07 실측: `ls {FO}/02-product/arborAI/s3-prd.md` → 부재,
-> # `2026-07-27-s3-prd.md` 존재). 같은 파일 `:58,138`(readiness-gate)과
-> # `forge-gate-check.sh:216` 은 이미 글롭을 쓴다 — 스크립트는 맞고 이 줄만 틀렸다.
+> # `2026-07-27-s3-prd.md` 존재). `forge-gate-check.sh` 의
+> # `for _pat in "$PROJECT_PRODUCT"/*s3-prd*.md …` 루프는 이미 글롭을 쓴다 — 스크립트는 맞고 이 줄만 틀렸다.
+> # ⚠️ 구 표기 "같은 파일 `:58,138`(readiness-gate)과 `forge-gate-check.sh:216` 은 이미 글롭을 쓴다" 는
+> #    2026-09-17 폐기 — 셋 다 죽은 앵커였다(실측: readiness-gate `:58`=코드펜스 · `:138`=헤딩 ·
+> #    forge-gate-check `:216`=빈 줄). 게다가 readiness-gate 는 애초에 글롭을 쓰지 않는다(리터럴 `s3-prd.md` 표기뿐).
+> #    재현: `grep -n 's3-prd' shared/scripts/forge-gate-check.sh .claude/commands/readiness-gate.md`
 > P2_FILE=$(ls -t "{project-root}"/*s3-prd*.md "{project-root}"/*s3-gdd*.md 2>/dev/null | head -1)
 > P2_MTIME=$(stat -c %Y "$P2_FILE" 2>/dev/null)
 > P3_MTIME=$(stat -c %Y "{domain}/_registry.yaml" 2>/dev/null)
@@ -148,7 +157,7 @@ features:
     stack: next.js      # 이 feature의 주 기술 스택
     mockup_refs:        # 연관 목업 파일 (key: 화면ID, value: 경로)
       {page-id}: s3-mockup/{page-id}.png
-    api키 = forge SSoT 에 실재하는 리터럴 / 값 = 공개본에 실릴 표현. 값에는 사설 정보를 넣지 않는다. 여기 없는 사설 절대경로는 sync 의 RE_LEAK 가 fail-closed 로 잡아 파일을 쓰지 않는다.:       # 핵심 API 계약 (EP + 응답 1줄)
+    api_contract:       # 핵심 API 계약 (EP + 응답 1줄)
       - "POST /endpoint → 201 {resultId}"
     aggregate: null     # DDD 집합체 (P3 기능명세 DDD 섹션 작성 후 채움 — 2차)
 ```
@@ -209,7 +218,8 @@ domains:
 **③ 충분 바(sufficiency bar)**:
 - floor(강제) 기준: Must 기능 전수 + 각 기능 ≥1 FR + ≥1 AC + ≥1 화면 매핑
 - ceiling(권고) 아님: Should/Could 기능 명세 미완성은 WARN만
-- substitution matrix(→ readiness-gate.md §M5) 적용: HTML/스크린샷이 Figma 대체 시 비율로 감산하지 않음 (대체형 자체가 ok)
+- substitution matrix(→ readiness-gate.md §M5) 적용: HTML/스크린샷이 **기존** Figma 자산을 대체할 때 비율로 감산하지 않음 (대체형 자체가 ok)
+  ⛔ **Figma 신규 생성은 중단이다** — 이 줄은 "이미 있는 `.fig` 를 HTML·스크린샷으로 갈음해도 감점 없다"는 뜻이지 Figma 를 새로 쓰라는 뜻이 아니다(`tool-rules.md §UI/UX 작업`: *"⛔ Figma 중단"*). 신규 시안 1순위 = `/forge-mockup` 코드 목업. ⚠️ 구 표기 "HTML/스크린샷이 Figma 대체 시" 는 2026-09-17 폐기 — 읽는 쪽이 Figma 를 현행 레인으로 오해할 자리였다.
 
 **결과**: orphan FAIL 또는 발산 FAIL → [STOP] + 보강 작업지시. WARN만 → 목록 보고 후 계속.
 
@@ -288,8 +298,11 @@ domains:
 
 ## 미결 항목
 - (없음)
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
 ```
+
+⚠️ **삽입 위치 오류 정정 (2026-09-17)**: 위 템플릿 코드블록 **안**에 advisor 리졸버 경고문("아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다 …")이 들어가 있었다. 이 템플릿은 **그대로 복사해 프로젝트 원장 `{domain}/_STATUS.md` 를 만드는 것**이라, 무관한 모델 라우팅 경고가 프로젝트 파일에 복사되고 있었다. 그 경고문은 원래 자리인 **§Step 4 전략 advisor** 로 옮겼다(내용은 한 글자도 바꾸지 않았다).
+재현: `sed -n '/^# {domain} 진행 원장/,/^```$/p' .claude/commands/forge-plan.md | grep -c '리졸버'` → `0`
+폐기조건: `_STATUS.md` 템플릿이 별도 파일로 빠지면 이 각주를 지운다.
 
 **`_STATUS.md` 읽기/쓰기 규약**:
 - **읽기**: 각 Phase Step 0 진입 시 → `_STATUS.md` 존재 확인 + `stage` 필드 확인 (충돌 Phase = [STOP])
@@ -316,7 +329,12 @@ domains:
 - advisory(WARN-우선) — 미생성이 기존 게이트를 차단하지 않음. 단 프론트 프로젝트는 생성 권고.
 
 - 입력: `s3-mockup/` + `{domain}/10-화면정의.md`(또는 기존 `s4-detailed-plan.md`)
-- Primary: `claude.ai/design` 접속 → 시안 기반 화면별 소스코드 생성. Fallback: 실패 시 Human에게 통보 후 Stitch MCP `get_screen_code`
+- Primary: **`/forge-mockup`**(배선 완료 2026-09-15) — Astra 코드 목업이 `s3-mockup/{화면ID}/screen.html` 로 이미 나와 있으면 **그 코드를 `s4-pages/{화면ID}/` 의 초안으로 채택한다**(시안→코드를 다시 뽑지 않는다 — 같은 일을 두 번 하는 자리였다). 없으면 `/forge-mockup` 을 먼저 돌린다.
+  Fallback(2순위): 실패 시 Human 통보 후 Claude Design(`claude.ai/design`) 소스 생성. ⛔ Stitch 는 2026-09-15 사용 중단 — 폴백으로 쓰지 않는다
+  ⚠️ 이 병합이 무력화되는 입력: `screen.html` 이 자립형이 아니거나(외부 CDN 참조) 화면 ID 가 `10-화면정의.md` 와 1:1 이 아닌 경우 — 그때는 종전대로 화면별 소스를 새로 만든다.
+  근거: 계획서 `2026-09-15-astra-lanes-plan.md` 레인2-2(④⑥ 병합 — 목업 코드가 곧 s4-pages 초안) · 구 표기 "배선 전까지 Human 이 Astra 에 생성 요청" 폐기
+  ⚠️ **미해소 충돌 (2026-09-17)**: `gpt-6-astra` 는 이제 advisor 전용이다(예외 = cr-final Codex 검수 레그). 목업은 구현 레인이므로 `ASTRA_MODEL=gpt-5.6-sol` 로 덮어써서 부른다 — 상세·재현 → `prd.md` 8번 항목의 같은 경고.
+  폐기조건: `/forge-mockup` 이 없어지거나 프론트 1순위가 바뀌면 이 줄을 되돌린다.
 - 산출물: `{project-root}/{domain}/s4-pages/{화면 ID}/` — `화면 ID` 디렉토리 = `{domain}/10-화면정의.md` 핵심 화면 목록의 ID와 정확히 1:1 (누락/중복/잉여 = [STOP]). 기존 `s4-ui-source/` 경로 허용(하위호환)
 
 ### Step 4 — 검증 (병렬 3종)
@@ -325,18 +343,26 @@ domains:
 - ② `cto-advisor` 에이전트 Subagent: `s4-development-plan.md` 7축(아키텍처·API·데이터모델·보안·성능·테스트전략·기술부채) 검토 — 부적절한 보안 `N/A`도 검토 → `{project-root}/docs/reviews/wave3-cto-{date}.md`
 - ③ `/forge-check-ui`: `s4-pages/`(또는 기존 `s4-ui-source/`) UI 품질. 초기 1회 + `critical_count` ≥1 시 `/visual-loop` 재시도 최대 2회(총 3회). 3회 후 잔존 → [STOP] → `{project-root}/docs/reviews/ui-check-{date}.json`
 
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
+> (이 경고문은 2026-09-17 까지 §1-M6 `_STATUS.md` 템플릿 코드블록 안에 잘못 들어가 있었다 — 여기가 원 자리다.)
+
 **전략 advisor (조건부, advisory-only — cto-advisor 기술축과 별개)**: 비-기술 전략 분기에서 advisor-strategist(리졸버 기본 = Fable 5.1) 자문 — 트리거: MVP 범위 결정 분기 / L(대규모) 제품 순서·리소스 배분 / 타임라인-스코프 충돌. `Agent(subagent_type="advisor-strategist", prompt="<계획 맥락+전략 분기 500토큰> 범위·순서·리소스 권고 + trade-off 1~2개")`. 단순 계획(단일 제품·명확 범위)은 스폰 X. advisory only, non-blocking. 기술 결정(아키텍처·스택·보안)은 cto-advisor가 담당 — 중복 스폰 금지. 중첩 시 [→Lead 위임].
 
 ### Step 5 — 게이트 판정 (Check 4 — 모두 충족. 리포트 = 패턴 매칭 중 mtime 최신 1개 `ls -t {dir}/{pattern} | head -1`. 매칭 0개 = FAIL)
 <!-- mtime 기준 선정 이유: `-r2`/`-r3` 재시도 접미사는 사전순 정렬을 깨뜨림 (`-` 0x2D < `.` 0x2E → `...-r2.md`가 `....md`보다 사전순 앞섬), 따라서 `sort | tail -1`은 원본(stale) 리포트를 오선택할 수 있음 -->
 1. `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} S4` → PASS
-   ⚠️ **`$HOME/.claude/scripts/forge-gate-check.sh` 를 쓰지 않는다** — 그 경로의 사본은 의존 파일
+   ⚠️ **`~/.claude/scripts/forge-gate-check.sh` 를 쓰지 않는다** — 그 경로의 사본은 의존 파일
    (`forge-paths.sh`·`json-get.sh`·`artifact-resolver.sh`)이 없어 `No such file` 3연발 후
    `FAIL: forge-workspace.json not found` 를 내며, 이 메시지가 **의존 결손을 프로젝트 설정
    문제로 오진하게 만든다**(2026-08-11 실측). 4개 파일은 `shared/scripts/` 에 함께 있다. (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
 2. `wave2-verification-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Missing: 0$'` && `grep '^Critical: 0$'`
 3. `wave3-cto-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Critical: 0$'`
 4. `ui-check-*.json` mtime 최신: `jq '.verdict == "PASS" and .critical_count == 0'` == true
+5. **사람 결정 선수집 (B10, 2026-09-15)** — 기능명세와 개발 계획서를 넣어 돌린다:
+   `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-open-decisions.py" {domain}/<기능명세>.md {project-root}/s4-development-plan.md`
+   - `0` → 통과. `1` → **[STOP]** 출력 항목 전부를 **한 번의 질문**으로 묶어 사람에게 묻고, 답을 번호(`O-N`)를 붙여 계획서 결정표(위 명령에 넘긴 파일)·`<기능명세>.impl-notes.md` 에 기록한 뒤 재실행해 `0` 을 확인한다(`_STATUS.md` 는 자동으로 읽지 않는다 — 다른 기능의 같은 번호로 닫히는 fail-open 방지, #562 R2-3). `2` → 판정 불가 = FAIL(0 으로 읽지 않는다).
+   - ⛔ 결정표에 **"결정 대기 없음" 을 적기 전에** 이 스크립트가 `0` 이어야 한다 — 출력의 `불일치` 줄이 그 주장과 문서가 어긋난다는 증거다.
+   - 근거: 2026-09-14 home-page 계획서가 "결정 대기 없음" 이라 적었으나 Spec `O-5`(프록시 홉 = 사람)가 미결이라, P5 구현 PR 이 검수 후 머지 불가로 묶였다. 폐기조건: Spec 템플릿이 결정 항목을 구조화 필드로 강제하게 되면 이 항목을 그 필드 확인으로 대체한다.
 
 하나라도 FAIL → [STOP] 에스컬레이션.
 
@@ -393,15 +419,15 @@ Step 5 FAIL 시 재작성 루프 진입 전 수렴 상태 체크:
 
 | 상황 | 행동 |
 |------|------|
-| Phase 3 기획서/style-guide/mockup 부재 | **[STOP]** "`/forge-design`으로 Phase 3 먼저 완료하세요" |
+| **P2** 기획서/style-guide/mockup 부재 | **[STOP]** "`/forge-design`으로 **P2** 먼저 완료하세요" (⚠️ 구 표기 `Phase 3` 는 레거시 번호 — 2026-09-17 폐기, §사용법 각주 참조) |
 | 화면 ID 1:1 불일치 (누락·중복·잉여) | **[STOP]** 불일치 목록 + 수정 방향 |
 | Check 4 항목 1개 이상 FAIL | **[STOP]** 실패 항목 + 리포트 헤더 값 보고 |
 | `/forge-check-ui` 3회 후에도 critical 잔존 | **[STOP]** UI 잔여 이슈 + Claude Design 재시도 제안 |
 
 ## 도구
 
-Claude Design(primary), Stitch MCP(fallback), `/cto-advisor`(스킬 — ADR), `cto-advisor`(에이전트 — 7축 검토), `/forge-check-ui`, `/visual-loop`, `forge-gate-check.sh`, Mermaid(인라인)
+`/forge-mockup` 코드 목업(primary — ⚠️ 모델은 `ASTRA_MODEL=gpt-5.6-sol` 로 덮어쓴다, §Step 3 목업 절의 미해소 충돌 참조), Claude Design(fallback — 2순위; Stitch 는 2026-09-15 중단), `/cto-advisor`(스킬 — ADR), `cto-advisor`(에이전트 — 7축 검토), `/forge-check-ui`, `/visual-loop`, `forge-gate-check.sh`, Mermaid(인라인)
 
 ## forge-sync 배포 대상
 
-이 커맨드는 `forge-sync` 실행 시 `$HOME/.claude/commands/forge-plan.md`에 자동 배포된다.
+이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-plan.md`에 자동 배포된다.

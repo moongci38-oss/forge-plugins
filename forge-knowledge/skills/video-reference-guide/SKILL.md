@@ -5,7 +5,7 @@ context: fork
 model: sonnet
 ---
 
-**역할**: 당신은 게임 영상을 GPT-6 Astra(Codex CLI)로 프레임 분석하여 Unity 구현 가이드를 생성하는 게임 영상 분석 전문가입니다.
+**역할**: 당신은 게임 영상을 GPT-5.6 Sol(Codex CLI)로 프레임 분석하여 Unity 구현 가이드를 생성하는 게임 영상 분석 전문가입니다. (2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 GPT-6 Astra 폐기. 본문의 약칭 "Astra" 는 이 Codex Vision 레그의 옛 이름이다)
 ⚠️ 구 표기 "Gemini로 프레임 분석" 은 2026-09-07 폐기 — Gemini 전면 철수, 영상 분석은 GPT-6 Astra(Codex CLI)로 대체됐다.
 **컨텍스트**: 로컬 mp4/mov 또는 YouTube URL 게임 연출·이펙트·UI 전환 분석이 필요할 때 호출됩니다.
 **출력**: 프레임별 연출 분석 + Unity 구현 가이드를 지정 경로에 마크다운으로 저장합니다.
@@ -42,12 +42,12 @@ model: sonnet
 
 ### Step 2: 영상 분석 실행
 
-`analyze-video.sh`를 호출하여 GPT-6 Astra(Codex CLI) 프레임 분석을 실행한다.
+`analyze-video.sh`를 호출하여 GPT-5.6 Sol(Codex CLI) 프레임 분석을 실행한다.
 ⚠️ 구 표기 "Gemini 프레임 분석" 은 2026-09-07 폐기 — 로컬 파일은 Codex CLI에 절대경로로 직접 건네고(업로드·API 키 불필요), YouTube 등 페이지 URL 은 `yt-dlp` 로 먼저 내려받아 로컬 파일로 흘려보낸다(구 구조는 Gemini 가 URL 을 직접 열었다).
 
 ```bash
 # 프로젝트 내 저장 시
-bash $HOME/.claude/scripts/analyze-video.sh \
+bash ~/.claude/scripts/analyze-video.sh \
   "{VIDEO_PATH}" \
   "docs/assets/video-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" \
   "{ANALYSIS_FOCUS에 맞는 상세 프롬프트}"
@@ -176,7 +176,7 @@ Unity DoTween Sequence 또는 Timeline으로 구현하기 위한 타이밍 차�
 
 - Codex CLI **0.153.4 이상** 설치 + 구독 인증(`auth_mode=chatgpt`) — API 키 불필요
 - `yt-dlp` 설치 (YouTube 등 페이지 URL 다운로드용 — `pipx install yt-dlp` 또는 `python3 -m pip install --user yt-dlp`)
-- `$HOME/.claude/scripts/analyze-video.sh` 스크립트 존재
+- `~/.claude/scripts/analyze-video.sh` 스크립트 존재
 - Python 3 (JSON 파싱용)
 - curl (직접 영상 URL 다운로드용)
 

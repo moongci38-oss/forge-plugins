@@ -9,13 +9,13 @@ model: sonnet
 
 **역할**: 당신은 프론트엔드 변경사항을 정적+시각 closed loop로 검증하는 UX 품질 엔지니어입니다.
 **컨텍스트**: 자체 정적 분석 후 "실제 렌더링이 의도한 대로 나오는지" 추가 검증이 필요한 시점에 호출됩니다.
-**출력**: 3 viewport 스크린샷 + GPT-6 Astra(Codex Vision) 분석 + 정적 분석과의 delta 리포트.
+**출력**: 3 viewport 스크린샷 + GPT-5.6 Sol(Codex Vision) 분석 + 정적 분석과의 delta 리포트. (2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 GPT-6 Astra 폐기. 본문의 약칭 "Astra" 는 이 Codex Vision 레그의 옛 이름이다)
 ⚠️ 구 표기 "Gemini Vision 분석" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra 로 대체됐다.
 
 # Visual Loop Skill (Boris Chrome 확장 패턴의 WSL 대체)
 
 > 출처: Boris Cherny 15 features (Chrome 확장 + Claude Desktop 브라우저 자동 검증 루프)
-> WSL 제약: Chrome 확장/Claude Desktop 대신 Playwright + GPT-6 Astra(Codex Vision) 조합
+> WSL 제약: Chrome 확장/Claude Desktop 대신 Playwright + GPT-5.6 Sol(Codex Vision) 조합
 > 관련 스킬: /screenshot-analyze (비전 분석), /playwright-cli (브라우저 자동화)
 > ⚠️ 구 표기 "Playwright + Gemini Vision 조합" 은 2026-09-07 폐기.
 
@@ -85,7 +85,7 @@ node "${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs"
 
 ### Step 2.5 — 기능축 판정 (a11y-tree, 결정론 — 신규)
 
-> **핵심**: "요소가 보이나/작동하나"는 Vision이 아니라 **aria snapshot(JSON tree)**으로 판정한다. Vision(과거 Gemini 실측 확인 — 2026-09-07 Gemini 전면 철수로 현재는 GPT-6 Astra)은 disabled/hidden/모달가림 요소를 신뢰성 있게 구분하지 못함 — 기능 판정을 Vision에 맡기지 않는다.
+> **핵심**: "요소가 보이나/작동하나"는 Vision이 아니라 **aria snapshot(JSON tree)**으로 판정한다. Vision(과거 Gemini 실측 확인 — 2026-09-07 Gemini 전면 철수로 현재는 GPT-5.6 Sol)은 disabled/hidden/모달가림 요소를 신뢰성 있게 구분하지 못함 — 기능 판정을 Vision에 맡기지 않는다.
 
 Step 2의 각 viewport 캡처 Agent가 자신의 `-aria.json`을 받은 직후 곧바로 수행(신규 Agent fan-out 없음):
 
@@ -102,7 +102,27 @@ Step 2의 각 viewport 캡처 Agent가 자신의 `-aria.json`을 받은 직후 �
   { "viewport": "...", "checks": [{"target": "...", "expected": {...}, "found": {...}, "pass": bool, "severity": "fail|warn"}], "fail_count": N, "warn_count": M }
 ```
 
-### Step 3 — GPT-6 Astra(Codex Vision) 분석 (외관축 한정 — tree가 못 보는 이슈만)
+**⚠️ 이 판정은 LLM 이 하지 않는다 — 스크립트가 한다**(2026-09-17 LLM→프로그램 분할선 조사 G1).
+문자열 비교·필드 유무·카운트는 계산이지 판단이 아니다. 에이전트가 할 일은 **기대 요소 목록을
+쓰는 것까지**이고, 대조는 아래 한 줄이 한다:
+
+```bash
+# 1) 기대 요소를 JSON 배열로 적는다(여기까지가 LLM 몫 — "무엇을 검증할 것인가"는 판단이다)
+cat > /tmp/visual-loop/{vp}-expected.json <<'JSON'
+[{"target":"로그인 버튼","role":"button","name":"로그인","enabled":true}]
+JSON
+# 2) 대조·카운트는 스크립트가 한다(결정론)
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/aria-functional-axis.py" \
+  --aria /tmp/visual-loop/{vp}-aria.json \
+  --expected /tmp/visual-loop/{vp}-expected.json \
+  --viewport {vp} --out /tmp/visual-loop/{vp}-functional-axis.json
+# rc 0 = fail_count 0 · rc 1 = 기능 FAIL · rc 2 = 판정 불가(PASS 로 읽지 마라)
+```
+
+매칭 규칙(모호할 때 무엇을 고르는지)·무력화되는 입력은 스크립트 헤더 주석이 정본이다.
+Step 3.5 Evaluator 는 이 파일의 `fail_count` 를 **그대로 읽는다 — 다시 세지 않는다.**
+
+### Step 3 — GPT-5.6 Sol(Codex Vision) 분석 (외관축 한정 — tree가 못 보는 이슈만)
 
 ⚠️ 구 표기 "Gemini Vision 분석" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra(`codex-critic`)로 대체됐다.
 
@@ -252,7 +272,7 @@ Step 6 사용자 승인 후 수정이 실제로 시각 이슈를 해결했는지
 ```
 re-verify 절차 (cap=1회, 초과 시 Human에 위임):
   1. Step 2 재캡처(스크린샷+aria.json, 동일 viewport 세트) → Step 2.5 기능축 재판정
-  2. Step 3 GPT-6 Astra(Codex Vision) 재분석 → Step 3.4 외관 수치 재판정(pixel-diff-gate.sh)
+  2. Step 3 GPT-5.6 Sol(Codex Vision) 재분석 → Step 3.4 외관 수치 재판정(pixel-diff-gate.sh)
      (⚠️ 구 표기 "Gemini Vision 재분석" 은 2026-09-07 폐기)
   3. Step 3.5 독립 Evaluator 재스폰 (동일 프롬프트, 3축 결과 갱신 반영)
   4. Evaluator 판정:
@@ -284,7 +304,7 @@ Step 2 시작 전 / Step 7 시작 전 확인:
 | 리소스 | 1회 호출당 |
 |---|---|
 | Playwright 실행 | 로컬 (무료) |
-| GPT-6 Astra(Codex CLI, 구독) | 정액 — viewport당 approve-worker 토큰 1개 |
+| GPT-5.6 Sol(Codex CLI, 구독) | 정액 — viewport당 approve-worker 토큰 1개 |
 | 스킬 Agent fan-out | 7개 (playwright 3 + analyze 3 + evaluator 1) |
 | 소요 시간 | ~35~70초 |
 
@@ -305,7 +325,7 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 - WSL → Chrome 확장 설치 불가
 - Claude Desktop 앱 → WSL bash에서 자동화 불가
 
-**결론:** Playwright + GPT-6 Astra(Codex Vision) 조합이 **같은 가치**(코드→실행→스크린샷→분석 closed loop)를 WSL에서 달성. Chrome 확장은 대화형 UX 이점만 있고, 자동화 효과는 이 스킬이 동등.
+**결론:** Playwright + GPT-5.6 Sol(Codex Vision) 조합이 **같은 가치**(코드→실행→스크린샷→분석 closed loop)를 WSL에서 달성. Chrome 확장은 대화형 UX 이점만 있고, 자동화 효과는 이 스킬이 동등.
 ⚠️ 구 표기 "Playwright + Gemini Vision 조합" 은 2026-09-07 폐기.
 
 ## 향후 확장
@@ -343,7 +363,7 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 
 **출처 및 관련 문서:**
 - Boris Cherny 15 features 원본: `forge-outputs/01-research/articles/2026-04-17/2026-04-17-yozm-wishket-com-boris-cherny-15-claude-code-features-analysis.md`
-- 관련 스킬: `/screenshot-analyze` (GPT-6 Astra Vision), `/playwright-cli` (브라우저 자동화), `/playwright-parallel-test` (E2E)
+- 관련 스킬: `/screenshot-analyze` (GPT-5.6 Sol Vision), `/playwright-cli` (브라우저 자동화), `/playwright-parallel-test` (E2E)
   ⚠️ 구 표기 "(Gemini Vision)" 은 2026-09-07 폐기.
 > 실패 시 [[pev-self-correction]] 적용
 
@@ -352,7 +372,7 @@ Boris는 "Chrome 확장 + Claude Desktop 내장 브라우저"를 추천. 우리 
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: 3 viewport Codex(Astra) Vision parallel().
 ⚠️ 구 표기 "3 viewport Gemini Vision parallel()" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra(`codex-critic`)로 대체됐다.
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/visual-loop/workflow.js") })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/visual-loop/workflow.js") })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 

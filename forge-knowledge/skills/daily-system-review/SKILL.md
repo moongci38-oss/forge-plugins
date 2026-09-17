@@ -25,7 +25,7 @@ Recent commits: !git log --oneline -5
      공유 URL 을 만들지 않았다 — 이름만 같아서 "이미 발행됐다" 는 오독을 낳았으므로 함께 걷어낸다.
      ⚠️ 파일 저장은 그대로 정본이다. 사이트 발행기가 저장된 파일을 훑어 올린다. -->
 **출력 형식**: §산출물대로 **파일 저장이 정본**입니다. 저장만 하면 **발행은 자동**입니다 —
-`report-site-publish.sh auto` 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
+`report-site-cron.sh`(빌더 pull → 발행) 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
 텔레그램으로 링크를 보냅니다. **이 스킬이 발행을 직접 하지 않습니다.**
 
 - 지금 당장 올리려면: `/forge-publish-report`
@@ -47,7 +47,7 @@ Recent commits: !git log --oneline -5
 
 - 이 스킬은 **Managed Agent(클라우드)** 로도 실행된다. 그때 우리 머신에 대해 쓸 수 있는 도구는
   `forge-outputs` 안 파일읽기 + 허용 스크립트 몇 개 + `harness_probe()` 뿐이다.
-  **임의 셸 명령·`${FORGE_ROOT:-$HOME/forge}` 밖 파일읽기·프로세스 조회는 존재하지 않는다.**
+  **임의 셸 명령·`~/forge` 밖 파일읽기·프로세스 조회는 존재하지 않는다.**
 - 따라서 **실행하지 않은 명령을 근거로 적지 않는다.** `grep ... (결과: 없음)` 처럼
   명령과 결과를 지어내는 것은 리포트 전체의 신뢰를 무너뜨린다.
 - `harness_probe()` 가 답하지 못하는 항목은 **`측정 불가(도구 없음)`** 로 적는다.
@@ -116,7 +116,7 @@ RAW_JSON="01-research/daily/{date}/raw-data.json"
 
 **Workflow 실행 (권장)** — parallel() 5 Teammate + cross-verify 자동:
 ```js
-Workflow({ script: Bash("cat $HOME/.claude/skills/daily-system-review/workflow.js") })
+Workflow({ script: Bash("cat ~/.claude/skills/daily-system-review/workflow.js") })
 ```
 
 **Agent Teams fallback** (`CLAUDE_CODE_DISABLE_WORKFLOWS=1` 또는 Workflow 실패 시): 아래 Wave 1~3 직접 실행.
@@ -159,17 +159,17 @@ Workflow({ script: Bash("cat $HOME/.claude/skills/daily-system-review/workflow.j
 
 > **AD-117 self-correction 의무 (L-38)**: 시스템 상태 claim 작성 시 grep/find 실측 결과 인용 필수.
 > 추측 claim 금지. 실재 확인 패턴:
-> - hook 존재 → `ls $HOME/.claude/hooks/ | grep {name}` 실행 결과 인용
-> - skill 활성화 → `ls $HOME/.claude/skills/{name}/SKILL.md` 존재 확인
-> - settings.json 배선 → `grep {hook-name} $HOME/.claude/settings.json` 결과 인용
-> - rule 변경 → `grep {pattern} ${FORGE_ROOT:-$HOME/forge}/.claude/rules/` 실측 결과 인용
+> - hook 존재 → `ls ~/.claude/hooks/ | grep {name}` 실행 결과 인용
+> - skill 활성화 → `ls ~/.claude/skills/{name}/SKILL.md` 존재 확인
+> - settings.json 배선 → `grep {hook-name} ~/.claude/settings.json` 결과 인용
+> - rule 변경 → `grep {pattern} ~/forge/.claude/rules/` 실측 결과 인용
 > - **handover snapshot 수치** → 직전 handover 인용 X = 실측 (`find ... -name "eval_cases.jsonl" | wc -l` 등) 의무
 > 실측 없는 claim = `⚠️ [미확인]` 표기 의무
 >
 > **L-20260530T053939 학습 정합**: handover의 audit 수치는 시간 의존적 = snapshot 인용 신뢰 X. 세션 시작 시 find 실측 재확인 의무.
 
 인프라 레이어:
-- Read: `$HOME/.claude/forge/rules/`, `$HOME/.claude/rules/`
+- Read: `~/.claude/forge/rules/`, `~/.claude/rules/`
 - Read: `.claude/skills/`, `.claude/agents/`, `.claude/rules/`
 - Read: 최근 improvement plan (있으면)
 
@@ -209,7 +209,7 @@ Lead가 5개 Teammate 결과를 종합하여 2개 문서 직접 작성:
 
 이전 날짜의 계획서가 있으면 미처리 액션을 이월한다.
 
-- **`carry_count >= 2`**: 재게시 전 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/dsr-verify-run.sh "<verify_cmd>"`로 verify_cmd를 재실행한다. 결과가 바뀌었으면(문제 해소) **자동 종결**하고 "해소됨"으로 기록한다(재게시하지 않음).
+- **`carry_count >= 2`**: 재게시 전 `~/forge/shared/scripts/dsr-verify-run.sh "<verify_cmd>"`로 verify_cmd를 재실행한다. 결과가 바뀌었으면(문제 해소) **자동 종결**하고 "해소됨"으로 기록한다(재게시하지 않음).
 - **`carry_count >= 3`**: 삭제·추적종료 금지. `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/human-queue.md`에 append + `[STOP]` 표기 후 이 계획서에서는 제외한다.
 - **`owner: human`** 항목도 동일하게 `human-queue.md`로 라우팅한다(AI가 처리할 수 없는 항목을 P0로 반복 재게시하지 않는다).
 
@@ -254,7 +254,20 @@ Lead가 5개 Teammate 결과를 종합하여 2개 문서 직접 작성:
 - **Wave 2.5(차단)** — Lead 의 컨텍스트를 공유하지 않는 별도 Evaluator 가 채점한다
   (생성자 ≠ 평가자 — 자기평가 편향 방지). PASS 기준 70점, FAIL 이면 보완 후 재실행 1회,
   **2회 연속 FAIL 시 [STOP] Human 에스컬레이션.** 여기를 통과해야 Wave 2.6 으로 넘어간다.
-- **Wave 2.55(비차단, WARN-first)** — **분석 리포트**(`ai-system-analysis.md`)에 cr-triple 3레그로 적대적 검수를 건다
+  - ⚠️ **상태는 셋이다: PASS · FAIL · SKIP.** `codex-critic`(교차모델 레그)이 미가용이면
+    Evaluator 가 아예 돌지 못한다 — 그것은 FAIL 이 아니라 **미실시**다
+    (`reference/wave25-adversarial.md §Wave 2.5`).
+  - **SKIP 일 때의 하류 계약**: Wave 2.6~3 을 **진행한다**. 단 ①리포트 말미와 ②HTML 대시보드
+    상단과 ③Notion 페이지 속성에 **`교차 검증 미실시(Evaluator SKIP)`** 를 반드시 적는다.
+    ⛔ **SKIP 을 PASS 로 기록하지 마라** — "Evaluator PASS" 문구를 쓰면 안 된다.
+  - **왜 멈추지 않나**: 이 파이프라인은 cron 이 무인으로 돌린다(화~일 09:00). 사람이 없는
+    자리에서 멈추면 그날 리포트가 통째로 안 나온다 — Wave 2.55 가 같은 이유로 [STOP] 을
+    걸지 않는 것과 같은 판단이다. **쉽게 말하면 문을 잠그는 대신 쪽지를 붙인다.**
+  - ⚠️ **이 계약이 감수하는 것**: 교차 검증 없이 나온 리포트가 배포된다. 배너가 유일한 방어라
+    **읽는 사람이 배너를 보지 않으면 검증된 리포트와 구분되지 않는다.**
+    (대안은 "SKIP 이면 그날 발행 중단" 이며, 그것은 사람이 정할 설계 결정이다.)
+- **Wave 2.55(비차단, WARN-first)** — **분석 리포트**(`ai-system-analysis.md`)에 cr-triple
+  **2벤더 교차 2레그**로 적대적 검수를 건다 (⚠️ 구 표기 "3레그" 는 2026-09-11 폐기 — Gemini 전면 철수)
   > ⚠️ 2026-09-03 변경: 종전엔 계획서만 검수했고 계획서가 없으면 건너뛰었다 — 계획서를
   > 폐지하면 검수가 **영영 안 돈다.** `content_integrity=lost`·`INVALID_INPUT` 은 판정이 아니라
   > **검수 미수행**이니 대상을 쪼개 재호출한다(로더 ~15KB 상한, 2026-09-02 실측).
@@ -268,14 +281,14 @@ Lead가 5개 Teammate 결과를 종합하여 2개 문서 직접 작성:
 
 > ⚠️ **학습노트 생성은 2026-09-03 폐지**(Human 지시) — `concept-notes-writer` 를 스폰하지 않는다.
 
-### Wave 2.7 (HTML 대시보드 생성 — Evaluator PASS 후)
+### Wave 2.7 (HTML 대시보드 생성 — Evaluator PASS 또는 SKIP 후)
 
 2개 md 리포트를 단일 HTML 대시보드로 변환한다 (조사 리포트 공통 — 시각적 가독성).
 
 ```bash
 DATE={date}
 BASE="${FORGE_OUTPUTS:-$HOME/forge-outputs}"
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
+python3 ~/forge/shared/scripts/report_to_html.py \
   "${BASE}/01-research/daily/${DATE}/dashboard.html" --title "Daily System Review — ${DATE}" \
   --subtitle "AI 시스템 분석 + 적용 계획" \
   "${BASE}/01-research/daily/${DATE}/ai-system-analysis.md" \
@@ -290,17 +303,19 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 
 **순서 원칙**: 파일검증 → (성공 시에만) Notion 등록/완료. Notion에 "완료"를 먼저 찍고 그 뒤 파일을 Read하는 순서는 저장 실패를 은폐한다 — 반드시 아래 게이트가 Wave 3보다 먼저 실행된다.
 
-1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "${BASE}/01-research/daily/${DATE}/ai-system-analysis.md" "${BASE}/01-research/daily/${DATE}/dashboard.html"`
+1. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh "${BASE}/01-research/daily/${DATE}/ai-system-analysis.md" "${BASE}/01-research/daily/${DATE}/dashboard.html"`
 2. 스크립트 출력 표를 완료 보고에 그대로 사용. 표 밖 임의 "완료" 서술 금지.
 3. exit 2(MISSING/0바이트)면 Notion "완료" 기록 금지 — 누락 산출물을 재생성한 뒤 재검증(exit 0) 통과 후에만 Wave 3으로 진행한다.
 
 ### Wave 3 (Notion 자동 등록 — Wave 2.9 검증 통과 후)
 
-2개 문서 작성 완료 + Evaluator PASS 확인 후, Notion "Daily System Review" DB에 페이지를 자동 생성한다.
+2개 문서 작성 완료 + Evaluator **PASS 또는 SKIP** 확인 후, Notion "Daily System Review" DB에
+페이지를 자동 생성한다. ⚠️ **SKIP 이면 페이지에 `교차 검증 미실시(Evaluator SKIP)` 를 적는다** —
+PASS 로 기록하지 않는다(§Wave 2.5 SKIP 하류 계약).
 
 **Notion DB 정보:**
 - Data Source ID: `43829f7b-8d3f-47f1-90a1-84f40d39239e`
-- DB URL: `https://www.notion.so/${NOTION_DB_ID}`
+- DB URL: `https://www.notion.so/b3a833acdc1644c99acf81e7da25a268`
 
 **`mcp__notion__notion-create-pages` 호출**: 위 Data Source ID로 페이지 생성. 정확한 JSON 페이로드 구조(properties 필드명·속성 값 추출 규칙): `reference/notion-templates.md` Read 후 그대로 따를 것.
 
@@ -314,7 +329,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 
 ```bash
 echo '{"date":"{date}","title":"{date} AI 시스템 분석","critical_gaps":<N>,"high_gaps":<N>,"medium_gaps":<N>,"p0_actions":<N>,"p1_actions":<N>,"files":{"ai_system_analysis":"01-research/daily/{date}/ai-system-analysis.md","stock_brief":"01-research/daily/{date}/stock-brief.md"},"notion_upload":"{Wave 3 결과}"}' \
-  | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/daily-review/append_index_record.py
+  | python3 ~/forge/shared/scripts/daily-review/append_index_record.py
 ```
 
 값이 없는 파일(skip)은 `files`에서 키 자체를 생략(null 채움 금지). **fail-open**: 실패해도 이미 저장된 산출물엔 영향 없음 — 로그만 남기고 Wave 4로 진행.
@@ -374,13 +389,13 @@ Read("01-research/daily/{date}/ai-system-analysis.md") → 전체 내용 출력
 - `[실측]` 그 URL 을 직접 열어 확인 / `[스니펫]` 검색 스니펫만(원문 미확인 — `reddit.com` 은 WebFetch 차단 환경에서 기본 여기, 2026-08-19 실측) / `[전언]` 워커·타 문서 보고를 옮김
 - **spot-check**: Wave 2 취합 시 **Critical/Breaking 판정을 좌우하는 주장은 표본 3건+ 원출처를 Lead 가 직접 재확인**한다. 특히 **"Deprecated 됐다"·"지원 중단됐다" 같은 부재·중단 주장**은 공식 changelog 를 직접 열어 확인한다 — 알람 스킬에서 오탐 1건은 그 뒤 모든 알람의 신뢰를 깎는다.
 - ⛔ **워커의 판정 라벨을 그대로 옮기지 않는다**(라벨은 관측이지 사실이 아니다).
-- 근거: `learnings` **L-20260819T081207** + 2026-08-19 idea-hunt 실측 — 워커 라벨·수치 오보고 4건이 전부 spot-check 로만 잡혔고 그중 3건은 cr-triple 3레그도 통과했다.
+- 근거: `learnings` **L-20260819T081207** + 2026-08-19 idea-hunt 실측 — 워커 라벨·수치 오보고 4건이 전부 spot-check 로만 잡혔고 그중 3건은 cr-triple(**당시 3레그**)도 통과했다. — 관측 시점의 구성이다. 현행은 2벤더 교차 2레그(정본 `model-routing.md §검수 2레그`).
 - ⚠️ **이 스킬에는 `/forge-find-item §제1원칙`(거래 시장 우선·기사 불인정)을 이식하지 않는다** — daily 는 AI 생태계 변화 감지가 목적이라 **뉴스가 정당한 1차 입력**이다. 그 원칙은 *아이템 발굴* 맥락에서만 유효하다(weekly 의 사업 아이템 산출물에는 이식됨). 두 스킬을 같은 규칙으로 덮지 말 것.
 - 폐기조건: 2분기 연속 spot-check 적발 0건이면 표본 수 하향을 재검토한다.
 
 ## Constraint Drift 감사 (AD-120, 주간)
 
-daily 실행 시 override-rate.log 추세 체크: 5% 초과 → WARN (단, **total ≥ 10 표본 시만** — total < 10 = "표본 부족, 추세 보류"), hook bypass 3회+ → ADR 검토, 면제 weekly 1회+ → enforcement-theater 신호. 상세: `$HOME/.claude/rules-on-demand/constraint-drift-audit.md`
+daily 실행 시 override-rate.log 추세 체크: 5% 초과 → WARN (단, **total ≥ 10 표본 시만** — total < 10 = "표본 부족, 추세 보류"), hook bypass 3회+ → ADR 검토, 면제 weekly 1회+ → enforcement-theater 신호. 상세: `~/.claude/rules-on-demand/constraint-drift-audit.md`
 
 ## Redundancy 스캔 (P2-1, 주간)
 
@@ -405,16 +420,16 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-desc-budget.sh"
 
 **무엇을 내나**: 설치된 스킬 중 **지난 30일 동안 한 번도 안 불린 것**의 이름 목록. 위 Redundancy 스캔이 "선언이 낡았나"(deprecated·orphan)를 본다면, 이 스텝은 **"선언은 멀쩡한데 아무도 안 쓰나"**를 본다 — 서랍은 잘 정리돼 있는데 그 안의 물건을 1년째 안 꺼낸 상태다.
 
-**신호원(하나로 고정)**: `$HOME/.claude/projects/**/*.jsonl` 세션 로그의 `"skill":"<이름>"` 호출 기록.
+**신호원(하나로 고정)**: `~/.claude/projects/**/*.jsonl` 세션 로그의 `"skill":"<이름>"` 호출 기록.
 (왜 이것인가: 실측상 30일 내 12,718개 파일이 존재하고 스킬명이 그대로 찍힌다. `learnings-access.log` 는 **이 머신에 없어서** 신호원으로 쓰지 않는다 — 2026-08-27 확인.)
 
 ```bash
 # 신호원 부재 분기 — 아래 출력 규약의 '측정 불가'를 코드로 구현한다(산문만으로는 안 지켜진다).
-if [ ! -d $HOME/.claude/projects ] || ! find $HOME/.claude/projects -name '*.jsonl' -mtime -30 -print -quit 2>/dev/null | grep -q .; then
-  echo '지난 달 사용 0회: 측정 불가 — 신호원($HOME/.claude/projects/**/*.jsonl) 없음'
+if [ ! -d ~/.claude/projects ] || ! find ~/.claude/projects -name '*.jsonl' -mtime -30 -print -quit 2>/dev/null | grep -q .; then
+  echo '지난 달 사용 0회: 측정 불가 — 신호원(~/.claude/projects/**/*.jsonl) 없음'
 else
   # 사용된 스킬(30일) — 결정론. 문자클래스에 대문자·점·슬래시 포함(경로 스코프 스킬명).
-  find $HOME/.claude/projects -name '*.jsonl' -mtime -30 -print0 \
+  find ~/.claude/projects -name '*.jsonl' -mtime -30 -print0 \
     | xargs -0 grep -hoa '"skill":"[A-Za-z0-9:/._-]*"' 2>/dev/null \
     | sed 's/.*:"//;s/"//' | sort -u > /tmp/dsr-skills-used.txt
   # 설치된 스킬 (comm 은 정렬 입력 필수 — 명시 sort)
@@ -427,13 +442,13 @@ fi
 **출력 규약 (침묵 금지)**
 - 0회 스킬이 있으면 → `지난 달 사용 0회: <이름1>, <이름2>, …` (N개)
 - 하나도 없으면 → `지난 달 사용 0회: 0건`
-- **신호원 자체가 없으면**(`$HOME/.claude/projects` 부재·로그 0개) → `지난 달 사용 0회: 측정 불가 — 신호원($HOME/.claude/projects/**/*.jsonl) 없음`
+- **신호원 자체가 없으면**(`~/.claude/projects` 부재·로그 0개) → `지난 달 사용 0회: 측정 불가 — 신호원(~/.claude/projects/**/*.jsonl) 없음`
   ⚠️ **"측정 불가"를 "0건"으로 적지 않는다.** 못 센 것과 세어 보니 없는 것은 다르다 — 없는 폴더를 뒤져놓고 "양말이 없네"라고 하면 안 된다.
 
 ⚠️ **이 측정이 무력화되는 입력**: ①세션 로그 보존기간이 30일 미만이면 오래 안 쓴 스킬이 아니라 **로그가 지워진 스킬**이 잡힌다 ②`Skill` 툴이 아니라 슬래시 커맨드 경로로만 불리는 스킬은 `"skill":` 로 안 찍힐 수 있다 ③0회 = 삭제 근거가 **아니다**(분기 1회짜리 스킬이 있다) ④세션 로그에는 대화 내용도 찍힌다 — 이 문서를 읽거나 편집한 세션의 로그 속 `"skill":"이름"` 리터럴이 실호출로 오집계된다(사용량이 **과대** 방향으로 틀린다 = 0회 목록이 실제보다 짧아진다). 이 목록은 **검토 후보**이지 판결이 아니다.
 
 ## Gotchas (흔한 실패 패턴 — 실증만, 증거 링크 의무)
 
-- **`claude -p` 하위 호출의 침묵 실패를 성공으로 오보고** — run.sh Step2가 실패 시그널을 감지 못 해 tg-report가 "완료"를 발신한 사고. 파이프라인 스텝의 exit·출력 검사를 신뢰 기반으로 삼을 것. (증거: `${FORGE_ROOT:-$HOME/forge}` 커밋 `22faf98`·`f0e34cf` 경위)
-- **산출물은 canonical 경로(`01-research/daily/{date}/`)에만** — docs/reviews 등으로 산개시키면 index.json·후속 소비가 깨진다. (증거: `${FORGE_ROOT:-$HOME/forge}` 커밋 `aad844a`·`73978b8` 계열 수렴 작업)
+- **`claude -p` 하위 호출의 침묵 실패를 성공으로 오보고** — run.sh Step2가 실패 시그널을 감지 못 해 tg-report가 "완료"를 발신한 사고. 파이프라인 스텝의 exit·출력 검사를 신뢰 기반으로 삼을 것. (증거: `~/forge` 커밋 `22faf98`·`f0e34cf` 경위)
+- **산출물은 canonical 경로(`01-research/daily/{date}/`)에만** — docs/reviews 등으로 산개시키면 index.json·후속 소비가 깨진다. (증거: `~/forge` 커밋 `aad844a`·`73978b8` 계열 수렴 작업)
 - **텔레메트리 표본이 0이면 "미사용"이 아니라 emit 지점 부재부터 의심** — phase-e-entry 50회 반복의 근본원인 미규명 상태로 데이터 축적만 신뢰하지 말 것. (증거: MEMORY §협업보완 프로토콜, P-9 교훈)

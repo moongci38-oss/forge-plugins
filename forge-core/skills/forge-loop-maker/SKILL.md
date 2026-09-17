@@ -4,8 +4,12 @@ description: |
   루프 설계 마법사 + scaffold. "자동으로 실행되게 해줘", "반복 작업 에이전트 만들어줘", "루프 짜줘" 등 루프 자동화 의도 감지 시 발동.
   4단계: 7Q 인터뷰 → 패턴 매핑 → 안전장치 검증 → [STOP] blueprint 승인 → scaffold.
   산출물: 루프 SKILL.md + workflow.js + HUMAN-GATES.md + STATE.md + TRIGGER.md.
-  커널(same_issue/plateau/oscillation/max_cycles 등 8 stop-condition)을 소유 — scripts/loop-kernel.js.
-  /qa·/healer는 이 커널을 직접 호출해 SSoT로 삼는다(2026-07-05 단일화 — 더 이상 SKIP 대상 아님, agents/healer.md §loop-kernel.js SSoT 연동 참조).
+  커널(8 stop-condition 명세)을 소유 — scripts/loop-kernel.js. **3종은 재사용 함수**
+  (checkSameIssue·checkOscillation·checkPlateau), 나머지 5종은 **inline 복사용 패턴 명세**다
+  (Workflow 샌드박스가 외부 import 를 지원하지 않아 생성된 workflow.js 에 직접 옮겨 적는다).
+  **실호출처는 `healer`·`forge-implement`·`forge-pge` 3곳**이다(2026-09-13 실측).
+  ⚠️ `/qa` 는 커널을 **직접 호출하지 않는다** — healer 가 판정한 값을 재기재할 뿐이다
+  (`qa/SKILL.md` §재시도 루프). 구 표기 "/qa·/healer는 이 커널을 직접 호출"은 2026-09-13 폐기.
   SKIP: /migration-audit(DB 전용), 1회성 단순 검사.
 ---
 
@@ -16,7 +20,24 @@ description: |
 
 ## 역할
 
-반복 자동화 의도를 감지해 루프를 설계·검증·scaffold하는 마법사. same_issue/plateau/oscillation/max_cycles 등 8종 stop-condition 커널(`scripts/loop-kernel.js`)의 SSoT 소유자이며, `/qa`·`healer`도 이 커널을 직접 재사용한다.
+반복 자동화 의도를 감지해 루프를 설계·검증·scaffold하는 마법사. 8종 stop-condition 커널(`scripts/loop-kernel.js`)의 SSoT 소유자다.
+
+> ⚠️ **"8종을 소유"가 "8개 함수가 있다"는 뜻은 아니다** (2026-09-13 실측으로 서술 정정).
+> 이 커널은 **패턴 라이브러리**다 — 파일 자신이 *"Workflow 샌드박스는 외부 import 를 지원하지
+> 않으므로 이 패턴을 생성된 workflow.js 에 inline 복사하라"* 고 적고 있다.
+>
+> | 구분 | 조건 | 형태 |
+> |---|---|---|
+> | **3종은 재사용 함수** | `same_issue` · `oscillation` · `plateau` | `export function` — 상태 누적이 필요해 헬퍼로 뽑았다 |
+> | 5종은 inline 패턴 명세 | `rubric_all_pass` · `max_cycles` · `budget_advisory` · `security_crit` · `regression` | 주석 명세(§1-a~e) — 한 줄 비교라 헬퍼가 과하다 |
+>
+> 재현: `grep -c '^export function' scripts/loop-kernel.js` → **3**
+> 실호출 실측: `same_issue` 만 3곳(`healer`·`forge-implement`·`forge-pge`). `oscillation`·
+> `plateau` 는 아카이브 스킬에서만 언급되고, 미배선 사유는 `healer-reference.md` 와
+> `forge-pge/reference.md` 가 각각 **명시적으로 기록**하고 있다(누락이 아니라 의도).
+> 회귀 테스트: `bash shared/scripts/tests/loop-kernel.test.sh`
+> 폐기조건: 커널이 import 가능한 런타임으로 옮겨가면 이 표를 지우고 8종을 전부 함수로 만든다.
+
 
 ## 컨텍스트
 
@@ -139,10 +160,10 @@ Phase 4: Blueprint → [STOP] 승인 → scaffold
 
 | 분류 | 경로 | 템플릿 |
 |------|------|-------|
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
-| Durable | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(패턴 본문) |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
+| Durable | `~/forge/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(패턴 본문) |
 | Changing | `{PROJECT_CWD}/loops/{LOOP_NAME}/STATE.md` | `templates/STATE.md.tmpl` |
 
 **⚠️ workflow.js는 골격 1개 + 패턴 본문 4개 조합이다.** `--pattern`이 본문 템플릿을 고른다 — 골격만 고치면 특정 패턴의 판정 방식은 바뀌지 않는다. 패턴별 종료 판정:
@@ -168,7 +189,7 @@ scaffold 완료 후 파일 트리 출력.
 
 ## 커널 참조
 
-`scripts/loop-kernel.js` — 8 stop-condition 표준 구현:
+`scripts/loop-kernel.js` — 8 stop-condition **명세**(3종 재사용 함수 + 5종 inline 패턴):
 `rubric_all_pass / max_cycles / same_issue / plateau / oscillation / regression / security_crit / budget_advisory`
 
 생성된 루프의 workflow.js는 이 커널 패턴을 `templates/workflow.js.tmpl`에서 상속합니다(Workflow 샌드박스 — 외부 import 불가, inline 복사).
@@ -179,7 +200,7 @@ scaffold 완료 후 파일 트리 출력.
 
 ## forge-sync 필수
 
-`${FORGE_ROOT:-$HOME/forge}` SSoT → `$HOME/.claude/` 미러. scaffold 후 반드시:
+`~/forge` SSoT → `~/.claude/` 미러. scaffold 후 반드시:
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
+node ~/forge/dev/scripts/forge-sync.mjs sync
 ```

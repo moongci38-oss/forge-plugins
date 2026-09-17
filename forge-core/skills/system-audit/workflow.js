@@ -5,7 +5,7 @@ export const meta = {
   phases: [
     { title: 'Audit', detail: '6축 parallel() 동시 실행 (axis-* 5개 + Redundancy)' },
     { title: 'Synthesize', detail: 'Lead 종합 + 축간 트레이드오프 + 로드맵' },
-    // root-cause: Gemini 전면 철수(2026-09-07) — 구조 검증 레그를 Codex(GPT-6 Astra)로 교체.
+    // root-cause: Gemini 전면 철수(2026-09-07) — 구조 검증 레그를 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-5.6 Sol)로 교체.
     { title: 'Verify', detail: '3-LLM adversarial (Claude + Codex 적대 + Codex 구조) 2/3 합의' },
     { title: 'Report', detail: '검증 통과 발견 기반 최종 보고서 저장' },
   ],
@@ -227,25 +227,25 @@ const redundancyPrompt =
   `Forge 시스템 중복/불필요 기능 탐지. Bash 도구 사용 가능.
 
 1. 스킬 중복 탐지:
-   ls $HOME/.claude/skills/ | sort → 전체 스킬 목록
-   grep -rl "DEPRECATED\\|ARCHIVED\\|OOS" $HOME/.claude/skills/*/SKILL.md 2>/dev/null
+   ls ~/.claude/skills/ | sort → 전체 스킬 목록
+   grep -rl "DEPRECATED\\|ARCHIVED\\|OOS" ~/.claude/skills/*/SKILL.md 2>/dev/null
    유사 목적 스킬 그룹핑 (이름/설명 기반)
 
 2. Orphan 에이전트:
-   ls ${FORGE_ROOT:-$HOME/forge}/.claude/agents/ → 정의된 에이전트
+   ls ~/forge/.claude/agents/ → 정의된 에이전트
    각 에이전트명으로 스킬 내 실제 호출 grep
    호출 없음 = orphan
 
 3. 미사용 스킬:
-   find $HOME/.claude/skills -name "eval_cases.jsonl" -empty → 0건
-   grep -r "eval_cases.jsonl" $HOME/.claude/skills 2>/dev/null | wc -l
+   find ~/.claude/skills -name "eval_cases.jsonl" -empty → 0건
+   grep -r "eval_cases.jsonl" ~/.claude/skills 2>/dev/null | wc -l
 
 4. Hook 중복/theater:
-   grep -l "exit 0$" $HOME/.claude/hooks/*.sh 2>/dev/null → 항상 통과 hook
+   grep -l "exit 0$" ~/.claude/hooks/*.sh 2>/dev/null → 항상 통과 hook
    동일 목적 hook 중복 확인 (asi-*.sh 개별 vs 메가훅)
 
 5. 규칙 중복:
-   ls $HOME/.claude/rules/ $HOME/.claude/rules-on-demand/ 2>/dev/null
+   ls ~/.claude/rules/ ~/.claude/rules-on-demand/ 2>/dev/null
    제목/목적 유사 파일 매칭
 
 위 탐지 결과를 REDUNDANCY_SCHEMA 형식으로 반환.`
@@ -367,17 +367,18 @@ const verifyCtx = JSON.stringify({
 // Existing verifiers.length<2 fail-closed guard + threshold=2 renorm handle 2-LLM gracefully.
 const spawnCodex = crMode === 'on'
 if (!spawnCodex) log(`[INFO] crMode=${crMode} — codex-critic spawn SKIPPED. Verify degrades to Claude 2-LLM(적대 레그 제외, 구조 레그는 Claude 로 대체).`)
-// root-cause: Gemini 전면 철수(2026-09-07) — 구조 검증 레그(구 agentType = Gemini)를 Codex(GPT-6 Astra)로 교체.
-//   계획서: ${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+// root-cause: Gemini 전면 철수(2026-09-07) — 구조 검증 레그(구 agentType = Gemini)를 Codex(현행 GPT-5.6 Sol)로 교체.
+//   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
 //   ⚠️ 알려진 대가: 이제 3레그 중 2개가 Codex 라 **벤더 교차 독립성이 약해졌다**.
 //     레그별 렌즈(적대 false-positive vs 구조 drift)로만 분리된다 — 합의 2/3 의 의미가 종전보다 얕다.
 //   ⚠️ crMode 계약 유지: crMode!=='on' 이면 Codex 를 하나도 안 띄운다는 뜻이므로,
 //     구조 레그도 Codex 로 두면 게이트가 새어나간다 → degrade 시 Claude 구조 검증으로 대체한다.
 //     그 결과 verifier 수는 종전 degrade 경로와 동일하게 2 로 유지된다(fail-closed 임계 불변).
 // root-cause: Workflow 샌드박스는 Bash 불가 → model-registry-resolve.sh 미호출.
-//   cr-multi/workflow.js:454 관례대로 codex:max 현행 id 를 코드 기본값으로 둔다.
-//   SSoT = shared/config/model-registry.json (codex.tiers.max).
-const codexVerifyModel = _a?.codexModel || 'gpt-6-astra'
+//   codex:high 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high).
+// 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 codex:max(gpt-6-astra) 기본값 폐기 → sol · effort high(감사 메타검증, 머지 게이트 아님).
+//   ⚠️ 무력화되는 입력: 호출자가 args.codexModel 로 최고급 id 를 넘기면 그대로 쓴다(사람 override).
+const codexVerifyModel = _a?.codexModel || 'gpt-5.6-sol'
 const [claudeVerify, codexVerify, structuralVerify] = await parallel([
   () => agent(
     `audit 결과 meta-review. 검토: (1) 발견 이슈 실제 문제인가 (2) 권고사항 실행 가능한가 (3) 놓친 이슈. ` +
@@ -388,7 +389,9 @@ const [claudeVerify, codexVerify, structuralVerify] = await parallel([
     ? agent(
         `adversarial 검증 (Codex). false positive 탐지. ` +
         `Redundancy 발견 중 실제 중복 아닌 것? 보안 이슈 오분류? ` +
-        `각 finding.id confirmed/disputed 판단. 결과: ${verifyCtx}`,
+        `각 finding.id confirmed/disputed 판단. 결과: ${verifyCtx}\n` +
+        // 2026-09-17: model 을 명시한다 — 미지정이면 ~/.codex/config.toml 핀(astra, advisor 전용)으로 떨어진다.
+        `- mcp__codex__codex 호출 시 model = "${codexVerifyModel}", config = {"model_reasoning_effort": "high"}`,
         { label: 'verify-codex', phase: 'Verify', schema: VERIFY_SCHEMA, agentType: 'codex-critic' }
       )
     : null,
@@ -399,8 +402,8 @@ const [claudeVerify, codexVerify, structuralVerify] = await parallel([
         `- prompt = "다음 감사 종합 결과의 **구조**를 검증하라. 축간 점수 모순? 중복 분류 표 섹션 정합? ` +
         `레이블 drift? 각 finding.id 를 confirmed/disputed 로 판단하라.\\n결과: ${verifyCtx}\\n` +
         `VERIFY_SCHEMA(confirmed_finding_ids/disputed_finding_ids 등) 형태 JSON 으로 반환."\n` +
-        `- model = "${codexVerifyModel}" (구조 검증 레그 tier — codex:max)\n` +
-        `- sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "xhigh"}\n` +
+        `- model = "${codexVerifyModel}" (구조 검증 레그 tier — codex:high)\n` +
+        `- sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "high"}\n` +
         `Codex 응답(JSON) 파싱 → StructuredOutput(VERIFY_SCHEMA).`,
         { label: 'verify-structural', phase: 'Verify', schema: VERIFY_SCHEMA, agentType: 'codex-critic' }
       )

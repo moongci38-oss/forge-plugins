@@ -8,10 +8,10 @@ model: sonnet
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
 > (2026-08-04 관측).
 
 
@@ -56,7 +56,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
+| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -135,7 +135,7 @@ model: sonnet
    ```
    스크립트 없을 시 직접 실측 (실행 가능한 단일 명령):
    ```bash
-   find $HOME/.claude/skills/ ${FORGE_ROOT:-$HOME/forge}/.claude/skills/ -name "SKILL.md" 2>/dev/null | sort | while read f; do
+   find ~/.claude/skills/ ~/forge/.claude/skills/ -name "SKILL.md" 2>/dev/null | sort | while read f; do
      grep -qE "Agent\(|독립 Evaluator|Wave 2\.5|Evaluator subagent|PGE\b|eval-report\.md|WP_EVAL|DSR_EVAL|WR_EVAL|FD_EVAL|Step 3\.5|신뢰도.*HIGH" "$f" \
        && echo "PASS $(dirname $f | xargs basename)" || echo "FAIL $(dirname $f | xargs basename)"
    done | sort
@@ -217,7 +217,7 @@ model: sonnet
 
 Bash 도구로 직접 실측:
 
-1. `grep -l "exit 0$" $HOME/.claude/hooks/*.sh 2>/dev/null` → 항상 통과 hook 목록
+1. `grep -l "exit 0$" ~/.claude/hooks/*.sh 2>/dev/null` → 항상 통과 hook 목록
 2. 각 hook의 의도 확인: WARN-only(의도적) vs 미완성 BLOCK(exit 2 없음) 분류
 3. enforcement-theater 룰 위반 체크: WARN+metrics 미설정 상태로 BLOCK = 룰 위반
 4. 결과: `hook_theater: [{file, type: "warn_only|incomplete_block|theater", recommendation}]`
@@ -276,7 +276,7 @@ Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
 
 ## 참조
 - docs/tech/2026-03-16-5-axis-ai-analysis-framework.md
-- `$HOME/.claude/rules-on-demand/harness-failure-modes.md` — 하네스 실패모드 카논 (F1-F19): false-test/enforcement-theater/dead-gate/SSoT-drift 등 실제 사례 매트릭스
+- `~/.claude/rules-on-demand/harness-failure-modes.md` — 하네스 실패모드 카논 (F1-F19): false-test/enforcement-theater/dead-gate/SSoT-drift 등 실제 사례 매트릭스
 ```
 
 ### Step 4: Notion 페이지 생성
@@ -312,14 +312,24 @@ Subagent 결과를 기반으로 Lead가 보고서를 작성한다.
 > **원칙**: Generator(감사 수행자) ≠ Evaluator. 감사자가 자신의 감사를 평가하면 자기평가 편향이 발생한다.
 > **아이러니 해소**: 하네스 감사 스킬 자체에 독립 Evaluator가 없으면 "하네스 미적용" 스킬로 자체 집계됨 — 자기 모순.
 
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 audit-harness 결과물의 독립 품질 검증자입니다.
+### 1단계 — 구조 린트 (스크립트, LLM 없음)
 
-아래 기준으로 결과물을 검토하고 PASS 또는 FAIL을 판정하십시오.
+형식·개수·존재·산술은 스크립트가 판정한다 — 기계가 이미 본 축을 LLM 이 다시 보지 않는다
+(`rules-on-demand/machine-vs-llm-boundary.md`). 스크립트는 **확실할 때만** PASS/FAIL 을 확정하고,
+표기가 달라 판단이 필요한 항목과 질적 항목은 `residual` 로 넘긴다.
+
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/audit-report-structure-lint.py" \
+  --skill audit-harness --report "<보고서 경로>" > /tmp/audit-lint-audit-harness.json
+echo "lint rc=$?"
+```
+
+- `rc=1`(구조 FAIL) → **LLM Evaluator 를 띄우지 않고 FAIL 확정.** 피드백 = JSON `items[].checks` 중 `FAIL` 의 `check`·`detail`.
+- `rc=2`(입력 오류) → 판정이 아니다. 보고서 경로를 고쳐 재실행한다.
+- `rc=0` + `residual` 비어 있음 → **PASS 확정**(LLM Evaluator 생략).
+- `rc=0` + `residual` 있음 → 2단계.
+
+### 판정 기준 원문 (무손실 이관 — 〔분담〕 표기만 추가)
 
 **평가 기준 (4항목 모두 충족해야 PASS):**
 
@@ -327,23 +337,48 @@ Agent(
    - [위치] JSON `owasp_coverage` 객체 또는 보고서 "OWASP Agentic Top 10 커버리지" 섹션
    - [이유] OWASP 항목 누락은 보안 취약점 은폐로 직결됨
    - [방법] ASI01/ASI02/ASI05/ASI06/ASI07/ASI09 6개 항목 각각에 True/False + 실측 근거(Grep 결과 또는 "미구현" 명시)가 존재하는지 확인. `coverage_rate` 수치가 계산됐는지 확인. 기준값(≥60%) 대비 판정이 명시됐는지 확인. 빈 셀이나 항목 누락이 있으면 FAIL.
+   - 〔분담〕 스크립트 = ASI01/02/05/06/07/09 존재·빈 셀·True/False 표기·실측 근거(경로/Grep/미구현)·`coverage_rate` 수치·기준 60% 표기 / LLM = 없음
 
 2. **Hook Theater 탐지 수행 여부**
    - [위치] JSON `hook_theater` 배열(Step 2.5 산출물) 또는 보고서 "Hook 커버리지" 섹션
    - [이유] Hook이 항상 통과(exit 0)하면 보안 게이트가 무력화됨 — 탐지 없이 커버리지만 세면 과대 평가
    - [방법] Step 2.5 Hook Theater 감지 결과가 보고서에 포함됐는지 확인. `hook_theater` 배열이 비어 있어도 "탐지 0건" 명시 필요. 섹션 자체가 누락됐으면 FAIL.
+   - 〔분담〕 스크립트 = `hook_theater`/Hook Theater 존재 · 빈 배열이면 "0건" 명시 / LLM = 없음
 
 3. **Skill Harness Coverage 계산 정확성**
    - [위치] JSON `ai_evals.skill_harness_coverage` 또는 보고서 "스킬 하네스 커버리지" 표
    - [이유] 전체 스킬 수 대비 하네스 적용률이 핵심 지표 — 계산 오류 시 로드맵 우선순위가 잘못됨
    - [방법] `total_skills` / `harness_applied` / `coverage_rate` 3개 수치 모두 명시됐는지 확인. `coverage_rate = harness_applied / total_skills × 100` 공식과 일치하는지 검산. `critical_missing` 목록이 "파이프라인 직결 스킬"(qa/spec-compliance-checker/visual-loop 등)을 포함하는지 확인. 수치 불일치 또는 누락 시 FAIL.
+   - 〔분담〕 스크립트 = 3개 수치 추출·`coverage_rate` 검산(±1%p)·`critical_missing` 존재 / LLM = 수치 라벨이 달라 못 찾은 경우(UNDECIDED) + `critical_missing` 이 파이프라인 직결 스킬을 포함하는지(질적 — 항상 residual)
 
 4. **보고서 저장 확인 (Write+Read 증거)**
    - [위치] 보고서 마지막 줄 또는 에이전트 출력
    - [이유] 보고서 미저장 시 다음 감사 주기에 트렌드 비교 불가
    - [방법] 보고서 경로(`${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-audit-harness.md`)에 실제 파일이 Write된 후 Read로 존재 확인됐는지 검증. "SAVED: {path}" 출력이 있거나 파일 존재 확인 로그가 있으면 PASS. 저장 증거 없으면 FAIL.
+   - 〔분담〕 스크립트 = 보고서가 정본 경로(`docs/reviews/audit/{date}-audit-harness.md`)에 실존하거나 `SAVED:` 표기 / LLM = 경로 규약이 달라 UNDECIDED 인 경우만
 
 **판정**: PASS(기준 4항목 모두 충족) / FAIL(1항목 이상 미충족)
+**피드백 형식**: [파일명+섹션] — [이유] → [방법]
+
+### 2단계 — 질적 판정 (LLM Evaluator, residual 만)
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  prompt="""
+당신은 audit-harness 결과물의 독립 품질 검증자입니다.
+
+구조 검사(섹션 존재·빈 셀·개수·산술)는 audit-report-structure-lint.py 가 이미 PASS 로 확정했습니다 — 다시 보지 마십시오.
+아래 residual 목록의 항목만 판정하십시오.
+
+**residual (스크립트 출력 /tmp/audit-lint-audit-harness.json 의 residual 배열 그대로):**
+{residual}
+
+**해당 번호의 판정 기준 원문 (SKILL.md "판정 기준 원문" 에서 residual 의 criterion 번호 블록을 그대로 붙인다):**
+{criteria_for_residual}
+
+**판정**: PASS(residual 전 항목 충족) / FAIL(1항목 이상 미충족)
 **피드백 형식**: [파일명+섹션] — [이유] → [방법]
 """
 )

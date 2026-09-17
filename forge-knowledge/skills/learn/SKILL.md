@@ -32,7 +32,7 @@ Auto Memory(워크스페이스 레벨)를 보완하는 프로젝트 레벨 학�
 ```
 
 예:
-- `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl`
+- `~/forge/.claude/learnings.jsonl`
 - `${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants/kocca/2026-문화체육관광RD-스타트업혁신성장/.claude/learnings.jsonl`
 
 ## 사용법
@@ -94,10 +94,10 @@ for line in sys.stdin:
 
 ## 코드/디버깅/리뷰/분석 경험 = learnings.jsonl 단일 저장소 + `learnings.sh` 헬퍼
 
-code-reviewer / forge-pge / investigate / forge-fix / codebase-analyzer 가 만드는 디버깅·수정·리뷰·분석 교훈은 **learnings.jsonl에만** 저장한다 (forge-vault/Obsidian = 리서치 노트 전용 — 코드 경험 금지). 이 용도 항목은 **리치 스키마** + **`$HOME/.claude/scripts/learnings.sh` 헬퍼 경유만** (inline grep/sed/python·shell JSON 조합 금지).
+code-reviewer / forge-pge / investigate / forge-fix / codebase-analyzer 가 만드는 디버깅·수정·리뷰·분석 교훈은 **learnings.jsonl에만** 저장한다 (forge-vault/Obsidian = 리서치 노트 전용 — 코드 경험 금지). 이 용도 항목은 **리치 스키마** + **`~/.claude/scripts/learnings.sh` 헬퍼 경유만** (inline grep/sed/python·shell JSON 조합 금지).
 
 ### 경로 정본 (canonical)
-- `GLOBAL_LEARNINGS` = `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl` (크로스-프로젝트 교훈)
+- `GLOBAL_LEARNINGS` = `~/forge/.claude/learnings.jsonl` (크로스-프로젝트 교훈)
 - `PROJECT_LEARNINGS` = `$(git rev-parse --show-toplevel)/.claude/learnings.jsonl` (현재 작업 repo의 교훈 — append 기본 타겟)
 - `ACCESS_LOG` = `<repo>/.claude/learnings-access.log` (미추적 — `.gitignore`)
 - 테스트 격리: `LEARNINGS_OVERRIDE=<tmp.jsonl>` env → 헬퍼의 모든 cmd가 그 단일 파일을 사용 (프로덕션 무변경)
@@ -120,11 +120,11 @@ code-reviewer / forge-pge / investigate / forge-fix / codebase-analyzer 가 만�
 
 ### 헬퍼 cmd
 ```bash
-LEARN_BY=<comp> bash $HOME/.claude/scripts/learnings.sh load <category>     # active만 stdout, learnings 변경 0, access.log 기록
-bash $HOME/.claude/scripts/learnings.sh append [--global] [--replaces <old-id>] \
+LEARN_BY=<comp> bash ~/.claude/scripts/learnings.sh load <category>     # active만 stdout, learnings 변경 0, access.log 기록
+bash ~/.claude/scripts/learnings.sh append [--global] [--replaces <old-id>] \
   --category <c> --summary <s> --apply <a> [--trigger <t>] [--evidence <e>] [--fingerprint <fp>] [--retention permanent|ttl|session]   # 필드 인자만 — shell JSON 조합 금지. sanitize+validate+collision-id+중복가드 자동. exit: 0 성공 / 2 secret 차단 / 3 검증실패 / 4 git repo 아님 / 6 review-pattern 중복
-bash $HOME/.claude/scripts/learnings.sh supersede-current <old-id> <new-id>  # global/project에서 old-id 찾아 status:superseded (패턴 해소 시)
-bash $HOME/.claude/scripts/learnings.sh next-id | sanitize-check | validate <json>
+bash ~/.claude/scripts/learnings.sh supersede-current <old-id> <new-id>  # global/project에서 old-id 찾아 status:superseded (패턴 해소 시)
+bash ~/.claude/scripts/learnings.sh next-id | sanitize-check | validate <json>
 /learn gc [--apply] [--legacy-ok]  → learn-gc.sh. **--dry-run 이 기본**(리포트만).
 #   --apply = stale/dormant 마킹 + stale 90일+ archive move + **retention=ttl/session 만료 삭제**까지 수행.
 #             삭제분은 30-archive/learnings-expired-<날짜>.jsonl 로 옮겨져 `--restore <id>` 로 되돌릴 수 있다.
@@ -144,7 +144,7 @@ bash $HOME/.claude/scripts/learnings.sh next-id | sanitize-check | validate <jso
 ### 팀 공유
 learnings.jsonl = git-tracked 필수 (sensitive 값 금지 — `sanitize-check`가 강제). 작업 후 commit+push → 동료 `git pull` 후 자동 로드. 멀티 브랜치 동시 append = `.gitattributes` `merge=union`로 충돌 없이 병합. (단순 숫자 `L-NN` 폐기 — collision-safe id 사용; 레거시는 유지.)
 
-> 상세 룰: `$HOME/.claude/rules-on-demand/compounding-knowledge.md`
+> 상세 룰: `~/.claude/rules-on-demand/compounding-knowledge.md`
 
 ---
 
@@ -162,7 +162,7 @@ learnings를 4개 역량 차원으로 분류하는 선택적 태깅 체계.
 ### 태깅 방법
 
 ```bash
-bash $HOME/.claude/scripts/learnings.sh append \
+bash ~/.claude/scripts/learnings.sh append \
   --category bug-fix-pattern \
   --summary "..." --apply "..." \
   --fluency_dimension D3  # optional

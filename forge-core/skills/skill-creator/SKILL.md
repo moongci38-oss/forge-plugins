@@ -198,7 +198,7 @@ To establish the skill's contents, analyze each concrete example to create a lis
 At this point, it is time to actually create the skill.
 
 **먼저 배치를 정한다 — 전역인가 로컬인가.** 30초 판정: *"이 스킬이 두 번째 프로젝트에서도 그대로 쓰이나?"*
-예 → 전역(`${FORGE_ROOT:-$HOME/forge}/.claude/skills/`, `forge-sync sync` 로 미러·팀원 전파) · 아니오/모르겠다 → 로컬(그 레포 `.claude/skills/`).
+예 → 전역(`~/forge/.claude/skills/`, `forge-sync sync` 로 미러·팀원 전파) · 아니오/모르겠다 → 로컬(그 레포 `.claude/skills/`).
 전역 스킬은 `description` 이 **모든 세션에 상시 로드**되고 강등이 승격보다 비싸므로, 애매하면 로컬에서 시작한다.
 그레이존 5사례·되돌리는 법 → `references/placement-global-vs-local.md` Read.
 
@@ -304,7 +304,17 @@ Write instructions for using the skill and its bundled resources.
 ##### 완료 게이트 (필수 — 통과 전 완료 선언 금지)
 
 ```bash
-python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-lint.py" --skill <skill-name>
+# 지금 있는 레포(워크트리 포함)의 사본을 **먼저** 찾고, 거기 없으면 FORGE_ROOT 의 것을 쓴다.
+#   ① FORGE_ROOT 로만 부르면 메인 체크아웃의 스킬을 재서 방금 고친 파일을 못 본다(PR #573 C-3).
+#   ② toplevel 로만 부르면 forge 밖(제품 레포 — 이 스킬은 전역 미러로 어디서나 뜬다)에서 그 경로에 파일이 없어 죽는다(r3 M6).
+#   ③ 어느 사본을 쓰든 **검사 대상 루트는 `--root` 로 지금 레포를 명시**한다(r4 R2) — forge 사본으로 폴백했을 때
+#      인자가 없으면 스크립트는 자기 레포(forge)의 **동명 스킬**을 재고 방금 고친 제품 스킬은 보지 않는다.
+#   ⚠️ 무력화되는 입력: 제품 레포가 우연히 같은 상대경로에 자기 skill-lint.py 를 두는 경우 — 그것이 먼저 잡힌다(①②).
+#      git 레포가 아닌 폴더에서 돌리면 `_T` 가 비어 `--root` 없이 스크립트 레포를 잰다(③) — 출력 첫 줄 `대상 루트:` 를 확인하라.
+_T="$(git rev-parse --show-toplevel 2>/dev/null)"
+_L="$_T/shared/scripts/skill-lint.py"
+[ -f "$_L" ] || _L="${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-lint.py"
+python3 "$_L" ${_T:+--root "$_T"} --skill <skill-name>
 ```
 
 Pocock 4축(트리거·구조·유도·가지치기) 결정론 검사다. **CRITICAL/HIGH가 하나라도 뜨면 고치고 다시 돌린다.** 출력이 깨끗해야 스킬이 완성된 것이다.
@@ -330,7 +340,7 @@ Pocock 4축(트리거·구조·유도·가지치기) 결정론 검사다. **CRIT
 #### 검증
 
 ```bash
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/validate-evals.py structure
+python3 ~/forge/shared/scripts/validate-evals.py structure
 ```
 
 PASS 확인 후 Step 5 진행.
@@ -434,7 +444,7 @@ output: (필수) 스킬이 생성하는 출력물 — 한 줄 설명
      - 명시적 STOP / FAIL JSON
      - 사용자 재시도 (`/skill` 재호출 within 5min)
      - skill 내부 에러 stdout
-   - **분모**: 최근 30일 총 호출 횟수 (settings.json hooks 메트릭 또는 `$HOME/.claude/metrics/{date}.jsonl` 누적)
+   - **분모**: 최근 30일 총 호출 횟수 (settings.json hooks 메트릭 또는 `~/.claude/metrics/{date}.jsonl` 누적)
    - **임계값**: 분자/분모 > 0.20
    - **데이터 소스**: P2-3 session-end-metrics hook의 metrics jsonl
    - **분모 < 10**: 측정 불가 → "사용 빈도 부족" 별도 라벨 (#2 미사용 트리거 우선 적용)

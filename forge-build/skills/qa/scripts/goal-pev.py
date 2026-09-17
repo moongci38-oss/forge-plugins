@@ -52,8 +52,8 @@ def _check_ralph_hook() -> bool:
         return True
     # 방법 2: settings.json 파일만 체크 (SubagentStop hook registration 위치)
     settings_files = [
-        os.path.expanduser("$HOME/.claude/settings.json"),
-        os.path.expanduser("${FORGE_ROOT:-$HOME/forge}/.claude/settings.json"),
+        os.path.expanduser("~/.claude/settings.json"),
+        os.path.expanduser("~/forge/.claude/settings.json"),
     ]
     for p in settings_files:
         if os.path.isfile(p):
@@ -65,8 +65,8 @@ def _check_ralph_hook() -> bool:
     # 방법 3: hooks 디렉토리의 top-level *.sh / *.json 파일명만 확인 (recursive 금지)
     import glob as _glob
     hook_dirs = [
-        os.path.expanduser("$HOME/.claude/hooks"),
-        os.path.expanduser("${FORGE_ROOT:-$HOME/forge}/.claude/hooks"),
+        os.path.expanduser("~/.claude/hooks"),
+        os.path.expanduser("~/forge/.claude/hooks"),
     ]
     for hook_dir in hook_dirs:
         for pattern in ("*.sh", "*.json"):
@@ -137,8 +137,25 @@ def check_regression(baseline_path: str = "docs/qa/baseline.json") -> bool:
         return False
 
 
-def check_security_critical(report_path: str = "docs/qa/security-report.md") -> bool:
+def _security_report_path() -> str:
+    """G-5(2026-09-15): 브랜치별 리포트 docs/qa/security/<branch-slug>.md → 없으면 구 경로(읽기 전용 하위호환).
+    슬러그 규칙은 shared/scripts/security-report-freshness.sh sec_slug 와 같다([^A-Za-z0-9._-] → '-')."""
+    import re
+    import subprocess
+    try:
+        branch = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        branch = ""
+    if branch:
+        p = "docs/qa/security/%s.md" % re.sub(r"[^A-Za-z0-9._-]", "-", branch)
+        if os.path.exists(p):
+            return p
+    return "docs/qa/security-report.md"
+
+
+def check_security_critical(report_path: str = "") -> bool:
     """True if security CRITICAL found."""
+    report_path = report_path or _security_report_path()
     if not os.path.exists(report_path):
         return False
     content = Path(report_path).read_text(encoding="utf-8")

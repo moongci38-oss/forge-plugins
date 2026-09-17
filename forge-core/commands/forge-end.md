@@ -11,7 +11,7 @@ group: ops
 
 > 같은 세션을 계속 쓸 거면 여기가 아니라 `/forge-checkpoint`다(3분법: 새로 연다=start / 계속 쓴다=checkpoint / 완전히 닫는다=end).
 
-> 연속성 계약 ①~⑦ 전문 · 경로 SSoT · handover 8절 → `rules-on-demand/handover-canon.md`
+> 연속성 계약 ①~⑦ 전문 · 경로 SSoT · handover 절 구성 → `rules-on-demand/handover-canon.md`
 
 ## 실행
 
@@ -40,7 +40,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect
 | 미완료 태스크 | `PLAN_TODO_FILES` + 세션 태스크 목록 | `## 미완료 태스크` |
 | [STOP]·승인 대기 | `STOP_PENDING*` | `## 승인 대기([STOP])` |
 | 미커밋 변경 | `UNCOMMITTED_COUNT`/`UNCOMMITTED_FILE` | `## 미커밋 변경` |
-| 열린 PR·브랜치 | `OPEN_PR_COUNT`·`BRANCH`·`UNPUSHED_COMMITS`·**`UNPUSHED_REPO_N`·`UNPUSHED_TOTAL`**(다중 레포, 아래 §6b)·**`OPEN_PR_REPO_N`·`OPEN_PR_COUNT_SCOPE`·`OPEN_PR_COUNT_CWD`·`OPEN_PR_COUNT_PARTIAL`**(2026-09-03 신설) | `## 열린 PR·브랜치` |
+| 열린 PR·브랜치 | `OPEN_PR_COUNT`·`BRANCH`·`UNPUSHED_COMMITS`·**`UNPUSHED_REPO_N`·`UNPUSHED_TOTAL`**(다중 레포, 아래 §6b)·**`OPEN_PR_REPO_N`·`OPEN_PR_COUNT_SCOPE`·`OPEN_PR_COUNT_CWD`·`OPEN_PR_COUNT_PARTIAL`**(2026-09-03 신설)·**`OPEN_PR_EXTERNAL_COUNT`·`OPEN_PR_EXTERNAL_COUNT_PARTIAL`·`OPEN_PR_EXTERNAL_REPOS`·`OPEN_PR_EXTERNAL_SKIPPED_REPOS`·`NESTED_REPO_VENDORED_SKIPPED`**(2026-09-10 신설) | `## 열린 PR·브랜치` |
 
 > ⚠️ **`OPEN_PR_COUNT` 의 의미가 2026-09-03 에 바뀌었다** — 종전에는 cwd 레포 하나였고 지금은
 > 워크스페이스 여러 레포의 **합계**다(cwd·FORGE_ROOT·FORGE_OUTPUTS·중첩 repo). 종전 의미의 값이
@@ -49,11 +49,35 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect
 > 뜻이다(gh 실패·중첩 탐색 절단·타임아웃). 레포별 내역은 `OPEN_PR_REPO_N` 에 `경로|건수` 로 있고,
 > 못 잰 레포는 건수가 `?` 이며 `_REASON` 이 사유를 적는다.
 > 근거: 중첩 repo 를 못 봐서 PR 4건이 열려 있는데 `OPEN_PR_COUNT=0` 이 handover 에 실린 실사고.
+> ⚠️ **의미가 2026-09-10 에 한 번 더 좁혀졌다** — `OPEN_PR_COUNT` 는 이제 **우리 레포만**의
+> 합계다. 남의 레포(`reference-source/` 등에 클론해 둔 오픈소스)는 **`OPEN_PR_EXTERNAL_COUNT`·
+> `OPEN_PR_EXTERNAL_REPOS`·`OPEN_PR_EXTERNAL_SKIPPED_REPOS`** 로 **분리**해서 낸다. 레포별
+> 내역에서 남의 것은 `경로|(외부)|건수` 로 표시된다.
+> 근거: 남의 클론 40개의 upstream PR 이 섞여 `OPEN_PR_COUNT=574` 가 나왔다(우리 실수는 12건 — 47배 과대).
+> 🔴 **`OPEN_PR_EXTERNAL_COUNT_PARTIAL=yes` 도 같은 무게로 읽어라** — 남의 몫도 못 잰 것을
+> 0 으로 세지 않는다. `OPEN_PR_EXTERNAL_SKIPPED_REPOS` 는 **아예 훑지 않은** 레포 수라
+> `OPEN_PR_EXTERNAL_COUNT` 에 들어 있지 않다("0건"이 아니라 "안 셌다").
+>
+> **손잡이(env) — 우리 것이 `(외부)` 로 잘못 빠질 때 먼저 여기를 본다**
+>
+> | env | 기본값 | 언제 쓰나 |
+> |---|---|---|
+> | `FORGE_OUR_GIT_OWNERS` | `moongci38-oss damools` | 팀 org·팀원 계정·클라이언트 org 를 **우리**로 넓힌다(쉼표·공백 구분). 우리 레포가 `(외부)` 로 표시되면 이것부터 넓힌다 |
+> | `FORGE_VENDOR_DIR_RE` | `/(reference-source\|third_party\|vendor\|external\|Pods\|…)/` | 레포 이름 자체가 `vendor` 인 우리 레포가 빠질 때 규칙을 좁힌다(grep -E 정규식, **스캔 루트 상대 경로**에 적용) |
+> | `FORGE_EXTERNAL_SPLIT` | `on` | `off` 면 2026-09-10 이전 동작(전부 합산). 범위 문구도 `multi-repo-all` 로 함께 바뀐다 |
+> | `FORGE_NESTED_REPO_CAP` | `40` | 중첩 repo 상한. 넘으면 `NESTED_REPO_TRUNCATED=yes` + 양쪽 합계 `PARTIAL=yes` |
+>
+> ⚠️ **cwd·`FORGE_ROOT`·`FORGE_OUTPUTS` 는 owner 판정 대상이 아니다**(2026-09-10 검수 HIGH-G1) —
+> 사람이 지목한 루트는 정의상 우리 것이라, 남의 org 안에서 세션을 열어도 그 세션의 PR 이
+> 합계에서 사라지지 않는다. owner 판정은 find 로 **발견한** 중첩 repo 에만 걸린다.
+> 재현: `bash shared/scripts/tests/session-record-audit-external-clone.test.sh`
+> 되돌리기: `FORGE_EXTERNAL_SPLIT=off`.
 | 진행 중 백그라운드 작업 | 세션 이력(도구 호출) | `## 진행 중 백그라운드 작업` |
 | learnings 미기록 misfire | `LEARNINGS_LAST`·`LEARNINGS_PARSE_BAD` + 세션 misfire 회고 | `## learnings 미기록 misfire` |
 | 사용자 지시 미이행 | 세션 이력(사용자 발화) | `## 사용자 지시 미이행` |
 | **백그라운드 워커 생존** | `WORKER_BRIEF*`·`WORKER_WORKTREE*`·`RECENT_CHANGES_CWD` | `## 백그라운드 워커 생존` |
 | **팀장 위임 기록** | 아래 §2 회수 블록의 `BUS_WORKER_N`(dormant)·`WORKER_WORKTREE`(live) | `## 팀장 위임 기록` |
+| **바뀐 것 (이름·경로)** | session-only — AI 가 세션 이력에서 개명·경로이동을 훑어 채운다 | `### 바뀐 것` ⚠️ **`##` 이 아니라 `## 다음 세션이 이어받을 것` 안의 `###` 하위 절**(§3) |
 
 **[STOP] 해소 판정 + 마커 정리** — `STOP_PENDING*`는 마커를 **탐지만 하고 정리하지 않아**, 이미 해결된 게이트가 다음 세션까지 "대기 중"으로 남는다(누적되면 어느 것이 진짜 대기인지 구분 불가). 종료 시 각 마커에 대해 **STOP 해소** 여부를 판정한다 — 그 승인이 이뤄졌거나 해당 작업이 완료·기각됐으면 원 문서의 마커를 제거하거나 `[STOP-RESOLVED: {날짜} {사유}]`로 치환하고, handover `## 승인 대기([STOP])` 절에는 **미해소분만** 남긴다. 판정 근거 없이 지우지 않는다 — 애매하면 미해소로 둔다.
 
@@ -88,7 +112,7 @@ else
 fi
 ```
 
-**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)를 가리킨다. 세션 버스 워커(`--resume` 방식)는 `$HOME/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이다. 위 (c)의 "15분+ 무변화 & 핑 무응답 = 사망 판정" 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태이지 사망 신호가 아니다).
+**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)를 가리킨다. 세션 버스 워커(`--resume` 방식)는 `~/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이다. 위 (c)의 "15분+ 무변화 & 핑 무응답 = 사망 판정" 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태이지 사망 신호가 아니다).
 
 `## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. `BUS_WORKER_N=name|sid8|cwd|age|dormant`를 그대로 옮기고, "인계 지시"는 AI가 판단해 채운다(다음 세션이 이 워커에 무엇을 시켜야 하는지 1줄, 없으면 `-`):
 
@@ -113,7 +137,7 @@ model: opus            # 세션 모델 자동 감지 (opus|sonnet|fable|...)
 slug: kebab-case-summary
 status: open           # open | closed
 project: forge         # repo 이름으로 정규화 (워크트리도 **주 체크아웃** 이름으로)
-worktree: ${FORGE_ROOT:-$HOME/forge}/.claude/worktrees/foo   # 소유 축 — 이 세션의 작업 폴더 절대경로
+worktree: /home/damools/forge/.claude/worktrees/foo   # 소유 축 — 이 세션의 작업 폴더 절대경로
 session: 561052-b1c2d3e4                              # 추적용 sid (소유 판정에는 안 씀)
 ---
 ```
@@ -133,24 +157,58 @@ echo "session: ${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}"
 세션은 그 작업의 정당한 상속자라서 sid 로 끊으면 오히려 연속성이 깨진다. `session` 은
 "누가 썼나"를 되짚기 위한 추적용이다.
 
-⛔ **공유 체크아웃에서는 이 필드의 판별력이 없다** — `${FORGE_ROOT:-$HOME/forge}` 본체에서 도는 모든 세션이
+⛔ **공유 체크아웃에서는 이 필드의 판별력이 없다** — `~/forge` 본체에서 도는 모든 세션이
 같은 값을 적으므로 서로를 `MINE` 으로 본다. 승계(같은 폴더를 이어받는 다음 세션)에는 맞지만
 **동시 세션에는 적용되지 않는다.** 소유를 실제로 가르려면 `EnterWorktree` 로 자기 폴더에서
 일해야 한다(2026-08-24 cr-final 지적 — 알려진 잔여 한계).
 
-⚠️ **`project` 로는 부족하다.** `${FORGE_ROOT:-$HOME/forge}` 를 만지는 모든 세션이 똑같이 `project: forge` 라고
+⚠️ **`project` 로는 부족하다.** `~/forge` 를 만지는 모든 세션이 똑같이 `project: forge` 라고
 적으므로, 그것만으로는 **내 작업과 남의 작업이 구분되지 않는다.** 이 필드가 없던 시절에는
 사람이 매 세션 눈으로 판정해 handover 본문에 적었고, 다음 세션은 그 판정을 그대로 믿었다.
 
-본문 = §2의 8절 + 아래 서술형 필수 절:
+본문 = §2가 실측한 절 전부 + 아래 서술형 필수 절:
 
 - `## 이번 세션에 한 일` — 파일 경로 + 변경 요약(+커밋 해시)
 - `## 결정과 근거` — 결정 + 기각한 대안(AD-N)
 - `## 실패한 시도와 이유` — `시도: {무엇} → 실패: {증상} → 이유: {원인} → 교훈: {다음 세션 지침}` (**부재 시 WARN** — 암묵지 표면화 카논)
 - `## 사용자 제약·지시 (DO / DON'T)` — `- [DON'T] {내용} (근거)` / `- [DO] {내용}`
 - `## 다음 세션이 이어받을 것` — 우선순위 순. ⚠️ **이번 세션에 만들어진 적용계획의 미완 `P0` 항목을 여기 옮겨 적는다**(아래 절).
+  - `### 바뀐 것` — **이 절의 맨 앞에 둔다. 이름·경로 개명 전용, 없으면 `없음`**(아래 절)
 - `## 열린 질문` — 미결 트레이드오프
 - `## 팀장 위임 기록` — 이번 세션이 팀장에게 보낸 일과 받은 답. 없으면 **`없음`** 이라고 적는다(침묵 금지)
+
+#### `### 바뀐 것` — 개명 사실을 **읽히는 자리**에 옮겨 적는다 (2026-09-08 신설)
+
+**이번 세션에서 이름이나 경로가 바뀐 것이 있으면 `## 다음 세션이 이어받을 것` 의 맨 앞에
+`### 바뀐 것` 하위 절을 만들어 적는다. 없으면 `- 없음` 이라고 적는다.**
+
+쉽게 말하면 **이사 간 집 주소는 편지 맨 뒤 "다음에 할 일" 칸에 적어야 한다.** 앞쪽
+"내가 한 일" 칸에 적으면, 급한 사람은 거기를 안 읽고 옛 주소로 편지를 부친다.
+
+한 줄 형식(세 축 — 무엇이 · 어디까지 왔나 · 어떻게 확인하나):
+
+```
+- 바뀐 것: `cr-triple` → `forge-multi` · 발효: PR #511 브랜치만(develop 미반영) · 재현: `ls ~/forge/.claude/commands/forge-multi.md`
+- 바뀐 것: 없음
+```
+
+- **대상**: 스킬·슬래시커맨드·스크립트·룰 파일·산출물 경로·환경변수 이름 등 **다음 세션이
+  옛 이름으로 부르면 헛손질하는 모든 것**.
+- **`발효:` 를 빼지 마라.** 이름이 바뀐 것과 그 변경이 다음 세션에 **도달했는지**는 다른
+  문제다. 미머지 브랜치에만 있으면 다음 세션의 L1 은 여전히 옛 값이고, 그 세션이 L1 을
+  믿는 것은 옳다. 이 축이 없으면 "규범이 틀렸다"와 "아직 안 왔다"를 구분할 수 없다.
+- **발효 경로 3단**(어디까지 왔는지 그대로 적는다): `브랜치만` → `develop 반영됨` →
+  `미러 sync 완료`(`forge-sync sync` 까지 돌아야 `~/.claude/` 가 바뀐다 — **커밋 = 발효 아님**).
+
+**왜 생겼나(2026-09-08 실사고)**: `cr-*` → `forge-*` 개명 사실이 직전 handover 의
+36행(`## 이번 세션에 한 일`)·71행(`## 사용자 제약·지시`)에는 적혀 있었는데
+`## 다음 세션이 이어받을 것`(76~100행)에는 없었다. 다음 세션은 뒤쪽만 읽고 옛 이름으로
+작업했고, 사용자가 지적해서야 드러났다.
+재현: `sed -n '76,100p' ~/forge-outputs/.claude/handover/2026-09-08-1120-gemini-exit-pr511-review-fail-fixes.md | grep -c '개명'` → `0` (2026-09-08 관측)
+
+⚠️ **한계**: 이 절은 **같은 작업 줄기를 잇는 세션**에만 닿는다. 무관한 새 세션은
+handover 를 안 읽고 L1 만 읽으므로 이것으로 막히지 않는다 — 그쪽은 별도 설계 대상이다
+(`11-platform/pipelines/plans/2026-09-08-unmerged-norm-drift-warning-design.md`).
 
 #### 적용계획 P0 를 인계 목록에 올린다 (2026-09-01 신설)
 
@@ -229,8 +287,8 @@ AI 가 그 결정에 이견이 있으면 **결정을 지우지 말고** `## 열�
 읽는다. 굳이 남겨야 하면 별도 절 `## 타 세션 상태 (참고 — 내 소유 아님)` 에 격리하고,
 **판정 근거(폴더 경로)를 함께 적는다.**
 
-- ✅ `## 타 세션 상태 (참고 — 내 소유 아님)` / `- ${FORGE_ROOT:-$HOME/forge} (공유 체크아웃): dirty 81건, 브랜치 feat/x`
-- ❌ `## 미커밋 변경` / `- ⚠️ ${FORGE_ROOT:-$HOME/forge} dirty 85건 = 타 세션 작업, 손대지 않음`
+- ✅ `## 타 세션 상태 (참고 — 내 소유 아님)` / `- /home/damools/forge (공유 체크아웃): dirty 81건, 브랜치 feat/x`
+- ❌ `## 미커밋 변경` / `- ⚠️ ~/forge dirty 85건 = 타 세션 작업, 손대지 않음`
 
 근거: 2026-08-24 — 직전 handover 가 타 세션의 dirty 85건을 `## 미커밋 변경` 에 적었고,
 다음 세션이 그 브랜치를 자기 오리엔테이션에 포함해 보고했다.
@@ -255,7 +313,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/gap-signal-scan.sh" "$H"
 남기기로 했으면 그 판단을 handover 에 적는다 — 판단을 남기는 것이 요점이다.
 규약 → `rules-on-demand/handover-canon.md §팀 공유 vs 개인`
 
-- `VERIFY=PASS` → 통과. 완료 보고에 `기록 무누락 게이트 PASS (8/8절)` 1줄 포함.
+- `VERIFY=PASS` → 통과. 완료 보고에 `기록 무누락 게이트 PASS (MISSING_COUNT=0)` 1줄 포함.
 - `VERIFY=FAIL` → `SECTION_MISSING`/`SECTION_EMPTY`로 지목된 절을 **보완한 뒤 재실행**. PASS 전에는 세션 종료 선언 금지.
 
 #### INDEX 갱신 (F9 — 기계 생성, 수동 편집 금지)
@@ -278,7 +336,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/learnings.sh" append --global --
 # 프로젝트 고유 버그 → 해당 repo 레인. 그 repo 안에서 `--global` **없이** 실행한다.
 ```
 
-라우팅 — **하네스/forge misfire = `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl`**(git 추적 = 전 PC 전파, `--global`) / **프로젝트 고유 버그 = 해당 repo**(`--global` 생략). 없으면 skip(WARN-first, 강제 아님).
+라우팅 — **하네스/forge misfire = `~/forge/.claude/learnings.jsonl`**(git 추적 = 전 PC 전파, `--global`) / **프로젝트 고유 버그 = 해당 repo**(`--global` 생략). 없으면 skip(WARN-first, 강제 아님).
 
 ⚠️ append 는 성공 시 stderr 에 `→ <착지 파일 경로>` 를 찍는다. **rc=0 과 id 출력은 레인을 증명하지 않으므로** 그 경로를 눈으로 확인할 것(2026-08-04 실사고: 하네스 misfire 2건이 `forge-outputs` 레인으로 조용히 떨어졌다).
 
@@ -327,7 +385,7 @@ kill-switch: `FORGE_DEBUG_KNOWLEDGE_SYNC=off` / `FORGE_MEMORY_SYNC=off` / `FORGE
 그리고 handover **`## 열린 PR·브랜치` 절에 레포별로 1줄씩** 적는다. 여기 안 적으면 다음 세션이 또 못 본다.
 
 ```markdown
-- 미푸시: ${FORGE_ROOT:-$HOME/forge}-outputs (develop) +35 — 사유: {아래 셋 중 하나}
+- 미푸시: /home/damools/forge-outputs (develop) +35 — 사유: {아래 셋 중 하나}
 ```
 
 **push 하지 않고 끝낼 거면 그 사유를 반드시 함께 적는다.** 이 레포 규범은 *"작업은 머지까지가 완료다"* 이고 보류가 정당한 경우를 셋으로 못박아 뒀다 — ①검수 FAIL 로 고쳐야 함 ②`[STOP]` 승인 대기 ③명시적 인계. **이 셋이 아니면 보류가 아니라 미완료**이므로 그렇게 적는다.
@@ -338,7 +396,7 @@ kill-switch: `FORGE_DEBUG_KNOWLEDGE_SYNC=off` / `FORGE_MEMORY_SYNC=off` / `FORGE
 - ⚠️ **공유 체크아웃이면 미푸시 커밋에 다른 세션이 만든 것이 섞일 수 있다.** 같은 사람의 커밋이라 push 대상인 것은 맞지만, **내가 만든 것인 양 보고하지 않는다** — 애매하면 `(작성자 미분류)` 를 붙인다.
 - ⚠️ 이 수치는 `git fetch` 없이 로컬 원격추적 ref 로 잰다. 낡았으면 **과대보고**될 수 있다(있는 걸 없다고 하지는 않는다). 정확한 수가 필요하면 `git -C {repo} fetch` 후 재측정한다.
 
-근거: 2026-09-02 실사고 — `${FORGE_ROOT:-$HOME/forge}-outputs` 가 로컬 35 / 원격 44 커밋으로 **4일간(08-29~09-02) 갈라져** 있었는데, 계측기가 cwd 레포(`${FORGE_ROOT:-$HOME/forge}`)만 봐서 `UNPUSHED_COMMITS=0` 을 냈고 그 0 이 handover 에 "미푸시 없음"으로 적혔다. 쉽게 말하면 **집 안 거실만 보고 "집에 쓰레기 없다"고 한 것**이다 — 쓰레기는 부엌에 있었다. 사람이 물어보고 나서야 발견됐다. 틀린 안심은 측정 없음보다 나쁘다.
+근거: 2026-09-02 실사고 — `~/forge-outputs` 가 로컬 35 / 원격 44 커밋으로 **4일간(08-29~09-02) 갈라져** 있었는데, 계측기가 cwd 레포(`~/forge`)만 봐서 `UNPUSHED_COMMITS=0` 을 냈고 그 0 이 handover 에 "미푸시 없음"으로 적혔다. 쉽게 말하면 **집 안 거실만 보고 "집에 쓰레기 없다"고 한 것**이다 — 쓰레기는 부엌에 있었다. 사람이 물어보고 나서야 발견됐다. 틀린 안심은 측정 없음보다 나쁘다.
 재현: `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect "$(pwd)" | grep -E '^UNPUSHED_(REPO|TOTAL|REPOS)'`
 폐기조건: 미푸시 적체가 2분기 연속 0건이거나, push 를 강제하는 별도 훅이 배선되면 이 절을 재검토한다.
 
@@ -382,9 +440,10 @@ fi
 ## 체크리스트
 
 - [ ] 착지 경로 확인 (워크트리면 FORGE_OUTPUTS 논리 경로)
-- [ ] `session-record-audit.sh collect` 실행 → 8 수집원 실측
+- [ ] `session-record-audit.sh collect` 실행 → 수집원 실측 (개수는 `CHECKLIST_SECTIONS` 출력이 정본 — 여기 숫자를 박지 않는다)
 - [ ] frontmatter **8필드**(`date·time·model·slug·status·project·worktree·session`) 기입 — `worktree`·`session` 은 위 명령으로 **기계 산출**
-- [ ] 8절 + 서술형 필수 절 작성 ("없음"도 명기) — 백그라운드 워커 절은 생존 실측 수치·브리프 경로·재개 1줄 포함
+- [ ] 전 절 + 서술형 필수 절 작성 ("없음"도 명기) — 백그라운드 워커 절은 생존 실측 수치·브리프 경로·재개 1줄 포함
+- [ ] **`### 바뀐 것`** — `## 다음 세션이 이어받을 것` 맨 앞에 이름·경로 개명 기입(`발효:` 축 포함). 없으면 `- 없음` (침묵 금지)
 - [ ] 세션 버스 워커 로스터 대조 실행 (0기/실행실패도 각각 명시 — 침묵 금지)
 - [ ] `session-record-audit.sh verify` **PASS** (FAIL이면 종료 선언 금지)
 - [ ] `handover-manager.sh refresh-index-dir` 실행 (INDEX 기계 갱신, 수동 편집 금지)
@@ -393,7 +452,7 @@ fi
 - [ ] **미푸시 게이트(§6b)** — `UNPUSHED_TOTAL`≠0 이면 WARN 출력 + `## 열린 PR·브랜치` 에 레포별 1줄 + 미push 사유 기입 (자동 push 금지, 종료는 막지 않음)
 - [ ] 팀 공유 동기화 (advisory)
 - [ ] 미소비 체크포인트 `.consumed` 표시 (**소유가 확인된 경우에만** — 타 세션 것이거나 **판별 불가면 건너뜀**, 2026-08-16 P3-B)
-- [ ] 미러(`$HOME/.claude/`)에 `*.retired-*`/`*.premote-*` 명명 규약으로 로컬 아카이브한 것이 있으면 → SSoT(`${FORGE_ROOT:-$HOME/forge}`)에도 반영됐는지 확인 (근거: `2026-08-01-mirror-orphan-triage.md` 권고-B — 로컬 아카이브만 하고 SSoT에 반영 안 하면 다음 세션이 다시 orphan으로 탐지)
+- [ ] 미러(`~/.claude/`)에 `*.retired-*`/`*.premote-*` 명명 규약으로 로컬 아카이브한 것이 있으면 → SSoT(`~/forge`)에도 반영됐는지 확인 (근거: `2026-08-01-mirror-orphan-triage.md` 권고-B — 로컬 아카이브만 하고 SSoT에 반영 안 하면 다음 세션이 다시 orphan으로 탐지)
 
 ## 경계
 

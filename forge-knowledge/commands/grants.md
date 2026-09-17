@@ -9,6 +9,12 @@ group: plan
 
 # /grants — 정부지원사업 파이프라인
 
+> ⚠️ **이름이 같은 다른 물건이 있다 — 섞어 읽지 마라(2026-09-17 각주).**
+> cron 평일 08:10 의 `run-briefing.sh grants` 는 **슬랙 공고 크롤 봇**이지 이 커맨드가 아니다. 서로 부르지 않고 산출물도 다르다.
+> 재현: `crontab -l | grep -i grants` → `10 8 * * 1-5 cd /home/damools/services/slack-workspace && … ./scripts/briefings/run-briefing.sh grants` (2026-09-17 관측)
+> 근거: 감사 C그룹 §19·§⑤ — 이름만 보고 "이미 자동으로 돌고 있다"로 오독할 여지가 있었다.
+> 폐기조건: 슬랙 브리핑 잡의 이름이 바뀌거나 이 커맨드와 실제로 배선되면 이 각주를 지운다.
+
 **ARGUMENTS**: $ARGUMENTS
 
 ## Step 1: 인자 파싱 (즉시 실행)

@@ -6,14 +6,14 @@
 //   (회귀 0). 실DB 검증·healer 자동수정 엔진은 무변경(기존 Phase C T1/T3, Phase E 그대로 재사용).
 export const meta = {
   name: 'qa',
-  description: 'QA 전 사이클 Workflow — Phase A~H (branch→scenarios→bug discovery→fix→cr-*→PR→knowledge). app/domains/accounts/exhaustive 4축 매트릭스 fan-out 지원.',
+  description: 'QA 전 사이클 Workflow — Phase A~H (branch→scenarios→bug discovery→fix→code-review→/forge-pr→knowledge). app/domains/accounts/exhaustive 4축 매트릭스 fan-out 지원.',
   phases: [
     { title: 'Setup', detail: 'Phase A0: 리소스 해석(app/domains/accounts) + Phase A: 브랜치 생성 + Phase B: 시나리오 작성' },
     { title: 'Discover', detail: 'Phase C: T1~T7 병렬 버그 발견 (accounts 매트릭스 시 T1/T2 계정별 fan-out)' },
     { title: 'Plan', detail: 'Phase D: 버그 수정 계획서 + evaluator-contract' },
     { title: 'Fix', detail: 'Phase E: healer 복잡도 라우팅 병렬 수정' },
-    { title: 'Validate', detail: 'Phase F: cr-* 순차 검증 + Codex final' },
-    { title: 'Ship', detail: 'Phase G: PR + CI + develop 머지 + Phase H: 지식 축적 (--report-only 시 PR/CI/머지 생략, 리포트만)' },
+    { title: 'Validate', detail: 'Phase F: 버그별 Claude code-reviewer 1회 + RED→GREEN 증거 (Codex 없음 — 교차 검수는 /forge-pr, 2026-09-16)' },
+    { title: 'Ship', detail: 'Phase G: /forge-pr(cr-final 1회 + CI + 원장 rc=0 머지) + Phase H: 지식 축적 (--report-only 시 PR/CI/머지 생략, 리포트만)' },
   ],
 }
 
@@ -22,8 +22,9 @@ const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) }
 // ── 기존 인자 (무변경) ──────────────────────────────────────────────────────────
 const scope = _a?.scope || 'full'
 const mode = _a?.mode || 'full'  // 'full' | 'hotfix'
-// root-cause: crMode gates Phase F Codex spawn. 'degrade'/'off' → skip codex-critic, not an error.
-const crMode = _a?.crMode || 'degrade'  // 기본 degrade (Codex-off fail-safe; --cr on 으로 강제) | 'on' | 'off'
+// root-cause: (구) crMode gates Phase F Codex spawn — 2026-09-16 검수 다이어트 §A1 로 폐기, 이제 no-op(하위호환으로 받기만).
+//   교차 검수는 Phase G 의 /forge-pr cr-final 한 번. 구 표기 "'on' → codex-critic 스폰" 은 2026-09-16 폐기.
+const crMode = _a?.crMode || 'degrade'  // no-op (2026-09-16) — 'on' | 'degrade' | 'off' 어느 값도 Codex 를 부르지 않는다
 // root-cause: P-7 loop-until-dry opt-in greybox. loopUntilDry=false 기본 — 기존 Phase C 동작 100% 보존.
 const loopUntilDry = _a?.loopUntilDry === true || _a?.loopUntilDry === 'on'
 const dryK = Math.max(1, Math.min(5, parseInt(_a?.dryK) || 2))
@@ -183,7 +184,7 @@ if (useMatrix) {
     `Phase A0 — QA 리소스 해석. app="${appArg || ''}" domains="${domainsArg || ''}" accounts="${accountsArg || ''}". ` +
     `워크스페이스 루트의 qa-config(.claude/qa-config.json 또는 docs/qa/qa-config.json(qa-setup 생성 경로) ` +
     `또는 workspace 루트 동일 파일 — 이 우선순위로 탐색, 스키마: ` +
-    `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
+    `~/forge/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
     `없으면 프로젝트 실측으로 도메인 자동열거(dev-spec 디렉토리 목록 또는 App Router 파일트리 apps/web/src/app/ 등)를 ` +
     `fallback으로 시도하되, 그마저 불가하면 domains=${JSON.stringify(scopeCsv.length ? scopeCsv : ['full'])} ` +
     `그대로 유지(graceful fallback, guideStop=false)하라. ` +
@@ -449,18 +450,19 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   if (prLanes) {
     // root-cause: P-3 pipeline 레인 — 독립 bug(worktree 격리 = 의존0)을 fix→verify 무배리어 레인으로.
     //   bug A의 검증이 bug B의 수정과 겹침(배리어 제거). 독립성 = worktree 격리 + (선행)P-1 fr-lanes.py.
-    //   최종 배치 cr-* 게이트(Phase F)는 불변 — 레인 검증은 조기 per-bug 신호.
-    log(`[E/P-3] prLanes ON — ${planResult.bugs.length} bug pipeline 레인(fix→verify 겹침). 최종 cr-* = Phase F 유지`)
+    //   최종 배치 게이트(Phase F code-reviewer)는 불변 — 레인 검증은 조기 per-bug 신호.
+    log(`[E/P-3] prLanes ON — ${planResult.bugs.length} bug pipeline 레인(fix→verify 겹침). 최종 code-review = Phase F 유지`)
     healerResults = await pipeline(
       planResult.bugs,
       (bug) => runHealer(bug),
       (fixRes, bug) => agent(
         `Phase E/P-3 레인 검증 — Bug #${bug.id}: ${bug.title}. ` +
-        `해당 fix(worktree)에 cr-bug 조기 검증. fixed=${fixRes?.fixed}. 한 줄 verdict(PASS/WARN/FAIL) + bugId=${bug.id}.`,
+        // 구 표기 "cr-bug 조기 검증"(Codex 래퍼) 은 2026-09-16 폐기(검수 다이어트 §A2) — 레인 검증은 RED→GREEN 증거 확인만 한다.
+        `해당 fix(worktree)의 RED→GREEN 증거(healer.log a0/a4 · TEST_PROOF) 조기 확인. Codex·/cr-* 래퍼 호출 금지. fixed=${fixRes?.fixed}. 한 줄 verdict(PASS/WARN/FAIL) + bugId=${bug.id}.`,
         { label: `${tagPrefix}phase-e:lane-verify-${bug.id}`, phase: 'Fix', schema: HEALER_SCHEMA }
       ).then(v => ({ ...(fixRes || {}), laneVerify: v })).catch((e) => {
         // root-cause: cr-code HIGH — 레인 검증 실패를 침묵 삼키지 말 것. 로그로 표면화(최종 게이트는 Phase F 불변).
-        log(`[E/P-3 WARN] lane-verify 실패 bug#${bug.id} (${e?.message || e}) — fix 보존, 최종 cr-* Phase F가 판정`)
+        log(`[E/P-3 WARN] lane-verify 실패 bug#${bug.id} (${e?.message || e}) — fix 보존, 최종 code-review Phase F가 판정`)
         return fixRes
       })
     )
@@ -475,48 +477,41 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   //   충돌 전략: SIMPLE/MODERATE = 자동(--strategy=recursive), HIGH = 수동 검토 요청.
   //   HEALER_SCHEMA.branch 필드로 머지 대상 식별. worktree prune = Phase G 종료 후.
 
-  // ── Phase F: Validate (cr-* 순차) ──────────────────────────────────────────────
+  // ── Phase F: Validate (버그별 Claude code-reviewer 1회 + RED→GREEN 증거) ─────────
   phase('Validate')
-  // G2 (2026-09-07): stage 는 **커맨드 이름이 아니라 인자**다.
-  //   구: [cr-bug, cr-code, cr-test, cr-final] — 커맨드 이름을 배열에 박아두면
-  //   ①커맨드가 개명될 때 이 배열이 조용히 낡고 ②같은 개념을 부르는 어휘가 파일마다
-  //   달라진다(증거 디렉터리·게이트 루프·큐는 이미 bugfix/code/test/final 을 쓴다).
-  //   진입점은 하나(/forge-multi)로 두고 stage 를 넘긴다.
-  //   ⚠️ cr-bug 의 stage 이름은 bug 가 아니라 **bugfix** 다(증거 디렉터리 이름 기준).
-  const CR_STAGES = ['bugfix', 'code', 'test', 'final']
-  for (const stage of CR_STAGES) {
-    const result = await agent(
-      `Phase F ${stage} 단계 검수: /forge-multi --stage ${stage}. bug-fix-plan: ${planResult.planPath}. ` +
-      `해당 stage 기준 PASS/WARN/FAIL 판정.`,
-      { label: `${tagPrefix}phase-f:${stage}`, phase: 'Validate', schema: CR_SCHEMA }
+  // root-cause: 검수 다이어트 §A1·§A2 (사람 결정 2026-09-16 "A B 다 적용해") —
+  //   계획서 정본 ~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md.
+  //   같은 변경을 Codex 가 3번 이상 봤다(버그별 cr-code + stage 4종 + Phase F Codex cr-final + /forge-pr cr-final).
+  //   → 여기서는 **Codex 를 부르지 않는다.** 버그별 Claude code-reviewer(opus) 1회 + RED→GREEN 증거 확인만,
+  //     교차 검수는 Phase G 가 부르는 /forge-pr cr-final 이 한 번 한다.
+  //   구 표기(2026-09-16 폐기): CR_STAGES = ['bugfix','code','test','final'] 를 /forge-multi --stage 로 순차 실행
+  //     + crMode==='on' 이면 agentType 'codex-critic' 으로 "Phase F Codex cr-final" 추가 실행.
+  //   ⚠️ 무력화되는 입력: Phase G ship 에이전트가 /forge-pr 을 건너뛰고 gh pr merge 를 직접 치면
+  //     이 변경은 교차 검수를 한 번도 받지 않는다(남는 방어선 = PreToolUse qa-event-router cr-final 증거 게이트).
+  //   폐기조건: Codex 한도가 병목이 아니게 되거나 /qa 경유 머지의 사후 결함이 반복되면 사람이 재결정.
+  //   crMode 인자는 하위호환으로 받기만 한다(no-op).
+  if (crMode !== 'degrade') log(`[F] crMode=${crMode} 는 2026-09-16 부터 no-op — 교차 검수는 /forge-pr cr-final 한 번`)
+  for (const fix of fixedBugs) {
+    const review = await agent(
+      `Phase F 버그 수정 검수 — Bug #${fix.bugId}. fix 브랜치/워크트리: ${fix.branch || '(healer 결과에 branch 없음 — 직접 찾아라)'}. ` +
+      `bug-fix-plan: ${planResult.planPath}. ` +
+      `①해당 fix 의 diff 를 리뷰한다(수정 품질·회귀 위험·over-engineering·근본원인 적중). ` +
+      `②RED→GREEN 증거가 짝으로 있는지 확인한다: docs/qa/artifacts/bug-${fix.bugId}-healer.log 의 a0 RED·a4 GREEN 과 TEST_PROOF, ` +
+      `웹 버그면 실브라우저 GREEN 스크린샷/Vision JSON, 데이터 버그면 db_query_after 실DB 행 실측. ` +
+      `증거가 없거나 GREEN 이 수정 문자열 grep(self-validating)이면 FAIL. ` +
+      `Codex·/forge-multi·/forge-*-review 래퍼를 부르지 마라. check="code-reviewer-bug-${fix.bugId}". PASS/WARN/FAIL + criticalCount + summary.`,
+      { label: `${tagPrefix}phase-f:code-review-${fix.bugId}`, phase: 'Validate', schema: CR_SCHEMA, agentType: 'code-reviewer', model: 'opus' }
     )
-    if (result?.verdict === 'FAIL') {
-      log(`[STOP] ${stage} FAIL — ${result?.criticalCount || 0}건 CRITICAL`)
-      return { error: `${stage}-fail`, summary: result?.summary }
+    // root-cause: agent() null(사용자 skip·스폰 실패) 을 통과로 읽으면 검수 없는 머지가 된다 — fail-closed 유지.
+    if (!review) {
+      log(`[STOP] Bug #${fix.bugId} code-reviewer null(skip 감지) — fail-closed. 재실행 필요.`)
+      return { error: 'code-review-null', bugId: fix.bugId }
     }
-    log(`[F] ${stage}: ${result?.verdict}`)
-  }
-  // root-cause: crMode gate — 'degrade'/'off' skips codex-critic intentionally (not an error).
-  let codexFinal = null
-  if (crMode === 'on') {
-    codexFinal = await agent(
-      `Phase F Codex cr-final — PR 머지 직전 최종 적대적 검수. ` +
-      `bug-fix-plan: ${planResult.planPath}. PASS/WARN/FAIL 판정. check="codex-cr-final".`,
-      { label: `${tagPrefix}phase-f:codex-final`, phase: 'Validate', schema: CR_SCHEMA, agentType: 'codex-critic' }
-    )
-    // root-cause: Codex HIGH — agent() null 반환(user skip) 시 cr-final 우회. fail-closed 필수.
-    // NOTE: null here = unintentional skip (user aborted), not crMode gate → still STOP.
-    if (!codexFinal) {
-      log('[STOP] Codex cr-final null(skip 감지) — fail-closed. 재실행 필요.')
-      return { error: 'codex-cr-final-null' }
+    if (review.verdict === 'FAIL') {
+      log(`[STOP] Bug #${fix.bugId} code-reviewer FAIL — ${review.criticalCount || 0}건 CRITICAL`)
+      return { error: 'code-review-fail', bugId: fix.bugId, summary: review.summary }
     }
-    if (codexFinal?.verdict === 'FAIL') {
-      log(`[STOP] Codex cr-final FAIL — ${codexFinal?.criticalCount || 0}건 CRITICAL`)
-      return { error: 'codex-cr-final-fail', summary: codexFinal?.summary }
-    }
-    log(`[F] Codex cr-final: ${codexFinal?.verdict}`)
-  } else {
-    log(`[cr] qa Phase F codex-critic skipped (crMode=${crMode})`)
+    log(`[F] Bug #${fix.bugId} code-reviewer: ${review.verdict}`)
   }
 
   // ── Phase G+H: Ship ─────────────────────────────────────────────────────────────
@@ -531,11 +526,16 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
         ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
         : '') +
       `wiki-sync nohup background. prUrl="" + merged=false 반환.`
-    : `Phase G+H — PR 생성 + CI + develop 머지 + 지식 축적. 브랜치: ${branchResult.branch}.${appNote} ` +
-      `G: gh pr create --base develop --head ${branchResult.branch}. ` +
+    // root-cause: 검수 다이어트 §A1 (사람 결정 2026-09-16) — PR 생성·교차 검수·머지는 /forge-pr 한 곳에서 한다.
+    //   구 표기 "G: gh pr create 직접 … 9개 조건 충족 시 gh pr merge --squash --delete-branch" 는 2026-09-16 폐기.
+    //   ⚠️ 무력화되는 입력: 에이전트가 이 지시를 무시하고 gh pr merge 를 직접 치는 경우(남는 방어선 = PreToolUse cr-final 증거 게이트).
+    //   폐기조건: /forge-pr 이 머지 판정 단일 진입점이 아니게 되면 재검토.
+    : `Phase G+H — /forge-pr 경유 PR + 교차 검수(cr-final 1회) + CI + develop 머지 + 지식 축적. 브랜치: ${branchResult.branch}.${appNote} ` +
+      `G: /forge-pr 을 실행한다(base=develop, head=${branchResult.branch}). gh pr create·gh pr merge 를 직접 부르지 마라 — ` +
+      `머지 판정은 /forge-pr 원장(rc=0)이 한다. 원장이 merge 가 아니면 merged=false 로 반환하고 사유를 남겨라. ` +
       `(develop 브랜치 부재 감지 시 — git show-ref --verify refs/heads/develop 실패 — PR/머지를 graceful하게 생략하고 ` +
       `report-only로 degrade + "[WARN] develop 없음 → report-only degrade" 로그. admin-api류 dev머지=STG배포 위험도 동일 degrade.) ` +
-      `ci-wait.sh 15분 타임아웃. 9개 조건 충족 시 gh pr merge --squash --delete-branch. ` +
+      `ci-wait.sh 15분 타임아웃(진단 보조). qa 전제(버그별 code-reviewer PASS/WARN · RED→GREEN 증거 · 보안 CRITICAL 0 · 회귀 0 · 시나리오 PASS) 충족 후에만 /forge-pr 호출. ` +
       `git checkout develop && git pull && git worktree prune. ` +
       `worktree prune 직후 누수 gitnexus MCP 정리(harness-gaps G1): bash "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/kill-orphan-gitnexus-mcp.sh". ` +
       `H: docs/qa/metrics.jsonl append (bugs_found=${allBugs.length}/fixed=${fixedBugs.length}). ` +
