@@ -19,7 +19,7 @@ model: sonnet
 
 ## 완료 게이트 (생략 불가 — 이 절을 먼저 읽어라)
 
-> **왜 맨 위에 있나**: 2026-07-27 실측 — 이 스킬을 포크로 2회 실행했는데 **두 번 다 Phase 0(Claude Design)과
+> **왜 맨 위에 있나**: 2026-07-27 실측 — 이 스킬을 포크로 2회 실행했는데 **두 번 다 Phase 0(당시 명칭 "Claude Design 선행", 현 "골든 레퍼런스 선행")과
 > Phase 3(독립 Evaluator)을 자율적으로 건너뛰었다.** 절차가 문서 중반에 있으면 건너뛴다. 그래서 위로 올렸다.
 > 두 번째 실행은 호출자가 브리프에 "생략 금지"를 명시한 뒤에야 Evaluator가 돌았고, **1사이클 75/100 FAIL을
 > 잡아내 93/100으로 올렸다**(빈 그리드 컬럼이 데스크톱 2/3을 공백으로 남기던 결함). 이 게이트가 없으면
@@ -29,7 +29,7 @@ model: sonnet
 
 | # | 게이트 | 완료 조건 | 생략 시 |
 |:-:|--------|-----------|---------|
-| 1 | **Phase 0 — Claude Design 선행** | 골든 레퍼런스(스크린샷·export) 확보 | "레퍼런스 없이 진행" 1줄 명시 + **구성 변경이 아닌 미세 크래프트에 그칠 수 있음**을 보고서에 경고 |
+| 1 | **Phase 0 — 골든 레퍼런스 선행** (①Codex 코더 목업 `/forge-mockup` ②Claude Design) | 골든 레퍼런스(목업 코드 + 캡처 PNG, 또는 Claude Design 스크린샷·export) 확보 | "레퍼런스 없이 진행" 1줄 명시 + **구성 변경이 아닌 미세 크래프트에 그칠 수 있음**을 보고서에 경고 |
 | 2 | **Phase 3 — 독립 Evaluator** | `FD_EVAL_REPORT.md` 생성 + 5축 점수 + 90점 기준 판정 | **완료 보고 자체가 무효.** 미실행 상태로 "완료"라 쓰지 마라 |
 | 3 | **데이터셋 인용** | 결정마다 `파일#키` 인용 | 근거 없는 색·타이포 결정은 되돌림 대상 |
 
@@ -37,49 +37,37 @@ model: sonnet
 없으면 그 작업은 **미완**이다. 자가채점(`FD_SELF_CHECK.md`)은 Evaluator를 대체하지 못한다 — 2026-07-27 실측에서
 자가채점 97점 vs 독립 평가 93점으로 **생성자가 자기 산출물을 4점 후하게 매겼다.**
 
-## Phase 0: 디자인 도구 우선순위
+## Phase 0: 골든 레퍼런스 먼저 (UI/UX 작업 기본 원칙)
 
-**모든 UI/UX 작업의 디자인 기준:**
+**모든 UI/UX 작업은 골든 레퍼런스에서 시작한다.** 출처는 아래 순위를 따른다.
+정본 `dev/global-rules/tool-rules.md §UI/UX 작업` · 표·근거 `.claude/rules-on-demand/tool-rules-aux.md §디자인 도구 순위`.
 
 | 우선순위 | 도구 | 용도 |
 |---------|------|------|
-| **1순위 (Main)** | Claude Design (`claude.ai/design`) | 디자인 생성·프로토타이핑·비주얼 결정 |
-| **2순위 (Sub)** | Stitch MCP | 스크린샷/디자인 → React/HTML 코드 변환 보조 |
+| **1순위 (Main)** | **GPT 코더 상황별**(luna/terra/sol, 판정 `coder-lane-detect.sh --front --task`) — Codex 쓰기 레인 (`/forge-mockup` 또는 `--coder` 미지정 자동 판정) | 시안 목업 코드 + 캡처 PNG 생성 · 퍼블리싱/HTML/프론트 구현 · 디자인시스템·토큰 |
 
-**표준 워크플로우:**
-```
-S3 기획서 → "디자인 레퍼런스" 섹션에 참고 사이트 URL 기록
-                    ↓ (기획 완료 후 구현 단계)
-P5 구현 시 → S3에 기록된 URL + 화면 명세를 Claude Design에 전달
-              → 화면 생성 → 소스코드 export → 프로젝트 적용
-              → 필요 시 Stitch MCP로 코드 변환 보조
-```
+⚠️ 구 표기 "1순위 = GPT-6 Astra(`--coder codex:max`)" 는 2026-09-17 폐기 — 사람 지시 "advisor 에서만 최고급 모델 사용해"(Astra 는 advisor 전용).
+| **2순위 (Sub)** | Claude Design (`claude.ai/design`, Pro/Max 구독 포함) | Codex 코더 레인 미가용이거나 시각 탐색이 먼저 필요할 때의 폴백. **살아 있다 — 내려간 것은 순위뿐이다** |
+| ⛔ 중단 | ~~Stitch MCP~~ | ⛔ **중단(2026-09-15 사람 결정)** — Gemini 전면 철수와 같은 축. `/forge-stitch`·`stitch` MCP 를 새로 호출·제안하지 않는다 |
+| ⛔ 중단 | ~~Figma~~ | ⛔ **중단** — MCP 를 의도적으로 제거했다. 새로 제안하지 않는다 |
 
-> **프로젝트 DESIGN.md 우선**: `{project-root}/DESIGN.md`(forge-plan Step 3.0 생성) 존재 시 이를 **생성시점 SSoT**로 읽어 committed direction·토큰 계층·anti-slop을 준수한다(claude.ai/design 프롬프트에 포함). 형용사 반복 대신 이 계약을 참조.
+⚠️ 구 표기 "①Claude Design = 모든 UI/UX 작업의 시작점 · ②Stitch MCP 로 코드 변환 보조" 는 **2026-09-15 폐기** — 사람 순위 재지정.
+⚠️ `claude.ai/design`(웹 제품) ≠ `frontend-design`(이 CLI 스킬). **서로를 대체하지 않는다** — 전자는 시안·디자인시스템 도구, 후자는 코드를 짜는 스킬이다.
+근거: 사람 확정 2026-09-15 — "publish·html 작업과 프론트엔드 작업은 Astra 6 이 1순위, 2순위가 Claude Design. Stitch 사용 안 하고 Gemini 는 삭제했다." ⚠️ **이 인용은 2026-09-15 시점의 사람 말이다** — 2026-09-17 개정으로 1순위는 Astra 가 아니라 난도별 luna/terra/sol 이다(바로 위 ⚠️ 줄). 폐기조건: Human 이 도구 순위를 다시 정하거나 Codex 쓰기 레인이 사라지면 이 표를 그 값으로 교체한다.
 
-- S3 기획서에 디자인 레퍼런스 URL이 있으면 → 그 URL을 Claude Design에 전달
-- URL이 없으면 → 사용자에게 S3 기획서의 레퍼런스 URL 확인 요청
-- Claude Design export 코드가 있으면 → 그것을 기반으로 구현 진행
+**표준 워크플로우 (레퍼런스 확보 = 위→아래 순서로 시도):**
 
-## Phase 0: Claude Design 먼저 (UI/UX 작업 기본 원칙)
+1. S3 기획서 "디자인 레퍼런스" 섹션의 참고 사이트 URL + 화면 명세를 **Codex 코더 레인**(`/forge-mockup`, 난도별 luna/terra/sol)에 전달.
+2. **1순위 — `/forge-mockup <화면ID> [--project <프로젝트 루트 절대경로>] [--brief "<화면 설명>"] [--spec <화면정의.md>] [--viewport 1440x900]`**(`.claude/commands/forge-mockup.md` argument-hint 와 같은 표기): Codex 코더 목업 코드 `<project>/s3-mockup/<화면ID>/screen.html` + 캡처 `<project>/s3-mockup/<화면ID>.png`. **HTML 을 버리고 PNG 만 쓰지 마라**(코드 목업의 이점이 사라진다).
+3. **2순위 — Claude Design**: 사용자가 준 스크린샷(`/clip`)·export HTML 을 기준으로 구현.
+4. 둘 다 없으면 → 먼저 만들어 올 것을 안내. 그래도 진행하면 **"레퍼런스 없이 진행"** 1줄 명시(완료 게이트 1 — 이 경고 규약은 그대로다).
+5. 확보되면 golden reference 로 삼아 pixel-perfect 구현(Phase 1~3) → `visual-loop` 로 구현 vs 골든 레퍼런스 대조.
 
-**모든 UI/UX 작업은 Claude Design에서 시작한다.**
+⚠️ 구 표기 "Claude Design 에 전달 → export → **필요 시 Stitch MCP 로 코드 변환 보조**" 는 2026-09-15 폐기 — Stitch 사용 중단.
+⚠️ **이 방어가 무력화되는 입력**: 목업이 **캡처 PNG 없이 코드만** 있는 경우 — 대조 대상이 없어 `visual-loop` 가 조용히 통과한다. 그때는 레퍼런스가 "있어도" `시각 검증 미확인(unverified)` 으로 적고 GREEN/PASS 를 주장하지 않는다.
+폐기조건: `/forge-mockup` 이 폐기되거나 프론트 1순위가 바뀌면 위 표와 이 절의 출처를 그 값으로 교체한다.
 
-- Claude Design URL: https://claude.ai/design (Pro/Max 구독 포함)
-- 사용자가 Claude Design 결과물(스크린샷, export HTML)을 제공하면 그것을 기준으로 구현
-- Claude Design 결과물이 없으면 사용자에게 먼저 만들어 올 것을 안내
-
-**Claude Design → Forge 워크플로우:**
-```
-1. claude.ai/design → 프롬프트로 디자인 생성
-2. 스크린샷 → /clip 으로 이 세션에 붙여넣기
-   또는 export HTML → 파일로 공유
-3. /handoff → 개발 스펙 추출
-4. frontend-design 스킬 → 스펙 기반 구현
-5. visual-loop → 구현 vs 디자인 비교 검증
-```
-
-Claude Design 결과물이 있으면 → golden reference로 삼아 pixel-perfect 구현 목표.
+> **프로젝트 DESIGN.md 우선**: `{project-root}/DESIGN.md`(forge-plan Step 3.0 생성) 존재 시 이를 **생성시점 SSoT**로 읽어 committed direction·토큰 계층·anti-slop을 준수한다(1순위 모델 프롬프트에 포함). 형용사 반복 대신 이 계약을 참조. 디자인 파이프라인(디자인시스템 → `DESIGN.md` 토큰 → 스타일가이드)은 **순위와 무관하게 먼저 거친다.**
 
 This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
 
@@ -103,20 +91,27 @@ The user provides frontend requirements: a component, page, application, or inte
 frontend-design은 단순 Generator가 아니라 3-Phase 하네스로 동작한다.
 **파일 기반 통신** 원칙: 에이전트 간 컨텍스트를 `.claude/state/` 파일로 전달한다.
 
-### Phase 1: Planner Subagent (Sonnet)
+### Phase 1: Planner Subagent (코더 레인 종속 — `--coder`)
 
+```bash
+# 호출자가 준 --coder 가 항상 이긴다. 미지정이면 레인 판정이 기본값을 정한다(프론트 → 난도별 luna/terra/sol — 2026-09-17, 구 표기 "프론트 → Astra" 폐기).
+CODER="${CODER:-$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-lane-detect.sh" "$REPO_ROOT")}"
+MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER")"
+# codex:*  → mcp__codex__codex (sandbox=workspace-write, cwd=worktree, model=$MODEL)   ← 프론트 기본
+# claude:* → Agent(subagent_type="general-purpose", model=$MODEL)                       ← 그 밖
 ```
-subagent_type: general-purpose
-model: sonnet
-```
+
+⚠️ 구 표기 `model: sonnet` 고정은 **2026-09-15 폐기** — 프론트 1순위가 Astra 로 바뀌어 벤더를 고정할 수 없다.
+근거: `dev/global-rules/tool-rules.md §UI/UX 작업`(퍼블리싱·HTML·프론트 ①Codex 쓰기 레인 — luna 사소·terra 일반·sol 복잡, astra 는 advisor 전용 2026-09-17. 구 표기 "①GPT-6 Astra" 는 폐기) · 배선 낱말은 `.claude/commands/forge-implement.md §3.6` 과 동일하게 맞췄다. 폐기조건: 프론트 1순위가 바뀌거나 `coder-lane-detect.sh` 가 사라지면 이 블록을 그 값으로 되돌린다.
+⚠️ **이 방어가 무력화되는 입력**: 이 스킬이 **변경 diff 가 아직 없는 착수 시점**(신규 프론트 프로젝트의 첫 화면)에 호출되면 `coder-lane-detect.sh` 가 프론트 신호를 못 봐 `claude:default` 로 떨어진다 — 그때는 호출자가 `--front --task <유형>` 을 준다(구 표기 "`--coder codex:max` 명시" 는 2026-09-17 폐기 — Astra 는 advisor 전용). kill-switch `FORGE_FRONT_CODER=off|on`.
 
 Planner는 Generator 실행 전에 다음을 수행한다:
 
 1. **화면 요구사항 분석**
    - 사용자 요구사항에서 핵심 화면·컴포넌트 목록 추출
    - 대상 플랫폼, 프레임워크, 기술 제약 확인
-2. **Claude Design 레퍼런스 URL 확인**
-   - S3 기획서 또는 사용자 입력에서 레퍼런스 URL 수집
+2. **골든 레퍼런스 확인** (①Codex 코더 목업 경로 ②Claude Design URL — 위 Phase 0 순위)
+   - S3 기획서 또는 사용자 입력에서 레퍼런스 URL·`s3-mockup/<화면ID>/` 목업 경로 수집
    - URL이 없으면 FD_SPEC.md에 "레퍼런스 필요" 플래그 기록
 3. **컴포넌트 구조 설계**
    - 화면 분해: 섹션/컴포넌트/인터랙션 목록
@@ -146,17 +141,15 @@ Planner는 Generator 실행 전에 다음을 수행한다:
 
 ---
 
-### Phase 2: Generator (기존 내용 유지)
+### Phase 2: Generator (Phase 1 과 같은 코더 레인)
 
-```
-subagent_type: general-purpose
-model: sonnet
-```
+Phase 1 에서 결정한 `$CODER`/`$MODEL` 을 **그대로 재사용**한다(레인 중도 전이 금지 — 프론트면 난도별 codex:low/default/high(luna/terra/sol), 그 밖은 claude:default. 구 표기 "프론트면 Astra" 는 2026-09-17 폐기). ⚠️ 구 표기 `model: sonnet` 고정은 2026-09-15 폐기.
+근거: 구현 본체의 벤더가 Planner 와 갈리면 FD_SPEC 의 전제와 산출 코드의 관용구가 어긋난다. 폐기조건: Planner/Generator 를 다른 벤더로 돌리는 설계가 채택되면 이 줄을 지운다.
 
 Generator는 **FD_SPEC.md를 먼저 읽고** 시작한다.
 
 1. `{project_root}/.claude/state/FD_SPEC.md` Read
-2. "## 디자인 레퍼런스" 섹션의 URL이 있으면 → Claude Design에 전달하여 golden reference 확보
+2. "## 디자인 레퍼런스" 섹션의 URL·목업 경로가 있으면 → 1순위 Codex 코더(`/forge-mockup` 산출물) 로 golden reference 확보, 없으면 2순위 Claude Design
 3. "## Rubric" 섹션의 기준을 내면화 — QA 지적 사전 제거가 목표
 
 #### Generator 원칙: Rubric 선행 + Museum Quality
@@ -180,23 +173,29 @@ Generator는 **FD_SPEC.md를 먼저 읽고** 시작한다.
 - [ ] Rubric 불합격 조건 직접 확인
 - [ ] "이 정도면 됐다" 자기합리화 없음
 - [ ] 실제로 렌더링되는지 확인 (broken import/CSS 없음)
-- [ ] Claude Design golden reference와 대조 (있는 경우)
+- [ ] 골든 레퍼런스(Codex 코더 목업 캡처 · 폴백 Claude Design export)와 대조 (있는 경우)
 
 **출력**: `{project_root}/.claude/state/FD_SELF_CHECK.md` + 구현 코드(파일)
 - FD_SELF_CHECK.md: Rubric 항목별 자체 점수 + 개선 여부 기록
 
 ---
 
-### Phase 3: 독립 Evaluator Subagent (Sonnet)
+### Phase 3: 독립 Evaluator Subagent (독립 Claude **고정** — 하향 금지)
 
-```
-subagent_type: general-purpose
-model: sonnet
+```bash
+# ⛔ --coder 를 상속하지 않는다. 채점자는 항상 Claude claude:high 레인으로 고정한다.
+# 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 claude:max(Fable 5.1) 폐기. 코더 상한이 sol(=high)이라 high 로도 tier 이상 유지.
+EVAL_MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" claude:high)"
+# → Opus 5. Agent(subagent_type="general-purpose", model=$EVAL_MODEL)
 ```
 
 > **핵심 원칙: Generator ≠ Evaluator**
 > Generator의 컨텍스트(의도, 시도, 가정)를 공유하지 않는 **별도 에이전트**가 검증한다.
 > 같은 에이전트가 개발+평가하면 같은 맹점을 가진다.
+>
+> **왜 여기만 고정인가** — 두 축이 동시에 걸린다. ①`model-routing.md §워커 tier`: verify/judge 는 **대상 worker tier 이상이고 하향 금지**다. 구현 코더 상한이 sol(high)이므로 채점자는 Claude high(Opus 5)다(구 표기 "Astra(max) → 채점자 Fable 5.1" 은 2026-09-17 폐기). ②구현이 Codex 로 갔을 때 Evaluator까지 같은 벤더면 **자기검수**가 된다 — 벤더 교차가 이 Phase 의 존재 이유다.
+> ⚠️ 구 표기 `model: sonnet` 은 **2026-09-15 폐기**(구현 본체가 Astra/Opus 로 올라가 채점자가 응시자보다 낮아졌다). ⚠️ **이 방어가 무력화되는 입력**: 호출자가 "비용 아끼자"며 Evaluator 에도 `--coder`/`model` 을 넘기는 경우 — 이 스킬은 그 값을 **무시하고** `claude:high` 로 간다. 낮추려면 규칙(`model-routing.md`)을 먼저 고쳐야 한다.
+> 근거: 2026-07-27 실측 — 독립 Evaluator 가 자가채점 97점짜리를 93점으로 끌어내리고 데스크톱 2/3 공백 결함을 잡았다(위 §완료 게이트). 폐기조건: verify/judge tier 하향 금지 규칙이 폐기되거나 Evaluator 를 벤더 교차 밖으로 빼기로 하면 이 고정을 푼다.
 
 Evaluator는 다음 파일만 보고 판정한다 (Generator 의도 전달 금지):
 
@@ -216,7 +215,7 @@ Evaluator는 다음 파일만 보고 판정한다 (Generator 의도 전달 금�
 2. Rubric 항목별 점수 산정 (독자적으로)
 3. AI 슬롭 패턴 독립 감지 (Typography, Color, Layout, Motion)
 4. 코드 실행 가능성 확인 (import, CSS 문법, syntax)
-5. Claude Design 레퍼런스 대비 구현 충실도 (레퍼런스 있는 경우)
+5. 골든 레퍼런스(Codex 코더 목업 · 폴백 Claude Design) 대비 구현 충실도 (레퍼런스 있는 경우)
 
 **출력**: `{project_root}/.claude/state/FD_EVAL_REPORT.md`
 ```
@@ -316,16 +315,21 @@ Remember: Claude is capable of extraordinary creative work. Don't hold back, sho
 
 > 근거: Last-Mile Design / Micro-graphics 2026 트렌드.
 
-## Stitch Design System 연동
+## 디자인시스템 추출 — Codex 코더 기반
 
-Google Stitch MCP가 전역 등록되어 있다 (`$HOME/.claude.json`의 `stitch` 서버). 기존 사이트/앱의 디자인 시스템을 추출할 때 활용한다.
+기존 사이트/앱의 디자인 시스템을 추출할 때는 **GPT 코더**(Codex 쓰기 레인, 상황별 luna/terra/sol)를 쓴다 — 디자인시스템·토큰의 1순위가 Codex 코더이기 때문이다(2026-09-17, 구 표기 GPT-6 Astra 폐기)(정본 `tool-rules.md §UI/UX 작업`).
 
 **활용 흐름**:
-1. Stitch MCP로 대상 URL의 DESIGN.md 추출 (색상·타이포그래피·컴포넌트 토큰)
+1. 대상 URL·스크린샷을 입력으로 Codex 코더에 `DESIGN.md` 토큰 추출 지시 (`--coder` 미지정 → `coder-lane-detect.sh --front --task` 판정, primitive → semantic → component 3계층 · 구 표기 `--coder codex:max` 는 2026-09-17 폐기)
 2. 추출된 토큰을 CSS 변수 또는 Tailwind config에 매핑
 3. 이후 모든 컴포넌트 생성 시 해당 토큰 기준으로 구현
+4. (폴백) Codex 코더 레인 미가용 시 2순위 Claude Design — `/forge-claude-design push|pull|status <project-slug>`
 
 **적용 대상**: Portfolio처럼 디자인 일관성이 중요한 기존 프로젝트에서 반복적인 디자인 결정 재논의를 제거할 때 사용.
+
+⚠️ 구 절 "**Stitch Design System 연동** — `~/.claude.json` 의 `stitch` MCP 서버로 대상 URL 의 DESIGN.md 추출" 은 **2026-09-15 폐기**(Stitch 사용 중단, 사람 결정). 그 MCP 를 새로 호출·제안하지 않는다.
+⚠️ **이 방어가 무력화되는 입력**: `~/.claude.json` 에 `stitch` 서버가 **아직 등록된 채 남아 있는** 머신 — MCP 목록만 보고 "등록돼 있으니 쓰라는 뜻"으로 읽으면 중단 결정이 조용히 우회된다. **등록 여부는 사용 근거가 아니다.** (같은 축의 오독: Claude Design 은 MCP 가 아니라 목록에 안 나온다.)
+근거: 사람 결정 2026-09-15 — Stitch 중단(Gemini 전면 철수와 같은 축) · 디자인시스템·토큰 1순위 = Codex 코더 레인(2026-09-17 개정 — 난도별 luna/terra/sol. 구 표기 "1순위 = Astra" 는 폐기: Astra 는 advisor 전용이다. 표·근거 → `.claude/rules-on-demand/tool-rules-aux.md §디자인 도구 순위`). 폐기조건: Stitch 중단이 철회되거나 디자인시스템·토큰 1순위가 바뀌면 이 절을 그 값으로 교체한다.
 ## 업종별 조건부 디자인 룰
 
 동일한 "세련된 디자인"이라도 업종에 따라 정반대 선택이 정답일 수 있다. 좋은 디자인의
@@ -413,7 +417,7 @@ Agent(
 당신은 독립 UI 품질 평가자입니다. Generator의 산출물을 엄격하게 평가하세요.
 
 산출물: [Generator 출력 코드]
-Claude Design 원본: [S3 레퍼런스 URL 또는 스크린샷]
+골든 레퍼런스 원본: [Codex 코더 목업 `s3-mockup/<화면ID>/screen.html` + `s3-mockup/<화면ID>.png` · 폴백 Claude Design export/스크린샷 · S3 레퍼런스 URL]
 
 평가 루브릭 (각 20점):
 1. Typography — 독창적 서체 페어링, Inter/Roboto 단독 금지

@@ -122,7 +122,9 @@ model: sonnet
 - 참고 사이트: [URL] — (어떤 스타일/요소를 참고할지 한 줄 설명)
 - 참고 사이트: [URL] — ...
 ```
-→ P5 구현 시 이 URL을 Claude Design(claude.ai/design)에 전달하여 화면 생성
+→ P5 구현 시 이 URL을 **GPT 코더 상황별**(1순위 — luna/terra/sol, 판정 `coder-lane-detect.sh --front --task`)에 전달하여 화면 생성 — 시안 목업 = `/forge-mockup`, 구현 = `--coder` 미지정 자동 판정(구 표기 `--coder codex:max`(Astra) 는 2026-09-17 폐기 — advisor 전용). 미가용·실패 시에만 2순위 Claude Design(`/forge-claude-design`).
+⚠️ 구 표기 "P5 구현 시 이 URL을 Claude Design(claude.ai/design)에 전달하여 화면 생성" 은 2026-09-15 폐기 — 사람 순위 재지정(Claude Design 은 2순위로 살아 있다).
+근거: 사람 확정 2026-09-15 — 퍼블리싱·HTML·프론트엔드 1순위 = GPT-6 Astra, 2순위 = Claude Design. 폐기조건: Human 이 순위를 다시 정하면 이 줄을 그 도구로 교체한다.
 
 **출력**: `.claude/state/AUTOPLAN_DESIGN.md`
 - 7차원 채점표 + 합산 + [PASS]/[WARN]/[FAIL]
@@ -319,7 +321,7 @@ model: sonnet
 ## Workflow 통합 (계획서 P2-2)
 파일 기반 통신 → JS 변수 직접 전달. 중간 파일(.claude/state/AUTOPLAN_*.md) 생성 없음. 컨텍스트 격리.
 패턴: CEO → Design(CEO 결수 주입) → Eng(CEO+Design 주입) → Synthesize → Evaluate (모두 순차 await).
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/autoplan/workflow.js"), args: { docPath, skip } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/autoplan/workflow.js"), args: { docPath, skip } })`
 agentType: Wave 2 = default (ux-researcher 미등록) / Wave 3 = cto-advisor.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 5-Wave 파일 기반 방식 fallback.
 

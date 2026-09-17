@@ -150,7 +150,9 @@ JSON의 `is_generated_subtitle` 및 `source` 필드를 기반으로 자막 신�
 - **프론트엔드**: Next.js + Framer Motion + Lenis, Playwright E2E
 - **백엔드**: NestJS + TypeORM + PostgreSQL
 - **자동화**: cron 기반 daily-system-review, weekly-research, n8n 연동 검토 중
-- **디자인**: NanoBanana (AI 이미지), Stitch (UI 목업), Penpot (디자인 도구)
+- **디자인**: GPT Image 2.5 (이미지 1순위, `/forge-image` — 구독), GPT 코더 상황별 luna/terra/sol (프론트·목업·디자인시스템 1순위, `/forge-mockup`·`coder-lane-detect.sh` 판정 — Astra 는 advisor 전용, 2026-09-17), Claude Design (둘 다 2순위, `/forge-claude-design`), Penpot (디자인 도구)
+  ⚠️ 구 표기 "NanoBanana (AI 이미지), Stitch (UI 목업)" 는 폐기 — NanoBanana 는 2026-09-07 Gemini 전면 철수, Stitch 는 2026-09-15 사용 중단(사람 결정).
+  근거: 사람 확정 2026-09-15(도구 순위 재지정). 폐기조건: Human 이 순위를 다시 정하면 이 줄을 그 값으로 교체한다.
 
 ## 출력 형식
 

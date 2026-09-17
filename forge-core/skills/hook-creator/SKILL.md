@@ -21,7 +21,7 @@ Create Claude Code hooks that execute shell commands at specific lifecycle event
 
 **Every response MUST include:**
 1. A complete JSON code block with the `"hooks"` key showing the full configuration
-2. The target settings file path (`$HOME/.claude/settings.json` for user-level or `.claude/settings.json` for project-level)
+2. The target settings file path (`~/.claude/settings.json` for user-level or `.claude/settings.json` for project-level)
 
 Always output the JSON config block first, then explain what it does.
 
@@ -31,7 +31,7 @@ Always output the JSON config block first, then explain what it does.
 2. **Select the appropriate event** - Choose from available hook events (see references/hook-events.md)
 3. **Design the hook command** - Write shell command that processes JSON input from stdin
 4. **Configure the matcher** - Set tool/event filter (use `*` for all, or specific tool names like `Bash`, `Edit|Write`)
-5. **Choose storage location** - User settings (`$HOME/.claude/settings.json`) or project (`.claude/settings.json`)
+5. **Choose storage location** - User settings (`~/.claude/settings.json`) or project (`.claude/settings.json`)
 6. **Output the complete JSON config** - Always include the full `"hooks": { ... }` block
 7. **Test the hook** - Verify behavior with a simple test case
 8. **배선 확인 — 훅 파일을 만드는 것은 절반이다** (2026-08-27 system-audit H-1·H-7)
@@ -52,7 +52,7 @@ Always output the JSON config block first, then explain what it does.
 3. `재현:` 등록 검증 명령 1줄 —
    `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/register-forge-hooks.sh" --verify`
 
-⚠️ **레인을 명시한다.** `$HOME/.claude/settings.json` = **git 밖 전역** → 팀 전파 **0**(내 머신만).
+⚠️ **레인을 명시한다.** `~/.claude/settings.json` = **git 밖 전역** → 팀 전파 **0**(내 머신만).
 `$FORGE_ROOT/.claude/settings.json` = **프로젝트 레인** → `git pull` 로 팀원에게 도달한다.
 전역 레인에만 넣었으면 PR 에 **"전파 0"** 이라고 적는다 — 그것을 "배선 완료"라고 쓰지 않는다.
 
@@ -116,7 +116,7 @@ jq -r 'if .tool_input.file_path then .tool_input.file_path else empty end'
 
 **Log all bash commands:**
 ```bash
-jq -r '"\(.tool_input.command)"' >> $HOME/.claude/bash-log.txt
+jq -r '"\(.tool_input.command)"' >> ~/.claude/bash-log.txt
 ```
 
 **Auto-format TypeScript after edit:**

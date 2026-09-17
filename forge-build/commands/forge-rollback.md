@@ -16,8 +16,10 @@ ls release-config.json 2>/dev/null && echo "redeploy=on" || echo "redeploy=off (
 ```
 
 - `WIRED` → 아래 L1/L2/L3 그대로 실행 가능.
-- `NOT_WIRED` → `dev/github-spec-kit/workflows/rollback.yml`(⚠️ OSS `github/spec-kit` 과 무관 — 이름만 같은 자체 GitHub Actions 워크플로우)을 그 레포의
+- `NOT_WIRED` → `dev/github-spec-kit/workflows/deploy/rollback.yml`(⚠️ OSS `github/spec-kit` 과 무관 — 이름만 같은 자체 GitHub Actions 워크플로우)을 그 레포의
   `.github/workflows/`에 복사해 배선한 뒤 실행한다. 템플릿 헤더가 명시하는 정규 설치 경로다.
+  ⚠️ **템플릿 경로 정정 (2026-09-17)**: 이 줄은 `dev/github-spec-kit/workflows/rollback.yml`(= `deploy/` 없음)을 가리키고 있었고 **그 파일은 존재하지 않는다.**
+  장애가 터진 시점에 "템플릿이 없다"로 막히는 경로였다. 재현: `test -e dev/github-spec-kit/workflows/rollback.yml` → 실패 · `test -e dev/github-spec-kit/workflows/deploy/rollback.yml` → 성공(2026-09-17 실측).
 - `redeploy=off` → L2의 "Re-deploy previous version" 스텝이 `release-config.json` 부재로
   **skip**된다(템플릿이 그렇게 설계됨). 코드는 되돌아가지만 재배포는 수동이다 — L2를 쓸 때
   이 사실을 전제하고 재배포를 별도로 수행할 것.
@@ -26,19 +28,20 @@ ls release-config.json 2>/dev/null && echo "redeploy=on" || echo "redeploy=off (
 
 | 레포 | rollback.yml | release-config.json | 판정 |
 |---|:--:|:--:|---|
-| `${FORGE_ROOT:-$HOME/forge}` (하네스) | 없음 | 없음 | **해당 없음** — 프로덕션 배포 자체가 없다(`.github/workflows/`에 production-deploy 부재). 롤백할 대상이 없으므로 부재가 정상이다. |
+| `~/forge` (하네스) | 없음 | 없음 | **해당 없음** — 프로덕션 배포 자체가 없다(`.github/workflows/`에 production-deploy 부재). 롤백할 대상이 없으므로 부재가 정상이다. |
 | `portfolio-project` (제품) | **있음** | 없음 | **가동** — 단 L2 재배포 스텝은 skip(코드 revert까지만). |
 
 > ⚠️ 2026-08-03 이전 이 문서는 "이 커맨드는 미가동"이라고 **전역 단정**했다. 그 판정은
-> `${FORGE_ROOT:-$HOME/forge}`에서 `ls .github/workflows/`를 실행한 결과를 일반화한 것인데, forge는 애초에
+> `~/forge`에서 `ls .github/workflows/`를 실행한 결과를 일반화한 것인데, forge는 애초에
 > 프로덕션 배포가 없는 하네스 레포라 롤백 대상이 아니다. 정작 롤백이 필요한 제품 레포
 > (`portfolio-project`)에는 rollback.yml이 **배선돼 있었다**. 즉 그 단정은 장애 시점에
 > "이 커맨드는 죽었다"고 오인하게 만드는 **거짓 음성**이었다 — 부재 주장은 측정 명령과
-> 측정 위치를 함께 적어야 한다(`dev-workflow-rules.md §부재 주장은 측정 명령 + 관측일 동반`).
+> 측정 위치를 함께 적어야 한다(`dev-workflow-rules.md §Spec 관리` 의 부재 주장 항).
 
 **L1 수동 대안**(rollback.yml 미배선 레포에서 30분 내 긴급 시): `git revert <commit> && git push`.
 L2/L3는 `/forge-deploy --reverse`로 대체할 수 없다 — `prod --reverse`는 역머지 대상이 없어
-즉시 거부된다(`commands/forge-deploy.md:63`). 이전 릴리스 태그 checkout 후 `/forge-deploy prod`
+즉시 거부된다(`commands/forge-deploy.md` 의 **"`prod --reverse` 즉시 거부"** 항 — ⚠️ 줄번호로 가리키지 않는다. 리팩터마다 조용히 거짓이 된다).
+이전 릴리스 태그 checkout 후 `/forge-deploy prod`
 재배포로 대체한다.
 
 Forge Dev platform층 프로덕션 롤백을 실행합니다. 배포 실패 시 아래 레벨 중 선택하세요.

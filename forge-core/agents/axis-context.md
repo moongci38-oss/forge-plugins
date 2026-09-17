@@ -116,7 +116,7 @@ Poisoning | Distraction | Confusion | Clash | Rot
 > 이 값은 실제 토큰 수가 아니라 **추세 지표**로만 쓴다. 절대값 판정이 필요하면
 > `/context` 의 실측을 쓴다 — 그게 유일한 정답지다.
 >
-> 재현: `MEMORY_PATH="$HOME/.claude/projects/$(echo "${FORGE_ROOT:-$HOME/forge}" | tr '/' '-')/memory/MEMORY.md"; cat $HOME/.claude/rules/*.md ~/CLAUDE.md "${FORGE_ROOT:-$HOME/forge}/CLAUDE.md" "$MEMORY_PATH" | wc -m` 을 4로 나눈다.
+> 재현: `MEMORY_PATH="$HOME/.claude/projects/$(echo "${FORGE_ROOT:-$HOME/forge}" | tr '/' '-')/memory/MEMORY.md"; cat ~/.claude/rules/*.md ~/CLAUDE.md "${FORGE_ROOT:-$HOME/forge}/CLAUDE.md" "$MEMORY_PATH" | wc -m` 을 4로 나눈다.
 > ⚠️ **재현 명령에 MEMORY.md 를 반드시 포함한다**(r5 정정). 종전 명령은 3요소 정의를
 >   적어놓고 MEMORY.md 를 빠뜨려 89,674 를 냈다 — 바로 위에 적힌 90,907 과 맞지 않는다.
 >   정의·코드·재현 명령 셋이 같은 것을 세지 않으면 어느 것이 정본인지 아무도 모른다.

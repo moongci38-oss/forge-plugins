@@ -15,8 +15,8 @@ model: sonnet
 **모든 산출물은 outputs 루트에 저장한다. forge 레포 안에 저장 금지.**
 
 경로 결정: `forge-workspace.json`의 `outputsRoot` 값을 forge 루트 기준 상대 경로로 해석한다.
-- forge 루트 = `${FORGE_ROOT:-$HOME/forge}/` (또는 forge-workspace.json이 있는 곳)
-- outputs 루트 = `{forge루트}/{outputsRoot}` (기본값: `../forge-outputs` → `${FORGE_ROOT:-$HOME/forge}-outputs/`)
+- forge 루트 = `~/forge/` (또는 forge-workspace.json이 있는 곳)
+- outputs 루트 = `{forge루트}/{outputsRoot}` (기본값: `../forge-outputs` → `~/forge-outputs/`)
 
 | 산출물 | 경로 (outputs 루트 기준) |
 |--------|------------------------|
@@ -60,7 +60,7 @@ $ARGUMENTS
      공유 URL 을 만들지 않았다 — 이름만 같아서 "이미 발행됐다" 는 오독을 낳았으므로 함께 걷어낸다.
      ⚠️ 파일 저장은 그대로 정본이다. 사이트 발행기가 저장된 파일을 훑어 올린다. -->
 §산출물대로 **파일 저장이 정본**입니다. 저장만 하면 **발행은 자동**입니다 —
-`report-site-publish.sh auto` 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
+`report-site-cron.sh`(빌더 pull → 발행) 가 매시 :25 cron 으로 돌며 새 리포트를 사이트에 올리고
 텔레그램으로 링크를 보냅니다. **이 스킬이 발행을 직접 하지 않습니다.**
 
 - 지금 당장 올리려면: `/forge-publish-report`
@@ -224,18 +224,18 @@ P0/P1 핵심 주장에 대한 독립 반박 에이전트를 Agent Teams로 병�
 시스템 비교분석 **직전에** 아래 검증을 수행. **컨텍스트 추측 금지 — 실제 파일 Read 결과만 사용.**
 
 **GTC-1: 관련성 필터** — 기사에서 언급된 도구/서비스가 우리 시스템에서 실제 사용 중인지:
-- Read: `${FORGE_ROOT:-$HOME/forge}/.mcp.json`, `$HOME/.claude.json` (MCP 서버 목록)
-- Read: `${FORGE_ROOT:-$HOME/forge}/forge-workspace.json` (활성 프로젝트)
-- Glob: `$HOME/.claude/skills/*/SKILL.md`, `${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md`
+- Read: `~/forge/.mcp.json`, `~/.claude.json` (MCP 서버 목록)
+- Read: `~/forge/forge-workspace.json` (활성 프로젝트)
+- Glob: `~/.claude/skills/*/SKILL.md`, `~/forge/.claude/agents/*.md`
 - **미사용 도구에 대한 High+ 제안** → 영향도 Low로 강제 + "미사용" 표기
 
 **GTC-2: 기구현 확인** — 기사의 제안/패턴이 이미 존재하는지:
-- Glob: `${FORGE_ROOT:-$HOME/forge}/.github/workflows/*.yml`, `${FORGE_ROOT:-$HOME/forge}/.claude/skills/*/SKILL.md`, `${FORGE_ROOT:-$HOME/forge}/.claude/hooks/*.sh`
-- Glob: `${FORGE_ROOT:-$HOME/forge}/.claude/rules/*.md`, `$HOME/.claude/rules/*.md`
+- Glob: `~/forge/.github/workflows/*.yml`, `~/forge/.claude/skills/*/SKILL.md`, `~/forge/.claude/hooks/*.sh`
+- Glob: `~/forge/.claude/rules/*.md`, `~/.claude/rules/*.md`
 - **이미 구현된 기능 제안 시** → 비교 매트릭스에 "이미 적용" 표기, 제안에서 제거
 
 **GTC-3: 핵심 커버리지** — Forge/Forge Dev 파이프라인 현황을 실제 파일로 확인:
-- Read: `${FORGE_ROOT:-$HOME/forge}/forge-workspace.json` → 활성 프로젝트 + gate-log 위치
+- Read: `~/forge/forge-workspace.json` → 활성 프로젝트 + gate-log 위치
 - Read: 각 프로젝트의 `gate-log.md` → 현재 Gate
 
 **GTC-4: 영향도 검증 (P1 승격 게이트)** — P1 이상 항목이 하나라도 충족하는지:
@@ -309,9 +309,9 @@ GTC-1에서 관련성 확인된 도구/플러그인/MCP/오픈소스/논문에 �
 
 Step 2(a~c) + Step 2.8 + Step 2.9 결과를 **"출력 형식"** 섹션 구조로 작성.
 
-### Step 4.7 — 적대적 검수 (cr-triple 3레그, **분석 리포트 대상**)
+### Step 4.7 — 적대적 검수 (cr-triple 2레그, **분석 리포트 대상**)
 
-`-analysis.md` 를 저장한 뒤 **분석 리포트 자체를** 3레그로 적대적 검수한다.
+`-analysis.md` 를 저장한 뒤 **분석 리포트 자체를** 2레그로 적대적 검수한다.
 
 > ⚠️ **2026-09-03 변경**: 종전에는 적용 계획서만 검수했고 계획서가 없으면 **검수를 통째로
 > 건너뛰었다.** 계획서 생산을 중단하면서 그 경로를 두면 검수가 **영영 안 돈다** —
@@ -319,8 +319,10 @@ Step 2(a~c) + Step 2.8 + Step 2.9 결과를 **"출력 형식"** 섹션 구조로
 > 아니라 **"이 분석이 사실인가"** 였다.
 
 ```
-/cr-triple <analysis.md 절대경로> --stage final
+/cr-triple <analysis.md 절대경로> --stage final --allow-unbound-final
 ```
+
+`--allow-unbound-final` 은 **빼지 마라** — 분석 리포트는 PR 이 없어 엔진이 `unbound_final` 로 거부한다(라운드 상한은 PR 단위로만 센다).
 
 **대상이 로더 상한(~15KB)을 넘으면 나눠서 호출한다** — 통째로 넣으면 `content_integrity=lost`
 로 검수가 **수행되지 않는다**(2026-09-02 실측: 크기가 다른 두 파일이 정확히 같은 15,493B 만
@@ -341,7 +343,7 @@ daily·weekly·yt 와 같은 변환기를 쓴다 — 이 단계가 없으면 기
 
 ```bash
 ANALYSIS="{outputsRoot}/01-research/articles/{date}/{date}-{domain}-{title-slug}-analysis.md"
-python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
+python3 ~/forge/shared/scripts/report_to_html.py \
   "${ANALYSIS%-analysis.md}-dashboard.html" --title "기사 분석 — {제목}" \
   --subtitle "{도메인}" \
   "$ANALYSIS"
@@ -361,7 +363,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
    - `{outputsRoot}/01-research/articles/{date}/{date}-{domain}-{title-slug}-dashboard.html` (Step 4.85 산출물 — **이게 없으면 사이트 발행기가 기사를 통째로 건너뛴다**, 2026-08-28 corsair 실사고)
    > ⚠️ **이 둘이 전부다**(2026-09-03). 종전엔 comparison·apply-plan·consolidated 도 셌는데
    > 그 생산을 중단했다 — 없는 파일을 찾으면 게이트가 늘 exit 2 로 떨어져 **아무도 안 보게 된다.**
-2. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh <위에서 나열한 절대경로 전부>`
+2. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh <위에서 나열한 절대경로 전부>`
 3. 스크립트가 출력한 마크다운 표를 **그대로** 완료 보고로 사용한다. 표 밖에서 "전체 완료" 등 임의 서술 금지.
 4. exit 2(❌MISSING 또는 ⚠️0바이트 존재)면 "완료" 선언 금지 — 누락/손상 산출물을 재생성한 뒤 재검증(exit 0)될 때까지 Step 5(Notion 업로드)로 진행하지 않는다.
 
@@ -373,7 +375,7 @@ python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
 ```bash
 TLDR_FILE="${CLAUDE_JOB_DIR:-/tmp}/article-tldr-$(date +%s).md"
 sed -n '/^## TL;DR/,/^## /p' "{분석 md}" | head -40 > "$TLDR_FILE"
-bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/tg-report-analysis.sh \
+bash ~/forge/shared/scripts/tg-report-analysis.sh \
   "📰 기사 분석 — {제목}" "$TLDR_FILE" "{분석 md}"
 rm -f "$TLDR_FILE"
 ```
@@ -475,7 +477,7 @@ rm -f "$TLDR_FILE"
 - 비판적 분석에서 기사 주장 무비판적 수용 금지
 - 반론에서 특정 조직/문헌/컨센서스를 인용할 때 구체 URL·저자가 없으면 "(분석자 판단, 미검증)"으로 표기 — 무출처 컨센서스 단정 금지
 - 팩트체크 대상은 수치/인과/비교 주장 우선 선택
-- 산출물은 항상 `${FORGE_ROOT:-$HOME/forge}-outputs/` 아래 생성 — forge 레포 금지
+- 산출물은 항상 `~/forge-outputs/` 아래 생성 — forge 레포 금지
 - Notion 인증 실패 시 묻지 말고 Tier 2 자동 전환
 
 
@@ -485,10 +487,10 @@ rm -f "$TLDR_FILE"
 
 산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
 
-> **cr-triple vs eval-rubric**: Step 4.7의 `cr-triple`은 3레그 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점 (clarity/consistency/completeness/safety). 둘 다 발화 — 영역이 다름.
+> **cr-triple vs eval-rubric**: Step 4.7의 `cr-triple`은 2벤더 교차 2레그 adversarial 검증 (YAGNI·중복·롤백 탐지). `eval-rubric`은 다축 정량 채점 (clarity/consistency/completeness/safety). 둘 다 발화 — 영역이 다름.
 
 - **target**: analysis md (`01-research/articles/{date}/{slug}-analysis.md`) 저장 직후
-- **case_id**: `EC-article-{N}` · **eval_cases**: `$HOME/.claude/skills/article/eval_cases.jsonl`
+- **case_id**: `EC-article-{N}` · **eval_cases**: `~/.claude/skills/article/eval_cases.jsonl`
 
 ---
 
@@ -502,6 +504,6 @@ rm -f "$TLDR_FILE"
 
 ## Gotchas (흔한 실패 패턴 — 실증만, 증거 링크 의무)
 
-- **compaction 후 재개 시 이전 단계 결과 파일을 먼저 확인하지 않으면 수집을 중복 재실행**한다 — Wave 산출물이 이미 디스크에 있는데 처음부터 다시 돌았던 실패가 룰로 승격된 경위. (증거: `$HOME/.claude/rules/dev-workflow-rules.md §Article 스킬`)
-- **Notion 인증 실패 시 묻고 대기하지 말 것** — 즉시 Tier 2(index.json 로컬 저장) 자동 전환, 최종 보고에 "Notion 미업로드" 1줄만. (증거: `$HOME/.claude/rules/tool-rules.md §Notion 인증 실패`)
-- **기사 URL을 WebFetch로 직접 분석 금지** — 본 스킬이 정본 경로다. 직접 분석은 본문 추출·링크 파고들기·시스템 비교를 건너뛴다. (증거: `$HOME/.claude/rules/tool-rules.md §기사 URL`)
+- **compaction 후 재개 시 이전 단계 결과 파일을 먼저 확인하지 않으면 수집을 중복 재실행**한다 — Wave 산출물이 이미 디스크에 있는데 처음부터 다시 돌았던 실패가 룰로 승격된 경위. (증거: `~/.claude/rules/dev-workflow-rules.md §Article 스킬`)
+- **Notion 인증 실패 시 묻고 대기하지 말 것** — 즉시 Tier 2(index.json 로컬 저장) 자동 전환, 최종 보고에 "Notion 미업로드" 1줄만. (증거: `~/.claude/rules/tool-rules.md §Notion 인증 실패`)
+- **기사 URL을 WebFetch로 직접 분석 금지** — 본 스킬이 정본 경로다. 직접 분석은 본문 추출·링크 파고들기·시스템 비교를 건너뛴다. (증거: `~/.claude/rules/tool-rules.md §기사 URL`)

@@ -10,7 +10,7 @@ permissionMode: plan
 
 > **책임 경계** (audit v2 / 2026-05-08): `spec-writer` = Spec 문서 작성 only (`.specify/specs/spec.md`, `.specify/templates/`). `forge-pm-updater` = PM 추적 문서 only (`todo.md`, `development-plan.md`, Gantt). 이 에이전트는 PM 문서 갱신 금지. PM 문서 갱신이 필요하면 forge-pm-updater 호출.
 >
-> **절차 정본**: Phase 7(Spec Writing) 절차·게이트는 `${FORGE_ROOT:-$HOME/forge}/pipeline.md` Phase 7 섹션이 SSoT. 이 파일은 작성 방법론만 — 절차 복제 금지.
+> **절차 정본**: Phase 7(Spec Writing) 절차·게이트는 `~/forge/pipeline.md` Phase 7 섹션이 SSoT. 이 파일은 작성 방법론만 — 절차 복제 금지.
 >
 > **Plan·Tasks 는 별도 파일이다** (2026-08-31 SDD 4단계 재편 — 구 "§8·§11 서브섹션" 폐기): Spec 은 **무엇/왜**만 담는다. **어떻게**(기술 스택·버전 핀·ADR·데이터 모델·API 설계)는 `.specify/plans/`, 실행 단위(2~5분 TDD 스텝)는 `.specify/tasks/` 다. ⚠️ Spec 에 데이터 모델·API·구현 헤딩이나 구현 언어 코드펜스를 넣으면 **경계 게이트가 FAIL 시킨다**(재현: `forge-gate-check.sh <repo> SDD`).
 
@@ -121,9 +121,9 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 
 | 감지 키워드 | 스킬 파일 | 활용 포인트 |
 |------------|----------|------------|
-| `@nestjs/core`, NestJS | `$HOME/.claude/forge/skills/nestjs-expert.md` | API 설계 Decision Tree, ExceptionFilter 패턴, Validation Pipe 패턴, Transaction Decorator, Testing Strategy 체크리스트 |
-| `next`, Next.js | `$HOME/.claude/forge/skills/nextjs-best-practices.md` | Server/Client 컴포넌트 기준, Data Fetching 패턴, loading.tsx/error.tsx 패턴, Metadata 규칙, Anti-patterns 체크리스트 |
-| `pg`, `typeorm`, `prisma` | `$HOME/.claude/forge/skills/postgres-best-practices.md` | Schema 규칙, 인덱스 전략, 마이그레이션 패턴 |
+| `@nestjs/core`, NestJS | `~/.claude/forge/skills/nestjs-expert.md` | API 설계 Decision Tree, ExceptionFilter 패턴, Validation Pipe 패턴, Transaction Decorator, Testing Strategy 체크리스트 |
+| `next`, Next.js | `~/.claude/forge/skills/nextjs-best-practices.md` | Server/Client 컴포넌트 기준, Data Fetching 패턴, loading.tsx/error.tsx 패턴, Metadata 규칙, Anti-patterns 체크리스트 |
+| `pg`, `typeorm`, `prisma` | `~/.claude/forge/skills/postgres-best-practices.md` | Schema 규칙, 인덱스 전략, 마이그레이션 패턴 |
 
 **동작 규칙:**
 
@@ -137,7 +137,7 @@ output_path: 예) ".specify/specs/SPEC-001-A-infra.md"
 런타임에 아래 순서로 템플릿을 로드한다:
 
 1. **프로젝트별 템플릿** (우선): `.specify/templates/spec-template.md`
-2. **베이스 템플릿** (fallback): `projectType: game` → `$HOME/.claude/forge/templates/spec-template-game.md` / 그 외(기본) → `$HOME/.claude/forge/templates/spec-template-base.md`
+2. **베이스 템플릿** (fallback): `projectType: game` → `~/.claude/forge/templates/spec-template-game.md` / 그 외(기본) → `~/.claude/forge/templates/spec-template-base.md`
 
 템플릿을 Read한 후, 모든 섹션을 포함하여 Spec을 작성한다. **복잡 Spec(멀티도메인/아키결정/10+파일)이라도 Spec 에 기술을 넣지 않는다** (2026-08-31 재편): 구현 계획·ADR·의존성 그래프는 **Plan**(`.specify/plans/`), Wave 분류·실행 단위는 **Tasks**(`.specify/tasks/`) 로 각각 별도 파일로 만든다. ⚠️ 구 규칙("§8에 ADR, §11에 Wave")은 폐기됐다 — 그대로 쓰면 경계 게이트가 FAIL 시킨다.
 

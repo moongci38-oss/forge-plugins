@@ -115,7 +115,7 @@ healer 첫 출력 형식 (필수):
 - API: `verify.sh` 해당 케이스 단독 실행 또는 curl 재현
 - **UI/UX**(surface=ui): DevTools 전수 캡처(F12 전 기능) = **playwright CLI 헬퍼 1회 실행**(Bash, MCP 아님):
   ```bash
-  node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
+  node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
     --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-red --phase red
   ```
   → 스냅샷 3종(mobile/tablet/desktop) + `console.json`/`network.json`(헤더 포함, **hard-gate**) + `network.har`/`js-errors.log`/`failed-resources.log`/`trace.zip`/`aria.json`(**WARN-우선**) 방출.
@@ -179,15 +179,26 @@ healer 첫 출력 형식 (필수):
 - 기대값 달성을 목표 (Spec/Human 출처 기준)
 - 변경 라인은 버그 리포트에 직접 추적 가능해야 함
 
-### a3. 코드 리뷰 (`/forge-code-review`) — blocking
+### a3. 코드 리뷰 (Claude `code-reviewer` 에이전트 1회, opus) — blocking
 
-```bash
-# /forge-code-review 실행 (Healer 맥락 = blocking)
-# FAIL → a2 재수정 후 a3 재실행
-# 검토 포인트: 수정 품질 + 회귀 위험 + over-engineering
+> **2026-09-16 검수 다이어트 §A2 (사람 결정 "A B 다 적용해")** — 계획서 정본 `~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md`.
+> 구 표기 "a3 = `/forge-code-review`(Codex `/codex-review` 래퍼) 실행 · cr-code FAIL → a2 재수정" 은 **2026-09-16 폐기**.
+> 버그 수정 단계에는 Codex 검수가 없다 — 교차 검수는 `/forge-pr` cr-final 이 **한 번** 한다. `/forge-code-review` 커맨드 파일은 **수동 호출용으로 남아 있다**(자동 호출만 뺐다).
+> ⚠️ 무력화되는 입력: 이 버그 수정이 `/forge-pr` 을 거치지 않고 머지되면 교차(타 벤더) 검수를 한 번도 받지 않는다 — a3 리뷰어는 수정자와 같은 Claude 일 수 있다.
+> 폐기조건: 버그 수정 머지 후 사후 결함이 반복되거나 Codex 한도가 병목이 아니게 되면 사람이 a3 교차 검수 복원을 정한다.
+
+```
+[healer → Lead 위임 요청]:
+"a3 코드 리뷰 — Agent(subagent_type=\"code-reviewer\", model:\"opus\") 1회 스폰 요청.
+ 입력: bug-fix-plan.md 경로 + a2 diff(`git diff` 절대경로 워크트리) + a0 RED 증거 경로.
+ 검토 포인트: 수정 품질 + 회귀 위험 + over-engineering + 근본원인 적중 여부.
+ 반환: PASS/WARN/FAIL + 위치·이유·방법 3요소 지적 목록."
 ```
 
-cr-code FAIL → a2 재수정. a2/a3 루프: 버그당 최대 3회.
+- healer 내부에서 Agent 를 직접 스폰하지 않는다(1-레벨 제약) — Lead(`/forge-fix`·`/qa` workflow)가 스폰한다. `/qa` workflow 경로는 Phase F 가 버그별 `code-reviewer` 를 대신 스폰한다.
+- **리뷰만으로 GREEN 이 아니다** — a4 RED→GREEN 재현 증거(동일 How 재실행, TEST_PROOF)와 짝이어야 한다.
+
+code-reviewer FAIL → a2 재수정. a2/a3 루프: 버그당 최대 3회(동일 이슈 3회 = STOP 규칙 그대로).
 
 ### a4. 버그 재현 재실행 (GREEN) — AD-96: 자가판정 금지 + Vision evaluator
 
@@ -202,7 +213,7 @@ a0에서 사용한 **동일 How**로 재실행:
 
 **UI/UX 버그(surface=ui)**: a0와 **동일 playwright 헬퍼**로 재캡처(Bash):
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
+node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
   --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-green --phase green \
   [--actions <a0와 동일 json경로>]
 ```
@@ -264,7 +275,7 @@ CRUD·상태변경 버그는 a4 통과 후 **아래 3개를 모두** 충족해�
 
 1. **클래스 식별** — 이 버그의 결함 클래스를 1줄로 규정. 예: finally-override / DB헬퍼 반환값 미검사(bindExecute-swallow) / 필드명 불일치 / 복합PK 미처리 / `.catch(()=>{})` swallow.
 2. **전역 열거** — 코드 전역에서 같은 클래스 전 인스턴스를 찾는다:
-   - 정적 lint(자동): `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/false-success-scan.py --root <PROJECT_ROOT> --list` (write+success 실패검출 부재 후보).
+   - 정적 lint(자동): `python3 ~/forge/shared/scripts/false-success-scan.py --root <PROJECT_ROOT> --list` (write+success 실패검출 부재 후보).
    - 타깃 grep: 클래스별 패턴(finally 절, 필드명, 헬퍼 호출부 등).
 3. **전부 처리 or 티켓** — 발견된 전 인스턴스를 수정하거나 명시적 티켓 등록. **"N 발견 / M 수정 / K 티켓" 명시 — 조용한 스코핑 금지.** → `sweep.evidence` = {class_desc, found_count, fixed_count, ticketed[]}.
 
@@ -298,7 +309,7 @@ run_test "{설명}" GET/POST/... "{path}" {status} [body] [auth]
 2. **GREEN 재사용** (중복 재실행 금지 — a4 결과 인용): a4에서 이 케이스가 이미 GREEN으로 실행됐으면 그 결과를 인용한다. a4 GREEN 케이스와 신규 테스트의 oracle 동일성만 확인하면 충분 (별도 재실행 불요).
 3. 리포트에 oracle 일치 근거(신규 테스트 ↔ a0 How/기대값) + a0 RED 아티팩트 경로(`docs/qa/artifacts/bug-{N}-red-*.png` 또는 a0 verify 로그)를 인용 기록.
 
-**verify.sh로 표현 불가한 버그** (UI Vision-only): 가짜 cr-code 통과로 a6 완료 처리 **금지**. 대신:
+**verify.sh로 표현 불가한 버그** (UI Vision-only): 가짜 코드 리뷰(a3 `code-reviewer`, 구 표기 cr-code) 통과로 a6 완료 처리 **금지**. 대신:
 - scenarios.md에 Vision 시나리오로 등록 + oracle = a4 Vision evaluator JSON(`docs/qa/reviews/visual/{date}-bug-{N}.json`) 참조.
 - 리포트에 "automated verify.sh 회귀: N/A (Vision-gated) — Phase B Vision 재검에 의존" 명시. = 정직한 미등록, 거짓 커버리지 아님.
 
@@ -317,7 +328,7 @@ a6.2 일관성 검증 통과 시에만:
 2. 리포트에 "a6 완료: a0-oracle 일관성 통과 + scenarios.md/verify.sh 영구 등록" 기록
 3. **current-bug 정리**: `docs/qa/artifacts/current-bug`(plain, M1부터 항상 존재)와 `docs/qa/artifacts/current-bug-${session_id}`(있으면) **둘 다** 제거(다음 버그 없으면) 또는 다음 버그 번호로 갱신(순차 처리 중이면). Gate R/G는 이 파일 존재로 활성 버그를 판정하므로, 완료된 버그를 방치하면 이후 편집이 오귀속된다.
 
-> **미래 강화(미적용)**: verify.sh에 단일테스트 selector(`VERIFY_ONLY=BUG-N`) 신설 시 → a6.2를 throwaway worktree(`git worktree add <tmp> <fix_commit>^`) 기반 **동적 RED 재현**으로 승격 가능. 현재는 selector 인프라 부재 + 본 갭 P2 + 하류 QA Phase F `/forge-test-review` 백스톱 존재로 **정적 게이트 채택**. 정적 게이트 한계: 테스트가 올바른 oracle을 *주장*함은 확인하나 pre-fix에서 실제 FAIL함을 *실행 증명*하진 않음(구현 오류 테스트는 통과 가능) → selector 신설 시 승격 권고.
+> **미래 강화(미적용)**: verify.sh에 단일테스트 selector(`VERIFY_ONLY=BUG-N`) 신설 시 → a6.2를 throwaway worktree(`git worktree add <tmp> <fix_commit>^`) 기반 **동적 RED 재현**으로 승격 가능. 현재는 selector 인프라 부재 + 본 갭 P2 + 하류 QA Phase F `/forge-test-review` 백스톱 존재로 **정적 게이트 채택**(⚠️ 2026-09-16: 그 백스톱은 검수 다이어트 §A1·§A2 로 **자동 호출에서 빠졌다** — 남은 하류 백스톱은 `/forge-pr` cr-final 1회뿐이다. 정적 게이트의 한계가 전보다 덜 가려진다 → selector 신설 우선순위가 올라갔다). 정적 게이트 한계: 테스트가 올바른 oracle을 *주장*함은 확인하나 pre-fix에서 실제 FAIL함을 *실행 증명*하진 않음(구현 오류 테스트는 통과 가능) → selector 신설 시 승격 권고.
 
 ---
 
@@ -325,9 +336,9 @@ a6.2 일관성 검증 통과 시에만:
 
 a0~a6 완료 후, 버그별 **Fix Outcome Proof(FOP)** 아티팩트를 방출한다:
 
-1. FOP JSON 작성 — 스키마 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/fop-schema.json` 준수. 5요소(red/landed/green/sweep/verify) 증거를 a0.5~a5.5 산출에서 채운다. 저장: `docs/qa/artifacts/bug-{N}-fop.json`.
+1. FOP JSON 작성 — 스키마 `~/forge/shared/scripts/fop-schema.json` 준수. 5요소(red/landed/green/sweep/verify) 증거를 a0.5~a5.5 산출에서 채운다. 저장: `docs/qa/artifacts/bug-{N}-fop.json`.
 2. **독립 검증** — `verify.by`는 **healer 자신이 아니라** 독립 검증자(a4 Vision evaluator 위임 구조 / Lead 스폰 별도 에이전트). `verify.by='self'` 금지(fop-validate가 INCOMPLETE 처리). healer는 증거 수집·FOP 저작만, verdict 저작 X.
-3. 검증 실행: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/fop-validate.py docs/qa/artifacts/bug-{N}-fop.json`
+3. 검증 실행: `python3 ~/forge/shared/scripts/fop-validate.py docs/qa/artifacts/bug-{N}-fop.json`
    - PASS(exit 0) = 5요소 충족 + GREEN 통과.
    - FAIL(exit 1) = GREEN 미통과(아직 버그).
    - INCOMPLETE(exit 3) = FOP 요소 누락(완료선언 차단 대상).
@@ -437,7 +448,7 @@ STARTED: {timestamp}
 a0: RED 재현 결과 = {실제값} (재현 성공/실패)
 a1: 근본원인 = {파일:라인 + 1줄 설명}
 a2: 수정 범위 = {파일 목록}
-a3: cr-code = PASS/FAIL
+a3: code-reviewer(opus) = PASS/WARN/FAIL   # 구 표기 "a3: cr-code" 는 2026-09-16 폐기(검수 다이어트 §A2)
 a4: GREEN 재현 결과 = {기대값 달성 Y/N}
 a5: 회귀 = {없음/감지:{시나리오}}
 a6: 영구 회귀테스트 = 등록됨/미등록(사유)

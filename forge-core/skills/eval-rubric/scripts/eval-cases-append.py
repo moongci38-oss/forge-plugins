@@ -3,8 +3,8 @@
 eval-cases-append.py — eval-rubric 채점 결과(및 선택적 pass@k 신뢰성)를
 스킬별 eval_cases.jsonl에 append.
 
-SSoT: ${FORGE_ROOT:-$HOME/forge}/.claude/skills/eval-rubric/scripts/eval-cases-append.py
-배포: forge-sync가 미러($HOME/.claude/skills/eval-rubric/scripts/)로 전파.
+SSoT: ~/forge/.claude/skills/eval-rubric/scripts/eval-cases-append.py
+배포: forge-sync가 미러(~/.claude/skills/eval-rubric/scripts/)로 전파.
 ⚠️ 이 스크립트는 eval-rubric SKILL.md 절차(§4/§5)에 내장된 실행 스텝이다 —
 신규 PostToolUse hook이 아니며 settings.json에 등록하지 않는다(AD-168 준수).
 
@@ -19,7 +19,7 @@ Usage — pass@k 신뢰성 동반 append (CLEAR pass@k Reliability, arXiv:2511.1
   → k=5, pass_count=PASS만 카운트=4, pass_rate=0.8 → reliability="RELIABLE"(advisory, threshold 0.8)
 
 기록 대상 경로 override (테스트/SSoT 데모용, 기본은 런타임 미러 표준 경로):
-  --base-dir ${FORGE_ROOT:-$HOME/forge}/.claude/skills   (기본값: $HOME/.claude/skills)
+  --base-dir ~/forge/.claude/skills   (기본값: ~/.claude/skills)
 
 Kill-switch: EVAL_RUBRIC_AUTO=off 환경변수 시 append 생략(exit 0, fail-open).
 """
@@ -183,7 +183,7 @@ def main():
     ap.add_argument(
         "--base-dir",
         default=None,
-        help="eval_cases.jsonl 상위 디렉토리 override (기본: $HOME/.claude/skills 런타임 미러 경로)",
+        help="eval_cases.jsonl 상위 디렉토리 override (기본: ~/.claude/skills 런타임 미러 경로)",
     )
     args = ap.parse_args()
 

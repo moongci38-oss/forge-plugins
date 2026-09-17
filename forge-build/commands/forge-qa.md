@@ -30,6 +30,73 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
 
 끄기 `FORGE_ESCALATION_GATE=off` · 스크립트 부재·실패는 무시하고 진행(fail-open).
 
+**`--decision workflow` 를 골랐다면 — 부를 손잡이는 이것이다** (2026-09-13 신설)
+
+레인만 정하고 잡을 손잡이가 없으면 그 게이트는 장식이다. QA 레인의 Workflow 실행체는 `qa` 스킬의
+workflow 스크립트이고, **app × domain 조합을 병렬 fan-out** 한다.
+
+⛔ **여기서 정하고, 부르는 것은 나중이다 — 호출 지점은 아래 `## Phase 0` 통과 **후**다.**
+이 절이 Step `0.1` 옆에 있는 이유는 **레인 결정이 여기서 나기 때문**이지 여기서 실행하라는 뜻이
+아니다. `qa/workflow.js` 는 Phase A~H 전 사이클이라 **Phase E 에서 healer 가 코드를 고치고
+Phase G 에서 PR·머지까지 간다** — 그것을 Readiness 판정 앞에서 부르면 **구현이 끝났는지도 확인하지
+않은 채 수정·머지가 시작된다.** 쉽게 말하면 **검사도 하기 전에 수리 기사를 부르는 것**이다.
+
+호출 직전 확인한다(아니면 **[STOP]** — 부르지 않는다): `## Phase 0` Readiness 4요소가 **전부 ok**인가.
+
+```
+Workflow({ script: Bash("cat ~/.claude/skills/qa/workflow.js"),
+           args: { scope, mode, crMode, app, domains, accounts, exhaustive, loopUntilDry, dryK, prLanes } })
+```
+
+- **인자는 전부 optional 이다.** `app`·`domains`·`accounts`·`exhaustive` 를 **하나도 주지 않으면**
+  기존 단일-scope 순차 경로로 그대로 간다(매트릭스 미진입 — 회귀 0). 승격이란 곧 이 4축 중
+  하나 이상을 실제로 채워 주는 일이다.
+- **반환값을 반드시 검사한다 — `status` 가 계약이다**:
+
+  | status | 의미 | 호출측 행동 |
+  |---|---|---|
+  | `PASS` | 버그 0건 | 다음 Phase 진행 |
+  | `MERGED` | 수정 PR 머지 완료 | 다음 Phase 진행 |
+  | `PR_OPEN` | PR 만 열림(미머지) | **[STOP]** — 머지는 사람이 |
+  | `MATRIX_DONE` | 매트릭스 전 조합 완료 | 다음 Phase 진행 |
+  | `MATRIX_PARTIAL` | 일부 조합 실패 | **[STOP]** — 실패 조합을 먼저 본다 |
+  | 필드 부재 | 레그 사망(결과 없음) | **[STOP]** — 없음을 PASS 로 읽지 않는다(fail-closed) |
+
+- **승격하지 않을 때(`--decision main|wave|teams`, 또는 권고 자체가 없을 때)는 아래 기존 단일 패스
+  그대로다.** 이 절은 WARN·권고이지 강제가 아니다.
+- ⚠️ **이 배선이 무력화되는 입력**: `allowedTools` 에 `Workflow` 가 없는 방에서 부르면 **도구 거부인데
+  종료코드는 0** 이라 조용히 아무 일도 안 일어난다(`team-room-open.sh` 주석 §개발을 시킬 방).
+- 근거: 세 개발 커맨드에 호출 형태가 **0건**이라(실측 2026-09-13) 게이트가 울려도 잡을 손잡이가 없었다.
+- 폐기조건: `qa/workflow.js` 가 없어지거나 승격 실행이 다른 단일 진입점으로 통합되면 이 절을 지운다.
+
+## Step 0.2 — 소관 팀 + 팀 지식 (WARN 전용, 비차단)
+
+Step 0.1 이 **"어떤 그릇에 담을까"**(레인)를 물었다면, 여기는 **"누구 일이고 그 팀이 뭘 배웠나"**를 묻는다.
+다른 축이다 — 레인을 정해도 그 팀이 쌓아 둔 지식은 여전히 안 읽힌다.
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-qa
+# → OWNER=<slug>[,<slug>...]
+# 각 slug 의 팀 지식을 착수 전에 읽는다:
+#   ${FORGE_OUTPUTS:-$HOME/forge-outputs}/12-team-ops/members/<slug>/wisdom.md
+```
+
+- **소관이 2팀 이상이면 접수 순서를 정한다** — 병렬로 같은 파일을 고치게 두지 않는다
+  (`team-route.sh` 가 그 경고를 직접 낸다).
+- `wisdom.md` 가 없거나 스크립트가 실패하면 **건너뛴다**(fail-open, AD-168). 차단하지 않는다.
+- ⚠️ **팀장 경유(버스)를 강제하지 않는다.** 방 44/74 가 오류·게이트·타임아웃 이력을 갖고 있어
+  무조건 경유는 파이프라인을 세운다. 경유가 필요하다고 판단되면
+  `forge-session-bus.sh send <slug>` 로 보내되, 그 판단은 사람·총괄 몫이다.
+- ⚠️ **소관이 `OWNER=none` 으로 나올 수 있다** — 이름표(`identity.md`)의 `## 소유 도구` 에
+  그 커맨드가 **안 적혀 있다**는 뜻이지 주인이 없다는 뜻이 아니다. 실측(2026-09-13):
+  `/forge-fix` 는 18개 이름표 어디에도 없어 `OWNER=none` 이다.
+  그때는 **건너뛰고 진행한다**(fail-open). 소관을 정하려면 **이름표를 고치는 것**이 정본 경로다
+  — 이 커맨드가 임의로 팀을 고르지 않는다.
+- ⚠️ **판정 근거는 "커맨드 소유"다 — 파일 소유가 아니다.** 레포에 파일·경로 소유 정의가
+  **없다**(2026-09-13 실측: `find . -iname 'CODEOWNERS*'` → 0건 · 이름표에 경로 필드 0건).
+  그래서 "이 파일을 고치면 어느 팀"은 답할 수 없고 "이 커맨드는 어느 팀 소관"만 답한다.
+  파일 기반 라우팅을 원하면 **소유 영역 정의가 선행**이다(사람 결정).
+
 ## Phase 0 — Readiness 판정 (P5 구현 완료 확인)
 
 → 공통 헬퍼: `/readiness-gate` 참조 (forge-qa 진입 계약 4요소)
@@ -77,7 +144,7 @@ P5(`forge-implement`) 미완료 상태 진입 → GUIDE-STOP: "P5 구현 완료 
 - `--app`/`--domains` 매칭 0건 시 조용히 GREEN 종료하지 않고 GUIDE-STOP("매칭 없음. 사용 가능: [목록]") 후 정지한다.
 - 실DB 검증·healer 자동수정은 이 4축과 무관하게 항상 내장 — 별도 플래그 불요.
 - **`--project` 플래그 없음** — 프로젝트 식별은 CWD → forge-workspace.json 매핑(기존 qa 동작) 그대로.
-- qa-config 스키마(app 레지스트리·domains·accounts) → `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마`.
+- qa-config 스키마(app 레지스트리·domains·accounts) → `~/forge/.claude/skills/qa/reference.md §qa-config 스키마`.
 
 ## 전역 캡 (반드시 보존)
 

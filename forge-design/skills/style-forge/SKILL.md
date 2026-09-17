@@ -1,6 +1,6 @@
 ---
 name: style-forge
-description: "5-10개 에셋에서 스타일 추출→style-guide.md 생성(Mode A) 또는 Replicate LoRA 파인튜닝(Mode B). /game-asset-generate 실행 전 필수 선행 스킬 — 시각적 일관성 기준 정립. SKIP: 시각 에셋 작업이 아닐 때, 참조 이미지 없이 스타일만 논의할 때, 유효한 style-guide.md 가 이미 있을 때."
+description: "참조 에셋에서 스타일을 뽑아 style-guide.md 를 만든다(또는 LoRA 파인튜닝). /game-asset-generate 전 필수 선행. SKIP: 시각 에셋 작업이 아닐 때, 참조 이미지 없이 스타일만 논의할 때, 유효한 style-guide.md 가 이미 있을 때."
 context: fork
 model: sonnet
 ---
@@ -59,13 +59,25 @@ model: sonnet
 
 **실행 전 자동 체크** (누락 시 [STOP]):
 ```bash
-# Mode A 실행 전
-[ -z "$GEMINI_API_KEY" ] && echo "[STOP] GEMINI_API_KEY 미설정" && exit 1
+# Mode A 실행 전 — Vision 은 Codex CLI(구독)로 돈다. 열쇠가 아니라 CLI 버전이 조건이다.
+command -v codex >/dev/null 2>&1 || { echo "[STOP] codex CLI 미설치 — Mode A Vision 불가"; exit 1; }
 # Mode B 실행 전 (추가)
 [ -z "$REPLICATE_API_TOKEN" ] && echo "[STOP] REPLICATE_API_TOKEN 미설정" && exit 1
 ```
-- Mode A: `GEMINI_API_KEY` (screenshot-analyze 의존)
-- Mode B: `REPLICATE_API_TOKEN` (Replicate MCP 의존)
+- **Mode A**: `codex` CLI (**0.153.4 이상** — `screenshot-analyze` 의존). 재현: `codex --version`
+- **Mode B**: `REPLICATE_API_TOKEN` (Replicate MCP 의존)
+
+⚠️ **구 Mode A 체크(Google 키 요구)는 2026-09-12 폐기.** 의존 대상인 `screenshot-analyze` 가
+**2026-09-07 Gemini 전면 철수로 Codex Vision 으로 이관**되면서 그 키가 필요 없어졌는데
+(`screenshot-analyze/SKILL.md:366` — "API 키가 필요 없어지고 Codex CLI(구독)로 이미지를 직접
+첨부하는 방식으로 바뀌었다") 이 하드 게이트만 남아 **키 없는 머신에서 Mode A 가 그냥 죽었다.**
+없는 열쇠를 요구하며 문을 잠그고 있던 셈이다.
+
+⚠️ **이 체크가 무력화되는 입력**: `codex` 가 설치돼 있으나 **0.153.4 미만**이면 통과한 뒤
+`ASTRA_MODEL=gpt-6-astra` override(사람 명시) 요청이 HTTP 400 으로 죽는다 — 증상이 계정 문제처럼 보여 헷갈린다(기본값은 2026-09-17 부터 sol).
+셸 버전 비교는 오탐을 만들기 쉬워 넣지 않았고, 대신 여기 적어 둔다.
+⚠️ Vision 용 `codex-critic` approve-worker 토큰 선발행이 **별도로** 필요하다
+(`screenshot-analyze/SKILL.md:413`) — 이 체크는 그것까지 보지 않는다.
 
 **입력 검증** (Mode A 진입 시):
 - 에셋 폴더 존재 여부 확인
@@ -80,6 +92,20 @@ model: sonnet
 ```
 P0 (/style-forge) → P1 (Art Direction Brief) → P2 (프로토타입) → P3 (대량 생성) → P4 (품질 검증)
 ```
+
+**P2·P3 의 실제 생성 경로 = `/forge-image`(구독, GPT Image 2.5).** 이 스킬이 만든 `style-guide.md` 를
+그대로 넘겨야 스타일이 생성에 반영된다 — 넘기지 않으면 가이드는 문서로만 남는다:
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image-codex.sh" \
+  --prompt "<무엇을 그릴지>" --style-guide "<style-guide.md 절대경로>" \
+  --output "<절대경로>/asset.png"
+```
+
+⚠️ 구 서술의 `/game-asset-generate` 는 **아카이브됐다**(`.claude/skills-archived/`, 2026-08-07 게임 트랙 이관) —
+이름만 보고 부르면 없다. 재현: `find .claude/skills .claude/commands -iname '*game-asset*'` → 0건.
+근거: 사람 결정 2026-09-15(이미지 1순위 = 구독 GPT Image 2.5) · 계획서 `2026-09-15-astra-lanes-plan.md` 레인3-3.
+폐기조건: 이미지 1순위가 바뀌거나 게임 트랙이 복원되면 이 절을 그 경로로 다시 쓴다.
 
 ## 주의사항
 

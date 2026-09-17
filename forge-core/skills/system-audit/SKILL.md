@@ -8,10 +8,10 @@ model: opus
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
 > (2026-08-04 관측).
 
 
@@ -70,7 +70,7 @@ model: opus
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$FORGE_ROOT/.claude/` 또는 `$HOME/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
+| `system` | `$FORGE_ROOT/.claude/` 또는 `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -92,31 +92,31 @@ Wave 1 — 5개 축 에이전트 병렬 스폰 중...
 `CLAUDE_CODE_DISABLE_WORKFLOWS` 환경변수 미설정 시 → Workflow 도구로 위임.
 
 **⚠️ 토큰 선발행 필수 (CRITICAL)**: Verify phase가 `codex-critic`(mcp__codex__)을 **적대 레그(verify-codex) + 구조 레그(verify-structural)** 두 번 호출한다(crMode=on 시. degrade/off 는 둘 다 스킵하고 Claude 로 대체).
-⚠️ 구 표기 "`codex-critic`(mcp__codex__) + `gemini`(mcp__gemini__) 호출" 은 2026-09-07 폐기 — Gemini 전면 철수로 구조 검증 레그(구 `verify-gemini`)가 Codex(GPT-6 Astra, `verify-structural`)로 교체됐다. ⚠️ 이제 3레그 중 2개가 Codex 라 벤더 교차 독립성이 약해졌다(known trade-off).
+⚠️ 구 표기 "`codex-critic`(mcp__codex__) + `gemini`(mcp__gemini__) 호출" 은 2026-09-07 폐기 — Gemini 전면 철수로 구조 검증 레그(구 `verify-gemini`)가 Codex(`verify-structural`)로 교체됐다. 모델은 `codex-critic` 의 Vision/구조 레그 값을 따른다(현행 `codex:high` = `gpt-5.6-sol` — 구 표기 "GPT-6 Astra" 는 2026-09-17 폐기, 최고급은 advisor 전용). ⚠️ 이제 3레그 중 2개가 Codex 라 벤더 교차 독립성이 약해졌다(known trade-off).
 이 MCP는 `multiagent-mcp-direct.sh`+`multiagent-approval-verify.sh` 훅이 approve-worker HMAC 토큰 없으면 BLOCK.
 Workflow 스크립트는 셸 불가 → **기동 前 외부 선발행** 필수 (cr-multi/SKILL.md 패턴 동일):
 
 ```bash
 TODAY=$(date +%Y-%m-%d); SLUG="system-audit-${TODAY}"
 # --cr 플래그로 Codex 레그 제어: on(기본) | degrade | off
-# CR_MODE=$(${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
+# CR_MODE=$(~/forge/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
 CR_MODE="${CR_MODE:-on}"
 
 # crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 Codex 레그 2개 모두 스킵)
 if [ "$CR_MODE" = "on" ]; then
-  FORGE_TEST_MODE=1 python3 $HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
+  FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
     --task "$SLUG" --worker codex-critic --tools mcp__codex__codex --paths "$TARGET"
 fi
 # 그 후 Workflow 기동
 Workflow({
-  script: Read("${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"),
+  script: Read("~/forge/.claude/skills/system-audit/workflow.js"),
   args: { date: TODAY, projectRoot: TARGET, slug: SLUG, crMode: CR_MODE }
 })
 ```
 
 > nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (forge-multi 참조).
 > `--cr` 값: `on`(기본, 3-LLM) | `degrade`(Codex rate-limit/비용 절감 시) | `off`(Codex 완전 비활성).
-> `cr-mode.sh` 경로: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
+> `cr-mode.sh` 경로: `~/forge/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
 
 Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 아래 Wave 1~4 fallback 실행.
@@ -297,7 +297,7 @@ Wave3 통합 보고서 템플릿 → `references/report-template.md`
 
 ### Wave 3.9: 최종 완료 게이트 (필수, Notion 등록·완료 보고 이전)
 
-1. 실행: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"`
+1. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"`
 2. 스크립트 출력 표를 완료 보고에 포함. 표 밖 임의 "완료" 서술 금지.
 3. exit 2(MISSING/0바이트)면 Wave 4 Notion 등록 및 "## 완료 보고" 출력 금지 — 보고서 재생성 후 재검증(exit 0) 통과 시에만 진행한다.
 
@@ -370,14 +370,24 @@ Wave 3.9 최종 완료 게이트(exit 0) 통과 후에만 아래 형식으로 �
 
 > **원칙**: Generator(감사 수행자) ≠ Evaluator. 감사자가 자신의 감사를 평가하면 자기평가 편향이 발생한다.
 
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 system-audit 결과물의 독립 품질 검증자입니다.
+### 1단계 — 구조 린트 (스크립트, LLM 없음)
 
-아래 기준으로 결과물을 검토하고 PASS 또는 FAIL을 판정하십시오.
+형식·개수·존재·산술은 스크립트가 판정한다 — 기계가 이미 본 축을 LLM 이 다시 보지 않는다
+(`rules-on-demand/machine-vs-llm-boundary.md`). 스크립트는 **확실할 때만** PASS/FAIL 을 확정하고,
+표기가 달라 판단이 필요한 항목과 질적 항목은 `residual` 로 넘긴다.
+
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/audit-report-structure-lint.py" \
+  --skill system-audit --report "<보고서 경로>" > /tmp/audit-lint-system-audit.json
+echo "lint rc=$?"
+```
+
+- `rc=1`(구조 FAIL) → **LLM Evaluator 를 띄우지 않고 FAIL 확정.** 피드백 = JSON `items[].checks` 중 `FAIL` 의 `check`·`detail`.
+- `rc=2`(입력 오류) → 판정이 아니다. 보고서 경로를 고쳐 재실행한다.
+- `rc=0` + `residual` 비어 있음 → **PASS 확정**(LLM Evaluator 생략).
+- `rc=0` + `residual` 있음 → 2단계.
+
+### 판정 기준 원문 (무손실 이관 — 〔분담〕 표기만 추가)
 
 **평가 기준 (4항목 모두 충족해야 PASS):**
 
@@ -385,23 +395,48 @@ Agent(
    - [위치] 보고서 "축별 감사 결과 요약" 섹션 1.1~1.5 또는 전체 점수 표
    - [이유] 한 축이라도 누락되면 통합 점수가 편향됨
    - [방법] Agentic/Context/Harness/Cost/Human-AI 5개 축 각각에 점수(0-100)와 핵심 발견 2개 이상이 존재하는지 확인; 특정 축의 점수가 "N/A" 또는 빈 값이면 FAIL
+   - 〔분담〕 스크립트 = 5축 소제목/점수표 존재 · 점수 `N/100` · N/A·빈 값 FAIL · 축별 발견 목록 ≥2 / LLM = 발견이 서술형이라 개수를 못 센 경우(UNDECIDED)만
 
 2. **축간 트레이드오프 분석 존재**
    - [위치] 보고서 "축간 트레이드오프 분석" 섹션 (표 형식)
    - [이유] 각 축을 독립적으로만 보면 트레이드오프(예: Cost 절감 vs Harness 품질)를 놓침
    - [방법] Cost vs Harness / Agentic vs Human-AI / Context vs Cost 3쌍 이상의 트레이드오프가 "현재 균형" + "권장 방향"과 함께 명시됐는지 확인; 빈 셀이 있으면 FAIL
+   - 〔분담〕 스크립트 = 섹션·표·'현재 균형'/'권장 방향' 열·빈 셀·3행 이상·3쌍 이름 / LLM = 쌍 이름 표기가 달라 못 찾은 경우(UNDECIDED)만
 
 3. **통합 개선 로드맵 P0/P1/P2 우선순위 명시**
    - [위치] 보고서 "통합 개선 로드맵" 섹션 또는 섹션 7
    - [이유] 우선순위 없는 로드맵은 실행 순서를 결정할 수 없어 실효성이 없음
    - [방법] P0(즉시/이번 주) / P1(단기/이번 달) / P2(중기/다음 분기) 3단계 각각에 구체적 액션 아이템이 1개 이상 존재하는지 확인; 빈 섹션이 있으면 FAIL
+   - 〔분담〕 스크립트 = 섹션·P0/P1/P2 각 항목 ≥1 / LLM = 액션 아이템이 '구체적'인지(질적 — 항상 residual)
 
 4. **각 축 점수가 증거 기반인지 확인**
    - [위치] 보고서 "정량 지표 대시보드" 섹션 (표) 또는 각 축 요약의 증거 언급
    - [이유] 증거 없는 점수는 신뢰할 수 없으며 개선 추적도 불가능
    - [방법] 정량 지표 표에서 Agentic(도구 커버리지율) / Context(세션 시작 토큰, MEMORY 항목 수) / Harness(Hook 커버리지, OWASP 커버리지) / Cost(모델 계층화율, 조건부 로딩률) / Human-AI(게이트 커버리지) — 9개 지표 모두에 실측값 또는 "미측정" 명시가 있는지 확인; 빈 셀은 "측정 미수행"으로 간주하여 FAIL
+   - 〔분담〕 스크립트 = 섹션·표·지표 9행 이상·측정값 빈 셀("미측정" 명시는 값으로 인정) / LLM = 지표 이름이 개명돼 못 찾은 경우(UNDECIDED)만
 
 **판정**: PASS(기준 4항목 모두 충족) / FAIL(1항목 이상 미충족)
+**피드백 형식**: [파일명+섹션] — [이유] → [방법]
+
+### 2단계 — 질적 판정 (LLM Evaluator, residual 만)
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  prompt="""
+당신은 system-audit 결과물의 독립 품질 검증자입니다.
+
+구조 검사(섹션 존재·빈 셀·개수·산술)는 audit-report-structure-lint.py 가 이미 PASS 로 확정했습니다 — 다시 보지 마십시오.
+아래 residual 목록의 항목만 판정하십시오.
+
+**residual (스크립트 출력 /tmp/audit-lint-system-audit.json 의 residual 배열 그대로):**
+{residual}
+
+**해당 번호의 판정 기준 원문 (SKILL.md "판정 기준 원문" 에서 residual 의 criterion 번호 블록을 그대로 붙인다):**
+{criteria_for_residual}
+
+**판정**: PASS(residual 전 항목 충족) / FAIL(1항목 이상 미충족)
 **피드백 형식**: [파일명+섹션] — [이유] → [방법]
 """
 )
@@ -415,14 +450,14 @@ Agent(
 ## Workflow 통합 (P0)
 
 6축 parallel() + 3-LLM adversarial verify (Claude + Codex 적대 레그 + Codex 구조 레그 2/3 합의) + resume 지원.
-⚠️ 구 표기 "Claude+Codex+Gemini 2/3 합의" 는 2026-09-07 폐기 — Gemini 전면 철수로 구조 레그(구 `verify-gemini`)가 Codex(GPT-6 Astra, `verify-structural`)로 교체됐다.
+⚠️ 구 표기 "Claude+Codex+Gemini 2/3 합의" 는 2026-09-07 폐기 — Gemini 전면 철수로 구조 레그(구 `verify-gemini`)가 Codex(`verify-structural`)로 교체됐다. 모델은 `codex-critic` 의 레그 값을 따른다(현행 `codex:high` = `gpt-5.6-sol` — 구 표기 "GPT-6 Astra" 는 2026-09-17 폐기).
 
 실행:
 ```bash
 TODAY=$(date +%Y-%m-%d)
 # CR_MODE: on(기본 3-LLM, Codex 2레그) | degrade(Codex 완전 스킵 — 적대 레그 제외 + 구조 레그 Claude 대체 = Claude 2-LLM) | off(동일)
-# ${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh 로 자동 결정 가능
-Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
+# ~/forge/shared/scripts/cr-mode.sh 로 자동 결정 가능
+Workflow({ script: Bash("cat ~/forge/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
 ```
 ⚠️ 구 표기 "degrade(Codex 스킵, Claude+Gemini)" 는 2026-09-07 폐기 — Gemini 레그가 사라져 degrade/off 는 이제 Claude 단독 2레그로 대체된다.
 

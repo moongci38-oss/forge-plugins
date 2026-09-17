@@ -11,10 +11,10 @@ model: sonnet
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `${FORGE_ROOT:-$HOME/forge}-outputs/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
+> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
 > (2026-08-04 관측).
 
 
@@ -44,7 +44,7 @@ model: sonnet
 
 | target | 감사 경로 |
 |--------|----------|
-| `system` | `$HOME/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
+| `system` | `~/.claude/forge/rules/` + `.claude/rules/` + `.claude/agents/` + `.claude/skills/` |
 | `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `.claude/` 등) |
 
 ## 실행 흐름
@@ -187,14 +187,24 @@ Human-AI 경계 감사 결과물 완성 후 독립 Evaluator Subagent가 품질�
 
 > **원칙**: Generator(감사 수행자) ≠ Evaluator. 감사자가 자신의 감사를 평가하면 자기평가 편향이 발생한다.
 
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 audit-human-ai 결과물의 독립 품질 검증자입니다.
+### 1단계 — 구조 린트 (스크립트, LLM 없음)
 
-아래 기준으로 결과물을 검토하고 PASS 또는 FAIL을 판정하십시오.
+형식·개수·존재·산술은 스크립트가 판정한다 — 기계가 이미 본 축을 LLM 이 다시 보지 않는다
+(`rules-on-demand/machine-vs-llm-boundary.md`). 스크립트는 **확실할 때만** PASS/FAIL 을 확정하고,
+표기가 달라 판단이 필요한 항목과 질적 항목은 `residual` 로 넘긴다.
+
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/audit-report-structure-lint.py" \
+  --skill audit-human-ai --report "<보고서 경로>" > /tmp/audit-lint-audit-human-ai.json
+echo "lint rc=$?"
+```
+
+- `rc=1`(구조 FAIL) → **LLM Evaluator 를 띄우지 않고 FAIL 확정.** 피드백 = JSON `items[].checks` 중 `FAIL` 의 `check`·`detail`.
+- `rc=2`(입력 오류) → 판정이 아니다. 보고서 경로를 고쳐 재실행한다.
+- `rc=0` + `residual` 비어 있음 → **PASS 확정**(LLM Evaluator 생략).
+- `rc=0` + `residual` 있음 → 2단계.
+
+### 판정 기준 원문 (무손실 이관 — 〔분담〕 표기만 추가)
 
 **runtime_data_unavailable 면제 규칙 (CRITICAL — 이 규칙을 먼저 읽어라)**:
 axis-human-ai 에이전트는 Override Rate / Rubber-Stamp Rate를 "미측정(런타임 데이터 필요)"으로
@@ -202,6 +212,7 @@ axis-human-ai 에이전트는 Override Rate / Rubber-Stamp Rate를 "미측정(�
 런타임 데이터가 없어 측정 불가한 항목을 FAIL로 처리하면 evaluator가 재실행되어도
 동일 결과가 반복되는 낭비 사이클이 발생한다 (enforcement-theater 반패턴).
 EXEMPT 조건: JSON 또는 보고서에 "미측정", "N/A", "런타임 데이터 필요" 중 하나가 해당 지표에 명시됨.
+- 〔분담〕 스크립트 = 면제 문자열("미측정", "N/A", "런타임 데이터 필요") 매칭 → 해당 항목 `EXEMPT`(PASS 로 산입) / LLM = 없음
 
 **평가 기준 (아래 4항목 평가 — runtime_data_unavailable 면제 적용 후):**
 
@@ -209,6 +220,7 @@ EXEMPT 조건: JSON 또는 보고서에 "미측정", "N/A", "런타임 데이터
    - [위치] JSON `autonomy_mapping` 배열 또는 보고서 "자율성 레벨 매핑" 표
    - [이유] L1-L5 매핑 없이는 어떤 Phase가 과도하게 자율적이거나 과도하게 제한됐는지 판단 불가
    - [방법] 각 Phase/단계에 L1(Operator) ~ L5(Observer) 레벨이 명시되고 `rationale`이 규칙 파일 또는 pipeline.md의 실측 근거(파일경로:라인)를 포함하는지 확인
+   - 〔분담〕 스크립트 = 섹션/`autonomy_mapping`·표 행마다 L1~L5 표기·rationale `파일경로:라인` / LLM = 표가 없거나 경로만 있어 UNDECIDED 인 경우만
 
 2. **Override Rate 처리 여부** *(runtime_data_unavailable 면제 적용)*
    - [위치] JSON `metrics_tracking.override_rate` 또는 보고서 "지표 추적" 섹션
@@ -216,6 +228,7 @@ EXEMPT 조건: JSON 또는 보고서에 "미측정", "N/A", "런타임 데이터
    - [방법] `override_rate: true`이면 측정 방법(로그 경로)이 명시됐는지 확인.
      `override_rate: false` + "미측정(런타임 이력 필요)" 명시 → **EXEMPT (PASS로 간주)**.
      어떤 표기도 없이 항목 자체가 누락됐을 때만 FAIL.
+   - 〔분담〕 스크립트 = 항목 존재·면제 문자열 EXEMPT·% 측정값·true 면 로그 경로 / LLM = 표기가 불분명해 UNDECIDED 인 경우만
 
 3. **Rubber-Stamp Rate 처리 여부** *(runtime_data_unavailable 면제 적용)*
    - [위치] JSON `metrics_tracking.rubber_stamp_rate` 또는 JSON `anti_patterns` 배열의 `Rubber Stamping` 항목
@@ -223,13 +236,36 @@ EXEMPT 조건: JSON 또는 보고서에 "미측정", "N/A", "런타임 데이터
    - [방법] `rubber_stamp_rate` 측정값 또는 "미측정" 명시 → **EXEMPT (PASS로 간주)**.
      `anti_patterns`에서 `Rubber Stamping` 정적 탐지 근거가 있으면 추가 가점.
      어떤 표기도 없이 항목 자체가 누락됐을 때만 FAIL.
+   - 〔분담〕 스크립트 = 2번과 같음 / LLM = 표기가 불분명해 UNDECIDED 인 경우만
 
 4. **에스컬레이션 경로 구체적 정의**
    - [위치] JSON `escalation_triggers` 객체 또는 보고서 "에스컬레이션 트리거 커버리지" 섹션
    - [이유] 에스컬레이션 경로가 추상적이면 실제 상황에서 작동하지 않음
    - [방법] `confidence`, `reversibility`, `risk_domain`, `anomaly`, `emotion` 5개 트리거 각각에 True/False 외에 실제 구현 위치(파일경로)가 명시됐는지 확인; 미구현 트리거는 이슈 목록에 등록됐는지 확인
+   - 〔분담〕 스크립트 = 5개 트리거 존재·구현 위치 경로·미구현이면 이슈 목록 등록 / LLM = 없음
 
 **판정**: PASS(기준 4항목 모두 충족, EXEMPT 항목은 PASS로 산입) / FAIL(1항목 이상 미충족)
+**피드백 형식**: [파일명+섹션] — [이유] → [방법]
+
+### 2단계 — 질적 판정 (LLM Evaluator, residual 만)
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  prompt="""
+당신은 audit-human-ai 결과물의 독립 품질 검증자입니다.
+
+구조 검사(섹션 존재·빈 셀·개수·산술)는 audit-report-structure-lint.py 가 이미 PASS 로 확정했습니다 — 다시 보지 마십시오.
+아래 residual 목록의 항목만 판정하십시오.
+
+**residual (스크립트 출력 /tmp/audit-lint-audit-human-ai.json 의 residual 배열 그대로):**
+{residual}
+
+**해당 번호의 판정 기준 원문 (SKILL.md "판정 기준 원문" 에서 residual 의 criterion 번호 블록을 그대로 붙인다):**
+{criteria_for_residual}
+
+**판정**: PASS(residual 전 항목 충족) / FAIL(1항목 이상 미충족)
 **피드백 형식**: [파일명+섹션] — [이유] → [방법]
 """
 )

@@ -72,6 +72,63 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
 
 끄기 `FORGE_ESCALATION_GATE=off` · 스크립트 부재·실패는 무시하고 진행(fail-open).
 
+**`--decision workflow` 를 골랐다면 — 부를 손잡이는 이것이다** (2026-09-13 신설)
+
+레인만 정하고 잡을 손잡이가 없으면 그 게이트는 장식이다. 버그 레인의 Workflow 실행체는 `investigate`
+이고, **Stage 0~3(RAG 선검색 → 조사 → 분석 → 가설 검증)까지만** 담당한다. 즉 "원인을 찾는 데까지"다.
+
+```
+Workflow({ script: Bash("cat ~/.claude/skills/investigate/workflow.js"),
+           args: { issue: "<증상 1줄>", target: "<대상 경로, 기본 '.'>", skipVerify: false } })
+```
+
+- ⚠️ **Stage 4·5(재현·수정)는 이 Workflow 범위 밖이다.** 스크립트가 스스로 [STOP] 을 찍고 멈추며,
+  실제 수정은 human gate 이후 `/healer` 또는 `forge-pge` 로 위임한다. 이 Workflow 가 코드를 고쳐
+  줄 거라 기대하고 부르면 안 된다.
+- **반환값을 반드시 검사한다 — `status` 가 계약이다**:
+
+  | status | 의미 | 호출측 행동 |
+  |---|---|---|
+  | `ROOT_CAUSE_CONFIRMED` | 재현 성공·근본원인 확정 | `fixPlan` 을 들고 아래 수정 스테이지로 |
+  | `HYPOTHESIS_UNVERIFIED` | 재현 실패 — 가설 미확정 | **[STOP]** — 원인 없이 수정 착수 금지 |
+  | `HYPOTHESES_READY` | `skipVerify: true` — 가설만 산출 | **[STOP]** — 검증은 사람이 고른다 |
+  | 필드 부재 | 레그 사망(결과 없음) | **[STOP]** — 없음을 확정으로 읽지 않는다(fail-closed) |
+
+- **승격하지 않을 때(`--decision main|wave|teams`, 또는 권고 자체가 없을 때)는 아래 4-스테이지
+  단일 패스 그대로다.** 이 절은 WARN·권고이지 강제가 아니다.
+- ⚠️ **이 배선이 무력화되는 입력**: `allowedTools` 에 `Workflow` 가 없는 방에서 부르면 **도구 거부인데
+  종료코드는 0** 이라 조용히 아무 일도 안 일어난다(`team-room-open.sh` 주석 §개발을 시킬 방).
+- 근거: 세 개발 커맨드에 호출 형태가 **0건**이라(실측 2026-09-13) 게이트가 울려도 잡을 손잡이가 없었다.
+- 폐기조건: `investigate/workflow.js` 가 없어지거나 승격 실행이 다른 단일 진입점으로 통합되면 이 절을 지운다.
+
+## Step 0.2 — 소관 팀 + 팀 지식 (WARN 전용, 비차단)
+
+Step 0.1 이 **"어떤 그릇에 담을까"**(레인)를 물었다면, 여기는 **"누구 일이고 그 팀이 뭘 배웠나"**를 묻는다.
+다른 축이다 — 레인을 정해도 그 팀이 쌓아 둔 지식은 여전히 안 읽힌다.
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-fix
+# → OWNER=<slug>[,<slug>...]
+# 각 slug 의 팀 지식을 착수 전에 읽는다:
+#   ${FORGE_OUTPUTS:-$HOME/forge-outputs}/12-team-ops/members/<slug>/wisdom.md
+```
+
+- **소관이 2팀 이상이면 접수 순서를 정한다** — 병렬로 같은 파일을 고치게 두지 않는다
+  (`team-route.sh` 가 그 경고를 직접 낸다).
+- `wisdom.md` 가 없거나 스크립트가 실패하면 **건너뛴다**(fail-open, AD-168). 차단하지 않는다.
+- ⚠️ **팀장 경유(버스)를 강제하지 않는다.** 방 44/74 가 오류·게이트·타임아웃 이력을 갖고 있어
+  무조건 경유는 파이프라인을 세운다. 경유가 필요하다고 판단되면
+  `forge-session-bus.sh send <slug>` 로 보내되, 그 판단은 사람·총괄 몫이다.
+- ⚠️ **소관이 `OWNER=none` 으로 나올 수 있다** — 이름표(`identity.md`)의 `## 소유 도구` 에
+  그 커맨드가 **안 적혀 있다**는 뜻이지 주인이 없다는 뜻이 아니다. 실측(2026-09-13):
+  `/forge-fix` 는 18개 이름표 어디에도 없어 `OWNER=none` 이다.
+  그때는 **건너뛰고 진행한다**(fail-open). 소관을 정하려면 **이름표를 고치는 것**이 정본 경로다
+  — 이 커맨드가 임의로 팀을 고르지 않는다.
+- ⚠️ **판정 근거는 "커맨드 소유"다 — 파일 소유가 아니다.** 레포에 파일·경로 소유 정의가
+  **없다**(2026-09-13 실측: `find . -iname 'CODEOWNERS*'` → 0건 · 이름표에 경로 필드 0건).
+  그래서 "이 파일을 고치면 어느 팀"은 답할 수 없고 "이 커맨드는 어느 팀 소관"만 답한다.
+  파일 기반 라우팅을 원하면 **소유 영역 정의가 선행**이다(사람 결정).
+
 ## 4-스테이지 루프 (버그 1개든 N개든 동일 — 게이트로 강제)
 
 > ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
@@ -111,7 +168,16 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
       스폰이 실패하면 **1회만** 대체 모델로 재시도하고, 그래도 실패하면 조언 없이 진행한다(무한재시도 금지). **리졸버 출력 없음·스크립트 실행 실패(파일없음/권한없음)도 `model:"opus"`로 진행 — 에러중단 금지(non-blocking).**
       ⚠️ **2026-08-12**: advisor 기본 모델이 Fable 로 바뀌면서 이 경로의 `T4` 인자는 **모델을 가르지 않는다**(로그 기록용). 종전 "T4 한정 자동 Fable 분기"는 폐기 — 전 tier 가 Fable 이다. **다만 advisor 외 경로(forge-pr/cr-*/자동게이트)에 Fable 배선 금지는 그대로 유효하다.**
     - **③ 수정 실행자 라우팅 (--coder, DMC 트랙C — 2026-07-15)**: `--coder` 지정 시 **③ 수정(코드 편집)만** Claude/Codex/ab로 라우팅한다. **①RED·④GREEN은 항상 Claude 고정**(무변경) — 이유 2중: (a) RED/GREEN 오라클은 우리 세션 MCP(브라우저·DB)가 필요한데 Codex 샌드박스는 이 MCP에 접근 못 함, (b) **구현자≠검증자** — 수정한 모델이 자기 수정을 검증하면 oracle_independence 위반(게이트 G의 self-validating REJECT 사유와 동형). 즉 Codex는 재현도 검수도 소유하지 않는다(RED 독립성).
-      - CODER_SPEC 파싱 → `MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")`. **미지정 = 기존 healer/Sonnet 수정(무변경, no-op)**.
+      - CODER_SPEC 파싱. **미지정이면 `coder-lane-detect.sh "$WORKTREE"` 가 기본 레인을 정한다**(2026-09-15 D2 · 2026-09-17 난도별): 프론트 버그면 난도별 `codex:low`(luna)·`codex:default`(terra)·`codex:high`(sol) — 버그 수정 기본 힌트는 `--task bugfix`(terra 이상, diff 가 복잡하면 sol) —, 그 밖은 `claude:default`(= 기존 healer 수정과 같다). ⛔ `codex:max`(Astra)는 advisor 전용이라 자동으로 안 나온다(구 서술 "프론트 버그면 codex:max(Astra)" 는 2026-09-17 폐기). 판정표 정본 = `forge-implement.md §3.6`.
+        **같은 실패 2회 → `--escalate 2` 로 재판정**(한 단계 상향, high 가 상한 — 더 막히면 Claude(Opus) 폴백 또는 사람 판단).
+        ⚠️ **순서가 계약이다** — 레인 기본값을 **먼저** 채우고 그 다음에 모델을 푼다. 거꾸로 하면 프론트 판정이 `codex:*` 를 내도 MODEL 은 이미 Claude 로 굳어 있다(PR #573 검수 MED-6 · `forge-implement.md §3.6` 과 같은 순서).
+        인자는 `$WORKTREE` 다 — 이 문서에 정의가 없으므로 **여기서 정한다**(r3 L8): `WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"` = 수정이 일어나는 체크아웃의 루트(아래 `coder-attribution.sh write "$WORKTREE"` 가 `.coder-attribution` 을 놓는 곳과 같은 값). 종전 `$REPO_ROOT` 도 정의가 없어 **빈 문자열**로 넘어갔는데(MED-7), 빈 인자는 `coder-lane-detect.sh` 의 `ROOT="${1:-…}"` 폴백(`git rev-parse --show-toplevel || pwd`)으로 **CWD 의 toplevel** 을 판정한다 — 워크트리 안에서 돌리면 워크트리, 워크트리를 만들고 cd 하지 않은 세션이면 메인 체크아웃이다(구 서술 "항상 메인 체크아웃" 은 실측과 다르다. 재현: `cd <워크트리> && bash shared/scripts/coder-lane-detect.sh ""` → 워크트리 기준 판정, 2026-09-16).
+        ⚠️ **미리 정한 값을 덮어쓰지 않는다**(r4 R4): 오케스트레이터가 **메인 체크아웃에 남은 채** 수정만 별도 워크트리(healer 의 worktree 격리)에서 할 때는 이 줄 **앞에서** `WORKTREE=<그 워크트리 절대경로>` 를 먼저 정한다 — 폴백은 CWD 의 toplevel 이라 그 경우 메인 체크아웃을 판정한다(구 서술 "인자를 명시하면 CWD 에 의존하지 않는다" 는 틀렸다 — 인자 값이 CWD 에서 나오면 CWD 의존은 그대로다). 무력화되는 입력: WORKTREE 를 빈 문자열로 export 해 둔 셸 — `${WORKTREE:-…}` 는 빈 값도 미정으로 보고 폴백한다.
+        `WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"`
+        `CODER_SPEC=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-lane-detect.sh" "$WORKTREE" --coder "$CODER_SPEC" --task bugfix ${ESCALATE:+--escalate "$ESCALATE"})`
+        `MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")`
+        ⚠️ **①RED·④GREEN 오라클은 이 변경과 무관하게 Claude 고정**이다 — Codex 샌드박스는 세션 MCP(브라우저·DB)에 못 닿고, 고친 모델이 자기 수정을 검증하면 oracle_independence 위반이다. 즉 프론트 레인이 열려도 **재현·검증의 소유자는 바뀌지 않는다.**
+        판정 근거는 stderr `[coder-lane] …` 1줄. 오판이면 `--coder` 로 덮어쓴다. kill-switch `FORGE_FRONT_CODER=off`.
       - **codex:tier** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=현재 워크트리, model=$MODEL)로 root-cause surgical fix. RED 오라클·리포트·확정된 근본원인 가설을 프롬프트에 주입(Codex 재탐색 방지). Codex diff는 표시·커밋 전 `secret-content-scan.sh` 경유(LN-03 마스킹).
       - **surface=game-engine 감지 → Claude 폴백**(forge-implement와 동일 — Unity Windows 전용, Codex Linux 샌드박스 batchmode 불가. 실측 확정 2026-07-15).
       - **advisor tier-gate (2026-07-16 · 2026-08-12 판정 기준 변경)**: `GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")`. **`skip`**(구현자 tier ≥ **현재 advisor tier**) → T1/T2 strategic advisor **생략**(tier 역전 방지). **`advise`**(구현자 tier < advisor tier) → advisor 발동 + **조언을 Codex 프롬프트에 주입**.
@@ -119,14 +185,20 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
         재현: `bash shared/scripts/advisor-tier-gate.sh opus` → `advise` · 전수 판정표는 `shared/scripts/test-advisor-tier-gate.sh` (33케이스).
         ⚠️ **T3(plateau·thrash bounding)·T4(비가역) 자문은 tier 무관 항상 유지** — 제어 기능이라 구현자가 프런티어여도 필요.
       - **--advisor 오버라이드 (2026-07-16)**: `--advisor <spec>`(sol/terra/opus/fable)로 advisor 모델을 경우별 선택. `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → gpt/codex 결과면 **`mcp__codex__codex`(sandbox=read-only)로 advisor 스폰**(sol/terra, Plus 정액=무료·독립 관점), claude면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`(opus/fable). 미지정=리졸버 기본(2026-08-12 부터 **Fable 5**, 못 쓰면 `gpt-6-astra` — 구 "Opus + tier-gate" 폐기 · 2026-09-02: Fable 5.1 로 업그레이드 · ⚠️ 구 표기 "못 쓰면 `gpt-5.6-sol`" 은 2026-09-06 폐기, 대체 최상위가 astra 로 승격됐다). ⚠️ **독립성: advisor 벤더 ≠ 구현자 벤더 권고**(같은 벤더=자기훈수 무의미 → Codex 구현엔 opus/fable, Claude 구현엔 sol/terra). fable 은 **구독 정액**(Human 확인 2026-08-12 · 5.1 재확인 2026-09-02)이라 sol(Plus 정액)과 **동급으로 자유 선택 가능**하다 — 호출당 추가 과금이 없다. 일일 캡은 기본 0(무제한)이며 필요하면 `FORGE_ADVISOR_FABLE_CAP=N` 으로 켠다. advisor-model-resolve 가드는 kill-switch·가용성 폴백만 상시 동작한다.
-      - **coder-attribution (기계 강제)**: 수정 직후 `coder-attribution.sh write "$WORKTREE" "$MODEL"` → ④ 검수의 cr-code 진입 시 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")`를 `--cr $MODE`로 전달(codex 수정→`degrade`=codex 레그 배제 / 그 외→`on` / 무마커→`on` fail-open). 자기검수 방지 = 산문 아닌 스크립트 강제.
+      - **coder-attribution (기계 강제)**: 수정 직후 `coder-attribution.sh write "$WORKTREE" "$MODEL"` — ⚠️ 2026-09-16 검수 다이어트 §A2: 버그 수정 단계 cr-code 가 없어져 아래 `review-mode` → `--cr $MODE` 전달은 **이 커맨드 안에서는 더 이상 소비되지 않는다**(마커 기록은 유지 — `/forge-pr` cr-final 이 `.coder-attribution` 으로 작성 벤더를 읽는다). 구 표기: ④ 검수의 cr-code 진입 시 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")`를 `--cr $MODE`로 전달(codex 수정→`cross`=**2레그 유지 + 교차 승인 강제** / 그 외→`on` / 무마커→`on` fail-open). `cross` 면 `author-vendor` 출력도 workflow args `authorVendor` 로 함께 넘긴다('unknown' 이면 생략 — 엔진이 `gpt` 로 fail-closed). 자기검수 방지 = 산문 아닌 스크립트 강제. ⚠️ 2026-09-15 변경: 종전 `degrade`(codex 레그 배제)는 생존 1레그 → `quorumFail` → **FAIL 확정**이라 codex 수정이 검수를 통과할 수 없었다.
       - kill-switch `FORGE_DUAL_CODE=off` → codex 요청도 Claude(healer)로 대체. Codex 미가용 = Claude 폴백(로그+경고, fail-open). advisor T2/T4·게이트 R/G는 `--coder` 무관 유지. 모델 id = `model-registry.json` SSoT(버전무관).
     - root-cause surgical fix (인접 코드 무관 변경 금지)
     - **클래스 스윕 표 필수(Batch 1-4, 2026-07-10 — WARN-first 초기)**: 수정 심볼/패턴을 **레포 전체 grep** → 발견 항목별 처분 표 작성 — `fix`(이번 수정)/`verified-clean`(무결 확인)/`follow-up`(티켓팅) + **근거 1줄** 필수. 처분 누락 = 게이트 실패(WARN-first 초기 — fop `sweep.found_count/fixed_count/ticketed`와 정합). 실증: 2026-07-10 스윕이 즉시 동일 클래스 3건 적중(리포트 A-P2). **`git rm`(삭제) 포함 시 스윕 대상 = 삭제된 경로 문자열**(테스트 스크립트 타깃 배열·CI path 필터·qa-config 엔드포인트·docs 실행예시) — 코드 심볼만 grep하면 회귀 게이트가 stale 타깃으로 조용히 죽는다.
     - **상호의존 편집 원자성(F4, WARN-first — 라이브 dev서버 과도기 크래시 방지)**: 필드 제거/optional화 + 그 소비처 가드처럼 **서로 의존하는 다단계 편집**은 반드시 (a) **역순 적용**(소비처 `?.` 옵셔널 가드·판별 분기를 먼저 넣고 → 데이터/타입 필드 제거) 또는 (b) 한 번에 원자적 적용한다. 순서 역전(데이터 먼저 제거) 시 HMR 중간상태 컴파일 순간 "데이터엔 없는데 렌더는 아직 비옵셔널 접근" → throw로 라이브 서버 실사용자 크래시(최종 코드는 정상이라 '최종 상태 GREEN'으론 못 막는 창). 소비처 전수 grep 후 가드-우선 순서로 편집. non-blocking(규율, 게이트 신설 아님).
     - fix_started_at 타임스탬프 기록 (아티팩트 신선도 기준)
-    - **background/headless cr 폴백(WARN-first — A7)**: cr 게이트(forge-code-review/forge-bug-review) 진입 전 실행 컨텍스트가 background/headless 세션인지 감지한다 — 이런 세션은 사용자 TTY가 없어 외부 cr 워커(Codex HMAC 승인)를 블로킹한다(⚠️ 구 표기 "Codex/Gemini HMAC 승인" 은 2026-09-07 폐기 — Gemini 전면 철수). 감지 시 외부 워커 대신 **Opus-worker cr 폴백으로 자동 라우팅**한다(forge-multi가 이미 보유한 폴백을 forge-fix 레벨에서 배선). 감지 불가·전경(foreground) 세션이면 정상 외부 cr 진행. non-blocking(게이트 신설 아님, 라우팅만 전환).
-    - cr-code(blocking)
+    - **background/headless cr 폴백(WARN-first — A7)** — ⚠️ 2026-09-16 검수 다이어트 §A2 로 **자동 경로에서는 발화하지 않는다**(버그 수정 단계에 외부 cr 워커 호출이 없다). `/forge-code-review` 등을 **수동 호출**할 때만 아래가 적용된다. 구 서술: cr 게이트(forge-code-review/forge-bug-review) 진입 전 실행 컨텍스트가 background/headless 세션인지 감지한다 — 이런 세션은 사용자 TTY가 없어 외부 cr 워커(Codex HMAC 승인)를 블로킹한다(⚠️ 구 표기 "Codex/Gemini HMAC 승인" 은 2026-09-07 폐기 — Gemini 전면 철수). 감지 시 외부 워커 대신 **Opus-worker cr 폴백으로 자동 라우팅**한다(forge-multi가 이미 보유한 폴백을 forge-fix 레벨에서 배선). 감지 불가·전경(foreground) 세션이면 정상 외부 cr 진행. non-blocking(게이트 신설 아님, 라우팅만 전환).
+    - **코드 리뷰(blocking) = Claude `code-reviewer` 에이전트 1회(opus)** — `Agent(subagent_type="code-reviewer", model:"opus")`, 입력 = bug-fix-plan + ③ diff + ① RED 증거. FAIL → ③ 재수정(아래 자동 리뷰-수정 루프).
+      > **검수 다이어트 §A2 (사람 결정 2026-09-16 "A B 다 적용해")** — 계획서 정본 `~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md`.
+      > 구 표기 "cr-code(blocking)"(Codex `/codex-review` 래퍼) 및 ④ 의 `forge-bug-review`/`forge-code-review`/`forge-test-review`/`forge-final` 래퍼 연쇄 + 버그별 Codex cr-final 은 **2026-09-16 폐기**.
+      > 버그 수정 단계에는 Codex 검수가 없다 — 교차 검수는 `/forge-pr` cr-final 이 **한 번** 한다. 래퍼 커맨드 파일은 **수동 호출용으로 남아 있다**(자동 호출만 뺐다).
+      > 유지(무변경): 게이트 R/G · 실브라우저 GREEN 증거 · 실DB 행 실측(db_query_after) · 회귀 테스트화 · 동일 이슈 3회 STOP.
+      > ⚠️ 무력화되는 입력: 이 수정이 `/forge-pr` 을 거치지 않고 머지되면 교차(타 벤더) 검수를 한 번도 받지 않는다 — `code-reviewer` 는 수정자와 같은 Claude 일 수 있다(③ 이 Claude 레인일 때).
+      > 폐기조건: 버그 수정 머지의 사후 결함이 반복되거나 Codex 한도가 병목이 아니게 되면 사람이 버그 단계 교차 검수 복원을 정한다.
 
 ④ 검수 (GREEN)   [healer a4~a7 + visual-loop 흡수]
     - UI: green screenshot + pixel-diff + Vision + **DevTools 번들 재캡처 + RED대비 diff**(콘솔/네트워크/JS예외/실패리소스/경고/서버·프론트로그 — 상세: 본 문서 하단 "DevTools 증거 번들" 절). GREEN 통과 조건에 `console_clean` = **RED 대비 신규 error/exception 0** + **실패요청(status≥400) 소멸** 추가(단순 "콘솔 비어있음" 아님) | non-UI: green API/로그
@@ -138,7 +210,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
       (Tier-E 존재·신선도=day-1 hard / Tier-S FOP 의미판정(success·reload·journey)=7-08 metrics 게이트 WARN→enforce 스케줄)
     - **oracle_independence advisory(Batch 1-1, 2026-07-10 — WARN-first, 비차단)**: 게이트 G 시점에 `qa-event-router.sh check_auto_merge()`가 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/oracle-independence-check.sh`를 advisory 호출(`|| true`) — ①`bug-{N}-red-*`/`bug-{N}-green-*` 짝 실검사 ②red/green 수집법 일치(GREEN 근거가 수정 파일 grep/read = self-validating oracle REJECT 사유) ③RED 증상 관측 신호. GREEN = **RED와 동일 수집 스크립트의 diff(증상 소멸)만 인정** — 수정 문자열 grep 존재는 GREEN 아님. 위반 = WARN + `docs/qa/oracle-independence.jsonl` 로깅(verdict·사유·override). kill-switch `FORGE_ORACLE_GATE=off`. 승격 판정 2026-07-17(WARN≥10 + false-WARN<10% + override<5% 전부 충족 시에만 Human 승인 하 BLOCK).
     - **커밋된 사본 = 워킹트리 일치 검증(committed-copy parity, WARN-first — D2a)**: `git mv`+edit 수정 시(특히 경로에 `()` 등 셸 특수문자 포함) 워킹트리는 GREEN이어도 **커밋된 사본은 구 내용**일 수 있다(re-`git add` 누락). GREEN 선언 전 `git show HEAD:<path>`(스테이징만 한 상태면 `git show :<path>`) 출력이 워킹트리와 동일한지 확인 — 불일치면 `git add` 재스테이징 후 재확인. 대상 파일 조회 불가·미커밋(신규 파일 등)은 fail-open(워킹트리 기준 진행). non-blocking(WARN).
-    - **reviewed-up-to-commit 포인터(re-review 강제, WARN-first — A6)**: cr-code는 1차 커밋만 검수하므로 파생된 follow-up 커밋은 미검수로 남을 수 있다. 마지막 검수 커밋 SHA를 `reviewed_sha`로 기록하고 **머지 직전 `git rev-list <reviewed_sha>..HEAD`가 비어있지 않으면 재검수를 강제**한다. 조건부 SQL(`WHERE`/동적 절)·bind 파라미터 변경 포함 후속 커밋은 `re-review-required` 태그를 붙여 반드시 재검수한다. `reviewed_sha` 미기록·조회 불가는 fail-open(HEAD 기준 1회 검수 진행). non-blocking(WARN).
+    - **reviewed-up-to-commit 포인터(re-review 강제, WARN-first — A6)**: 코드 리뷰(`code-reviewer`, 구 표기 cr-code)는 1차 커밋만 검수하므로 파생된 follow-up 커밋은 미검수로 남을 수 있다. 마지막 검수 커밋 SHA를 `reviewed_sha`로 기록하고 **머지 직전 `git rev-list <reviewed_sha>..HEAD`가 비어있지 않으면 재검수를 강제**한다. 조건부 SQL(`WHERE`/동적 절)·bind 파라미터 변경 포함 후속 커밋은 `re-review-required` 태그를 붙여 반드시 재검수한다. `reviewed_sha` 미기록·조회 불가는 fail-open(HEAD 기준 1회 검수 진행). non-blocking(WARN).
     - 회귀 체크(baseline 대조) → 영구 회귀테스트 등록
 ```
 
@@ -175,7 +247,7 @@ Stage ① 조사 진입 시 아래 판별 표로 버그 클래스를 먼저 특�
 - 직접 연루 파일만 grep(call-graph 한 홉 이내 — 레포 전수 훑기 금지)
 - 구조화 로그(JSON/key-value) — 자유텍스트 로그 최소화
 - 이전 실패한 수정 시도 + 실패 이유 기록(동일 오답 재탕 방지)
-- sub-agent로 조사 격리(대용량 로그·grep 결과가 메인 대화 오염 금지 — `context-engineering.md §단순 검색=subagent 위임` 준용)
+- sub-agent로 조사 격리(대용량 로그·grep 결과가 메인 대화 오염 금지 — `context-engineering.md §단순 검색 = subagent 위임` 준용)
 
 ### 10단계 디버깅 규율 (Agans, Stage ① 명문화)
 
@@ -201,7 +273,7 @@ Stage ① 조사 진입 시 아래 판별 표로 버그 클래스를 먼저 특�
 surface=ui 버그의 RED(①)와 GREEN(④) 각각에서 인간이 F12로 보는 브라우저 개발자도구 전체 + 서버/프론트 로그를 전수 캡처한다. 착수 시 이미 활성화된 `LOG_HTTP=1 LOG_SOCKET=1 LOG_DB=1`(Stage ① 첫 bullet) 계측 위에, **자체 playwright Node 스크립트(헬퍼, MCP·CLI 바이너리 아님) 1회 실행**으로 아래 항목을 전수 캡처·저장한다:
 
 ```bash
-node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
+node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
   --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-{red|green} --phase {red|green} \
   [--actions <인터랙션 시퀀스 json경로>]
 ```
@@ -263,7 +335,7 @@ node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
 
 ## 자동 리뷰-수정 루프 (③→④ 재시도, iteration-cap: 3)
 
-④ 검수(forge-bug-review/forge-code-review 등) FAIL 시 자동 루프:
+④ 검수(③의 `code-reviewer` 리뷰 FAIL 또는 게이트 G RED→GREEN 미충족) FAIL 시 자동 루프 — 구 표기 "④ 검수(forge-bug-review/forge-code-review 등)" 는 2026-09-16 폐기(검수 다이어트 §A2):
 
 ```
 1회: FAIL 이슈 목록 수신 → healer 단일파일 수정 → 재검수
@@ -271,10 +343,10 @@ node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
 3회: 여전히 FAIL → [STOP] Human 에스컬레이션 (plateau 신호)
 ```
 
-탈출 조건: PASS/WARN 달성 → Phase G(PR) 진입 / 동일 이슈 재발(위 sha256 키 기준) → 즉시 [STOP] / 3회 초과 → [STOP].
+탈출 조건: PASS/WARN 달성 → Phase G(PR — `/forge-pr` 경유, 교차 검수 1회) 진입 / 동일 이슈 재발(위 sha256 키 기준) → 즉시 [STOP] / 3회 초과 → [STOP].
 iteration-cap 초과 = forge-multi plateau 규칙 적용 (4 옵션: A추가R/B override/C폐기/D단순화).
 
-**plateau/oscillation advisor 자문(T3)**: same-issue 3x / cr-code FAIL 3x / plateau 2연속 STOP 발동 시, healer가 [healer→Lead] 위임 요청으로 advisor-strategist 자문(접근 전환 권고)을 구하고 그 응답(400~700토큰)을 위 4옵션(A/B/C/D) 판단 입력에 포함한다. advisor는 조언만 — STOP 자체를 해제하거나 자동 재시도를 트리거하지 않는다. 최종 옵션 선택은 Human/오케스트레이터.
+**plateau/oscillation advisor 자문(T3)**: same-issue 3x / code-reviewer FAIL 3x(구 표기 cr-code FAIL 3x) / plateau 2연속 STOP 발동 시, healer가 [healer→Lead] 위임 요청으로 advisor-strategist 자문(접근 전환 권고)을 구하고 그 응답(400~700토큰)을 위 4옵션(A/B/C/D) 판단 입력에 포함한다. advisor는 조언만 — STOP 자체를 해제하거나 자동 재시도를 트리거하지 않는다. 최종 옵션 선택은 Human/오케스트레이터.
 
 ## 에스컬레이션 규칙
 
@@ -287,5 +359,5 @@ iteration-cap 초과 = forge-multi plateau 규칙 적용 (4 옵션: A추가R/B o
 
 ## forge-sync 배포 대상
 
-이 커맨드는 `forge-sync` 실행 시 `$HOME/.claude/commands/forge-fix.md`에 자동 배포된다.
+이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-fix.md`에 자동 배포된다.
 > 실패 시 [[pev-self-correction]] 적용

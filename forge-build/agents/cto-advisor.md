@@ -22,6 +22,9 @@ tools: Read, Grep, Glob, WebSearch, Write
 # Fable 미가용 시: 이 프런트매터는 `advisor-model-resolve.sh` 를 거치지 않아 폴백이 **자동이 아니다** —
 #   미가용 기간에는 이 값을 손수 `opus` 로 내리고(대체 1순위 sol 은 Agent 열거형에 없다), 복구되면 되돌린다.
 # 폐기조건: advisor 기본 모델이 Fable 5.1 가 아니게 되면 이 값을 그때의 기본값으로 맞춘다.
+# 2026-09-17 사람 결정 "cto-advisor 는 fable 5.1로 해": "최고급은 advisor 전용" 규칙의 **명시 예외**.
+#   근거 = 위 ③(작성자 Opus ↔ 채점자 Opus 동일모델 자기채점 회피). 같은 날 잠깐 opus 로 내렸다가 사람 결정으로 되돌렸다.
+#   불변 검사 `shared/scripts/tests/top-model-advisor-only.test.sh` 의 파일 예외 목록에 이 파일이 있다.
 model: fable
 ---
 

@@ -5,7 +5,7 @@ context: fork
 model: sonnet
 ---
 
-**역할**: 당신은 게임/웹/앱 스크린샷을 GPT-6 Astra(Codex Vision, `codex-critic` 경유)로 분석하여 UI 구조와 구현 가이드를 생성하는 시각 분석 전문가입니다.
+**역할**: 당신은 게임/웹/앱 스크린샷을 GPT-5.6 Sol(Codex Vision, `codex-critic` 경유)로 분석하여 UI 구조와 구현 가이드를 생성하는 시각 분석 전문가입니다. (2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 GPT-6 Astra 폐기. 본문의 약칭 "Astra" 는 이 Codex Vision 레그의 옛 이름이다)
 ⚠️ 구 표기 "Gemini Vision" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra 로 단일화됐다.
 **컨텍스트**: 정적 이미지(게임 UI, HUD, 이펙트 프레임, 경쟁작, 구현 검증) 분석이 필요할 때 호출됩니다.
 **출력**: UI 구조·컬러 팔레트·구현 가이드를 5개 필수 요소로 구성된 마크다운 분석 보고서로 반환합니다.
@@ -86,7 +86,7 @@ model: sonnet
 > **핵심 원칙**: MUST 출력 형식을 Astra 프롬프트에 직접 포함한다.
 > 스킬 문서의 출력 규격과 Astra(Codex CLI)에 보내는 프롬프트가 일치해야 한다.
 
-> **모델**: 기본/`--extract` 모드 공통 — `ASTRA_MODEL=gpt-6-astra`, `ASTRA_EFFORT=xhigh` (Codex CLI 0.153.4+ 필요).
+> **모델**: 기본/`--extract` 모드 공통 — `ASTRA_MODEL=gpt-5.6-sol`, `ASTRA_EFFORT=high` (2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 `gpt-6-astra`·xhigh 폐기).
 > ⚠️ 구 표기 "`--extract` 모드 → `gemini-3.1-pro-preview` 고정 / 기본 분석 → `gemini-3.8-flash`" 는 2026-09-07 폐기 — Gemini 전면 철수로 정밀도용 별도 모델 구분이 사라지고 단일 모델(gpt-6-astra)로 통합됐다.
 
 공통 분해 규칙 블록·필수 출력 형식(3테이블+트리+가이드)·분석 유형별 프롬프트 전문(Game/Web/App UI·HUD·아이콘·이펙트·경쟁작 비교·구현 검증)·`--extract` 모드 bbox JSON 스키마 상세 → `references/output-format.md`
@@ -97,13 +97,13 @@ model: sonnet
 [오케스트레이터 — Sonnet]
 
 Pass 1 (병렬):
-  ├─ [Analyzer Agent × N] (gpt-6-astra, Codex Vision)
+  ├─ [Analyzer Agent × N] (gpt-5.6-sol, Codex Vision)
   │    → 이미지 N장 동시 분석, 각각 초안 bbox JSON 생성
   └─ [OverlapDetector] (내부 처리)
        → bbox 취합 후 형제 IoU 사전 검사
 
 Pass 2 — 정밀 검증 (병렬, CRITICAL):
-  └─ [Verifier Agent × M] (gpt-6-astra, Codex Vision)
+  └─ [Verifier Agent × M] (gpt-5.6-sol, Codex Vision)
        → 각 초안 bbox 크롭을 Astra(Codex CLI)에 재전송
        → 질문: "이 컴포넌트가 완전히 포함됐는가? 잘린 부분이 있는가?"
        → 잘림 감지 시: 확장 방향(상/하/좌/우) + 확장량(px) 반환 → bbox 보정
@@ -117,12 +117,12 @@ Pass 2 — 정밀 검증 (병렬, CRITICAL):
 
 ### Step 3: 분석 실행
 
-`analyze-screenshot.sh`를 호출하여 GPT-6 Astra(Codex CLI) Vision 분석을 실행한다.
+`analyze-screenshot.sh`를 호출하여 GPT-5.6 Sol(Codex CLI) Vision 분석을 실행한다.
 ⚠️ 구 표기 "Gemini Vision API" 는 2026-09-07 폐기 — API 키·base64 인코딩 없이 Codex CLI(구독)에 이미지를 `-i` 로 직접 첨부하는 방식으로 바뀌었다.
 
 **단일 이미지 분석:**
 ```bash
-bash $HOME/.claude/scripts/analyze-screenshot.sh \
+bash ~/.claude/scripts/analyze-screenshot.sh \
   "{IMAGE_PATH}" \
   "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" \
   "{Step 2에서 조립한 전체 프롬프트 — 공통 블록 포함}"
@@ -130,7 +130,7 @@ bash $HOME/.claude/scripts/analyze-screenshot.sh \
 
 **멀티 이미지 비교 분석** (경쟁작 비교, 구현 검증):
 ```bash
-bash $HOME/.claude/scripts/analyze-screenshot.sh \
+bash ~/.claude/scripts/analyze-screenshot.sh \
   "{IMAGE1_PATH}" \
   "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-compare.md" \
   "{비교 분석 프롬프트}" \
@@ -144,8 +144,8 @@ bash $HOME/.claude/scripts/analyze-screenshot.sh \
 
 **모델 선택** (환경변수 `ASTRA_MODEL`·`ASTRA_EFFORT`):
 ```bash
-# 기본: gpt-6-astra, reasoning effort xhigh (Codex CLI 0.153.4+ 필요)
-ASTRA_MODEL=gpt-6-astra bash $HOME/.claude/scripts/analyze-screenshot.sh ...
+# 기본: gpt-5.6-sol, reasoning effort high (2026-09-17 — 구 표기 gpt-6-astra·xhigh 폐기, 최고급은 advisor 전용)
+ASTRA_MODEL=gpt-5.6-sol bash ~/.claude/scripts/analyze-screenshot.sh ...
 ```
 ⚠️ 구 표기 "`GEMINI_MODEL` 환경변수 / gemini-3.8-flash·gemini-2.5-pro 선택" 은 2026-09-07 폐기 — Gemini 전면 철수로 단일 모델(gpt-6-astra) 체계로 바뀌었다.
 
@@ -153,7 +153,7 @@ ASTRA_MODEL=gpt-6-astra bash $HOME/.claude/scripts/analyze-screenshot.sh ...
 
 Pass 1 분석 완료 후, Pass 2 Verifier와 Extractor를 Agent Teams로 병렬 실행한다.
 
-**Pass 2 — Verifier (각 컴포넌트 병렬, gpt-6-astra)**:
+**Pass 2 — Verifier (각 컴포넌트 병렬, gpt-5.6-sol)**:
 
 각 컴포넌트 bbox로 원본 이미지를 임시 크롭 → Astra(Codex CLI) 재전송:
 ```bash
@@ -169,7 +169,7 @@ img.crop((left,top,right,bottom)).save('/tmp/verify_{comp_id}.png')
 "
 
 # Astra 재확인 (⚠️ 구 표기 "Gemini 재확인 / GEMINI_MODEL=gemini-3.1-pro-preview" 는 2026-09-07 폐기)
-ASTRA_MODEL=gpt-6-astra bash $HOME/.claude/scripts/analyze-screenshot.sh \
+ASTRA_MODEL=gpt-5.6-sol bash ~/.claude/scripts/analyze-screenshot.sh \
   "/tmp/verify_{comp_id}.png" \
   "" \
   "이 이미지에서 '{comp_name}'({comp_type}) 컴포넌트가 완전히 포함되어 있는가?
@@ -183,8 +183,8 @@ ASTRA_MODEL=gpt-6-astra bash $HOME/.claude/scripts/analyze-screenshot.sh \
 **Extractor (Verifier 완료 후 즉시, Sonnet)**:
 
 ```bash
-ASTRA_MODEL=gpt-6-astra \
-python3 $HOME/.claude/scripts/extract-components.py \
+ASTRA_MODEL=gpt-5.6-sol \
+python3 ~/.claude/scripts/extract-components.py \
   --image "{IMAGE_PATH}" \
   --analysis "{ANALYSIS_MD_PATH}" \
   --output "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components"
@@ -208,13 +208,31 @@ python3 $HOME/.claude/scripts/extract-components.py \
 Astra 응답에서 아래 5개 필수 요소를 검증한다. **하나라도 누락되면 해당 섹션을 AI가 직접 보완**한다.
 ⚠️ 구 표기 "Gemini 응답" 은 2026-09-07 폐기.
 
-| # | 필수 요소 | 검증 기준 |
-|---|---------|----------|
-| 1 | 컴포넌트 분해 테이블 | 마크다운 테이블, 최소 5행 |
-| 2 | 컬러 팔레트 | #RRGGBB Hex 최소 3색 |
-| 3 | Prefab 계층 트리 | 트리 구조 코드 블록 |
-| 4 | 구현 가이드 | Canvas/Anchor 설정 포함 |
-| 5 | (추정)/(확정) 태그 | 모든 추정값에 태그 |
+**이 5개는 전부 "있나 / 몇 개인가" 라서 눈으로 세지 않는다**(2026-09-17 LLM→프로그램 이관, G2):
+
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-report-lint.py" \
+  --skill screenshot-analyze --report "<분석 결과 .md 절대경로>" > /tmp/sa-lint.json
+echo "lint rc=$?"
+```
+
+- `rc=1` → `items[]` 중 `FAIL` 인 요소만 보완한다(전체 재생성 금지).
+- `rc=0` + `residual` 비어 있음 → 5요소 확정 통과.
+- `rc=2` → 판정이 아니다. 경로를 고쳐 재실행한다.
+
+| # | 필수 요소 | 검증 기준 | 판정 주체 |
+|---|---------|----------|----------|
+| 1 | 컴포넌트 분해 테이블 | 마크다운 테이블, 최소 5행 | 스크립트(`sa-1`) |
+| 2 | 컬러 팔레트 | #RRGGBB Hex 최소 3색 | 스크립트(`sa-2`) |
+| 3 | Prefab 계층 트리 | 트리 구조 코드 블록 | 스크립트(`sa-3`) |
+| 4 | 구현 가이드 | Canvas/Anchor 설정 포함 | 스크립트(`sa-4`) |
+| 5 | (추정)/(확정) 태그 | 모든 추정값에 태그 | 스크립트(태그 존재) + **LLM(전수 여부)** |
+
+⚠️ ⑤의 "**모든** 추정값에" 는 셀 수 없다 — 스크립트는 태그가 하나라도 있으면 PASS 로 두고,
+빠뜨린 추정값이 있는지는 여전히 AI 가 본다(스크립트 머리 주석 §무력화되는 입력 ③).
+⚠️ 개수를 채우기만 하면 통과한다 — 내용이 비어도 센다(같은 주석 ①).
+재현: `bash shared/scripts/tests/skill-report-lint.test.sh` · 역변조: 같은 명령 `--mutation`
+폐기조건: 이 5요소 표가 폐지되면 이 절과 스크립트 프로파일을 함께 지운다.
 
 **--extract 모드 추가 검증 (루브릭 5항목)**:
 
@@ -359,7 +377,7 @@ Canvas (Screen Space - Overlay)
 ## 환경 요구사항
 
 - Codex CLI **0.153.4 이상** 설치 + 구독 인증(`auth_mode=chatgpt`) — API 키 불필요
-- `$HOME/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
+- `~/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
 - Python 3 (JSON 파싱용)
 - curl (URL 이미지 다운로드용)
 
@@ -375,7 +393,7 @@ Canvas (Screen Space - Overlay)
 
 ## 보안 주의사항
 
-이 스킬은 이미지 파일을 **Codex CLI(구독, `-i` 첨부)로 GPT-6 Astra 에 전달**한다.
+이 스킬은 이미지 파일을 **Codex CLI(구독, `-i` 첨부)로 GPT-5.6 Sol 에 전달**한다.
 ⚠️ 구 표기 "이미지 전체를 base64로 인코딩하여 Google Gemini API로 전송" 은 2026-09-07 폐기 — Gemini 전면 철수로 base64 인코딩·외부 API 호출 없이 파일을 직접 첨부하는 방식으로 바뀌었다.
 아래 유형의 이미지는 전송 전 확인이 필요하다:
 
@@ -392,13 +410,13 @@ Canvas (Screen Space - Overlay)
 병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Codex(Astra) Vision → Claude 자체 분석 fallback.
 ⚠️ 구 표기 "Codex Vision→Gemini fallback" 은 2026-09-07 폐기 — Gemini 레그 자체가 사라져 폴백 대상이 Claude 자체 분석으로 바뀌었다.
 
-실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
+실행: `Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
 
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
 
 ### `--cr` 옵션 (crMode)
 
-Codex(Astra) Vision 사용 여부를 제어한다. caller는 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
+Codex(Astra) Vision 사용 여부를 제어한다. caller는 `~/forge/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
 
 | 값 | 동작 |
 |----|------|

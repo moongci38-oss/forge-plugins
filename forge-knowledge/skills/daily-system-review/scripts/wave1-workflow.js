@@ -1,6 +1,6 @@
 // root-cause: AD-121 PoC — Workflow pipeline vs Agent Teams 비교 (daily-system-review Wave 1)
 // STATUS: ARCHIVED (2026-05-30 Opus 결정) — AD-121 기각 + SKILL.md 미배선. dead code 보존 사유: AD-122 weekly-research PoC schema 패턴 참조용.
-// DO NOT call from SKILL.md. 정본 verdict: ${FORGE_ROOT:-$HOME/forge}-outputs/11-platform/pipelines/reports/ad121-poc-2026-05-30.md
+// DO NOT call from SKILL.md. 정본 verdict: ~/forge-outputs/11-platform/pipelines/reports/ad121-poc-2026-05-30.md
 // supersedes_by: AD-122 (weekly-research Wave 1+2+3 PoC, 별도 baseline 의무)
 export const meta = {
   name: 'dsr-wave1',

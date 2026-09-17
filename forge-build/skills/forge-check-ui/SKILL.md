@@ -1,6 +1,6 @@
 ---
 name: forge-check-ui
-description: UI 품질게이트 — workflow.js 5축(static/lighthouse/responsive/screen-mapping/source-quality) 자동검증. AI-Slop 19패턴·WCAG AA 임계값·디자이너 10카테고리·수치축 15개는 프롬프트로 주입돼 가동 중(2026-08-06 P1.1). 2026-08-11 로 6-Pillar adversarial(L3)·3-Layer 자동 심화 트리거까지 배선 완료 — 목표 스펙 전 항목 가동.
+description: UI 품질 게이트 — 5축(static/lighthouse/responsive/screen-mapping/source-quality) 자동검증 + AI-Slop 패턴·WCAG AA 판정. UI 코드를 고친 뒤 품질 게이트를 돌릴 때 쓴다.
 model: sonnet
 arguments:
   url: "검증 대상 URL (기본: http://localhost:3000)"
@@ -349,6 +349,6 @@ UI를 다음 3가지 유형으로 분류 후, 해당 규칙 세트 적용:
 
 - **oracle-manifest.json 없음**: screen-mapping axis = WARN ("oracle-manifest 없음 — 스킵") 자동 처리. FAIL 아님.
 - **URL 미접근**: L2(Lighthouse/반응형) 스킵, L1·L3 정적 분석만 진행. findings에 "URL 미접근 — L2 스킵" 명시.
-- **GPT-6 Astra Vision**: Lighthouse axis는 `codex-critic`(GPT-6 Astra) 에이전트 경유. approve-worker 토큰 선발행 필수 (Phase 0 전제).
+- **GPT-5.6 Sol Vision**: Lighthouse axis는 `codex-critic`(GPT-5.6 Sol) 에이전트 경유. approve-worker 토큰 선발행 필수 (Phase 0 전제). (2026-09-17 — 구 표기 GPT-6 Astra 폐기, 최고급은 advisor 전용)
   ⚠️ 구 표기 "Gemini Vision / Gemini 에이전트" 는 2026-09-07 폐기 — Gemini 전면 철수, Lighthouse/Vision 레그가 Codex(GPT-6 Astra)로 교체됐다.
 - **workflow.js**: 실제 4축 병렬 실행 엔진. 이 SKILL.md는 각 에이전트에 주입되는 기준 문서.

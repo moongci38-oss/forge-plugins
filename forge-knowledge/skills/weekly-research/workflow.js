@@ -144,15 +144,31 @@ await agent(
 log('Synthesize 완료')
 
 // root-cause: 인사이트 적용 — 단일출처 신뢰도 사전필터 후처리(기계적 카운터). fail-open: 파일 없음/읽기실패 시 skip, 기존 산출 불변. 로그만 append(판정 차단 아님).
+// root-cause(2026-09-17 P19): 종전에는 `await import('node:fs/promises')` + `fs.readFile` 로 읽었다. Workflow 런타임은
+//   import() 를 **구문 단계에서** 거부해(`SyntaxError: import() is not available in workflow scripts.`) 이 try 에
+//   닿기도 전에 스크립트 전체가 죽었다 — 이 스킬의 Workflow 실행 기록 0건, 실제로 돈 것은 SKILL.md 의
+//   Agent Teams fallback(Wave 1~3 직접 실행)뿐이었다. 파일·셸에 닿는 유일한 수단은 agent() 가 Bash 를 돌리는 것이다.
+// 왜 args 로 받지 않나: 대상 파일은 바로 위 Synthesize 단계가 **이 워크플로 안에서** 만든다 — 호출 시점엔 없다.
+// 왜 파일 전문을 반환받지 않나: 실측(2026-09-14 회차) tech-trends 34KB + biz 12KB + stock 12KB ≈ 58KB 라 에이전트
+//   응답 한도에 잘린다. 그래서 판정에 필요한 두 종류 줄(`**신뢰도**:`·`**출처**:`)만 grep 으로 뽑아 순서대로 받는다.
+// ⚠️ 이 축약이 무력화되는 입력: 원문에서 `신뢰도: High` 와 `출처:` 사이가 500자를 넘던 항목도 필터된 텍스트에서는
+//   가까워져 WARN 이 날 수 있다(과탐 방향). WARN 전용·비차단 카운터라 허용한다.
+// 파일명: 이전 목록(tech-news/biz-news/business-items)은 실제 산출명(tech-trends/biz-trends, study-notes 단계 참조)과
+//   어긋나 늘 0건을 읽었다 — 두 이름을 모두 넘긴다(없는 파일은 grep 이 2>/dev/null 로 조용히 건너뛴다).
+// ⚠️ [CMD] 는 평평한 한 줄로 유지한다 — `{ }`·`if`·중첩 치환을 넣으면 워크트리 격리 가드가 통째로 거부한다(PR #578).
 try {
-  const fs = await import('node:fs/promises')
-  const reportFiles = ['tech-news.md', 'biz-news.md', 'business-items.md', 'stock-trends.md']
-  let combinedText = ''
-  for (const f of reportFiles) {
-    try {
-      combinedText += await fs.readFile(`${WEEKLY_DIR}/${f}`, 'utf-8') + '\n'
-    } catch (e) { /* 파일 없으면 skip — fail-open */ }
-  }
+  const reportFiles = ['tech-trends.md', 'biz-trends.md', 'tech-news.md', 'biz-news.md', 'business-items.md', 'stock-trends.md']
+  const weeklyAbs = `${'${FORGE_OUTPUTS:-$HOME/forge-outputs}'}/01-research/weekly/${date}`
+  const fileArgs = reportFiles.map((f) => `"${weeklyAbs}/${f}"`).join(' ')
+  const grepOut = await agent(
+    `Bash 도구로 아래 [CMD] 와 [/CMD] 사이 명령을 **문자열 그대로, 한 번** 실행하고 stdout 을 그대로 반환하라.\n` +
+    `⛔ 해석·요약·수정·추가 명령 금지 — 실행기일 뿐이다. grep 이 아무것도 못 찾아 비어도 정상이다.\n` +
+    `[CMD]\ngrep -h -E '\\*\\*(신뢰도|출처)\\*\\*:' ${fileArgs} 2>/dev/null | head -c 40000\n[/CMD]\n` +
+    `반환 스키마: {"stdout": "<출력 전체 그대로>"}. 출력이 없으면 stdout="".`,
+    { label: 'single-source-grep', phase: 'Synthesize', model: 'haiku',
+      schema: { type: 'object', properties: { stdout: { type: 'string' } }, required: ['stdout'] } }
+  )
+  const combinedText = String(grepOut?.stdout || '')
   const singleSourceWarnings = detectSingleSourceHighConfidence(combinedText)
   for (const w of singleSourceWarnings) log(`[WARN] ${w}`)
 } catch (e) {
