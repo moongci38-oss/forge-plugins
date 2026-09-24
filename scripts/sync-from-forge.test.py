@@ -563,6 +563,63 @@ if not mod.find_leaks(mod.transform_content(_MIX)):
 else:
     ng("⑩-f 치환 후에도 유출이 남는다 — sync 가 항상 막힌다")
 
+
+# ⑪ `~/forge-outputs` 를 `~/forge` 규칙이 쪼개지 않는다 (#761)
+# 종전 `~/forge\b` 는 `forge` 와 `-` 사이 단어경계에서 성립해 `~/forge-outputs` 를
+# `${FORGE_ROOT:-$HOME/forge}-outputs` 로 쪼갰다. 그 문자열이 JS **템플릿 리터럴** 안에 있으면
+# `${…}` 가 보간으로 읽혀 번들이 깨진다 — 그리고 `node --check` 는 그것을 rc=0 으로 통과시킨다.
+_OUT_SRC = "os.environ.get('FORGE_OUTPUTS','~/forge-outputs')"
+_out = mod.transform_line(_OUT_SRC)
+if "$HOME/forge}-outputs" not in _out:
+    ok("⑪-a ~/forge-outputs 가 ${…}-outputs 로 쪼개지지 않는다")
+else:
+    ng("⑪-a ~/forge-outputs 가 쪼개졌다 — 템플릿 리터럴 안이면 번들이 깨진다", _out)
+
+if "FORGE_OUTPUTS:-$HOME/forge-outputs" in _out:
+    ok("⑪-b ~/forge-outputs 는 제 이름의 변수로 치환된다")
+else:
+    ng("⑪-b ~/forge-outputs 치환 결과가 기대와 다르다", _out)
+
+# ⑪-c 기존 능력 회귀 — 평범한 `~/forge` 는 여전히 치환된다
+_plain = mod.transform_line("see ~/forge/shared/scripts/x.sh")
+if "FORGE_ROOT:-$HOME/forge}" in _plain and "~/forge/" not in _plain:
+    ok("⑪-c 평범한 ~/forge 는 그대로 치환된다(회귀 없음)")
+else:
+    ng("⑪-c ~/forge 치환이 깨졌다", _plain)
+
+# ⑪-d 변환 결과가 **ESM 으로 파싱되는지**까지 본다 — node --check 는 이 깨짐을 놓친다.
+import shutil, subprocess, tempfile, os as _os
+if shutil.which("node"):
+    _js_src = "const x = `path ~/forge-outputs/a and ~/forge/b`;\nexport default x;\n"
+    _js_out = mod.transform_content(_js_src, js_mode=True)
+    with tempfile.TemporaryDirectory() as _d:
+        _f = _os.path.join(_d, "t.mjs")
+        open(_f, "w", encoding="utf-8").write(_js_out)
+        _r = subprocess.run(["node", "--input-type=module", "-e",
+                             "import('file://' + process.argv[1]).then(()=>console.log('OK'),e=>{console.error(e.message);process.exit(1)})",
+                             _f], capture_output=True, text=True)
+    if _r.returncode == 0:
+        ok("⑪-d 변환 산출물이 ESM 으로 실제 파싱된다")
+    else:
+        ng("⑪-d 변환 산출물이 ESM 파싱에서 깨진다", (_r.stderr or "").strip()[:120])
+else:
+    skip("⑪-d node 없음 — ESM 파싱 확인 생략")
+
+
+# ⑪-e js_mode 는 멱등이다 — 두 번 돌려도 백슬래시가 늘지 않는다(재동기화마다 쌓이면 안 된다)
+_once = mod.transform_line("`~/forge/a`", js_mode=True)
+if mod.transform_line(_once, js_mode=True) == _once:
+    ok("⑪-e js_mode 치환이 멱등이다")
+else:
+    ng("⑪-e 재실행마다 이스케이프가 쌓인다", mod.transform_line(_once, js_mode=True))
+
+# ⑪-f md 등 비-JS 대상은 종전 그대로다(이스케이프 없음) — 회귀 방지
+_md = mod.transform_line("see ~/forge/a", js_mode=False)
+if "\\${" not in _md and "FORGE_ROOT:-$HOME/forge}" in _md:
+    ok("⑪-f 비-JS 대상은 이스케이프 없이 종전 그대로")
+else:
+    ng("⑪-f 비-JS 출력이 바뀌었다", _md)
+
 print()
 print("================================")
 print(f"PASS={PASS}  FAIL={FAIL}  SKIP={SKIP}")

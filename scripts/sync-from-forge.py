@@ -68,8 +68,16 @@ SUBDIR_SRC = {
                           "dev", "global-rules"),
 }
 
-RE_FORGE = re.compile(r'~/forge\b')
-RE_CLAUDE = re.compile(r'~/\.claude\b')
+# ⚠️ `\b` 는 `~/forge-outputs` 의 `forge` 와 `-` 사이에서도 성립한다 — 그래서 종전 규칙은
+#   `~/forge-outputs` 를 `${FORGE_ROOT:-$HOME/forge}-outputs` 로 **쪼개 버렸다.**
+#   그 문자열이 JS **템플릿 리터럴**(백틱) 안에 있으면 `${…}` 가 보간으로 읽혀 번들이 깨진다.
+#   실측(2026-09-24, #761): `forge-multi/workflow.js` 5066행이 그렇게 깨졌고,
+#   `node --check` 는 그것을 **rc=0 으로 통과시킨다**(ESM 파서로만 잡힌다).
+#   그래서 ①`~/forge-outputs` 를 **먼저** 제 이름의 변수로 치환하고 ②`~/forge` 규칙은
+#   뒤에 `-`·단어문자가 오면 아예 매치되지 않게 좁힌다.
+RE_FORGE_OUTPUTS = re.compile(r'~/forge-outputs\b')
+RE_FORGE = re.compile(r'~/forge(?![-\w])')
+RE_CLAUDE = re.compile(r'~/\.claude(?![-\w])')
 DRIVE_MARK = re.compile(r'\b[A-Z]:[\\/~]')  # Windows drive-letter prose table lines
 
 # ⚠️ G3 (2026-08-20): 종전에는 이 마커가 **줄에 하나라도 있으면 그 줄 전체**를 치환·유출검사에서
@@ -149,7 +157,14 @@ def _load_redactions():
 
 REDACTIONS = _load_redactions()
 
-def transform_line(line: str) -> str:
+# ⚠️ `js_mode` 가 있는 이유 (2026-09-24, #761): 이 변환은 `${…}` 를 **생성**한다.
+#   그 문자열이 JS **템플릿 리터럴**(백틱) 안에 들어가면 `${…}` 가 보간 문법으로 읽혀 번들이 깨진다
+#   — 그리고 `node --check` 는 그 깨짐을 **rc=0 으로 통과시킨다**(ESM 파서로만 잡힌다).
+#   그래서 `.js`/`.mjs` 대상에는 `\${` 로 이스케이프해 넣는다:
+#     · 템플릿 리터럴 안 → `\${` 는 **리터럴 `${`** 로 렌더된다(의도한 셸 문자열 그대로).
+#     · 보통 문자열 안 → JS 는 모르는 이스케이프의 백슬래시를 버리므로 결과가 같다.
+#   ⚠️ 무력화되는 입력: 주석 안에서는 백슬래시가 눈에 보인다(표시만 어색, 동작 무관).
+def transform_line(line: str, js_mode: bool = False) -> str:
     for literal, replacement in REDACTIONS:
         line = line.replace(literal, replacement)
     line = RE_NOTION_ID.sub(r'\1${NOTION_DB_ID}', line)
@@ -159,16 +174,22 @@ def transform_line(line: str) -> str:
         if is_drive:
             out.append(seg)            # 윈도우 표기 원형 유지 — 이 면제가 존재하는 이유
             continue
+        # 순서 중요: 더 긴 이름(`~/forge-outputs`)을 먼저 먹어야 `~/forge` 규칙이 그것을 쪼개지 않는다.
+        seg = RE_FORGE_OUTPUTS.sub('${FORGE_OUTPUTS:-$HOME/forge-outputs}', seg)
         seg = RE_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', seg)
         seg = RE_CLAUDE.sub('$HOME/.claude', seg)
         seg = RE_HOME_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', seg)
         seg = RE_HOME_CLAUDE.sub('$HOME/.claude', seg)
         seg = RE_HOME_ANY.sub('$HOME', seg)
         out.append(seg)
-    return ''.join(out)
+    res = ''.join(out)
+    if js_mode:
+        # 이미 이스케이프된 것은 건드리지 않는다(멱등) — `\${` 앞에 백슬래시를 또 붙이지 않는다.
+        res = re.sub(r'(?<!\\)\$\{', r'\\${', res)
+    return res
 
-def transform_content(content: str) -> str:
-    return ''.join(transform_line(l) for l in content.splitlines(keepends=True))
+def transform_content(content: str, js_mode: bool = False) -> str:
+    return ''.join(transform_line(l, js_mode) for l in content.splitlines(keepends=True))
 
 def find_leaks(content: str):
     """치환 후 남은 사설 절대경로를 (행번호, 매칭) 으로 돌려준다. 비어야 정상."""
@@ -489,7 +510,7 @@ def main():
         with open(plug_abs, 'r', encoding='utf-8', errors='replace') as f:
             plug_content = f.read()
 
-        target_content = transform_content(forge_content)
+        target_content = transform_content(forge_content, js_mode=rel.endswith(('.js', '.mjs', '.cjs')))
 
         # PUBLIC 레포로 사설 절대경로가 나가는 것을 **쓰기 직전에** 막는다.
         # 경고만 내면 사람이 놓친다 — 실제로 PR #42 가 그렇게 나갔다. 그래서 skip 이다.
