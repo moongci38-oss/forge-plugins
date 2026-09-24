@@ -137,7 +137,7 @@ model: opus            # 세션 모델 자동 감지 (opus|sonnet|fable|...)
 slug: kebab-case-summary
 status: open           # open | closed
 project: forge         # repo 이름으로 정규화 (워크트리도 **주 체크아웃** 이름으로)
-worktree: /home/damools/forge/.claude/worktrees/foo   # 소유 축 — 이 세션의 작업 폴더 절대경로
+worktree: $HOME/forge/.claude/worktrees/foo   # 소유 축 — 이 세션의 작업 폴더 절대경로
 session: 561052-b1c2d3e4                              # 추적용 sid (소유 판정에는 안 씀)
 ---
 ```
@@ -287,7 +287,7 @@ AI 가 그 결정에 이견이 있으면 **결정을 지우지 말고** `## 열�
 읽는다. 굳이 남겨야 하면 별도 절 `## 타 세션 상태 (참고 — 내 소유 아님)` 에 격리하고,
 **판정 근거(폴더 경로)를 함께 적는다.**
 
-- ✅ `## 타 세션 상태 (참고 — 내 소유 아님)` / `- /home/damools/forge (공유 체크아웃): dirty 81건, 브랜치 feat/x`
+- ✅ `## 타 세션 상태 (참고 — 내 소유 아님)` / `- $HOME/forge (공유 체크아웃): dirty 81건, 브랜치 feat/x`
 - ❌ `## 미커밋 변경` / `- ⚠️ ~/forge dirty 85건 = 타 세션 작업, 손대지 않음`
 
 근거: 2026-08-24 — 직전 handover 가 타 세션의 dirty 85건을 `## 미커밋 변경` 에 적었고,
@@ -385,7 +385,7 @@ kill-switch: `FORGE_DEBUG_KNOWLEDGE_SYNC=off` / `FORGE_MEMORY_SYNC=off` / `FORGE
 그리고 handover **`## 열린 PR·브랜치` 절에 레포별로 1줄씩** 적는다. 여기 안 적으면 다음 세션이 또 못 본다.
 
 ```markdown
-- 미푸시: /home/damools/forge-outputs (develop) +35 — 사유: {아래 셋 중 하나}
+- 미푸시: $HOME/forge-outputs (develop) +35 — 사유: {아래 셋 중 하나}
 ```
 
 **push 하지 않고 끝낼 거면 그 사유를 반드시 함께 적는다.** 이 레포 규범은 *"작업은 머지까지가 완료다"* 이고 보류가 정당한 경우를 셋으로 못박아 뒀다 — ①검수 FAIL 로 고쳐야 함 ②`[STOP]` 승인 대기 ③명시적 인계. **이 셋이 아니면 보류가 아니라 미완료**이므로 그렇게 적는다.

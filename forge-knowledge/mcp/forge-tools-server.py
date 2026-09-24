@@ -37,6 +37,10 @@ import mcp_audit
 HOME = Path.home()
 FORGE_OUTPUTS = Path(os.environ.get("FORGE_OUTPUTS", HOME / "forge-outputs"))
 FORGE_ROOT = Path(os.environ.get("FORGE_ROOT", HOME / "forge"))
+# 머신마다 다른 외부 드라이브다 — 하드코딩하면 PUBLIC 번들로 그대로 나간다(#881).
+#   ⚠️ **기본값을 두지 않는다.** 어떤 값을 적어도 그것은 누군가의 실제 경로이고, 이 파일은
+#   공개 번들로 복사된다. 미설정이면 그 프로젝트를 매핑에서 빼고 호출 시 사유를 말한다.
+GODBLADE_ROOT = os.environ.get("GODBLADE_ROOT", "")
 FORGE_MCP_TOKEN = os.environ.get("FORGE_MCP_TOKEN", "")
 # 기본 바인딩을 0.0.0.0 → 127.0.0.1 로 좁힌다. cloudflared 는 localhost 로 붙으므로
 # 터널 레인은 그대로 살고, LAN 에 열려 있던 문(門)만 닫힌다.
@@ -349,7 +353,7 @@ def git_status(project: str = "forge") -> str:
     project_paths = {
         "forge": FORGE_ROOT,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        "godblade": Path("/mnt/e/new_workspace/god_Sword/src"),
+        **({"godblade": Path(GODBLADE_ROOT)} if GODBLADE_ROOT else {}),
     }
     cwd = project_paths.get(project, Path(project))
     if not cwd.exists():
@@ -374,7 +378,7 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
         "forge": FORGE_ROOT,
         "forge-outputs": FORGE_OUTPUTS,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        "godblade": Path("/mnt/e/new_workspace/god_Sword/src"),
+        **({"godblade": Path(GODBLADE_ROOT)} if GODBLADE_ROOT else {}),
     }
     cwd = project_paths.get(project, Path(project))
     if not cwd.exists():
@@ -662,7 +666,7 @@ def run_health_check(project: str = "forge", months: int = 12) -> str:
     project_paths = {
         "forge": str(FORGE_ROOT),
         "portfolio": str(HOME / "mywsl_workspace/portfolio-project"),
-        "godblade": "/mnt/e/new_workspace/god_Sword/src",
+        **({"godblade": GODBLADE_ROOT} if GODBLADE_ROOT else {}),
     }
     project_path = project_paths.get(project, project)
     return run_script("forge-codebase-health.sh", [project_path, str(months)])
