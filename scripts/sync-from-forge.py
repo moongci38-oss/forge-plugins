@@ -191,6 +191,26 @@ def transform_line(line: str, js_mode: bool = False) -> str:
 def transform_content(content: str, js_mode: bool = False) -> str:
     return ''.join(transform_line(l, js_mode) for l in content.splitlines(keepends=True))
 
+# 일반화된 사용자명 — 문서의 **예시**로 쓰이는 낱말이다. 사설 정보가 아니므로 유출로 세지 않는다.
+#   ⚠️ `exampleuser` 는 **넣지 마라** — 이 레포 테스트(§13)가 그것을 "진짜 사설 경로" 역으로 쓴다.
+#   근거(2026-09-24, #881): `forge-onboard/SKILL.md` 의 예시 표 `/home/user/my-project` 가
+#   유출로 잡혀 게이트가 상시 빨간불이었다. 오탐 내는 가드는 결국 무시당한다.
+#   ⛔ `someuser`·`exampleuser` 는 **넣지 마라** — 이 레포 테스트가 둘 다 "진짜 사설 경로" 역으로
+#   쓴다(§G-3 ①, §13). 넣는 순간 그 테스트들이 조용히 통과하고 가드에 구멍이 난다
+#   (2026-09-24 실제로 넣었다가 4건 FAIL 로 드러났다). 허용은 **실제로 오탐이 관측된 낱말만.**
+_GENERIC_USER = {"user", "username"}
+# 매칭 안에 플레이스홀더 토큰이 들어 있으면 그것은 **이미 일반화된 표기**다.
+#   `/mnt/` 갈래는 `(?!placeholder)` 를 경로 **직후**에만 걸어서 `/mnt/c/Users/<name>` 처럼
+#   플레이스홀더가 뒤쪽에 오는 모양을 못 걸렀다 — 그래서 매칭 전체를 한 번 더 본다.
+_PLACEHOLDER_IN = re.compile(r'<[^>/\s]+>|\$\{[^}/\s]+\}')
+
+def _is_generalized(match: str) -> bool:
+    """이 매칭이 '사설'이 아니라 '예시·플레이스홀더' 인가."""
+    if _PLACEHOLDER_IN.search(match):
+        return True
+    m = re.match(r'/home/([^/\s]+)/', match)
+    return bool(m and m.group(1) in _GENERIC_USER)
+
 def find_leaks(content: str):
     """치환 후 남은 사설 절대경로를 (행번호, 매칭) 으로 돌려준다. 비어야 정상."""
     out = []
@@ -200,6 +220,8 @@ def find_leaks(content: str):
         #   (`C:/tmp,/home/alice/private`)가 통째로 숨는다(2026-08-20 검수 HIGH).
         #   원형은 보존하되 "여기 사설 경로가 있다"는 사실은 반드시 알린다.
         for m in RE_LEAK.findall(line):
+            if _is_generalized(m):
+                continue
             out.append((i, m))
     return out
 

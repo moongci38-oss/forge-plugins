@@ -13,7 +13,7 @@ group: ops
 > ⚠️ **2026-09-17 경로 통일.** 구 표기 `node ~/.claude/scripts/forge-sync.mjs`(8곳)·`~/.claude/forge/`(1곳) 폐기.
 > 그 경로들은 **이 머신의 심링크**일 뿐이고 git 으로 팀원에게 전파되지 않는다 — 심링크가 없는 머신에서는 그대로 `MODULE_NOT_FOUND` 로 죽는다.
 > 게다가 `~/.claude/` 미러는 **편집 차단 대상**(AD-41)이라 SSoT 가 아니다.
-> 재현: `ls -l ~/.claude/scripts/forge-sync.mjs` → `-> /home/damools/forge/dev/scripts/forge-sync.mjs` · `ls -ld ~/.claude/forge` → `-> /home/damools/forge/dev` (2026-09-17 관측)
+> 재현: `ls -l ~/.claude/scripts/forge-sync.mjs` → `-> $HOME/forge/dev/scripts/forge-sync.mjs` · `ls -ld ~/.claude/forge` → `-> $HOME/forge/dev` (2026-09-17 관측)
 > 정본 표기는 `forge-onboard.md:27` 과 레포 `CLAUDE.md` 가 쓰는 `${FORGE_ROOT:-$HOME/forge}/dev/scripts/` 다.
 > 근거: 감사 C그룹 §6 (`11-platform/pipelines/plans/2026-09-17-cmd-audit-C-ops.md`)
 > 폐기조건: `forge-sync.mjs` 가 `dev/scripts/` 밖으로 옮겨지면 이 절과 아래 명령을 함께 고친다.

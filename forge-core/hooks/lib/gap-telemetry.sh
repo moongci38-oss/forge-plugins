@@ -91,7 +91,7 @@ _file_raw = os.environ.get("GAP_FILE", "")
 # 트리아지에 필요한 레포 내 상대 위치는 남긴다. ⚠️ 이 마스킹이 무력화되는 입력: 홈 밖 경로에
 # 박힌 사용자명(/mnt/c/Users/<name> 등)은 못 걷어낸다 — 그 경로를 쓰는 훅이 스스로 줄여 보낼 것.
 # cr-final pr267-fixes1(LOW/MEDIUM 3레그 합류): 경계 없는 startswith 는 형제 디렉터리
-# (/home/damools2/...)를 ~2/... 로 오치환한다 — 정확 일치 또는 구분자 경계까지 요구한다.
+# (홈이 `/home/<user>` 일 때 `/home/<user>2/...`)를 `~2/...` 로 오치환한다 — 정확 일치 또는 구분자 경계까지 요구한다.
 _home = os.path.expanduser("~")
 if _home and _home != "~" and (_file_raw == _home or _file_raw.startswith(_home + os.sep)):
     _file_raw = "~" + _file_raw[len(_home):]
