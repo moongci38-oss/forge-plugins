@@ -1,206 +1,86 @@
 ---
 name: forge-loop-maker
-description: |
-  루프 설계 마법사 + scaffold. "자동으로 실행되게 해줘", "반복 작업 에이전트 만들어줘", "루프 짜줘" 등 루프 자동화 의도 감지 시 발동.
-  4단계: 7Q 인터뷰 → 패턴 매핑 → 안전장치 검증 → [STOP] blueprint 승인 → scaffold.
-  산출물: 루프 SKILL.md + workflow.js + HUMAN-GATES.md + STATE.md + TRIGGER.md.
-  커널(8 stop-condition 명세)을 소유 — scripts/loop-kernel.js. **3종은 재사용 함수**
-  (checkSameIssue·checkOscillation·checkPlateau), 나머지 5종은 **inline 복사용 패턴 명세**다
-  (Workflow 샌드박스가 외부 import 를 지원하지 않아 생성된 workflow.js 에 직접 옮겨 적는다).
-  **실호출처는 `healer`·`forge-implement`·`forge-pge` 3곳**이다(2026-09-13 실측).
-  ⚠️ `/qa` 는 커널을 **직접 호출하지 않는다** — healer 가 판정한 값을 재기재할 뿐이다
-  (`qa/SKILL.md` §재시도 루프). 구 표기 "/qa·/healer는 이 커널을 직접 호출"은 2026-09-13 폐기.
-  SKIP: /migration-audit(DB 전용), 1회성 단순 검사.
+description: "반복 자동화 루프를 인터뷰→패턴→안전장치→승인([STOP])→scaffold 로 만들고, 루프 멈춤 조건 커널(scripts/loop-kernel.js)을 소유한다. 쓸 때: '자동으로 돌게 해줘'·'반복 작업 에이전트 만들어줘'·'루프 짜줘'. SKIP: 1회성 검사, DB 마이그레이션 감사."
 ---
 
 # /forge-loop-maker — 루프 설계 + scaffold
 
-자동화 루프를 설계하고 Forge 규약 파일로 생성합니다.
-**Nothing runs until you approve the blueprint.**
+자동화 루프를 설계하고 Forge 규약 파일로 생성한다. **blueprint 승인 전에는 아무것도 만들지 않는다.**
+8종 stop-condition 커널(`scripts/loop-kernel.js`)의 SSoT 소유자다 — 단 함수는 3종뿐이다.
 
-## 역할
+| 구분 | 조건 | 형태 |
+|---|---|---|
+| 3종은 재사용 함수 | `same_issue` · `oscillation` · `plateau` | `export function` |
+| 5종은 inline 패턴 명세 | `rubric_all_pass` · `max_cycles` · `budget_advisory` · `security_crit` · `regression` | 주석 명세(§1-a~e) — workflow.js 에 직접 복사 |
 
-반복 자동화 의도를 감지해 루프를 설계·검증·scaffold하는 마법사. 8종 stop-condition 커널(`scripts/loop-kernel.js`)의 SSoT 소유자다.
+- 실호출: `same_issue` 만(`healer`·`forge-implement`·`forge-pge`). 미배선 사유 → `healer-reference.md`·`forge-pge/reference.md`.
+- 회귀 테스트: `bash shared/scripts/tests/loop-kernel.test.sh`
+- SKIP: `/migration-audit`(DB 전용), 1회성 단순 검사.
 
-> ⚠️ **"8종을 소유"가 "8개 함수가 있다"는 뜻은 아니다** (2026-09-13 실측으로 서술 정정).
-> 이 커널은 **패턴 라이브러리**다 — 파일 자신이 *"Workflow 샌드박스는 외부 import 를 지원하지
-> 않으므로 이 패턴을 생성된 workflow.js 에 inline 복사하라"* 고 적고 있다.
->
-> | 구분 | 조건 | 형태 |
-> |---|---|---|
-> | **3종은 재사용 함수** | `same_issue` · `oscillation` · `plateau` | `export function` — 상태 누적이 필요해 헬퍼로 뽑았다 |
-> | 5종은 inline 패턴 명세 | `rubric_all_pass` · `max_cycles` · `budget_advisory` · `security_crit` · `regression` | 주석 명세(§1-a~e) — 한 줄 비교라 헬퍼가 과하다 |
->
-> 재현: `grep -c '^export function' scripts/loop-kernel.js` → **3**
-> 실호출 실측: `same_issue` 만 3곳(`healer`·`forge-implement`·`forge-pge`). `oscillation`·
-> `plateau` 는 아카이브 스킬에서만 언급되고, 미배선 사유는 `healer-reference.md` 와
-> `forge-pge/reference.md` 가 각각 **명시적으로 기록**하고 있다(누락이 아니라 의도).
-> 회귀 테스트: `bash shared/scripts/tests/loop-kernel.test.sh`
-> 폐기조건: 커널이 import 가능한 런타임으로 옮겨가면 이 표를 지우고 8종을 전부 함수로 만든다.
-
-
-## 컨텍스트
-
-"자동으로 실행되게 해줘"/"반복 작업 에이전트 만들어줘"/"루프 짜줘" 등 루프 자동화 의도 감지 시 발동. `/migration-audit`(DB 전용)이나 1회성 단순 검사에는 사용하지 않는다(SKIP).
-
-## 출력
-
-루프 SKILL.md + workflow.js + HUMAN-GATES.md + STATE.md + TRIGGER.md 5종. Human이 [STOP] blueprint를 승인하기 전에는 파일이 생성되지 않는다.
-
----
-
-## The one rule
-
-> **Durable knowledge → SKILL.md (매 실행 read-only).  
-> Changing state → STATE.md (매 실행 read+write).**
-
-실행 간 기억해야 하는 것(카운터·타임스탬프·진행 상태)은 SKILL.md에 쓰면 안 됩니다.
-SKILL.md는 cold-start 시 디스크에서 새로 로드되므로 저장한 상태가 초기화됩니다.
-
----
-
-## 4단계 흐름
-
-```
-Phase 1: Elicit   — 7Q 인터뷰 (one at a time)
-Phase 2: Pattern  — 4패턴 중 선택
-Phase 3: Safety   — 안전장치 9종 검증
-Phase 4: Blueprint → [STOP] 승인 → scaffold
-```
-
----
+**The one rule**: Durable knowledge → SKILL.md(read-only) · Changing state → STATE.md(read+write). 카운터·진행 상태를 SKILL.md 에 쓰지 않는다(cold-start 초기화).
+흐름: `Phase 1 Elicit(7Q) → Phase 2 Pattern(4종) → Phase 3 Safety(9종) → Phase 4 Blueprint → [STOP] 승인 → scaffold`
 
 ## Phase 1 — 7Q 인터뷰
+- detect-first: 기존 루프 파일/트리거/goal-loop-state.json 이 있으면 "(detected)" 출력 후 스킵.
+- 질문 규약 = `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/grilling-protocol.md` — 의존 결정은 하나씩, 독립 질문은 AskUserQuestion 다중(≤4) batch.
 
-환경 detect-first: 기존 루프 파일/트리거/goal-loop-state.json 존재 시 "(detected)" 출력 후 해당 질문 스킵.
+| Q | 질문 | 매핑 |
+|---|---|---|
+| Q1 | **Goal**: 프로그램으로 검사 가능한 종료 predicate(파일 존재·카운트·HTTP 200 등) | EXIT_PREDICATE |
+| Q2 | **Trigger**: cron · event · manual · `/goal "..."` | TRIGGER.md |
+| Q3 | **Discovery**: 매 실행 읽는 것(디렉토리·API·qa-report·DB) | SKILL.md action 절 |
+| Q4 | **Action**: 호출할 skill/agent·대상 | executor |
+| Q5 | **Verification**: **별도 프로그램(binary exit code)** 으로 판정 | verifier / evaluator |
+| Q6 | **State**: 실행 간 기억(처리 항목·커서·사이클 수) | STATE.md |
+| Q7 | **Human Gates**: 최소 G1(첫 실행 전) + G2(verifier 이상) | HUMAN-GATES.md |
 
-질문 규약 = `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/grilling-protocol.md`: 의존관계 있는 결정은 한 번에 하나씩, **상호 독립 질문은 AskUserQuestion 다중(≤4)으로 batch**, detect/derive 가능한 답은 "(detected)"로 스킵하고 잔여만 질문.
+Q7 직후 추가 캡처: durable 참조(rubric/schema/style-guide) + **Budget 3종 필수(미설정 시 scaffold 거부)** — max-iter(최대 사이클 수) · call-budget(tool-call 횟수 상한, Forge hook WARN-only 연동) · **wall-clock 상한**.
 
-| Q | 질문 | 산출물 매핑 |
-|---|------|-----------|
-| Q1 | **Goal**: 루프 종료 조건은? (프로그램으로 검사 가능한 predicate — 파일 존재·카운트·HTTP 200 등. "좋아 보인다"는 X) | EXIT_PREDICATE |
-| Q2 | **Trigger**: 어떻게 시작? (cron · event · manual · `/goal "..."`) | TRIGGER.md |
-| Q3 | **Discovery**: 매 실행 무엇을 읽나? (디렉토리·API·qa-report·DB) | SKILL.md action 절 |
-| Q4 | **Action**: 무엇을 하나? (어떤 skill/agent 호출, 어떤 대상에) | executor |
-| Q5 | **Verification**: 이터레이션 성공을 어떻게 판정? — **반드시 별도 프로그램 (binary exit code)** | verifier / evaluator |
-| Q6 | **State**: 실행 간 기억해야 하는 것? (처리된 항목·마지막 커서·사이클 수) | STATE.md |
-| Q7 | **Human Gates**: 언제 Human 승인이 필요한가? (최소: 첫 실행 전 G1, verifier 이상 G2) | HUMAN-GATES.md |
+## Phase 2 — 패턴 선택 (선택 후 1줄 근거 출력)
 
-**추가 캡처 (Q7 직후)**:
-- Durable knowledge: 변하지 않는 참조 자료 (rubric/schema/style-guide)
-- **Budget 3종 (필수 — 미설정 시 scaffold 거부)**:
-  - max-iter (최대 사이클 수)
-  - call-budget (tool-call 횟수 상한, Forge hook WARN-only 연동)
-  - **wall-clock 상한** (최대 경과 시간 — 예: "2시간")
+- **PEV (goal형)** = ReAct + deterministic verifier — 단일 워크스트림·프로그램 predicate. **기본값**
+- **Evaluator-optimizer (cr-triple형)** = 판단이 필요한 rubric 종료조건 · **Orchestrator-workers (healer 병렬형)** = 독립 병렬 하위 태스크 · **Ralph (healer형)** = crude baseline·단순 루프
 
----
+실행 수단(별도 축): 세션 안 반복 = CLI `/loop`(간격)·`/goal`(조건 충족까지 — 조건 ≤4,000자, 평가자는 대화에 드러난 증거만 판정) · 세션 경계 넘는 반복 = `/schedule` · 결정론 제어가 필요하면 이 스킬의 scaffold(workflow.js).
 
-## Phase 2 — 패턴 선택
+## Phase 3 — 안전장치 9종 (미충족 시 blueprint 거부 + 보완 요청)
 
-| 패턴 | Forge 이름 | 선택 기준 |
-|------|-----------|---------|
-| ReAct + deterministic verifier | **PEV (goal형)** | 단일 워크스트림, 프로그램 검사 predicate. **기본값** |
-| Evaluator–optimizer | **Evaluator-optimizer (cr-triple형)** | 판단이 필요한 rubric 기반 종료조건 |
-| Orchestrator–workers | **Orchestrator-workers (healer 병렬형)** | 독립 병렬 하위 태스크 |
-| Ralph | **Ralph (healer형)** | crude baseline / 교육·단순 루프 |
+- S1 검증자 분리: verifier = SKILL.md 와 별도 프로그램(self-grade 금지)
+- S2 same_issue dedup: loop-kernel.js §3c (동일 id:severity × 3 → STOP) · S3 plateau: §3e (net gain ≤ ε 연속 2회 → STOP)
+- S4 cycle-cap: max_cycles 명시(기본 6, 결정론적 1순위 bound) · S5 max-iter 설정 · S6 call-budget(Forge hook WARN-only 연동 명시)
+- S7 wall-clock: HUMAN-GATES.md 에 구체 시간 필수 · S8 SKILL.md = logic / STATE.md = 상태 · S9 HUMAN-GATES 에 G1 + G2
 
-패턴 선택 후 1줄 근거 출력.
+## Phase 4 — Blueprint → [STOP] → scaffold
 
-**실행 수단 선택 (패턴과 별개 축 — 2026-08-17)**: 세션 안에서 반복하면 CLI 내장 `/loop`(간격 반복)·`/goal`(조건 충족까지 — 공식 문서 실존 확인, 조건 ≤4,000자·평가자는 대화에 드러난 증거만 판정), 세션 경계를 넘는 지속 반복이면 `/schedule`(클라우드 루틴). 이 스킬의 scaffold(workflow.js)는 그 중간 — 결정론 제어가 필요할 때. 별도 가이드 문서를 만들지 않는다(감산 리뷰 — 이 표가 SSoT).
-
----
-
-## Phase 3 — 안전장치 검증 (9종)
-
-아래 항목 미충족 시 blueprint 거부 + 보완 요청:
-
-| # | 항목 | 검증 기준 |
-|---|------|---------|
-| S1 | 검증자 분리 | verifier = SKILL.md와 별도 프로그램 (self-grade 금지) |
-| S2 | same_issue dedup | loop-kernel.js §3c 참조 (동일 id:severity × 3 → STOP) |
-| S3 | plateau 검사 | loop-kernel.js §3e 참조 (net gain ≤ ε 연속 2회 → STOP) |
-| S4 | cycle-cap | max_cycles 명시 (기본 6, 결정론적 1순위 bound) |
-| S5 | max-iter 예산 | Q budget max-iter 설정 완료 |
-| S6 | call-budget | Forge hook WARN-only 연동 경고 명시 |
-| S7 | wall-clock 상한 | HUMAN-GATES.md에 구체적 시간 명시 필수 |
-| S8 | durable/changing 분리 | SKILL.md = logic only, STATE.md = 변경 상태 |
-| S9 | HUMAN-GATES 존재 | G1(첫 실행 전) + G2(verifier 이상) 최소 포함 |
-
----
-
-## Phase 4 — Blueprint 승인 → scaffold
-
-### 4a. Blueprint 렌더링 (승인 전 파일 쓰기 금지)
-
+4a. 승인 전 파일 쓰기 금지. 아래 블록 렌더:
 ```
-╔══════════════════════════════════════════════════
-║ forge-loop-maker BLUEPRINT
-╠══════════════════════════════════════════════════
-║ LOOP_NAME  : {LOOP_NAME}
-║ PATTERN    : {PATTERN}
-║ GOAL       : {EXIT_PREDICATE}
-║ TRIGGER    : {TRIGGER}
-║ VERIFY     : {VERIFIER_CMD}
-║ STATE      : {STATE_PATH}
-║ GATES      : {GATE_LIST}
-║ BUDGET     :
-║   max-iter   = {MAX_ITER}
-║   call-budget = {CALL_BUDGET}
-║   wall-clock  = {WALL_CLOCK}
-╠══════════════════════════════════════════════════
-║ [STOP] 승인 후 scaffold 실행
-╚══════════════════════════════════════════════════
+forge-loop-maker BLUEPRINT
+LOOP_NAME {LOOP_NAME} · PATTERN {PATTERN} · GOAL {EXIT_PREDICATE} · TRIGGER {TRIGGER}
+VERIFY {VERIFIER_CMD} · STATE {STATE_PATH} · GATES {GATE_LIST}
+BUDGET max-iter={MAX_ITER} · call-budget={CALL_BUDGET} · wall-clock={WALL_CLOCK}
+[STOP] 승인 후 scaffold 실행
 ```
 
-사용자 승인 후 → `scripts/scaffold.py` 실행.
-
-### 4b. scaffold 산출 (6 building blocks)
-
+4b. 승인 후 실행 → 완료 시 파일 트리 출력:
 `scripts/scaffold.py --name {LOOP_NAME} --goal "{GOAL}" --pattern {PATTERN} --state {STATE_PATH} --max-iter {MAX_ITER} --wall-clock "{WALL_CLOCK}" --verify-cmd "{VERIFIER_CMD}"`
 
-| 분류 | 경로 | 템플릿 |
-|------|------|-------|
-| Durable | `~/forge/.claude/skills/{LOOP_NAME}/SKILL.md` | `templates/loop-SKILL.md.tmpl` |
-| Durable | `~/forge/.claude/skills/{LOOP_NAME}/HUMAN-GATES.md` | `templates/HUMAN-GATES.md.tmpl` |
-| Durable | `~/forge/.claude/skills/{LOOP_NAME}/TRIGGER.md` | `templates/TRIGGER.md.tmpl` |
-| Durable | `~/forge/.claude/skills/{LOOP_NAME}/scripts/workflow.js` | `templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(패턴 본문) |
-| Changing | `{PROJECT_CWD}/loops/{LOOP_NAME}/STATE.md` | `templates/STATE.md.tmpl` |
+- Durable `~/forge/.claude/skills/{LOOP_NAME}/`: `SKILL.md`←`templates/loop-SKILL.md.tmpl` · `HUMAN-GATES.md`←`templates/HUMAN-GATES.md.tmpl` · `TRIGGER.md`←`templates/TRIGGER.md.tmpl`
+- Durable `scripts/workflow.js`←`templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(본문)
+- Changing `{PROJECT_CWD}/loops/{LOOP_NAME}/STATE.md`←`templates/STATE.md.tmpl`
 
-**⚠️ workflow.js는 골격 1개 + 패턴 본문 4개 조합이다.** `--pattern`이 본문 템플릿을 고른다 — 골격만 고치면 특정 패턴의 판정 방식은 바뀌지 않는다. 패턴별 종료 판정:
+workflow.js = 골격 1 + 패턴 본문 4 조합(`--pattern` 이 본문 선택 — 골격만 고치면 판정은 안 바뀐다):
 
 | 패턴 | 종료 판정 | 성공 신호 |
-|------|---------|---------|
-| `pev` | **외부 verifier exit code** (0=pass / 2=사람 판정 / else=fail) | `verify_pass` |
-| `evaluator-optimizer` | LLM 루브릭 0~100점 + `rubric_all_pass` | `rubric_all_pass` |
-| `orchestrator-workers` | 남은 subtask 수(`remaining`) — verifier 있으면 exit code 우선 | `all_done` |
-| `ralph` | 외부 verifier exit code. **verifier 없으면 성공 선언 안 함**(자기신고 금지) | `verify_pass` |
+|---|---|---|
+| `pev` | 외부 verifier exit code (0=pass / 2=사람 판정 / else=fail) | `verify_pass` |
+| `evaluator-optimizer` | LLM 루브릭 0~100 + `rubric_all_pass` | `rubric_all_pass` |
+| `orchestrator-workers` | 남은 subtask(`remaining`) — verifier 있으면 exit code 우선 | `all_done` |
+| `ralph` | 외부 verifier exit code. **verifier 없으면 성공 선언 안 함** | `verify_pass` |
 
-scaffold 완료 후 파일 트리 출력.
-
-### 4c. 완료 체크리스트
-
-- [ ] Q1–Q7 전부 답변 + blueprint에 반영
-- [ ] verifier 별도 파일 존재 (또는 evaluator agent 스펙 포함)
-- [ ] STATE.md 경로에 파일 생성, 초기화됨
-- [ ] HUMAN-GATES.md: G1 + G2 + wall-clock 상한 포함
-- [ ] workflow.js: loop-kernel.js 종료조건 패턴 참조
-
----
+4c. 완료 체크: Q1–Q7 반영 · verifier 별도 파일(또는 evaluator 스펙) · STATE.md 생성·초기화 · HUMAN-GATES.md 에 G1+G2+wall-clock · workflow.js 가 loop-kernel.js 종료조건 패턴 참조.
 
 ## 커널 참조
+- 8종: `rubric_all_pass / max_cycles / same_issue / plateau / oscillation / regression / security_crit / budget_advisory` — workflow.js 는 `templates/workflow.js.tmpl` 에서 inline 상속.
+- 비-Workflow 소비자(healer 등 Bash 에이전트)는 `node --input-type=module -e "const {...} = await import('<kernel경로>'); ..."` 로 실호출 — 실패 시 호출자 하드코딩 캡으로 fallback 필수. 선례 `agents/healer.md §loop-kernel.js SSoT 연동`.
 
-`scripts/loop-kernel.js` — 8 stop-condition **명세**(3종 재사용 함수 + 5종 inline 패턴):
-`rubric_all_pass / max_cycles / same_issue / plateau / oscillation / regression / security_crit / budget_advisory`
-
-생성된 루프의 workflow.js는 이 커널 패턴을 `templates/workflow.js.tmpl`에서 상속합니다(Workflow 샌드박스 — 외부 import 불가, inline 복사).
-
-**비-Workflow 소비자(healer 등 일반 Bash 에이전트)**는 Workflow 샌드박스 제약이 없으므로 inline 복사 대신 `node --input-type=module -e "const {...} = await import('<kernel경로>'); ..."` 실호출로 SSoT를 그대로 재사용한다 — kernel 미가용/에러 시 호출자 자체 하드코딩 캡으로 fallback 필수(캡 소실 방지). 선례 = `agents/healer.md §loop-kernel.js SSoT 연동`.
-
----
-
-## forge-sync 필수
-
-`~/forge` SSoT → `~/.claude/` 미러. scaffold 후 반드시:
-```bash
-node ~/forge/dev/scripts/forge-sync.mjs sync
-```
+## forge-sync 필수 — scaffold 후 `node ~/forge/dev/scripts/forge-sync.mjs sync`

@@ -17,7 +17,7 @@ argument-hint: [--scope rules|skills|hooks|all]
 
 ## 쓰지 말아야 할 때
 
-- **전체 AI 시스템 능력 감사** → `system-audit` 사용 (ACHCE 5축 + 3-LLM 감사).  
+- **전체 AI 시스템 능력 감사** → `system-audit` 사용 (ACHCE 5축+중복, 단독 실측).  
   본 스킬은 하네스 슬림화(context tax / redundancy / 불필요 자산)만 대상. system-audit과 목적이 다르며 중복 인식하고 있음.
 - 실제 파일 수정 / hook·MCP 변경 → 본 스킬은 읽기전용. 수정은 `harness-diet` 사용.
 - 긴급 보안 감사 → 보안 훅은 SAFETY-DETERRENT 분류로 보호되나, 별도 보안 리뷰가 더 적합.

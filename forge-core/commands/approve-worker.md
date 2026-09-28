@@ -5,47 +5,28 @@ group: mas
 
 # /approve-worker
 
-> **정본(로직 SSoT) = `scripts/approve-worker-sign.py`·`approve-worker-verify.py`.** 이 문서와 나머지 한쪽(command↔skill)은 동일 스크립트를 부르는 호출부다 — 로직 변경은 스크립트에서 하고 두 문서는 동기 유지한다(harness #2 2026-07-30, 파괴적 통합 대신 정본 명시).
+> 정본 = `scripts/approve-worker-sign.py`·`approve-worker-verify.py`. 로직 변경은 스크립트에서, command↔skill 두 문서는 동기 유지.
 
 ## 사용법
 
 ```
 /approve-worker {task_id} {worker} {allowed_tools} {target_paths}
 ```
+예: `/approve-worker 2026-05-24-v1-review codex-critic mcp__codex__codex ${FORGE_OUTPUTS:-$HOME/forge-outputs}/13-multiagent/tasks/2026-05-24-v1-review/**`
 
-**예시**:
-```bash
-/approve-worker 2026-05-24-v1-review codex-critic mcp__codex__codex ${FORGE_OUTPUTS:-$HOME/forge-outputs}/13-multiagent/tasks/2026-05-24-v1-review/**
-```
-
-## Step 1: 선행 조건 확인
+## Step 1·2·5·6: 선행 조건 — **[STOP] 게이트** (스크립트 1회)
 
 ```bash
-# secret 존재 + mode 600 확인
-[ -f ~/.config/forge/orch-token.key ] || { echo "[ERROR] secret 없음 — 생성 필요"; exit 1; }
-stat -c %a ~/.config/forge/orch-token.key | grep -q "^600$" || { echo "[ERROR] secret mode != 600"; exit 1; }
-
-# audit 디렉토리 준비
-mkdir -p ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/approve-worker-preflight.sh"
 ```
 
-## Step 2: secret 최초 생성 (없는 경우만)
+스크립트가 하는 일: secret(`~/.config/forge/orch-token.key`)이 없을 때만 생성(**이미 있으면 절대 덮어쓰지 않는다** — 덮어쓰면 발행된 토큰이 전부 무효) → mode 600 확인 → approvals 폴더 준비 → `multiagent-approval-verify` 훅 등록 확인(`~/.claude/settings.json`) → 만료(1h 초과) 토큰 목록.
 
-```bash
-mkdir -p ~/.config/forge
-# 이미 있으면 절대 덮어쓰지 않는다 — 덮어쓰면 발행된 토큰이 전부 무효가 된다.
-if [ ! -f ~/.config/forge/orch-token.key ]; then
-  python3 -c "import secrets,sys; open(sys.argv[1],'wb').write(secrets.token_bytes(32))" ~/.config/forge/orch-token.key
-  chmod 600 ~/.config/forge/orch-token.key
-  echo "[OK] orch-token.key 생성"
-else
-  echo "[SKIP] orch-token.key 이미 존재 — 재생성하지 않음"
-fi
-```
-
-> 이전 판은 `python3 -c "import secrets; open(os.path.expanduser(...))"` 로 **`os` 를 임포트하지 않은 채 사용**해
-> 항상 `NameError` 로 실패했다(2026-08-03 전수조사 commands/CMD-02). 즉 MAS 승인 게이트의
-> 시크릿 부트스트랩이 한 번도 성공한 적이 없다. 경로는 셸이 `~` 를 확장해 `sys.argv` 로 넘긴다.
+출력 키 해석 (종료 0 = 진행 · 1 = 멈춤, 판정 불가도 1 = fail-closed):
+- `RESULT=OK` → Step 3 진행. `SECRET=created` 면 최초 생성된 것이다.
+- `REASON=secret_mode_not_600` 등 `RESULT=FAIL` → 원인 해결 전 발행 금지.
+- `HOOK=missing`·`HOOK=unknown` → **[STOP]** multiagent-approval-verify.sh 미등록 — 이 훅이 없으면 발행한 토큰을 **아무도 검증하지 않는다**(승인 절차가 형식만 남는다). 재등록 후 진행(설정 편집은 Human): ~/.claude/settings.json PreToolUse
+- `EXPIRED=<경로>` → 토큰 유효기간 = 1h. 만료분은 재발행 필요.
 
 ## Step 3: 토큰 발행
 
@@ -73,53 +54,12 @@ python3 ~/.claude/skills/approve-worker/scripts/approve-worker-verify.py \
   --tool "{tool_being_used}"
 ```
 
-## Step 5: multiagent-approval-verify.sh hook 확인 — **[STOP] 게이트**
-
-```bash
-# 이 훅이 없으면 위에서 발행한 토큰을 **아무도 검증하지 않는다** — 승인 절차가 형식만 남는다.
-if grep -q "multiagent-approval-verify" ~/.claude/settings.json; then
-  echo "hook 등록됨 — 토큰 검증이 실제로 걸린다"
-else
-  echo "[STOP] multiagent-approval-verify.sh 미등록 — 발행한 승인 토큰을 검증하는 주체가 없다."
-  echo "       이 상태로 WRITE 권한 워커를 스폰하면 승인 게이트는 **연극**이다."
-  echo "       재등록 후 진행하라(설정 편집은 Human): ~/.claude/settings.json PreToolUse"
-  exit 1
-fi
-```
-
-> ⚠️ **2026-08-09 실사고**: 훅 감산 작업에서 이 훅을 등록 해제했는데, 종전 Step 5 는 결과를
-> `echo` 로 **출력만** 했다. 그래서 "hook 미등록" 한 줄이 찍혀도 절차가 그대로 진행됐다.
-> 확인은 했는데 **멈추지 않는 확인은 확인이 아니다** — `exit 1` 로 승격한다.
-> approve-worker 를 참조하는 스킬 **7종**(forge-check-ui · screenshot-analyze · style-forge ·
-> system-audit · visual-loop · site-deep-analyze · forge-multi)이 모두 이 게이트 위에 서 있다.
-> ⚠️ 구 표기 **"4종(site-deep-analyze · system-audit · visual-loop)"** 은 2026-09-17 폐기 —
-> **개수는 4 라 적고 이름은 3 개만 적어** 그 자체로 모순이었고, 실측은 7종이다.
-> 재현: `grep -rl -- "approve-worker" .claude/skills/*/SKILL.md .claude/skills/*/workflow.js | grep -v "skills/approve-worker/"`
-> (2026-09-17 관측 — `site-deep-analyze` 는 SKILL.md 가 아니라 `workflow.js` 에서 참조한다)
-> 근거: 이 게이트를 지우거나 해제할 때 영향 범위를 세는 숫자다 — 틀리면 과소평가한다.
-> 폐기조건: 참조 스킬 집합이 바뀌면 위 재현 명령을 다시 돌려 갱신한다.
-> 폐기조건: 토큰 검증 주체가 다른 방식(예: 런타임 권한 시스템)으로 대체되면 이 절을 지운다.
-
-## Step 6: 토큰 만료 처리
-
-토큰 유효기간 = 1h. 만료 후 재발행 필요.
-
-```bash
-# 만료된 토큰 정리 (1시간 이상 된 파일)
-find ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals -name "*.yaml" -mmin +60 -exec echo "만료: {}" \;
-```
-
 ## Step 7: Rollback
 
 ```bash
-# skill 비활성
-mv ~/.claude/skills/approve-worker ~/.claude/skills/_archive/approve-worker-$(date +%Y-%m-%d)
-
-# secret 폐기 (신규 발행 불가)
-shred -u ~/.config/forge/orch-token.key
-
-# audit log 보존 (삭제 금지)
-# ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals/ = 감사 기록
+mv ~/.claude/skills/approve-worker ~/.claude/skills/_archive/approve-worker-$(date +%Y-%m-%d)  # skill 비활성
+shred -u ~/.config/forge/orch-token.key  # secret 폐기 (신규 발행 불가)
+# audit log 보존(삭제 금지): ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/approvals/
 ```
 
 ## 보안 (P0 = audit-only)
