@@ -85,9 +85,9 @@ DRIVE_MARK = re.compile(r'\b[A-Z]:[\\/~]')  # Windows drive-letter prose table l
 #   즉 `LEAK_BLOCKED=0` 이 "유출 없음"을 보증하지 못했다.
 #   **한 칸을 비켜 가려다 그 줄 전체를 눈감은 셈**이다.
 #   실측(수정 전):
-#     transform_line('linux /home/exampleuser/forge/private and windows C:/Program Files/Git/x')
+#     transform_line('linux /home/<user>/forge/private and windows C:/Program Files/Git/x')
 #       → 원문 그대로(치환 없음) · find_leaks(같은 문자열) → []   ← 유출 0건으로 보고
-#     같은 문자열에서 `C:/…` 만 빼면 → 정상 치환되고 [(1, '/home/exampleuser/')] 로 탐지된다.
+#     같은 문자열에서 `C:/…` 만 빼면 → 정상 치환되고 [(1, '/home/<user>/')] 로 탐지된다.
 #   조치의 핵심은 **두 가지를 분리한 것**이다:
 #     · 치환: 드라이브 **구간만** 건너뛴다(윈도우 표기 원형 보존 — 이 면제의 원래 목적)
 #     · 탐지: **줄 전체**를 본다. 원형을 보존하는 것과 못 본 척하는 것은 다른 일이다.
@@ -193,7 +193,7 @@ def transform_content(content: str, js_mode: bool = False) -> str:
 
 # 일반화된 사용자명 — 문서의 **예시**로 쓰이는 낱말이다. 사설 정보가 아니므로 유출로 세지 않는다.
 #   ⚠️ `exampleuser` 는 **넣지 마라** — 이 레포 테스트(§13)가 그것을 "진짜 사설 경로" 역으로 쓴다.
-#   근거(2026-09-24, #881): `forge-onboard/SKILL.md` 의 예시 표 `/home/user/my-project` 가
+#   근거(2026-09-24, #881): `forge-onboard/SKILL.md` 의 예시 표 `/home/<user>/my-project` 가
 #   유출로 잡혀 게이트가 상시 빨간불이었다. 오탐 내는 가드는 결국 무시당한다.
 #   ⛔ `someuser`·`exampleuser` 는 **넣지 마라** — 이 레포 테스트가 둘 다 "진짜 사설 경로" 역으로
 #   쓴다(§G-3 ①, §13). 넣는 순간 그 테스트들이 조용히 통과하고 가드에 구멍이 난다
@@ -217,7 +217,7 @@ def find_leaks(content: str):
     for i, line in enumerate(content.splitlines(), 1):
         # ⚠️ 탐지는 **줄 전체**를 본다. 드라이브 구간을 치환에서 빼는 것과, 그 안을
         #   못 본 척하는 것은 **다른 일**이다 — 공백 없이 이어붙은 사설 경로
-        #   (`C:/tmp,/home/alice/private`)가 통째로 숨는다(2026-08-20 검수 HIGH).
+        #   (`C:/tmp,/home/<user>/private`)가 통째로 숨는다(2026-08-20 검수 HIGH).
         #   원형은 보존하되 "여기 사설 경로가 있다"는 사실은 반드시 알린다.
         for m in RE_LEAK.findall(line):
             if _is_generalized(m):
@@ -237,7 +237,7 @@ def find_leaks(content: str):
 # 폐기조건: 누출 검사가 CI 외부 도구(gitleaks 등)로 이관되면 이 모드를 지운다.
 SCAN_SELF_EXCLUDE = {
     # 이 두 파일은 **탐지 규칙 자체와 그 픽스처**를 소스로 담고 있어 구조적으로 자기 매칭한다
-    # (`RE_HOME_FORGE = re.compile(r'/home/[^/\s]+/forge\b')` · 테스트의 `/home/u1/...`).
+    # (`RE_HOME_FORGE = re.compile(r'/home/[^/\s]+/forge\b')` · 테스트의 `/home/<user>/...`).
     # 제외하지 않으면 가드가 영구 FAIL 이라 아무도 안 쓰게 된다. 대신 이 둘은 **사설 정보를
     # 담을 이유가 없는 도구 파일**이라 위험이 낮다 — 실제 배포물(플러그인 번들)은 전부 검사된다.
     "scripts/sync-from-forge.py",
