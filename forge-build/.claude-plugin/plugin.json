@@ -10,7 +10,6 @@
   ],
   "skills": "./skills/",
   "agents": [
-    "./agents/canary-judge.md",
     "./agents/code-reviewer.md",
     "./agents/cto-advisor.md",
     "./agents/healer.md",

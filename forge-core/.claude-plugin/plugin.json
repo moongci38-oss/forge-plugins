@@ -7,12 +7,7 @@
   },
   "skills": "./skills/",
   "agents": [
-    "./agents/advisor-strategist.md",
-    "./agents/axis-agentic.md",
-    "./agents/axis-context.md",
-    "./agents/axis-cost.md",
-    "./agents/axis-harness.md",
-    "./agents/axis-human-ai.md"
+    "./agents/advisor-strategist.md"
   ],
   "commands": "./commands/",
   "hooks": {
