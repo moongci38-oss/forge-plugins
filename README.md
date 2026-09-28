@@ -87,6 +87,16 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 
 ## 신규 설치 (팀원용)
 
+### Step 0 — `~/forge` 클론 (**필수** · 2026-09-29, forge #1544)
+
+번들의 커맨드·스킬이 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/…` 를 **실행**한다(커맨드 21파일·스킬 19파일·호출 138곳·스크립트 75개 — 실측 2026-09-29). 스크립트는 번들에 동봉하지 않으므로(두 벌 관리 회피 — 사람 결정) 이 클론이 없으면 그 명령들이 안내 없이 "No such file or directory" 로 끝난다.
+
+```bash
+git clone git@github.com:moongci38-oss/forge.git ~/forge
+```
+
+> 클론만 하면 된다 — `.env`·`forge-workspace.json` 설정은 코어 팀원만 필요하다(`ONBOARDING.md` §1·§2).
+
 ### Step 1 — Marketplace 등록 (최초 1회)
 
 ```bash
