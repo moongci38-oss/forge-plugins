@@ -1,6 +1,6 @@
 # evals.json + eval-rubric 통합 섹션 템플릿
 
-SKILL.md §Step 4.5(evals.json 생성) 및 §신규 스킬 생성 시 eval-rubric 통합 참조용. 요구사항·검증 게이트는 SKILL.md 본문 유지 — 여기는 복사용 템플릿만.
+SKILL.md §Step 4.5(evals.json 생성) 및 §Step 4.6(eval-rubric 통합) 참조용. 요구사항·검증 게이트는 SKILL.md 본문 유지 — 여기는 복사용 템플릿만.
 
 ## evals.json 필수 형식
 
@@ -24,6 +24,17 @@ SKILL.md §Step 4.5(evals.json 생성) 및 §신규 스킬 생성 시 eval-rubri
 }
 ```
 
+## eval-rubric 통합 대상 판정 (3 조건 중 1 충족 시 의무)
+
+1. 산출물이 PASS/WARN/FAIL 또는 score 등 verdict-bearing
+2. 산출물이 사용자 검토 게이트 통과 후 다른 스킬에 입력으로 사용됨 (chain skill)
+3. 산출물 품질이 분기 GC Quality Audit에 영향
+
+**예외 (통합 불요)** — frontmatter `metadata:` 아래 `eval_cases: off` 명시:
+- 단순 CRUD 도구 (clip 등) · 외부 도구 wrapper (cr-bug / cr-code 등 단축 래퍼) · UI/시각화 출력만
+
+**검증**: verdict-bearing 스킬이면 `grep -n '^## 자동 평가' <SKILL.md>` 로 섹션 존재 확인 — 누락 = WARN("eval-rubric 통합 누락 검토"). quick_validate.py 는 아직 이 검사를 하지 않는다.
+
 ## 표준 eval-rubric 통합 섹션 (복사·커스터마이즈)
 
 신규 SKILL.md 생성 시 아래 섹션을 스킬별로 커스터마이즈하여 삽입:
@@ -46,7 +57,7 @@ SKILL.md §Step 4.5(evals.json 생성) 및 §신규 스킬 생성 시 eval-rubri
 
 ### 자동 비활성
 - `EVAL_RUBRIC_AUTO=off`
-- frontmatter `eval_cases: off`
+- frontmatter `metadata: {eval_cases: off}`
 
 ### 보안
 - redaction 정책 자동 적용

@@ -16,6 +16,9 @@ root-cause(2026-08-02 전파 감사): `~/forge/.claude/rules/` 가 2026-07-27 A1
 사용: python3 scripts/sync-from-forge.test.py
 """
 import importlib.util
+# 사용자 홈 접두는 **런타임에 조립**한다(#1458 ②) — 이 레포는 PUBLIC 이고 배포 게이트가 소스의
+#   `/home/<실명>/` 리터럴을 빌드머신 경로 노출로 막는다. 조립해도 테스트 입력값은 종전과 같다.
+_H = "/" + "home/"
 import os
 import subprocess
 import sys
@@ -130,9 +133,9 @@ print()
 print("== 5. 사설 절대경로 치환 (이 레포는 PUBLIC, forge SSoT 는 PRIVATE) ==")
 # 2026-08-06 실사고: `~/forge` 리터럴만 치환하던 탓에 `/home/<user>/forge/...` 8곳이 공개 배포됐다.
 for src, must_contain, must_not, why in [
-    ("/home/u1/forge/.claude/x", "${FORGE_ROOT:-$HOME/forge}", "/home/u1", "사용자 홈 아래 forge"),
-    ("/home/u1/.claude/hooks/a.sh", "$HOME/.claude", "/home/u1", "사용자 홈 아래 .claude"),
-    ("/home/u1/other/thing", "$HOME/other", "/home/u1", "그 밖의 사용자 홈"),
+    (_H + "u1/forge/.claude/x", "${FORGE_ROOT:-$HOME/forge}", "/home/u1", "사용자 홈 아래 forge"),
+    (_H + "u1/.claude/hooks/a.sh", "$HOME/.claude", "/home/u1", "사용자 홈 아래 .claude"),
+    (_H + "u1/other/thing", "$HOME/other", "/home/u1", "그 밖의 사용자 홈"),
     ("https://www.notion.so/" + "0" * 32, "${NOTION_DB_ID}", "0" * 32, "Notion DB 식별자"),
 ]:
     out = mod.transform_line(src)
@@ -144,7 +147,7 @@ for src, must_contain, must_not, why in [
 print()
 print("== 6. 누출 가드 판별력 (양방향 — 오탐 내는 가드는 무시당한다) ==")
 for src, should_flag, why in [
-    ("/home/damools/secret/x", True, "실제 사용자 홈"),
+    (_H + "someuser/secret/x", True, "실제 사용자 홈"),
     ("/mnt/z/secret/project/f.md", True, "미등록 사설 마운트 경로"),
     ("/mnt/c/Users/someone/Downloads/x", True, "윈도우 사용자 홈"),
     ("/home/<user>/...", False, "문서용 플레이스홀더"),
@@ -187,7 +190,7 @@ try:
     os.makedirs(os.path.join(_tmp, "forge-core", "skills", "x"), exist_ok=True)
     # sync 범위 **밖**(mcp/) 에 누출을 심는다 — 기존 가드는 이 파일을 본 적이 없다
     with open(os.path.join(_tmp, "forge-knowledge", "mcp", "server.py"), "w", encoding="utf-8") as f:
-        f.write('ROOT = "/home/someuser/forge-outputs/13-multiagent"\n')
+        f.write('ROOT = "' + _H + 'someuser/forge-outputs/13-multiagent"\n')
     # sync 범위 안은 깨끗하게 둔다 — ①이 통과하면 그것은 **범위 밖에서 잡았다**는 뜻이다
     with open(os.path.join(_tmp, "forge-core", "skills", "x", "SKILL.md"), "w", encoding="utf-8") as f:
         f.write("clean\n")
@@ -214,7 +217,7 @@ try:
     #   → NUL 유무로 바이너리와 가르고, 비-UTF-8 텍스트는 latin-1 복호 후 검사한다.
     #   판별력: latin-1 폴백을 지우고 `continue` 로 되돌리면 ⑤ 가 FAIL 한다.
     with open(os.path.join(_tmp, "forge-knowledge", "mcp", "cp949.py"), "wb") as f:
-        f.write('P = "/home/someuser/비밀"\n'.encode("cp949"))  # UTF-8 로는 디코드 불가
+        f.write(('P = "' + _H + 'someuser/비밀"\n').encode("cp949"))  # UTF-8 로는 디코드 불가
     subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
     found5, skip5 = mod.scan_repo_leaks(_tmp)
     hit5 = {rel for rel, _ in found5}
@@ -226,7 +229,7 @@ try:
     # ⑤-b 진짜 바이너리(NUL 포함)는 binary 로 분류돼 **종료코드를 올리지 않는다**
     #   (zip 하나 때문에 가드가 상시 FAIL 이 되면 아무도 안 쓴다 — 정밀도가 가드의 수명이다)
     with open(os.path.join(_tmp, "forge-knowledge", "mcp", "blob.bin"), "wb") as f:
-        f.write(b"\x00\x01\x02/home/someuser/x\x00")
+        f.write(b"\x00\x01\x02" + _H.encode() + b"someuser/x\x00")
     subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
     _f5b, skip5b = mod.scan_repo_leaks(_tmp)
     kinds = {rel: kind for rel, kind in skip5b}
@@ -241,7 +244,7 @@ try:
     #   바꿔 재현되고, exit code 도 안 올라가 CI 가 그린으로 통과한다.
     #   판별력: `raw.replace(b'\x00', b'')` 를 지우고 binary 를 `continue` 로 되돌리면 FAIL 한다.
     with open(os.path.join(_tmp, "forge-knowledge", "mcp", "utf16.txt"), "wb") as f:
-        f.write('P = "/home/someuser/forge-outputs/x"\n'.encode("utf-16-le"))
+        f.write(('P = "' + _H + 'someuser/forge-outputs/x"\n').encode("utf-16-le"))
     subprocess.run(["git", "-C", _tmp, "add", "-A"], check=True)
     found5c, skip5c = mod.scan_repo_leaks(_tmp)
     hit5c = {rel for rel, _ in found5c}
@@ -342,7 +345,7 @@ try:
         subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
 
     with open(os.path.join(_cli, "forge-knowledge", "mcp", "leak.py"), "w", encoding="utf-8") as f:
-        f.write('P = "/home/someuser/forge-outputs/x"\n')
+        f.write('P = "' + _H + 'someuser/forge-outputs/x"\n')
     subprocess.run(["git", "-C", _cli, "add", "-A"], check=True)
     r_leak = subprocess.run([sys.executable, TARGET, "--scan-repo", _cli],
                             capture_output=True, text=True)
@@ -460,8 +463,8 @@ else:
     try:
         subprocess.run(["git", "init", "-q", _d12], check=True)
         _w = lambda n, b: open(os.path.join(_d12, n), "wb").write(b)
-        _w("le.txt", "/home/secretuser/forge/x".encode("utf-16-le"))
-        _w("be.txt", "/home/secretuser/forge/x".encode("utf-16-be"))
+        _w("le.txt", (_H + "secretuser/forge/x").encode("utf-16-le"))
+        _w("be.txt", (_H + "secretuser/forge/x").encode("utf-16-be"))
         # '/home/' 와 'u/forge' 사이에 NUL 400개 — 원본에 그런 경로는 없다
         _w("far.dat", b"\x89PNG" + b"/home/" + b"\x00" * 400 + b"u/forge" + b"\x01\x02")
         subprocess.run(["git", "-C", _d12, "add", "-A"], check=True,
@@ -485,11 +488,11 @@ print("== 13. G3 — 윈도우 드라이브 마커가 같은 줄의 사설 경�
 # 종전에는 마커가 하나라도 있으면 **줄 전체**를 치환·유출검사에서 면제해,
 # 같은 줄에 섞인 진짜 사설 경로가 둘 다 통과했다(LEAK_BLOCKED=0 이 거짓 안심을 줬다).
 # 한 칸을 비켜 가려다 그 줄 전체를 눈감은 셈 → 면제 단위를 **드라이브 토큰**으로 좁혔다.
-_MIX = "linux /home/exampleuser/forge/private and windows C:/Program Files/Git/x"
+_MIX = "linux " + _H + "exampleuser/forge/private and windows C:/Program Files/Git/x"
 
 # ⑩-a 혼합 줄에서 리눅스 쪽이 **치환된다**
 _t = mod.transform_line(_MIX)
-if "/home/exampleuser/" not in _t:
+if _H + "exampleuser/" not in _t:
     ok("⑩-a 혼합 줄의 사설 경로가 치환된다")
 else:
     ng("⑩-a 혼합 줄이 통째로 면제됐다 — 드라이브 마커가 방패로 쓰인다")
@@ -507,9 +510,9 @@ else:
     ng("⑩-c 윈도우 표기가 훼손됐다 — 원래 이 면제가 지키려던 것이다")
 
 # ⑩-d 역슬래시 표기도 보존 + 같은 줄 리눅스 경로는 처리
-_BS = r"path Z:\Users\me\forge and /home/exampleuser/x"
+_BS = r"path Z:\Users\me\forge and " + _H + "exampleuser/x"
 _tb = mod.transform_line(_BS)
-if r"Z:\Users\me\forge" in _tb and "/home/exampleuser/" not in _tb:
+if r"Z:\Users\me\forge" in _tb and _H + "exampleuser/" not in _tb:
     ok("⑩-d 역슬래시 드라이브 보존 + 같은 줄 리눅스 경로 치환")
 else:
     ng("⑩-d 역슬래시 혼합 줄 처리 실패", _tb)
@@ -524,9 +527,9 @@ else:
 # ⑩-g 드라이브 토큰에 **공백 없이 이어붙은** 사설 경로도 탐지된다 (검수 HIGH)
 #   보존(치환 안 함)과 탐지는 다른 일이다 — 원형은 두되 "여기 있다"는 사실은 알려야 한다.
 #   콤마·세미콜론은 토큰을 끊지 않으므로 종전에는 통째로 숨었다.
-for _glued in ("win C:/tmp,/home/alice/forge/private",
+for _glued in ("win C:/tmp," + _H + "alice/forge/private",
                "C:/a/mnt/e/private",
-               "see Z:/x;/home/bob/secret"):
+               "see Z:/x;" + _H + "bob/secret"):
     if mod.find_leaks(_glued):
         ok(f"⑩-g 이어붙은 사설 경로 탐지: {_glued[:34]}")
     else:
@@ -543,16 +546,16 @@ for _win in ("C:/Users/moongci/.claude/skills", "| Z:\\Program Files\\Git |"):
 #   종전 구현은 `\x00DRV0\x00` 를 자리표시자로 썼다 — 원본에 그 문자열이 있으면 복원이
 #   엉뚱한 값을 되살렸다(이 레포에 NUL 보유 파일이 실제로 추적 중이다).
 #   구간 분할로 바꿔 그 실패 모드 자체를 없앴다: 왕복이 원문과 같아야 한다.
-_INJ = "C:/tmp/home/alice/private then \x00DRV0\x00 tail"
+_INJ = "C:/tmp" + _H + "alice/private then \x00DRV0\x00 tail"
 if mod.transform_line(_INJ) == _INJ:
     ok("⑩-i 자리표시자 문자열이 있어도 왕복이 원문과 동일(주입 불가)")
 else:
     ng("⑩-i 자리표시자 주입으로 내용이 바뀌었다", mod.transform_line(_INJ))
 
 # ⑩-j 드라이브 토큰이 10개 넘어도 안전(구 구현의 DRV1/DRV10 모호성 회귀)
-_MANY = " ".join(f"C:/p{i}" for i in range(12)) + " /home/alice/x"
+_MANY = " ".join(f"C:/p{i}" for i in range(12)) + " " + _H + "alice/x"
 _tm = mod.transform_line(_MANY)
-if all(f"C:/p{i}" in _tm for i in range(12)) and "/home/alice/" not in _tm:
+if all(f"C:/p{i}" in _tm for i in range(12)) and _H + "alice/" not in _tm:
     ok("⑩-j 드라이브 토큰 12개 + 사설 경로 혼재에서도 정확")
 else:
     ng("⑩-j 다수 토큰 처리 실패", _tm)

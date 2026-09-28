@@ -1,483 +1,91 @@
 ---
 name: system-audit
-description: "6축 통합 시스템감사(Agentic·Context·Harness·Cost·Human-AI+중복). 전체 AI시스템 역량점검 요청 시. 하네스 슬림화만 원하면 harness-legacy-scan."
+description: "6축 통합 시스템감사(Agentic·Context·Harness·Cost·Human-AI+중복). 한 세션이 재현 명령·스크립트로 직접 실측해 채점한다. 전체 AI시스템 역량점검 요청 시. 하네스 슬림화만 원하면 harness-legacy-scan."
 argument-hint: "[target: system|{project-name}]"
 context: fork
 model: opus
 ---
 
-> **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
-> 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
-> `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
-> (2026-08-04 관측).
+> **저장 경로 앵커**: 보고서 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/` 로 시작(cwd 상대 금지) → `references/audit-common.md` §저장 경로 앵커
 
+**역할**: 한 세션(또는 에이전트 1개)이 5축(ACHCE)+중복을 **직접 실측**하고 채점·보고서까지 쓰는 단독 감사자. 축 에이전트·Workflow 는 없다.
+**컨텍스트**: 대상 레포의 `.claude/`(rules·skills·agents·hooks)·`~/.claude` 미러·이전 감사 보고서. **출력**: 6축 점수·축간 트레이드오프·통합 로드맵 보고서 1개(Step 5 경로).
+**Evaluator 원칙(관대 금지)** → 실행 전 반드시 Read: `references/audit-common.md` §Evaluator 핵심 원칙
+**방식 근거**: 축 에이전트 5종 삭제(#1374, 2026-09-27) → 2026-09-28 사람 결정 #1415(A안): 단독 실측으로 전환. 참조: `$FORGE_OUTPUTS/docs/tech/2026-03-16-5-axis-ai-analysis-framework.md`
 
-**역할**: 당신은 ACHCE 5축 에이전트를 병렬 스폰하여 AI 시스템을 통합 감사하는 수석 시스템 감사 오케스트레이터입니다.
-**컨텍스트**: `/system-audit` 호출 또는 종합 AI 시스템 점검이 필요할 때 실행됩니다.
-**출력**: 5축 병렬 감사 결과 + 축간 트레이드오프 분석 + 통합 개선 로드맵을 마크다운 보고서로 반환합니다.
+- **감사 유형**(모든 지표에 명시): 실측(스크립트·Grep·wc) · 추정(글자→토큰 등) · 설계 검토(판단) · 미측정(N/A, 런타임 데이터 필요)
+- **강제 수준**: ENFORCED(훅이 exit 2 로 차단, 100%) · GUIDED(규칙만, 70%) · PAPER(감사에만 존재, "미적용" 표기·점수 제외)
+  - ⚠️ 차단력은 grep 이 아니라 **실행 시험**으로 판정: `echo '{"tool_input":{...}}' | bash <훅> ; echo "EXIT=$?"` (페이로드는 파일로 넘긴다 — 명령줄에 직접 쓰면 가드가 감사 명령 자체에 반응)
+- **인자**: `$ARGUMENTS` 첫 단어 = target(미입력 `system`). `system` = `~/forge`(`.claude/` rules·skills·agents·hooks) · `{project-name}` = `forge-workspace.json` 등록 경로
+- **채점자 1명의 한계**: 후광효과를 막으려고 **판정을 뒤집는 주장마다 재현 명령을 붙인다.** 보고서 §0 에 실행 방식(단독 실측)을 적는다.
 
-## Evaluator 핵심 원칙: 절대 관대하게 보지 마라
-아래 생각이 들면 더 엄격하게 본다:
-- "나쁘지 않은데..." → 감점
-- "이 정도면 괜찮지 않나?" → 감점
-- "전반적으로 잘했으니 이 부분은 넘어가자" → 금지
-규칙:
-- 한 항목이 좋아도 다른 항목 문제를 상쇄하지 않는다
-- 모든 피드백은 위치 + 이유 + 방법 3요소를 포함한다
+## Step 0: 시작 출력 `🔍 6축 통합 감사 시작: {target} (단독 실측)`
 
-# 5축 통합 시스템 감사 (ACHCE)
+## Step 1: 기계 실측 — 스크립트 출력을 1차 근거로 인용 (`S=~/forge/shared/scripts` · `R=`target 경로 — system 이면 `~/forge`)
+| 무엇 | 명령 |
+|---|---|
+| 구조 수치(스킬·에이전트·세션 시작 토큰·MEMORY·조건부 로딩·모델 계층화·ASI·[STOP]) | `bash $S/system-audit/measure.sh --root $R`(잴 수 없으면 `NA` — 0 과 구분) |
+| evals 보유율·프롬프트 3요소 포함률(정의 정본) | `bash $S/harness-metrics.sh --json --root $R` |
+| 규칙 중복률 · L1 증감 | `bash $S/rules-duplication-measure.sh` · `bash $S/l1-budget.sh` |
+| 훅 배선(4레인 — 직접 세지 않는다) | `bash $S/register-forge-hooks.sh --verify` |
+| 전수 테스트(고아 테스트·상시 FAIL) | `bash $S/run-all-tests.sh` |
+| 차단력 실행 시험 | `bash $S/tests/destructive-guard-rm.test.sh` + 필요 시 위 실행 시험 |
+| BOUNDARY 발화·오탐·override | `bash $S/boundary-metrics.sh` |
+- 값이 의심스러우면 직접 다시 재고, 스크립트와 어긋나면 **직접 실측 우선 + 어긋남을 finding** 으로. 0 은 "실측 결과 0"일 수 있다.
+- 재귀 grep 은 `--exclude-dir=worktrees --exclude-dir=logs` 필수(워크트리마다 하네스 사본 — 같은 파일을 N+1 번 센다).
 
-> ACHCE: Agentic · Context · Harness · Cost · Human-AI Escalation
-> 참조: `$FORGE_OUTPUTS/docs/tech/2026-03-16-5-axis-ai-analysis-framework.md`
+## Step 2: 축별 설계 검토 (읽기 전용 — 정의서 `shared/docs/2026-03-30-four-engineering-disciplines.md` 해당 § 의 기법 목록만)
+| 축 | 정의서 § · 점검 항목 |
+|---|---|
+| Agentic | §4 — Composable Patterns·ACI(에러 계약)·Agent Evals·Multi-Agent Coordination·Memory·AgentOps |
+| Context | §2 — 9기법(System Prompt·단기/장기 메모리·RAG·Tool Definition·Compaction·Sub-Agent·Progressive Disclosure·Note-Taking) + 끊긴 포인터 |
+| Harness | §3 — Check Chain·Guardrails 5 Rail·OWASP Agentic Top 10(실제 ENFORCED 기준)·Hooks·Evals·Observability·Rollback |
+| Cost | 모델 라우팅 계층·컨텍스트 절약·MCP→CLI·디스크/로그 레인·낭비 패턴(미러 좀비·이중 등록) |
+| Human-AI | 5-Level Autonomy·[STOP] 게이트·BOUNDARY 하드스톱·에스컬레이션·안티패턴(Rubber Stamping·Alert Fatigue — B3 오탐) |
+- 축마다 점수(0-100)·강점·발견 ≥2(위치+이유+방법, 재현 명령 포함). 주관 판단 금지 — 측정 불가 = "N/A (런타임 데이터 필요)".
 
-## 감사 유형 정의
+## Step 3: 중복 축 (결정론 = 스크립트, 판정 = 이 세션)
+`python3 $S/audit-dup-axis.py prep --root $R --out <audit-dir>/{date}-dup-axis` → `prompt.txt` 를 읽고 이 세션이 판정해 `verdicts.json` 작성 → `python3 $S/audit-dup-axis.py report --out <같은 폴더> --verdicts <verdicts.json>` → `section.md` 를 보고서 §1.6 에 싣는다. 더해 고아 테스트(삭제된 대상을 찾는 테스트)·고아 에이전트·Hook theater·미러 좀비를 적는다.
 
-| 유형 | 방법 | 신뢰도 |
-|------|------|:------:|
-| **실측 (Audit)** | Glob/Grep/wc/Read로 파일 직접 탐색하여 카운트 | 높음 |
-| **추정 (Estimate)** | 바이트→토큰 변환, 패턴 매칭 기반 계산 | 중간 |
-| **설계 검토 (Design Review)** | 코드/규칙 구조 분석, LLM 판단 | 낮음 |
-| **미측정 (N/A)** | 런타임 로그/이력 데이터 필요, 현재 수집 불가 | - |
+## Step 4: 채점
+1. 항목별 0(미구현)·1(부분)·2(구현, 개선 루프 없음)·3(성숙) → 축 점수 = 획득/최대×100. 전체 = Σ(축×가중치).
+   가중치(%, 기본/초기/운영/스케일링): Agentic 20/25/20/15 · Context 20/25/20/15 · Harness 20/15/25/25 · Cost 20/10/15/25 · Human-AI 20/25/20/20
+   단계 판별: 초기 = 스킬<20 또는 규칙<5 · 운영 = 스킬 20-50+규칙 5-15+프로덕션 배포 · 스케일링 = 멀티 프로젝트+팀 2명+ 또는 월 $500+.
+2. **정량 지표 10개**(`references/report-template.md` §3 표): evals 보유율 >70% · 세션 시작 토큰 <12,000 · MEMORY 항목 <30 · 규칙 중복률 <10% · 프롬프트 구조 포함률 >70% · Hook 커버리지 >70% · OWASP 커버리지 >50% · 모델 계층화율 >60% · 조건부 로딩률 >50% · 게이트 커버리지 100%.
+3. **지표 제외(폐기 기록)**: 2026-09-28 사람 결정 #1416: 계측 훅 삭제(#1358)는 의도, 지표 제외 — 도구 커버리지(`log-tool-metrics`·`usage-logger`)·게이트 승인/rubber-stamp(`gate-approval-tracker`)·override rate(`track-override-rate`). 캐시 히트율(`cache-stats.jsonl`, 로거 2026-09-24 폐기)도 제외(#1418). 이 항목들은 감점·FAIL·"미측정" 행으로 적지 않는다.
+4. **트렌드**: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/` 이전 보고서와 축별 Δ·이슈 해소율·신규 이슈 수·방향(↑↓→) 표.
+5. **축간 트레이드오프**: Cost↔Harness · Agentic↔Human-AI · Context↔Cost · Harness↔Agentic · Human-AI↔Cost.
+6. **이슈 통합**: CRITICAL→LOW 정렬 · cross-axis 태그 · 같은 파일 중복 합산 · 영향도 = 심각도(4/3/2/1)×영향 범위.
 
-> 모든 지표에 유형을 명시한다. "실측"이 아닌 항목은 과신하지 않는다.
+## Step 5: 보고서
+저장: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit[-{target}].md`(target=system 이면 suffix 생략). 템플릿 → `references/report-template.md` (§0 실행 방식 · §3 끝에 **재현 명령 모음** 필수)
 
-## 항목별 강제 수준
+## Step 6: 완료 게이트 (완료 보고 이전 필수)
+`bash ~/forge/shared/scripts/verify-outputs.sh "<보고서 경로>"` — 출력 표를 완료 보고에 포함. exit 2(MISSING/0바이트) → 완료 보고 금지, 재생성 후 exit 0 에서만 진행.
 
-| 수준 | 의미 | 점수 반영 |
-|------|------|:--------:|
-| **ENFORCED** | Hook/스크립트가 **종료코드 2로 위반 차단** — `exit 2` · `sys.exit(2)` · `SystemExit(2)` 전부 포함 | 100% 반영 |
+## 독립 Evaluator
+Read 먼저: `references/audit-common.md` §독립 Evaluator 공통. **1단계 구조 린트**:
+`python3 ~/forge/shared/scripts/audit-report-structure-lint.py --skill system-audit --report "<보고서 경로>" > /tmp/audit-lint-system-audit.json; echo "lint rc=$?"`
+`rc`: 1 = 구조 FAIL 확정 · 2 = 입력 오류(경로 고쳐 재실행) · 0+`residual` 없음 = PASS · 0+`residual` 있음 = 2단계.
 
-> ⚠️ **차단력은 grep 으로 판정하지 않는다 (C-2, 2026-08-22).** `grep 'exit 2'` 만 세면
-> `python3 << PYEOF … sys.exit(2)` 형태의 훅이 전부 "무력"으로 오판된다 — **이 감사가
-> 실제로 그 오판을 했다**(초안에서 `validate-output.sh` 를 CRITICAL 로 올렸다가 실행
-> 시험으로 철회). grep 은 **후보를 좁히는 데만** 쓰고, 판정은 **실행 시험**으로 한다:
-> 합성 페이로드를 stdin 으로 주입하고 종료코드를 본다.
-> 재현: `echo '{"tool_input":{...합성 페이로드...}}' | bash <훅> ; echo "EXIT=$?"`
-> 폐기조건: 전 훅이 단일 언어로 통일돼 grep 한 줄로 판정 가능해지면 이 주의를 삭제한다.
-| **GUIDED** | 규칙 존재, AI가 자발적 준수 | 70% 반영 |
-| **PAPER** | 감사에만 존재, 운영 미적용 | 점수 제외 (0%) |
+**판정 기준 원문**(4항목 모두 충족 = PASS · 피드백 `[파일명+섹션] — [이유] → [방법]`):
+1. **5축 커버** — 축별 요약 1.1~1.5/점수표에 5축 각각 점수(0-100)+발견 ≥2, N/A·빈 값 FAIL.
+2. **축간 트레이드오프** — Cost vs Harness / Agentic vs Human-AI / Context vs Cost 3쌍+ "현재 균형"·"권장 방향", 빈 셀 FAIL.
+3. **로드맵 P0/P1/P2** — P0(이번 주)/P1(이번 달)/P2(다음 분기) 각 액션 ≥1, 빈 섹션 FAIL. 액션이 구체적인지는 항상 residual.
+4. **증거 기반 점수** — 정량 지표 대시보드 10개 지표 모두 실측값 또는 "미측정"(제외 지표는 행 없음), 빈 셀 FAIL.
 
-> PAPER 항목은 보고서에 "미적용" 표기만 하고 점수에 포함하지 않는다.
+**2단계 질적 판정**(residual 만): 감사자 ≠ 평가자. 메인 세션이면 `Agent(subagent_type="general-purpose", model="sonnet")` 1개에 "구조는 린트가 PASS 확정 — 다시 보지 말 것. `/tmp/audit-lint-system-audit.json` 의 residual 과 해당 번호 판정 기준 원문만 판정. PASS/FAIL + 피드백 형식." · **이 감사가 subagent 로 돌고 있으면**(깊이 2 금지) 스폰하지 말고 residual 을 완료 보고에 `미판정 residual` 로 넘겨 호출자가 판정한다.
+- PASS → 완료 보고 · FAIL → 해당 부분 재감사 후 1회 재실행 · **2회 연속 FAIL → [STOP] Human 에스컬레이션**
 
-## 인자
+## 실패 시 출력
+- 스크립트가 없거나 rc≠0 → 그 지표는 `미측정(사유: <명령> rc=N)` 으로 적고 계속한다(감사 중단 아님). 보고서 저장 실패·Step 6 exit 2 → 완료 보고 대신 `❌ system-audit 미완료: <사유>` 1줄 + 재시도할 명령.
 
-- `$ARGUMENTS` = 감사 대상. 미입력 시 `system` (Forge+Forge Dev).
-
-## 대상 경로 매핑
-
-| target | 감사 경로 |
-|--------|----------|
-| `system` | `$FORGE_ROOT/.claude/` 또는 `~/.claude/forge/` + `.claude/rules/` + `.claude/skills/` + `.claude/agents/` |
-| `{project-name}` | `forge-workspace.json`에 등록된 프로젝트 경로 (`.specify/`, `apps/`, `.claude/` 등) |
-
-## 실행 흐름
-
-### Step 0: target 파싱
-
-`$ARGUMENTS`가 비어 있으면 `TARGET=system`. 아니면 첫 단어를 target으로 사용.
-
-감사 시작 전 아래 메시지를 출력한다:
+## 완료 보고 (Step 6 exit 0 이후에만)
 ```
-🔍 5축 통합 감사 시작: {target}
-Wave 1 — 5개 축 에이전트 병렬 스폰 중...
-```
-
----
-
-### Workflow 분기 (Step 0.5)
-
-`CLAUDE_CODE_DISABLE_WORKFLOWS` 환경변수 미설정 시 → Workflow 도구로 위임.
-
-**⚠️ 토큰 선발행 필수 (CRITICAL)**: Verify phase가 `codex-critic`(mcp__codex__)을 **적대 레그(verify-codex) + 구조 레그(verify-structural)** 두 번 호출한다(crMode=on 시. degrade/off 는 둘 다 스킵하고 Claude 로 대체).
-⚠️ 구 표기 "`codex-critic`(mcp__codex__) + `gemini`(mcp__gemini__) 호출" 은 2026-09-07 폐기 — Gemini 전면 철수로 구조 검증 레그(구 `verify-gemini`)가 Codex(`verify-structural`)로 교체됐다. 모델은 `codex-critic` 의 Vision/구조 레그 값을 따른다(현행 `codex:high` = `gpt-5.6-sol` — 구 표기 "GPT-6 Astra" 는 2026-09-17 폐기, 최고급은 advisor 전용). ⚠️ 이제 3레그 중 2개가 Codex 라 벤더 교차 독립성이 약해졌다(known trade-off).
-이 MCP는 `multiagent-mcp-direct.sh`+`multiagent-approval-verify.sh` 훅이 approve-worker HMAC 토큰 없으면 BLOCK.
-Workflow 스크립트는 셸 불가 → **기동 前 외부 선발행** 필수 (cr-multi/SKILL.md 패턴 동일):
-
-```bash
-TODAY=$(date +%Y-%m-%d); SLUG="system-audit-${TODAY}"
-# --cr 플래그로 Codex 레그 제어: on(기본) | degrade | off
-# CR_MODE=$(~/forge/shared/scripts/cr-mode.sh)  # cr-mode.sh 로 자동 결정
-CR_MODE="${CR_MODE:-on}"
-
-# crMode='on' 시만 codex-critic 선발행 필요 (degrade/off는 Codex 레그 2개 모두 스킵)
-if [ "$CR_MODE" = "on" ]; then
-  FORGE_TEST_MODE=1 python3 ~/.claude/skills/approve-worker/scripts/approve-worker-sign.py \
-    --task "$SLUG" --worker codex-critic --tools mcp__codex__codex --paths "$TARGET"
-fi
-# 그 후 Workflow 기동
-Workflow({
-  script: Read("~/forge/.claude/skills/system-audit/workflow.js"),
-  args: { date: TODAY, projectRoot: TARGET, slug: SLUG, crMode: CR_MODE }
-})
-```
-
-> nonce 1-shot — verifier 재호출 시 fresh 토큰 필요하면 사용 후 `_consumed/` 격리 (forge-multi 참조).
-> `--cr` 값: `on`(기본, 3-LLM) | `degrade`(Codex rate-limit/비용 절감 시) | `off`(Codex 완전 비활성).
-> `cr-mode.sh` 경로: `~/forge/shared/scripts/cr-mode.sh` — 환경 감지 후 `on|degrade|off` 출력.
-
-Workflow = 6축 parallel() + 3-LLM adversarial verify + resume 지원.
-`CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 아래 Wave 1~4 fallback 실행.
-
----
-
-### Step 0.6: 사전측정 (Pre-Measurement — 오케스트레이터 Bash 실측)
-
-오케스트레이터가 5축 정량지표를 Bash 로 미리 재서 각 축 브리프에 JSON 한 줄로 주입한다.
-
-⚠️ **기본 경로에서는 이 Step 을 건너뛴다.** 2026-08-16 수리로 axis-* 5종이 Bash 를 갖고
-(maxTurns 15→40) 직접 실측하게 됐다. 이 Step 은 **fallback 레인의 교차검증 보조 수단**으로만
-남아 있다 — 축이 직접 잰 값과 어긋나면 직접 실측을 우선하되, 어긋남 자체를 finding 으로 적는다.
-
-> **fallback 레인으로 갈 때만 Read**: `references/pre-measurement.md`
-> — 5축 측정 명령 전문과 과거 오측정 3건(grep 0-매치 exit 1, 경로 문자열 보간, 따옴표 포맷
-> 불일치)의 교정 근거가 거기 있다. 기본 경로면 Read 불필요.
-
-근거: `harness-gaps/2026-08-15-system-audit-axis-agents-still-broken.md` G-1·G-2·G-4.
-
----
-
-### Wave 1: 6개 축 에이전트 병렬 스폰 (단일 메시지, 동시 실행)
-
-아래 6개 Agent를 **한 번에** 병렬로 스폰한다. 각 에이전트는 독립적으로 실행되며 JSON만 반환한다.
-
-**추가: 에이전트 6 — Redundancy (중복/drift 감지)**
-- 스킬 중복 그룹, Orphan 에이전트, 미사용 스킬, Hook theater, 규칙 중복 탐지
-- 반환 JSON: `{ items: [{type, names, recommendation, risk, reason}], summary: {duplicates, orphans, deprecated, theater_hooks} }`
-
-**파일 소유권 선언:**
-- 5개 에이전트 모두 **읽기 전용 감사 계약** — Bash 는 측정용 읽기 명령만(각 axis-*.md 상단
-  "Bash 사용 계약" 블록이 정본, 2026-08-16). 대상 경로를 바꾸는 어떤 명령도 금지
-- 보고서 쓰기는 Wave 3에서 Lead만 수행
-
-**빈손 종료 회수 절차 (표준 — 2026-08-15 실측 4/5 회수 성공)**: 축 에이전트가 에러 없이
-**최종 메시지를 비운 채** 종료하면(이름 없는 async 스폰에서도 발생 — turn 소진이 원인)
-그 축을 실패로 확정하기 전에 `SendMessage` 로 1회 재요청한다:
-`"탐색을 멈추고 지금까지 아는 것만으로 요구된 JSON 을 반환하라 — 추가 조사 금지."`
-재요청에도 미반환이면 그 축은 Lead 가 Bash 로 핵심 지표를 직접 재서 **대체 채점**하고,
-보고서에 `출처: Lead 대체 채점(축 에이전트 미반환)` 을 명기한다 — 침묵 결측 금지.
-
-**회수 반환의 JSON 검증 (2026-08-16 신설 — 스키마 이탈 실측 후)**: 회수로 받은 JSON 은
-합치기 전에 **필수 키 존재·임의 키 부재**를 검사한다(2026-08-16 실측: 회수 반환이
-`strengths` 배열 자리에 `strengths_2` 류 임의 키를 만들어 파싱이 깨졌다 — Wave 1 은
-SendMessage 텍스트 반환이라 워크플로 레인과 달리 스키마가 강제되지 않는다). 불일치면
-스키마를 재제시하며 **1회만** 더 요청하고, 그래도 불일치면 Lead 가 유효 필드만 발췌해
-쓰되 보고서에 `스키마 이탈(부분 발췌)` 을 명기한다 — 조용한 통짜 수용 금지.
-(기본 경로 `workflow.js` 는 StructuredOutput 스키마 강제라 이 검증이 불필요 — fallback 전용.)
-
-**에이전트 1 — axis-agentic (model: sonnet)**
-
-프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${AGENTIC_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 에이전틱 역량을 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §4 Agentic Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. Anthropic Composable Patterns 수준, ACI 설계, Agent Evals, Multi-Agent Coordination, Memory Architecture, AgentOps를 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
-
-반환 JSON: `{ "axis": "agentic", "score": 0-100, "composable_pattern": "...", "issues": [...], "strengths": [...], "summary": "..." }`
-
-**에이전트 2 — axis-context (model: sonnet)**
-
-프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${CONTEXT_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 컨텍스트 엔지니어링을 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §2 Context Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. System Prompt Design(§2-1), Short-Term Memory(§2-2), Long-Term Memory(§2-3), RAG(§2-4), Tool Definition(§2-5), Context Compaction(§2-6), Sub-Agent Architecture(§2-7), Progressive Disclosure(§2-8), Structured Note-Taking(§2-9) 9개 기법과 프롬프트 구조 3요소 포함률을 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
-
-반환 JSON: `{ "axis": "context", "score": 0-100, "context_checklist": {...}, "failure_patterns": [...], "progressive_disclosure": true/false, "issues": [...], "strengths": [...], "summary": "..." }`
-
-**에이전트 3 — axis-harness (model: sonnet)**
-
-프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${HARNESS_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 AI 하네스를 분석한다. 반드시 `shared/docs/2026-03-30-four-engineering-disciplines.md`의 §3 Harness Engineering 섹션을 Read한 후, 정의서 기법 목록을 기준으로 체크하라. 정의서에 없는 항목은 감사하지 않는다. Check Chain(§3-1), Guardrails 5 Rail Types(§3-2), OWASP Agentic Top 10(§3-3), Hooks(§3-4), AI Evals(§3-5), Observability(§3-6), Rollback(§3-7), Maintenance Agents(§3-8) 8개 구성요소를 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
-
-반환 JSON: `{ "axis": "harness", "score": 0-100, "check_chain": {...}, "owasp_coverage": {...}, "issues": [...], "strengths": [...], "summary": "..." }`
-
-**에이전트 4 — axis-cost (model: haiku)**
-
-프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${COST_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 비용 효율을 분석한다. 모델 라우팅 3계층(Opus/Sonnet/Haiku) 문서화, 컨텍스트 절약 패턴, MCP→CLI 전환 현황, 비용 최적화 패턴(캐싱/라우팅/배치/길이제어) 적용 여부, 낭비 패턴을 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
-
-반환 JSON: `{ "axis": "cost", "score": 0-100, "model_routing": {...}, "context_savings": {...}, "optimization_gaps": [...], "waste_patterns": [...], "issues": [...], "strengths": [...], "summary": "..." }`
-
-**에이전트 5 — axis-human-ai (model: sonnet)**
-
-프롬프트: `사전측정(오케스트레이터가 Step 0.6에서 Bash로 실측, 신뢰: 실측): ${HUMANAI_METRICS_JSON}. 이 수치를 정량 지표의 1차 근거로 삼되, 너는 Bash 를 보유하므로(2026-08-16 수리) 의심스러운 값은 직접 재측정해 교차검증하라 — 지어내지 말고, 어긋나면 직접 실측을 우선하되 어긋남 자체를 finding 으로 적어라(0은 "미측정"이 아니라 "실측 결과 0"일 수 있다). {target} 경로의 Human-AI 경계 설계를 분석한다. 5-Level Autonomy 매핑, [STOP]/[AUTO-PASS] 게이트 적절성, 에스컬레이션 트리거 5유형 커버리지, 안티패턴(Quasi-Automation/Rubber Stamping/Alert Fatigue), Override Rate 추적을 점검한다. 위 사전측정 수치로 부족한 부분은 Glob/Grep/Read 도구로 보완 탐색하라. 주관적 판단 금지 — 모든 점수는 실측 데이터(사전측정 또는 직접 탐색) 기반이어야 한다. 측정 불가 항목은 "N/A (런타임 데이터 필요)" 로 표기하라. 아래 JSON 형식으로만 반환한다.`
-
-반환 JSON: `{ "axis": "human-ai", "score": 0-100, "autonomy_mapping": [...], "gate_analysis": [...], "anti_patterns": [...], "issues": [...], "strengths": [...], "summary": "..." }`
-
----
-
-### Wave 2: Lead 종합 (5개 결과 의존)
-
-5개 에이전트 결과를 모두 수신한 후 Lead가 아래를 수행한다:
-
-**2-1. 정량 점수 산출 (Weighted Scoring)**
-
-각 축 에이전트는 체크리스트 항목별 0-3점 루브릭으로 채점한다:
-- 0 = 미구현 (Not implemented)
-- 1 = 부분 구현 (Partial — 문서만 있거나 일부만 적용)
-- 2 = 구현됨 (Implemented — 동작하나 측정/개선 루프 없음)
-- 3 = 성숙 (Mature — 동작 + 측정 + 지속 개선 루프)
-
-축 점수 = (획득 점수 합 / 최대 점수 합) × 100
-
-**가중치 (시스템 상태에 따라 조정):**
-
-| 축 | 기본 가중치 | 초기 단계 | 운영 단계 | 스케일링 단계 |
-|----|:--------:|:-------:|:-------:|:---------:|
-| Agentic | 20% | 25% | 20% | 15% |
-| Context | 20% | 25% | 20% | 15% |
-| Harness | 20% | 15% | 25% | 25% |
-| Cost | 20% | 10% | 15% | 25% |
-| Human-AI | 20% | 25% | 20% | 20% |
-
-현재 시스템 단계를 target 분석에서 자동 판별한다:
-- 초기: 스킬 < 20개 또는 규칙 < 5개
-- 운영: 스킬 20-50개 + 규칙 5-15개 + 프로덕션 배포 있음
-- 스케일링: 멀티 프로젝트 + 팀 2명+ 또는 월 비용 $500+
-
-전체 점수 = Σ(축 점수 × 가중치)
-
-**2-2. 정량 지표 실측 (Quantitative Measurement)**
-
-각 축 에이전트는 체크리스트 외에 아래 정량 지표를 실제 측정하여 보고한다:
-
-측정 유형 범례:
-
-| 측정 유형 | 의미 |
-|----------|------|
-| 실측 | Glob/Grep/wc로 직접 카운트 |
-| 추정 | 바이트→토큰 변환 등 계산 |
-| 미측정 | 런타임 로그 필요, 현재 불가 |
-
-| 축 | 측정 지표 | 측정 방법 | 기준값 | 측정 유형 |
-|----|---------|---------|-------|---------|
-| Agentic | 도구 커버리지율 | (사용된 도구 / 등록된 도구) × 100 | > 60% | 실측 |
-| Context | 세션 시작 토큰 | rules + CLAUDE.md + MEMORY.md 합산 (**wc -m ÷ 4** — 문자 기준, H-2) | < 12,000 | 추정 |
-| Context | MEMORY.md 항목 수 | `grep -c '^[-*] '` (목록 항목 — M-4, r4 동기화) | < 30 | 실측 |
-| Context | 규칙 중복률 | (중복 규칙 / 전체 규칙) × 100 | < 10% | 추정 |
-| Harness | Hook 커버리지 | (Hook 보호 이벤트 / 위험 이벤트 유형) × 100 | > 70% | 실측 |
-| Harness | OWASP 커버리지 | (대응 ASI / 10) × 100 | > 50% | 실측 |
-| Cost | 모델 계층화율 | (Haiku+Sonnet 작업 / 전체) × 100 | > 60% | 실측 |
-| Cost | 조건부 로딩률 | (on-demand 규칙 / 전체 규칙) × 100 | > 50% | 실측 |
-| Context | 프롬프트 구조 포함률 | (3요소 포함 스킬 / 프롬프트 보유 스킬) × 100 | > 70% | 실측 |
-| Human-AI | 게이트 커버리지 | (STOP 게이트 작업 / 비가역 작업) × 100 | 100% | 실측 |
-
-**2-3. 트렌드 비교 (Delta Analysis)**
-
-이전 감사 보고서가 존재하면 (`${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/` 폴더) 최신 보고서와 비교:
-- 각 축 점수 변화량 (Δ)
-- 이슈 해소율 = (이전 이슈 중 해결된 수 / 이전 전체 이슈) × 100
-- 신규 이슈 발생 수
-- 정량 지표 변화 방향 (↑↓→)
-
-트렌드 테이블:
-```
-| 축 | 이전 | 현재 | Δ | 방향 |
-|----|:----:|:----:|:--:|:---:|
-| Agentic | 72 | 78 | +6 | ↑ |
-```
-
-**2-4. 축간 트레이드오프 식별**
-주요 트레이드오프 패턴:
-- Cost vs Harness: 비용 절감(Haiku 사용) ↔ 검증 품질
-- Agentic vs Human-AI: 자율성 증가 ↔ 감독 필요성
-- Context vs Cost: 컨텍스트 풍부 ↔ 토큰 비용
-- Harness vs Agentic: 가드레일 강화 ↔ 에이전트 유연성
-- Human-AI vs Cost: 게이트 추가 ↔ 파이프라인 속도
-
-**2-5. 통합 이슈 목록 정렬**
-- 5개 축의 모든 이슈를 CRITICAL → HIGH → MEDIUM → LOW 순으로 통합
-- 여러 축에 걸친 이슈는 cross-axis 태그 부여
-- 중복 이슈 제거 (동일 파일/설정의 이슈는 하나로 합산)
-- 각 이슈에 **영향도 점수** 부여: (심각도 × 영향 범위) — CRITICAL=4, HIGH=3, MEDIUM=2, LOW=1
-
----
-
-### Wave 3: 통합 보고서 작성
-
-**저장 위치:** `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit[-{target}].md`
-(`target`이 `system`이면 suffix 생략)
-
-Wave3 통합 보고서 템플릿 → `references/report-template.md`
-
----
-
-### Wave 3.9: 최종 완료 게이트 (필수, Notion 등록·완료 보고 이전)
-
-1. 실행: `bash ~/forge/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"`
-2. 스크립트 출력 표를 완료 보고에 포함. 표 밖 임의 "완료" 서술 금지.
-3. exit 2(MISSING/0바이트)면 Wave 4 Notion 등록 및 "## 완료 보고" 출력 금지 — 보고서 재생성 후 재검증(exit 0) 통과 시에만 진행한다.
-
-### Wave 4: Notion 페이지 생성
-
-보고서 작성 완료 후 Notion에 전체 내용을 기록한다.
-
-1. `Read("${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md")` → 전체 내용 로드
-2. `mcp__notion__notion-create-pages` 호출:
-
-```json
-{
-  "parent": { "data_source_id": "713563f9-d523-4e90-8d6f-6b0d650628ad" },
-  "pages": [{
-    "properties": {
-      "제목": "{date} ACHCE 5축 통합 감사 [{target}]",
-      "감사 유형": "통합",
-      "축": ["Agentic", "Context", "Harness", "Cost", "Human-AI"],
-      "대상": "System",
-      "종합 점수": "{전체점수}",
-      "date:날짜:start": "{date}",
-      "Critical": "{전체 CRITICAL 이슈 수}",
-      "High": "{전체 HIGH 이슈 수}",
-      "Medium": "{전체 MEDIUM 이슈 수}",
-      "Low": "{전체 LOW 이슈 수}",
-      "핵심 발견": "{한 줄 총평}",
-      "리포트 경로": "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md"
-    },
-    "content": "{보고서 전체 내용}"
-  }]
-}
-```
-
-> ⚠️ 위 속성명은 **2026-08-15 실스키마 조회로 확보한 정답 매핑**이다(구 매핑은 13개 중 9개가
-> 틀려 항상 `400 validation_error` — 축별 점수 5개·`상태`는 스키마에 존재하지 않는 속성이었고,
-> `축: "통합"` 은 `감사 유형` 자리의 오기, `대상` 은 select 라 `System` 대소문자 정확히).
-> 재현(성공 선례): 2026-08-15 감사에서 이 매핑으로 등록 성공 — 페이지
-> `3bd178f4-99c8-81db-a3cf-f217003cd58e`. 근거: `harness-gaps/2026-08-15-system-audit-axis-agents-still-broken.md` G-5.
-> 속성이 또 안 맞으면 임의 추측 대신 데이터소스 스키마를 먼저 조회해 이 표를 갱신하라.
-
-> Notion MCP 미연결 시 경고 출력 후 스킵 (파이프라인 중단 안 함).
-
----
-
-## 완료 보고
-
-Wave 3.9 최종 완료 게이트(exit 0) 통과 후에만 아래 형식으로 결과를 요약 출력한다:
-
-```
-✅ ACHCE 5축 통합 감사 완료
-
+✅ ACHCE 6축 통합 감사 완료 (단독 실측)
 전체 점수: {전체점수}/100
-- Agentic:  {A}/100
-- Context:  {C}/100
-- Harness:  {H}/100
-- Cost:     {Co}/100
-- Human-AI: {E}/100
-
+- Agentic: {A}/100 · Context: {C}/100 · Harness: {H}/100 · Cost: {Co}/100 · Human-AI: {E}/100 · Redundancy: {dup}건/{orphan}건/{deprecated}건/{theater}건
 이슈: CRITICAL {n}건 / HIGH {n}건 / MEDIUM {n}건
-
+평가: {PASS|FAIL|미판정 residual n건}
 보고서: ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md
 ```
-
-
----
-
-## 독립 Evaluator (하네스)
-
-5축 통합 감사 결과물 완성 후 독립 Evaluator Subagent가 품질을 2차 검증한다.
-
-> **원칙**: Generator(감사 수행자) ≠ Evaluator. 감사자가 자신의 감사를 평가하면 자기평가 편향이 발생한다.
-
-### 1단계 — 구조 린트 (스크립트, LLM 없음)
-
-형식·개수·존재·산술은 스크립트가 판정한다 — 기계가 이미 본 축을 LLM 이 다시 보지 않는다
-(`rules-on-demand/machine-vs-llm-boundary.md`). 스크립트는 **확실할 때만** PASS/FAIL 을 확정하고,
-표기가 달라 판단이 필요한 항목과 질적 항목은 `residual` 로 넘긴다.
-
-```bash
-python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/audit-report-structure-lint.py" \
-  --skill system-audit --report "<보고서 경로>" > /tmp/audit-lint-system-audit.json
-echo "lint rc=$?"
-```
-
-- `rc=1`(구조 FAIL) → **LLM Evaluator 를 띄우지 않고 FAIL 확정.** 피드백 = JSON `items[].checks` 중 `FAIL` 의 `check`·`detail`.
-- `rc=2`(입력 오류) → 판정이 아니다. 보고서 경로를 고쳐 재실행한다.
-- `rc=0` + `residual` 비어 있음 → **PASS 확정**(LLM Evaluator 생략).
-- `rc=0` + `residual` 있음 → 2단계.
-
-### 판정 기준 원문 (무손실 이관 — 〔분담〕 표기만 추가)
-
-**평가 기준 (4항목 모두 충족해야 PASS):**
-
-1. **ACHCE 5축 모두 커버 여부**
-   - [위치] 보고서 "축별 감사 결과 요약" 섹션 1.1~1.5 또는 전체 점수 표
-   - [이유] 한 축이라도 누락되면 통합 점수가 편향됨
-   - [방법] Agentic/Context/Harness/Cost/Human-AI 5개 축 각각에 점수(0-100)와 핵심 발견 2개 이상이 존재하는지 확인; 특정 축의 점수가 "N/A" 또는 빈 값이면 FAIL
-   - 〔분담〕 스크립트 = 5축 소제목/점수표 존재 · 점수 `N/100` · N/A·빈 값 FAIL · 축별 발견 목록 ≥2 / LLM = 발견이 서술형이라 개수를 못 센 경우(UNDECIDED)만
-
-2. **축간 트레이드오프 분석 존재**
-   - [위치] 보고서 "축간 트레이드오프 분석" 섹션 (표 형식)
-   - [이유] 각 축을 독립적으로만 보면 트레이드오프(예: Cost 절감 vs Harness 품질)를 놓침
-   - [방법] Cost vs Harness / Agentic vs Human-AI / Context vs Cost 3쌍 이상의 트레이드오프가 "현재 균형" + "권장 방향"과 함께 명시됐는지 확인; 빈 셀이 있으면 FAIL
-   - 〔분담〕 스크립트 = 섹션·표·'현재 균형'/'권장 방향' 열·빈 셀·3행 이상·3쌍 이름 / LLM = 쌍 이름 표기가 달라 못 찾은 경우(UNDECIDED)만
-
-3. **통합 개선 로드맵 P0/P1/P2 우선순위 명시**
-   - [위치] 보고서 "통합 개선 로드맵" 섹션 또는 섹션 7
-   - [이유] 우선순위 없는 로드맵은 실행 순서를 결정할 수 없어 실효성이 없음
-   - [방법] P0(즉시/이번 주) / P1(단기/이번 달) / P2(중기/다음 분기) 3단계 각각에 구체적 액션 아이템이 1개 이상 존재하는지 확인; 빈 섹션이 있으면 FAIL
-   - 〔분담〕 스크립트 = 섹션·P0/P1/P2 각 항목 ≥1 / LLM = 액션 아이템이 '구체적'인지(질적 — 항상 residual)
-
-4. **각 축 점수가 증거 기반인지 확인**
-   - [위치] 보고서 "정량 지표 대시보드" 섹션 (표) 또는 각 축 요약의 증거 언급
-   - [이유] 증거 없는 점수는 신뢰할 수 없으며 개선 추적도 불가능
-   - [방법] 정량 지표 표에서 Agentic(도구 커버리지율) / Context(세션 시작 토큰, MEMORY 항목 수) / Harness(Hook 커버리지, OWASP 커버리지) / Cost(모델 계층화율, 조건부 로딩률) / Human-AI(게이트 커버리지) — 9개 지표 모두에 실측값 또는 "미측정" 명시가 있는지 확인; 빈 셀은 "측정 미수행"으로 간주하여 FAIL
-   - 〔분담〕 스크립트 = 섹션·표·지표 9행 이상·측정값 빈 셀("미측정" 명시는 값으로 인정) / LLM = 지표 이름이 개명돼 못 찾은 경우(UNDECIDED)만
-
-**판정**: PASS(기준 4항목 모두 충족) / FAIL(1항목 이상 미충족)
-**피드백 형식**: [파일명+섹션] — [이유] → [방법]
-
-### 2단계 — 질적 판정 (LLM Evaluator, residual 만)
-
-```python
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  prompt="""
-당신은 system-audit 결과물의 독립 품질 검증자입니다.
-
-구조 검사(섹션 존재·빈 셀·개수·산술)는 audit-report-structure-lint.py 가 이미 PASS 로 확정했습니다 — 다시 보지 마십시오.
-아래 residual 목록의 항목만 판정하십시오.
-
-**residual (스크립트 출력 /tmp/audit-lint-system-audit.json 의 residual 배열 그대로):**
-{residual}
-
-**해당 번호의 판정 기준 원문 (SKILL.md "판정 기준 원문" 에서 residual 의 criterion 번호 블록을 그대로 붙인다):**
-{criteria_for_residual}
-
-**판정**: PASS(residual 전 항목 충족) / FAIL(1항목 이상 미충족)
-**피드백 형식**: [파일명+섹션] — [이유] → [방법]
-"""
-)
-```
-
-피드백 루프:
-- PASS → 파이프라인 계속 (Notion 등록)
-- FAIL → 감사 재수행 후 1회 재실행. 2회 연속 FAIL 시 [STOP] Human 에스컬레이션
-> Evaluator FAIL 시 `.claude/logs/{session}/errors.jsonl` 참조하여 재시도
-
-## Workflow 통합 (P0)
-
-6축 parallel() + 3-LLM adversarial verify (Claude + Codex 적대 레그 + Codex 구조 레그 2/3 합의) + resume 지원.
-⚠️ 구 표기 "Claude+Codex+Gemini 2/3 합의" 는 2026-09-07 폐기 — Gemini 전면 철수로 구조 레그(구 `verify-gemini`)가 Codex(`verify-structural`)로 교체됐다. 모델은 `codex-critic` 의 레그 값을 따른다(현행 `codex:high` = `gpt-5.6-sol` — 구 표기 "GPT-6 Astra" 는 2026-09-17 폐기).
-
-실행:
-```bash
-TODAY=$(date +%Y-%m-%d)
-# CR_MODE: on(기본 3-LLM, Codex 2레그) | degrade(Codex 완전 스킵 — 적대 레그 제외 + 구조 레그 Claude 대체 = Claude 2-LLM) | off(동일)
-# ~/forge/shared/scripts/cr-mode.sh 로 자동 결정 가능
-Workflow({ script: Bash("cat ~/forge/.claude/skills/system-audit/workflow.js"), args: { date: TODAY, projectRoot: ".", crMode: "on" } })
-```
-⚠️ 구 표기 "degrade(Codex 스킵, Claude+Gemini)" 는 2026-09-07 폐기 — Gemini 레그가 사라져 degrade/off 는 이제 Claude 단독 2레그로 대체된다.
-
-`CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 Wave 1~4 fallback.
-
-**완료 보고 (6축 포함)**:
-```
-✅ ACHCE 6축 통합 감사 완료
-
-전체 점수: {전체점수}/100
-- Agentic:    {A}/100
-- Context:    {C}/100
-- Harness:    {H}/100
-- Cost:       {Co}/100
-- Human-AI:   {E}/100
-- Redundancy: {dup}건/{orphan}건/{deprecated}건/{theater}건
-
-이슈: CRITICAL {n}건 / HIGH {n}건 / MEDIUM {n}건
-검증: {verified}/{total} 통과 (3-LLM 2/3 합의)
-
-보고서: ${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit.md
-```
-

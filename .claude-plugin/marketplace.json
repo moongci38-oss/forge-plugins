@@ -11,31 +11,36 @@
       "name": "forge-core",
       "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(legacy-scan/diet/sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
       "source": "./forge-core",
-      "category": "productivity"
+      "category": "productivity",
+      "version": "0.7.23"
     },
     {
       "name": "forge-knowledge",
       "description": "Forge 지식·리서치 — learn/memory-manage/wiki-sync/rag-search + article/yt/site-deep-analyze. forge-tools MCP(ADR-174 unified_search).",
       "source": "./forge-knowledge",
-      "category": "productivity"
+      "category": "productivity",
+      "version": "0.2.23"
     },
     {
       "name": "forge-build",
       "description": "Forge 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI). SDD 본류.",
       "source": "./forge-build",
-      "category": "development"
+      "category": "development",
+      "version": "0.4.26"
     },
     {
       "name": "forge-design",
       "description": "Forge 디자인 도구 — image-orchestrate/visual-loop.",
       "source": "./forge-design",
-      "category": "design"
+      "category": "design",
+      "version": "0.2.19"
     },
     {
       "name": "forge-game",
       "description": "Forge 게임팩 — gdd/game-qa/game-asset-pipeline/asset-extract (Unity 전용). 통합 미포함·별도 유지.",
       "source": "./forge-game",
-      "category": "development"
+      "category": "development",
+      "version": "0.1.17"
     }
   ]
 }

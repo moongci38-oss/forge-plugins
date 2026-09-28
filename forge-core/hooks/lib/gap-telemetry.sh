@@ -63,6 +63,26 @@ gap_log() {
     # ⚠️ 무력화되는 입력: 사람이 테스트 파일을 러너 없이 `bash x.test.sh` 로 직접 돌리면 여전히 기록된다.
     # BYPASS 는 끄지 않는다 — 우회 사용 기록이 이 스위치 하나로 사라지면 우회 흔적 숨기기 경로가 된다(보안 부록 3).
     [ "${FORGE_GAP_TELEMETRY:-on}" = "off" ] && [ "${1:-BLOCK}" != "BYPASS" ] && exit 0
+    # 러너를 안 거친 직접 실행도 막는다(#766, 2026-09-24). 바로 위 주석이 적어 둔 그 구멍이다 —
+    #   `bash x.test.sh` 로 직접 돌리면 실제 감사 로그에 가짜 이벤트가 쌓였다(실측: 15753 -> 15754줄).
+    #   55개 테스트 파일에 격리를 하나씩 넣는 대신 **기록하는 쪽**에서 조상 프로세스를 본다:
+    #   훅은 별도 프로세스라 BASH_SOURCE 로는 호출자를 못 보므로 /proc 의 부모 체인을 8칸 올라가며
+    #   `.test.sh`·`test_*.py`·`*-test.sh` 를 찾는다. 하나라도 있으면 시험 중이므로 기록하지 않는다.
+    # 무력화되는 입력: (1) /proc 이 없는 런타임(Windows Git Bash·macOS) — 종전대로 기록된다(한계)
+    #   (2) 테스트가 8칸보다 깊은 곳에서 훅을 부르는 경우 (3) 이름이 위 규약을 안 따르는 테스트.
+    #   BYPASS 는 여기서도 끄지 않는다(위와 같은 이유 — 우회 흔적 숨기기 경로가 된다).
+    # kill-switch: FORGE_GAP_TELEMETRY_ANCESTOR=off (조상 검사만 끈다)
+    if [ "${FORGE_GAP_TELEMETRY_ANCESTOR:-on}" != "off" ] && [ "${1:-BLOCK}" != "BYPASS" ] && [ -r /proc/self/stat ]; then
+      _p=$PPID; _n=0
+      while [ "${_p:-0}" -gt 1 ] && [ "$_n" -lt 8 ]; do
+        _cmd=$(tr '\0' ' ' < "/proc/$_p/cmdline" 2>/dev/null) || break
+        case "$_cmd" in
+          *.test.sh*|*-test.sh*|*test_*.py*|*.test.mjs*|*.test.js*) exit 0 ;;
+        esac
+        _p=$(awk '{print $4}' "/proc/$_p/stat" 2>/dev/null) || break
+        _n=$((_n + 1))
+      done
+    fi
     event="${1:-BLOCK}"
     hook="${2:-unknown}"
     reason="${3:-}"
@@ -95,7 +115,11 @@ _file_raw = os.environ.get("GAP_FILE", "")
 _home = os.path.expanduser("~")
 if _home and _home != "~" and (_file_raw == _home or _file_raw.startswith(_home + os.sep)):
     _file_raw = "~" + _file_raw[len(_home):]
-file_field = " ".join(_file_raw.split())[:80] if _file_raw.strip() else None
+# #938: 앞이 아니라 **뒤 80자**를 남긴다. 경로는 꼬리(파일명)가 정보인데 `[:80]` 은
+# 공통 접두(`~/forge/.claude/worktrees/<이름>/`)만 남기고 파일명을 잘라 `workflow.j` 같은
+# 유령 값을 만들었다(2026-09-11 갭 리포트 GAP-1b). ⚠️ reason(:107)은 문장이라 앞이 정보다 —
+# 그쪽은 `[:80]` 그대로 둔다. 무력화되는 입력: 파일명 자체가 80자를 넘으면 그 파일명도 잘린다.
+file_field = " ".join(_file_raw.split())[-80:] if _file_raw.strip() else None
 rec = {
     "ts": os.environ.get("GAP_TS", ""),
     "hook": hook,

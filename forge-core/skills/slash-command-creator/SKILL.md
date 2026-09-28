@@ -1,21 +1,15 @@
 ---
 name: slash-command-creator
-description: Guide for creating/updating Claude Code slash commands, or slash command syntax/frontmatter/best-practice questions.
+description: "Claude Code 슬래시 커맨드(.claude/commands/*.md)를 만들거나 고치고 frontmatter·문법을 안내한다. 쓸 때: 새 커맨드 작성·기존 커맨드 수정·커맨드 문법 질문. SKIP: 스킬 작성(→ skill-creator), 훅·settings 변경."
 context: fork
 model: sonnet
 ---
 
 **역할**: 당신은 Claude Code 슬래시 커맨드를 생성하고 관리하는 커맨드 엔지니어링 전문가입니다.
 **컨텍스트**: 새 슬래시 커맨드 생성, 기존 커맨드 업데이트, 커맨드 문법·프론트매터 옵션 문의 시 호출됩니다.
-
-## Generator 핵심 원칙 (하네스 엔지니어링)
-- 생성 전 Evaluator 기준(Rubric)을 먼저 확인한다: Output Requirements 체크리스트를 내면화 후 커맨드 작성
-- "museum quality" 목표: 모호한 프롬프트, 빈 description, 불필요한 권한 패턴 금지
-- 생성 후 자체 점검 후 핸드오프: frontmatter·프롬프트 본문·저장 경로 3요소 완성 여부 직접 확인
+- 원칙: Output Requirements 를 먼저 내면화 · 모호한 프롬프트·빈 description·불필요한 권한 금지 · 핸드오프 전 frontmatter·본문·저장 경로 3요소 자체 점검
 
 # Slash Command Creator
-
-Create custom slash commands for Claude Code to automate frequently-used prompts.
 
 ## Output Requirements
 
@@ -29,7 +23,6 @@ Output the complete file content first, then offer to write it.
 
 ## Quick Start
 
-Initialize a new command:
 ```bash
 scripts/init_command.py <command-name> [--scope project|personal]
 ```
@@ -48,38 +41,19 @@ Your prompt instructions here.
 $ARGUMENTS
 ```
 
-### File Locations
+| Scope    | Path                  | Shown as  |
+|----------|-----------------------|-----------|
+| Project  | `.claude/commands/`   | (project) |
+| Personal | `~/.claude/commands/` | (user)    |
 
-| Scope    | Path                    | Shown as           |
-|----------|-------------------------|-------------------|
-| Project  | `.claude/commands/`     | (project)         |
-| Personal | `~/.claude/commands/`   | (user)            |
-
-### Namespacing
-
-Organize commands in subdirectories:
-- `.claude/commands/frontend/component.md` → `/component` shows "(project:frontend)"
-- `~/.claude/commands/backend/api.md` → `/api` shows "(user:backend)"
+Namespacing: `.claude/commands/frontend/component.md` → `/component` shows "(project:frontend)".
 
 ## Features
 
-### Arguments
-
-**All arguments** - `$ARGUMENTS`:
-```markdown
-Fix issue #$ARGUMENTS following our coding standards
-# /fix-issue 123 → "Fix issue #123 following..."
-```
-
-**Positional** - `$1`, `$2`, etc.:
-```markdown
-Review PR #$1 with priority $2
-# /review 456 high → "Review PR #456 with priority high"
-```
-
-### Bash Execution
-
-Execute shell commands with `!` prefix (requires `allowed-tools` in frontmatter):
+- **All arguments** `$ARGUMENTS`: `Fix issue #$ARGUMENTS` → `/fix-issue 123` → "Fix issue #123"
+- **Positional** `$1`, `$2`: `Review PR #$1 with priority $2` → `/review 456 high`
+- **File references** `@`: `Review @src/utils/helpers.js` · `Compare @$1 with @$2.`
+- **Bash execution** `!` prefix (requires `allowed-tools` in frontmatter):
 
 ```markdown
 ---
@@ -90,34 +64,17 @@ Current status: !`git status`
 Changes: !`git diff HEAD`
 ```
 
-### File References
-
-Include file contents with `@` prefix:
-
-```markdown
-Review @src/utils/helpers.js for issues.
-Compare @$1 with @$2.
-```
-
 ## Frontmatter Options
 
-| Field                     | Purpose                                | Required |
-|---------------------------|----------------------------------------|----------|
-| `description`             | Brief description for /help            | Yes      |
-| `allowed-tools`           | Tools the command can use              | No       |
-| `argument-hint`           | Expected arguments hint                | No       |
-| `model`                   | Specific model to use                  | No       |
-| `disable-model-invocation`| Prevent SlashCommand tool invocation   | No       |
+| Field                      | Purpose                              | Required |
+|----------------------------|--------------------------------------|----------|
+| `description`              | Brief description for /help          | Yes      |
+| `allowed-tools`            | Tools the command can use            | No       |
+| `argument-hint`            | Expected arguments hint              | No       |
+| `model`                    | Specific model to use                | No       |
+| `disable-model-invocation` | Prevent SlashCommand tool invocation | No       |
 
-See [references/frontmatter.md](references/frontmatter.md) for detailed reference.
-
-## Examples
-
-See [references/examples.md](references/examples.md) for complete examples including:
-- Simple review/explain commands
-- Commands with positional arguments
-- Git workflow commands with bash execution
-- Namespaced commands for frontend/backend
+Details: [references/frontmatter.md](references/frontmatter.md) · Examples: [references/examples.md](references/examples.md)
 
 ## Creation Workflow
 
@@ -126,3 +83,4 @@ See [references/examples.md](references/examples.md) for complete examples inclu
 3. **Initialize**: Run `scripts/init_command.py <name>`
 4. **Edit**: Update description and body
 5. **Test**: Run the command in Claude Code
+6. **Lint**: `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/slash-command-lint.py" <커맨드파일_절대경로>` — rc 0 통과 · 1 = `violations[]`(저장 경로·frontmatter·description·본문·`!`명령`` 의 allowed-tools·값 타입) 대로 고친 뒤 재실행 · 2 = 판정 불가(파일 없음·PyYAML 없음 — 통과 아님).

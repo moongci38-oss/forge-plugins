@@ -5,248 +5,71 @@ group: ops
 
 # /forge-checkpoint
 
-**같은 세션에서 작업 중, 컨텍스트 사용량이 많아 정리가 필요할 때** 실행한다. 저장 → `/compact` → **같은 세션에서 이어서 진행**.
+같은 세션에서 컨텍스트 정리가 필요할 때: 저장 → `/compact` → **같은 세션에서 이어서 진행**. 3분법: 새로 연다 `/forge-start` · **계속 쓴다(정리만) `/forge-checkpoint` ↔ 짝 `/compact`** · 완전히 닫는다 `/forge-end`.
+- `/clear` 는 짝이 아니다. 무관한 새 작업 전환만 `/forge-end` → `/clear` → `/forge-start`.
+- 90%+ 또는 마일스톤 완료 → `/forge-end`. compact 없이 반복 호출되면: `"/compact를 잊으셨습니다 — checkpoint의 짝은 compact입니다."`
+- **순수 state snapshot** — 코드 수정·파일 생성(체크포인트 파일 제외)·명령 실행 금지(아래 스크립트 제외). learnings append 도 안 한다(`## learnings 미기록 misfire` 절에 적는다).
+- 연속성 계약 ①~⑦ · 경로 · 형식 → `rules-on-demand/handover-canon.md`
 
-## 3분법 경계 (먼저 확인)
-
-| 상황 | 커맨드 | 짝 |
-|---|---|---|
-| 세션을 **새로 연다** | `/forge-start` | — |
-| **계속 쓴다**(정리만) | **`/forge-checkpoint`** | **`/compact`와 한 쌍** |
-| **완전히 닫는다** | `/forge-end` | `/forge-start` |
-
-⚠️ **`/clear`는 checkpoint의 짝이 아니다.** checkpoint의 짝은 `/compact`뿐이다. 관련 없는 새 작업으로 전환할 때만 `/forge-end` → `/clear` → `/forge-start`가 정석이다(이전 맥락이 남으면 새 작업을 오염시키므로 그때는 오히려 지워야 한다 — 단 end가 선행돼 인계 가치가 handover에 영속화된 뒤에만).
-
-- 90%+ 또는 마일스톤 완료 → checkpoint가 아니라 `/forge-end`.
-- **compact 없이 checkpoint만 반복 호출**되면 안내 1줄: `"/compact를 잊으셨습니다 — checkpoint의 짝은 compact입니다."`
-- 이 커맨드는 **순수 state snapshot**이다. 코드 수정·파일 생성(체크포인트 파일 제외)·명령 실행 금지.
-
-> 연속성 계약 ①~⑦ 전문 · 경로 SSoT · checkpoint 형식 → `rules-on-demand/handover-canon.md`
-
-## 실행
-
-### 0. 세션 건강도 1줄
-
-🟢 <70% → 저장 후 계속 / 🟡 70~90%·Phase 전환·승인 대기 → 저장 → compact / 🔴 90%+·마일스톤 완료 → `/forge-end`로 전환.
-`git status --short | wc -l` > `FORGE_CHECKPOINT_DIRTY_LIMIT`(기본 10) → 🟡 + "WIP 커밋 권장" 1줄(자동 커밋 금지).
-
-### 1. **[게이트] 기록 무누락 — 저장 전 수집원 실측** (계약 ⑦)
-
-`/forge-end`와 **동일한 게이트**를 적용한다. compact는 대화 이력을 압축하므로, 지금 안 적은 것은 재개 시 존재하지 않는다.
-
-```bash
-bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" collect "$(pwd)"
-```
-
-수집원 → 체크포인트 본문 각 절에 1:1 반영(개수는 `CHECKLIST_SECTIONS` 출력이 정본 — 여기 숫자를 박지 않는다). **해당 없으면 `없음` 명시**(절 생략 = 게이트 FAIL).
-
-**백그라운드 워커 생존 절은 checkpoint에서 특히 중요하다** — compact가 대화 이력을 압축하면 워커 로스터(누가 무엇을 하고 있었는지)가 소실돼 재스폰이 불가능해진다(2026-07-26 워커 6기 유실 실사고). 워커 1기당 **브리프 영속 경로 + 생존 실측(`recent_changes`·`last_change` 수치) + 재개 1줄**을 적는다. "실행 중" 텍스트 단정 금지. `WORKER_BRIEF_PERSISTED`가 `yes`가 아닌 활성 워커가 있으면 **영속화 후에만 저장**(미영속 = 게이트 FAIL).
-
-#### 세션 버스 워커 로스터 (dormant — live 프로세스 아님, 읽기 전용 대조)
-
-위 로스터와 **별도로** 버스 레지스트리를 읽기 전용으로 대조한다(파일 변이 금지 계약 준수 — 조회만):
-
-```bash
-RECALL_OUT="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" "$(pwd)" 2>&1)"; RECALL_RC=$?
-if [ "$RECALL_RC" -ne 0 ]; then
-  echo "BUS_WORKER_ERROR: session-recall.sh 실행 실패(exit $RECALL_RC) — 0건과 구분, 원인 확인 후 재시도"
-else
-  echo "$RECALL_OUT" | grep -E '^BUS_WORKER' || echo "BUS_WORKER_ERROR: 스크립트는 성공했으나 BUS_WORKER 라인이 전혀 없음(비정상 — 0건과 다름, 스크립트 버그 의심)"
-fi
-```
-
-**핵심 구분**: 위 `WORKER_WORKTREE=` 로스터는 **실행 중인 백그라운드 프로세스**(live)다. 세션 버스 워커(`--resume` 방식)는 `~/.claude/state/session-bus.jsonl`에 dormant 상태로 등록만 돼 있을 뿐 idle 프로세스가 존재하지 않는다 — **dormant 세션 수와 live 프로세스 수는 다른 개념**이며, 15분+ 무변화 사망 판정 로직을 버스 워커에는 적용하지 않는다(dormant가 정상 상태).
-
-`## 백그라운드 워커 생존` 절 안에 아래 표를 **분리된 표**로 추가한다. "인계 지시"는 AI가 판단(다음 세션이 이 워커에 시킬 일 1줄, 없으면 `-`):
-
-```markdown
-### 세션 버스 워커 (dormant — live 프로세스 아님)
-| name | sid8 | cwd | 최종응답 | 인계 지시 |
-|---|---|---|---|---|
-| {name} | {sid8} | {cwd} | {age}분 전 | {인계 지시 또는 -} |
-```
-
-워커 0기(`BUS_WORKER_COUNT=0`)면 표 대신 **`없음`** 명시(침묵 금지).
-
-> checkpoint는 순수 snapshot이라 여기서 learnings를 **append하지 않는다** — 미기록 misfire는 `## learnings 미기록 misfire` 절에 적어 compact 유실을 막고, 재개 세션 또는 `/forge-end`가 append한다.
-
-### 2. 착지 경로 (계약 ⑤)
-
-```bash
-eval "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-landing.sh" "$(pwd)")"
-mkdir -p "$CHECKPOINT_DIR"
-```
-
-`CHECKPOINT_DIR`은 워크트리 여부와 무관하게 **`$FORGE_OUTPUTS/.claude/checkpoints`(논리 단일 위치)** 다 — 새 세션·다른 워크트리에서도 `/forge-start`가 회수할 수 있어야 하기 때문이다. 스크립트 부재 시 폴백 = `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/checkpoints`.
-
-### 2-b. 하네스 갭 후보 (신규) — W10, 2026-08-10
-
-직전 체크포인트 이후 훅이 BLOCK/WARN/BYPASS 로 조용히 막았던 것들 중 **아직 판정을 안 남긴 것만** 표시한다(세션 전체 재집계 아님 — 그건 `/forge-end` 몫). 리포트 파일은 쓰지 않는다(순수 표시·판정 스텝).
-
-```bash
-CP_PREV=$(ls -t "$CHECKPOINT_DIR"/*.md 2>/dev/null | grep -v '\.consumed$' | head -1 || true)
-if [ -n "$CP_PREV" ] && [ -f "$CP_PREV" ]; then
-  CP_SINCE=$(date -u -r "$CP_PREV" +%Y-%m-%dT%H:%M:%SZ)
-else
-  CP_SINCE="1970-01-01T00:00:00Z"
-fi
-python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.py" --gap-new-since "$CP_SINCE"
-```
-
-신규 0건이면 스크립트가 `🔧 하네스 갭 후보(신규): 0건`을 그대로 출력한다 — 그대로 사용자에게 보여준다(침묵 금지). 1건+ 이면 항목마다(id 있는 것만 처분 가능) `갭 — <한 줄> (재현: <명령>)` 또는 `정상동작 — <사유>`를 판정하고, 그 판정을 **같은 jsonl에** DISPOSED 이벤트로 append한다(새 파일 생성 금지 — 다음 실행부터 이 id는 다시 안 뜬다):
-
+## 0. 세션 건강도 1줄 — 🟢 <70% 저장 후 계속 / 🟡 70~90%·Phase 전환·승인 대기 → 저장 → compact / 🔴 90%+ → `/forge-end`. `git status --short | wc -l` > `FORGE_CHECKPOINT_DIRTY_LIMIT`(기본 10) → 🟡 + "WIP 커밋 권장" 1줄(자동 커밋 금지).
+## 1. [게이트] 기록 무누락 — 수집원 실측 (계약 ⑦) · §2 착지 · §2-b 갭 후보까지 한 번에
+`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-checkpoint-collect.sh" "$(pwd)"` — 항상 exit 0(fail-open). `*_ERROR:` 줄은 실패이지 0건이 아니다.
+- `session-record-audit.sh collect` 수집원 → 본문 각 절 1:1 반영(개수 정본 = `CHECKLIST_SECTIONS` 출력). 해당 없으면 `없음` 명시(절 생략 = FAIL).
+- **백그라운드 워커(live, `WORKER_WORKTREE=`)**: 1기당 브리프 영속 경로 + 생존 실측(`recent_changes`·`last_change`) + 재개 1줄. `WORKER_BRIEF_PERSISTED` ≠ `yes` 인 활성 워커 → 영속화 후에만 저장.
+- **세션 버스 워커(dormant, `~/.claude/state/session-bus.jsonl`)**: live 와 별개 · 사망 판정 미적용. `## 백그라운드 워커 생존` 안에 분리 표 `### 세션 버스 워커 (dormant — live 프로세스 아님)` — `| name | sid8 | cwd | 최종응답 | 인계 지시 |`(인계 지시 없으면 `-`). `BUS_WORKER_COUNT=0` → `없음`.
+## 2. 착지 경로 (계약 ⑤)
+위 출력 `CHECKPOINT_DIR=` = `$FORGE_OUTPUTS/.claude/checkpoints`(워크트리여도 동일, mkdir 완료) · `HANDOVER_DIR=` 는 §4 에 쓴다. `LANDING=fallback` = handover-landing.sh 부재/무응답 → 논리 경로.
+## 2-b. 하네스 갭 후보(신규) — 직전 체크포인트(`CP_PREV`·`CP_SINCE`) 이후 미판정분만 표시(리포트 파일 안 씀)
+0건 출력도 그대로 보여준다. 1건+ 이면 id 있는 항목마다 `갭 — <한 줄> (재현: <명령>)` / `정상동작 — <사유>` 판정 후 같은 jsonl 에 DISPOSED append(id 없는 항목은 표시만). `갭` 판정 = harness-gaps 리포트 대상(`재현:` 1줄 필수):
 ```bash
 python3 -c "
 import json, os, sys, datetime
-outputs = os.environ.get('FORGE_OUTPUTS', os.path.expanduser('~/forge-outputs'))
-path = os.path.join(outputs, '.claude', 'audit', 'hook-fp-telemetry.jsonl')
-rec = {
-    'ts': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-    'event': 'DISPOSED',
-    'id': sys.argv[1],
-    'verdict': sys.argv[2],
-    'note': sys.argv[3][:80],
-}
-with open(path, 'a', encoding='utf-8') as f:
-    f.write(json.dumps(rec, ensure_ascii=False) + chr(10))
+path = os.path.join(os.environ.get('FORGE_OUTPUTS', os.path.expanduser('~/forge-outputs')), '.claude', 'audit', 'hook-fp-telemetry.jsonl')
+hook = None
+for line in (open(path, encoding='utf-8', errors='replace') if os.path.isfile(path) else []):
+    try: d = json.loads(line)
+    except Exception: continue
+    if isinstance(d, dict) and d.get('id') == sys.argv[1] and d.get('event') in ('BLOCK', 'WARN', 'BYPASS') and isinstance(d.get('hook'), str): hook = d.get('hook')
+rec = {'ts': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'event': 'DISPOSED', 'id': sys.argv[1], 'verdict': sys.argv[2], 'note': sys.argv[3][:80], 'hook': hook}
+with open(path, 'a', encoding='utf-8') as f: f.write(json.dumps(rec, ensure_ascii=False) + chr(10))
 " "<id>" "gap|normal" "<한 줄 사유>"
 ```
-
-`갭`으로 판정한 항목은 즉시 harness-gaps 리포트 대상이다(§하네스 갭 리포트 규약, `재현:` 명령 1줄 필수). id 없는 항목(구버전 writer 산출물)은 처분 불가 — 표시만 하고 넘어간다.
-
-### 3. 파일 작성
-
-경로: `$CHECKPOINT_DIR/$(date +%Y-%m-%d-%H%M)-$(printf '%s' "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-$$}}" | tr -cd 'A-Za-z0-9-' | cut -c1-8).md` — 파일명은 date+세션ID(또는 PID) 앞 8자 자동 생성만(사용자 입력 삽입 금지), append-only(덮어쓰기 금지). 세션 접미사는 같은 분에 여러 세션이 저장할 때의 파일명 충돌을 막는다(M-1, 2026-08-15 — `session-recall.sh`의 파일명 파싱은 `YYYY-MM-DD(-HHMM)` **접두 매치**라 접미사가 붙어도 최신성 판정에 영향 없음, `key_for_file()` 확인 완료).
-
-사전 캡처: `git status --short` / `git diff --stat HEAD` / `git log --oneline -3`.
-
+## 3. 파일 작성
+경로: `$CHECKPOINT_DIR/$(date +%Y-%m-%d-%H%M)-$(printf '%s' "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-$$}}" | tr -cd 'A-Za-z0-9-' | cut -c1-8).md` — 자동 생성만(사용자 입력 금지) · append-only. 사전 캡처: `git status --short` / `git diff --stat HEAD` / `git log --oneline -3`.
 ```markdown
 ---
-date: 2026-07-26
-time: "1830"
+date: YYYY-MM-DD
+time: "HHMM"
 model: opus
 slug: checkpoint-{요약}
 status: open
 project: forge
-session: "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}"   # 소유 세션 식별자 — §6 재개 시 대조용(M-1/G-08)
+session: "{실값}"   # ${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}} 를 치환 — 리터럴 금지
 type: human-verify        # human-verify | decision | human-action | tdd-review
 ---
-
 # Checkpoint YYYY-MM-DD HH:MM
 branch: {브랜치} ({repo 경로})
-
 ## 진행 중 태스크
 ## 다음 스텝 (번호)
 ## 블로커
 ## 컨텍스트 메모 (compact 후 잊으면 안 되는 비자명 정보만)
 ### 바뀐 것
 - 바뀐 것: {옛 이름} → {새 이름} · 발효: {develop 반영됨 | PR #N 브랜치만 | 미러 sync 필요} · 재현: {명령}
-<!-- 바뀐 게 없으면 `- 바뀐 것: 없음` 한 줄. 비워 두면 verify 가 FAIL 한다.
-     ⚠️ handover 는 이 절을 `## 다음 세션이 이어받을 것` 안에 둔다 — 거긴 다음 **세션**이 읽는
-     자리고, 체크포인트는 **같은 세션**이 compact 후 읽는 자리라 부모 절이 다르다.
-     verify 는 두 부모를 모두 인정한다(session-record-audit.sh §바뀐 것 자리 검사). -->
-## 팀장 위임 기록 (팀slug | 보낸 브리프 | 수신 응답 | 방 상태 dormant/live — 없으면 "없음")
-
-<!-- 이하 계약 ⑦ 잔여 절 — 해당 없으면 "없음" -->
-## 미완료 태스크
-## 승인 대기([STOP])
-## 미커밋 변경
-## 열린 PR·브랜치
-## 진행 중 백그라운드 작업
-## learnings 미기록 misfire
-## 사용자 지시 미이행
-## 백그라운드 워커 생존
 ```
-
-frontmatter는 handover와 같은 스키마를 쓴다 — 스캐너가 date로 최신성을 판정하기 때문이다(파일명 mtime 아님). `session:` 필드는 소유 세션 식별자(`${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}`)를 기록한다 — §6 재개와 `/forge-end` §7이 이 값으로 소유 검증을 한다. 두 변수가 모두 비어 있으면 `unknown`을 그대로 쓴다(거짓 식별자로 채우지 않음 — 소유 검증 쪽이 `unknown`을 "판별 불가"로 처리해 fail-open한다). ⚠️ **이 필드는 실값으로 치환해 기록한다** — `${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-unknown}}` 문자열을 리터럴로 옮겨 적으면 소유 검증이 전부 판별 불가로 떨어진다(작성 전 `echo "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"` 로 실값 확인, cr-final MEDIUM 반영 2026-08-15). 보안 정보(토큰·패스워드) 기록 절대 금지. 20~50줄 유지.
-
-> **왜 변수를 둘 다 보나 (2026-08-29)**: 하네스가 실제로 주는 이름은 `CLAUDE_CODE_SESSION_ID` 다.
-> `CLAUDE_SESSION_ID` 는 **아무도 세팅하지 않는다** — 메인 세션·버스 워커·subagent 세 경로를
-> `/proc/<pid>/environ` 으로 직접 읽어 전부 UNSET 을 확인했다. 그래서 2026-08-24 에 만든 소유권
-> 판정이 **한 번도 작동한 적이 없었다**(없는 서랍을 열고 "번호표가 없네" 한 셈이다).
-> 구 이름을 **먼저** 두는 이유는 기존 테스트 하네스들이 그 이름으로 SID 를 주입하기 때문이다.
-> 재현: `bash shared/scripts/session-id-resolve.test.sh` · 상세: `harness-gaps/2026-08-29-session-id-env-name-mismatch.md`
-
-`## 팀장 위임 기록` 은 팀장에게 보낸 일과 받은 답을 1줄씩 남기는 절이다. **방 상태(dormant/live)의 출처는 위 §1 수집원 실측 블록**이다 — `BUS_WORKER_N=name|sid8|cwd|age|dormant` 가 dormant 방을, `WORKER_WORKTREE=` 가 live 프로세스를 가리킨다. ⚠️ `forge-session-bus.sh list` 에는 STATE 열이 없어서 거기서 dormant/live 를 읽으면 추측이다. 위임이 없었으면 `없음`. 작성법·팀 목록 전문 → `rules-on-demand/team-routing.md`
-
-### 4. **[게이트] 자가 대조** (계약 ⑦(b))
-
-```bash
-bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify "{체크포인트 경로}"
-```
-
-`VERIFY=FAIL`이면 지목된 절을 보완 후 재실행. PASS 전에 `/compact` 안내 금지.
-
-#### INDEX 갱신 (F9 — 기계 생성, 수동 편집 금지)
-
-체크포인트는 `HANDOVER_DIR`이 아니라 `CHECKPOINT_DIR`에 저장되지만, handover INDEX 드리프트 방지를 위해 같은 세션이 handover 레인에 쓴 적이 있다면 함께 갱신한다:
-
-```bash
-bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-index-dir "$HANDOVER_DIR" || true
-```
-
-### 5. 안내 출력
-
-```
-체크포인트 저장: {경로} (기록 무누락 게이트 PASS 8/8)
-이제 /compact 실행하세요. compact 후 "계속"/"resume" 입력하면 이어갑니다.
-```
-
-**대형 스킬(15KB+) 2개 이상을 이 세션에서 호출했다면** compact 재주입 비용(실측 40~60K 토큰)이 절감을 역전하므로 대신 이렇게 안내한다:
-
-```
-체크포인트 저장: {경로} — 이 세션은 대형 스킬 2개+ 호출로 /compact 재주입 비용이 큽니다.
-세션을 닫고 새 세션에서 /forge-start 하세요 — 미소비 체크포인트를 자동 감지·복원합니다.
-```
-
-(이 경로가 성립하는 이유 = `/forge-start`의 미소비 체크포인트 감지. 과거엔 이 배선 없이 `/clear`만 권고돼 맥락이 유실됐다 — F7.)
-
-### 6. 재개 ("계속"/"resume"/"이어서")
-
-같은 세션 compact 직후든 새 세션 첫 메시지든 동일하게 동작한다.
-
-1. **[소유 검증]** (M-1/G-08, 2026-08-15) `session-recall.sh`의 `CHECKPOINT_LATEST`는 **전역 최신**(frontmatter `date:`/`time:` 기준 — mtime 아님, `key_for_file()`)일 뿐 내 세션 것인지 가리지 않는다 — 대조 없이 복원하면 **남의 체크포인트를 오복원**한다:
-   ```bash
-   eval "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-landing.sh" "$(pwd)")"
-   CP=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-recall.sh" | grep '^CHECKPOINT_LATEST=' | cut -d= -f2-)
-   MY_SID="${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
-   if [ -n "$CP" ] && [ -f "$CP" ]; then
-     CP_SID=$(grep -m1 '^session:' "$CP" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
-     if [ -n "$MY_SID" ] && [ -n "$CP_SID" ] && [ "$CP_SID" != "unknown" ] && [ "$CP_SID" != "$MY_SID" ]; then
-       echo "타 세션 체크포인트 — 건너뜀 ($(basename "$CP"), session=$CP_SID)"
-       CP=""
-       while IFS= read -r f; do
-         [ -z "$f" ] && continue
-         # cr-final MEDIUM 반영(2026-08-15): 구 `grep -v '\.consumed$'` 는 죽은 필터였다 —
-         # 마커는 `X.md.consumed` 라 `*.md` glob 에 애초에 안 걸린다. 기소비 여부는 마커
-         # **존재**로 판정한다. (fallback 정렬은 mtime(ls -t) 근사 — 정본 최신성은
-         # session-recall 의 frontmatter 기준이지만, 자기 소유 후보 간 근사로 충분)
-         [ -f "${f}.consumed" ] && continue
-         fsid=$(grep -m1 '^session:' "$f" 2>/dev/null | sed -E 's/^session:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')
-         [ "$fsid" = "$MY_SID" ] && { CP="$f"; break; }
-       done < <(ls -t "$CHECKPOINT_DIR"/*.md 2>/dev/null)
-     elif [ -z "$MY_SID" ]; then
-       echo "WARN: 세션 ID 미설정(CLAUDE_SESSION_ID·CLAUDE_CODE_SESSION_ID 둘 다) — 소유 검증 생략(fail-open, 기존 동작 유지)"
-     elif [ -z "$CP_SID" ] || [ "$CP_SID" = "unknown" ]; then
-       # cr-final MEDIUM 반영(2026-08-15): session 필드 부재·추출 실패를 침묵 통과시키지 않는다
-       # — fail-open 은 유지하되 판별 불가였음을 명시한다(구형 체크포인트 호환).
-       echo "WARN: 체크포인트 session 필드 없음/판독불가($(basename "$CP")) — 소유 판별 불가, fail-open 소비"
-     fi
-   fi
-   [ -z "$CP" ] && echo "체크포인트 없음 — 처음부터 시작(또는 자기 소유 체크포인트를 찾지 못함)"
-   ```
-   `CP`가 비어 있지 않으면(내 것으로 확정됐거나 fail-open으로 통과됐으면) 그 파일을 아래 스텝에서 사용한다. `CHECKPOINT_UNCONSUMED=yes`(session-recall.sh 원 출력)는 여전히 "미소비" 여부만 나타낸다 — 소유 여부는 위 대조가 별도로 판정한다.
-2. 브랜치 불일치 시 "⚠️ 브랜치 불일치" 경고 후 계속. uncommitted 변경 있으면 경고만(강제 덮어쓰기 금지).
-3. "다음 스텝" 1번부터 재개 — 항목 그대로 출력 후 실행.
-4. 복원 완료 시 `touch "${CP}.consumed"` (재안내 루프 방지).
-
-## 체크리스트
-
-- [ ] 3분법 판정 (계속 쓴다 = checkpoint가 맞나)
-- [ ] `session-record-audit.sh collect` → 수집원 실측 (개수는 `CHECKLIST_SECTIONS` 출력이 정본)
-- [ ] 세션 버스 워커 로스터 대조 실행 (0기/실행실패도 각각 명시 — 침묵 금지)
-- [ ] 착지 = `$FORGE_OUTPUTS/.claude/checkpoints` (워크트리여도 동일)
-- [ ] 하네스 갭 후보(신규) 실행 — 0건도 명시 출력, 1건+ 이면 판정 후 DISPOSED append
-- [ ] frontmatter 5필드 + 전 절 작성 ("없음" 명기)
-- [ ] 백그라운드 워커: 브리프 영속 경로 + 생존 실측 수치 + 재개 1줄 (미영속이면 영속화 후 저장)
-- [ ] `verify` PASS 후에만 compact 안내
+- 이어서 각 절도 `## ` 제목으로(해당 없으면 "없음"): 팀장 위임 기록 (팀slug | 보낸 브리프 | 수신 응답 | 방 상태 dormant/live — 없으면 "없음") · 날짜 걸린 할 일 (미룬 일 — `YYYY-MM-DD | 1줄 | 출처`, 없으면 "없음") · 미완료 태스크 · 승인 대기([STOP]) · 미커밋 변경 · 열린 PR·브랜치 · 진행 중 백그라운드 작업 · learnings 미기록 misfire · 사용자 지시 미이행 · 백그라운드 워커 생존.
+- `### 바뀐 것`: 없으면 `- 바뀐 것: 없음` 한 줄(비우면 verify FAIL). `## 날짜 걸린 할 일`: 여기선 장부(`carry-ledger.md`)에 쓰지 않는다 — 등록은 §6 재개 또는 `/forge-end` §4.
+- `## 미완료 태스크`: **이 세션이 손댄 것만**(장부 `carry-ledger.py` `SEC_RE` 가 읽어 승격). 타 세션·타 프로젝트 항목은 `## 타 세션 상태 (참고 — 내 소유 아님)` 에 격리. 없으면 `- 없음` 한 줄(메타 문장 금지 — `NONE_RE` 통과해 할 일로 등록됨). ⛔ 절 제목 변경 금지. 정본 → `/forge-end` §3.
+- `session:` 실값 확인 `echo "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"` · 둘 다 비면 `unknown`. 토큰·패스워드 기록 금지. 20~50줄.
+- `## 팀장 위임 기록`: 수신 응답을 `미확인` 으로 두고 끝내지 않는다 — `bash shared/scripts/forge-session-bus.sh read <방> [n]` 로 읽고, 등록·커밋 위임은 결과물(이슈 번호·머지 SHA)로 확인. 끝내 미확인이면 다음 스텝에 1줄. 방 상태 출처 = §1 (`BUS_WORKER_N=…|dormant` / `WORKER_WORKTREE=`), `forge-session-bus.sh list` 로 추측 금지. 팀 목록 → `rules-on-demand/team-routing.md`
+## 4. [게이트] 자가 대조 (계약 ⑦(b))
+`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify "{체크포인트 경로}"`
+`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-index-dir "$HANDOVER_DIR" || true`
+`VERIFY=FAIL` → 지목 절 보완 후 재실행. **PASS 전 `/compact` 안내 금지.** (INDEX 는 기계 생성 — 수동 편집 금지)
+## 5. 안내 출력 — `체크포인트 저장: {경로} (기록 무누락 게이트 PASS 8/8)` / `이제 /compact 실행하세요. compact 후 "계속"/"resume" 입력하면 이어갑니다.` · 이 세션에서 대형 스킬(15KB+) 2개+ 호출 시 대신: "세션을 닫고 새 세션에서 /forge-start 하세요 — 미소비 체크포인트를 자동 감지·복원합니다."
+## 6. 재개 ("계속"/"resume"/"이어서")
+1. **[소유 검증]** `CHECKPOINT_LATEST` 는 전역 최신일 뿐 — 대조 없이 복원하면 남의 것을 오복원한다.
+`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-checkpoint-resume.sh" "$(pwd)"` → `CP=` 가 복원 대상(빈값 = "체크포인트 없음 — 처음부터"). `CP_OWNERSHIP`: `own` 내 것 · `switched` 타 세션 것 건너뛰고 미소비 내 것으로 교체 · `nosid`/`nofield` fail-open(WARN 줄 그대로 보고) · `none` 없음. 항상 exit 0.
+2. 브랜치 불일치 → "⚠️ 브랜치 불일치" 경고 후 계속. uncommitted 변경은 경고만(덮어쓰기 금지).
+3. "다음 스텝" 1번부터 그대로 출력 후 실행. `## 날짜 걸린 할 일` 이 "없음"이 아니면 항목마다 장부 등록 → 나온 `ID=C-NNNN` 을 보고(`PROJECT_ID=UNKNOWN` 이면 등록 말고 pmo 로):
+   `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" add "<1줄>" --source "<출처>" --until <날짜> --project "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/scope-root.sh" project-id "$PWD" | sed -n 's/^PROJECT_ID=//p')"`
+4. 복원 완료 시 `touch "${CP}.consumed"`.
