@@ -33,7 +33,7 @@
       "description": "Forge 디자인 도구 — image-orchestrate/visual-loop.",
       "source": "./forge-design",
       "category": "design",
-      "version": "0.2.19"
+      "version": "0.2.20"
     },
     {
       "name": "forge-game",
