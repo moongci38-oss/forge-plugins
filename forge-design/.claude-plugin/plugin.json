@@ -1,6 +1,6 @@
 {
   "name": "forge-design",
-  "version": "0.2.19",
+  "version": "0.2.20",
   "description": "Forge 디자인 도구 — image-orchestrate/visual-loop. UI·에셋 파이프라인.",
   "author": {
     "name": "forge"
@@ -9,8 +9,5 @@
     "forge-core"
   ],
   "skills": "./skills/",
-  "agents": [
-    "./agents/doc-writer.md"
-  ],
   "commands": "./commands/"
 }
