@@ -145,9 +145,7 @@ PNG를 WebP/sprite-ready 형식으로 변환합니다. PIL(Pillow) 또는 ImageM
 
 ## 에이전트
 
-| 에이전트 | 역할 |
-|----------|------|
-| `doc-writer` | 소스 코드 → Markdown 문서 자동 생성. 모듈·API·클래스·함수 문서화 전담. |
+번들 에이전트 없음 — 유일한 번들 에이전트가 2026-09-27 사람 지정 삭제(forge #1374)로 빠졌습니다.
 
 > ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "`gemini` | Gemini 2.5 Flash Vision/PDF 분석 +
 > 광폭 컨텍스트 구조 리뷰. `mcp__gemini__analyze_media` / `mcp__gemini-text__generate_text` 연동."
