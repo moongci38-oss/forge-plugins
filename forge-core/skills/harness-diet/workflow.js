@@ -67,7 +67,7 @@ phase('Prepare')
 await agent(
   `Bash 1줄 실행 (restore point):
 cd ~/forge && git tag harness-diet-pre-2026-06-08 2>/dev/null && echo "TAG_OK" || echo "TAG_EXISTS_OR_FAIL"`,
-  { label: 'restore-tag', phase: 'Prepare' }
+  { model: 'haiku', label: 'restore-tag', phase: 'Prepare' }
 ).catch(e => log(`[WARN] restore tag 실패: ${e?.message || e}`))
 
 // diet-queue.json Read
@@ -78,7 +78,7 @@ try {
 content 필드에는 **파일 원문 그대로**(최상위 키가 generated/scan_report/items인 JSON)를 문자열로 넣는다.
 이 응답 봉투({ok,content})를 content 안에 다시 넣지 마라 — 이중 래핑 금지.
 파일 없으면: {"ok":false,"content":""}`,
-    {
+    { model: 'haiku',
       label: 'read-queue',
       phase: 'Prepare',
       schema: {
@@ -237,7 +237,7 @@ scan 시점 grep 범위가 SSoT 뿌리 중 일부만 훑었을 가능성이 있�
 3. 매칭 파일 수를 refs로 기록. evidence에는 실제 실행한 grep 명령 원문을 남긴다.
 
 결과: {"results":[{"id":"str","refs":N,"evidence":"str(grep 명령 원문)"}]}`,
-    {
+    { model: 'sonnet',
       label: 'pre-apply-recheck', phase: 'Prepare',
       schema: {
         type: 'object',
@@ -275,20 +275,13 @@ scan 시점 grep 범위가 SSoT 뿌리 중 일부만 훑었을 가능성이 있�
 
 // Before 상태 측정
 const beforeState = await agent(
-  `Before 상태 측정. Bash 도구:
-# ⚠️ 2026-08-27 정정: 구 측정은 ~/.claude (미러) 를 쟀다. 편집은 ~/forge (SSoT) 에 착지하고
-#    미러는 forge-sync 를 돌려야 움직인다 — 그래서 rules·skills 는 **정상 적용돼도 diff=0** 이 되어
-#    applied=0 으로 오보고됐다. 거짓 성공을 거짓 실패로 뒤집었을 뿐이었다. 이제 SSoT 를 잰다.
-# 전역 룰(L1) + on-demand 룰 / skills 수 / skills 라인 / CLAUDE.md cascade — 전부 SSoT 기준
-wc -l ~/forge/dev/global-rules/*.md ~/forge/.claude/rules-on-demand/*.md | tail -1 | awk '{print $1}'
-ls ~/forge/.claude/skills/ | wc -l
-find ~/forge/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
-# 에이전트·커맨드 라인수 — SSoT (2026-08-27 r3: 이 축이 없어 agents/commands 편집이 diff=0 이었다)
-find ~/forge/.claude/agents ~/forge/.claude/commands -name "*.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
-find ~/forge ~/forge-outputs -name "CLAUDE.md" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/worktrees/*" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
+  `Before 상태 측정. Bash 도구로 **아래 1줄만** 실행하고 출력 JSON 을 그대로 반환하라(G1-36 — 숫자를 옮겨 적지 않는다):
+python3 "\${FORGE_ROOT:-\$HOME/forge}/shared/scripts/harness-diet-state.py"
+# rc 2 = 판정 불가(skills 폴더 없음) — 숫자를 지어내지 말고 오류로 끝내라. 측정 축 정의는 스크립트 헤더가 정본
+# (2026-08-27 정정 이력: 미러가 아니라 SSoT 를 잰다 · agents/commands 축 포함 — 스크립트가 그대로 이어받았다)
 
 결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"assets_lines":N,"claude_md_lines":N}`,
-  {
+  { model: 'haiku',
     label: 'before-state',
     phase: 'Prepare',
     schema: {
@@ -416,11 +409,11 @@ if (autoItems.length > 0) {
   const applyFns = [
     ...otherItems.map(item => () => agent(
       buildApplyPrompt(item),
-      { label: `apply-${item.id}`, phase: 'Apply' }
+      { model: 'opus', label: `apply-${item.id}`, phase: 'Apply' }
     ).catch(e => { log(`[WARN] apply ${item.id} 실패: ${e?.message || e}`); return null })),
     ...descItems.map(item => () => agent(
       buildNegativeGuardPrompt(item),
-      { label: `guard-${item.id}`, phase: 'Apply' }
+      { model: 'opus', label: `guard-${item.id}`, phase: 'Apply' }
     ).catch(e => { log(`[WARN] guard ${item.id} 실패: ${e?.message || e}`); return null })),
   ]
 
@@ -466,16 +459,15 @@ const [verifyResult, afterState] = await parallel([
 적용된 파일들:
 ${JSON.stringify(applyResults.filter(Boolean).map(r => r?.path || r?.from || r?.new_skill || '').filter(Boolean))}
 
-검증 항목:
-1. 편집된 파일의 YAML frontmatter 유효성 (name/description 필수 필드 존재)
-2. 이동(MOVE)된 파일이 대상 경로에 존재하는지 Bash ls로 확인
-3. archive된 파일이 archive 경로에 존재하는지 확인
-4. mirror orphan 제거 확인: 삭제한 스킬이 ~/.claude/skills/ 에 없는지 확인
-5. SKILL.md 분할(SPLIT) 시 reference.md/examples.md 존재 확인
-6. 원본 파일에서 이동된 섹션이 제거되었는지 Read로 확인
+검증 항목 1~5 는 **세지 말고 스크립트를 돌린다**(G1-37·38):
+적용 결과를 spec JSON 한 개로 옮긴다 — exists[]: MOVE 대상·archive 사본·SPLIT 의 reference.md/examples.md ·
+absent[]: 삭제한 스킬의 미러 경로(~/.claude/skills/<이름>)·MOVE 원래 자리 · frontmatter[]: 편집한 SKILL.md/에이전트 md.
+\`python3 "\${FORGE_ROOT:-\$HOME/forge}/shared/scripts/harness-diet-verify-paths.py" --spec <spec.json>\`
+→ 출력 JSON 의 passed/failed/issues/verified_paths 를 **그대로** 결과에 옮긴다(rc 0 통과 · 1 실패 · 2 판정 불가 = 통과 아님).
+6. 원본 파일에서 이동된 섹션이 제거되었는지 Read로 확인 — 이것만 직접 판단해 passed/failed/issues 에 더한다
 
 결과: {"passed":N,"failed":N,"issues":["str"],"verified_paths":["str"]}`,
-    {
+    { model: 'opus',
       label: 'verify-apply',
       phase: 'Verify',
       schema: {
@@ -492,15 +484,10 @@ ${JSON.stringify(applyResults.filter(Boolean).map(r => r?.path || r?.from || r?.
 
   // After 상태 측정
   () => agent(
-    `After 상태 측정. Bash 도구:
-wc -l ~/forge/dev/global-rules/*.md ~/forge/.claude/rules-on-demand/*.md | tail -1 | awk '{print $1}'
-ls ~/forge/.claude/skills/ | wc -l
-find ~/forge/.claude/skills -name "SKILL.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
-# 에이전트·커맨드 라인수 — SSoT (2026-08-27 r3: 이 축이 없어 agents/commands 편집이 diff=0 이었다)
-find ~/forge/.claude/agents ~/forge/.claude/commands -name "*.md" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
-find ~/forge ~/forge-outputs -name "CLAUDE.md" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/worktrees/*" -exec wc -l {} \\; | awk '{s+=$1} END {print s+0}'
+    `After 상태 측정. Bash 도구로 **아래 1줄만** 실행하고 출력 JSON 을 그대로 반환하라(G1-36):
+python3 "\${FORGE_ROOT:-\$HOME/forge}/shared/scripts/harness-diet-state.py"
 결과: {"rules_lines":N,"skills_count":N,"skills_total_lines":N,"assets_lines":N,"claude_md_lines":N}`,
-    {
+    { model: 'haiku',
       label: 'after-state',
       phase: 'Verify',
       schema: {
@@ -672,7 +659,7 @@ diff: ${JSON.stringify(diff)}
 적용 완료 후 forge-sync 재실행 권장:
 \`node ~/.claude/scripts/forge-sync.mjs sync\`
 (archive 이동/SSoT 편집이 mirror에 반영됨)`,
-  { label: 'report', phase: 'Report' }
+  { model: 'sonnet', label: 'report', phase: 'Report' }
 )
 
 log(`[Report] 완료. 자동적용(실측)=${appliedMeasured} 시도=${autoItems.length} 미적용(human)=${humanRequired.length}`)

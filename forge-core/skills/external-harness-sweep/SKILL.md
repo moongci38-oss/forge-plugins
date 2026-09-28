@@ -4,13 +4,7 @@ description: "외부 하네스·스킬 레포를 Forge 와 1:1 전수 대조해 
 disable-model-invocation: true
 ---
 
-> **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
-> 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
-> `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
-> (2026-08-04 관측).
+> **저장 경로 앵커**: 보고서 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/` 로 시작한다(cwd 상대 `docs/reviews/...` 금지 — 착지 레포가 갈린다). 근거·실사고 → 형제 스킬 `../system-audit/references/audit-common.md` §저장 경로 앵커.
 
 
 # external-harness-sweep
@@ -79,7 +73,7 @@ Workflow({
 ## 주의
 
 - `depth=claims` = v1 DEFER (exhaustive 단일 모드)
-- forge-multi = workflow 외장 (sweep 결과에 별도 `/cr-triple` 호출)
+- forge-multi = workflow 외장 (sweep 결과에 별도 `/forge-multi` 호출)
 - 채택 결정 후 적용은 내부 패턴 전수 점검 필수 (메모리: "내부 패턴 적용도 동일")
 
 ## 자동 평가
@@ -90,3 +84,8 @@ Workflow({
 - **PASS**: synthesis.counts.total > 0, all_verdicts 전항목 decision 있음, seed_delta 존재
 - **WARN**: low_conf 항목 > 20%, Inventory items < 5 (레포 구조 이상)
 - **FAIL**: Inventory 0건 (clone 실패), synthesis 누락
+
+판정은 **세지 않고 돌린다**(G1-24):
+`python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/sweep-eval-verdict.py" --sweep "${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/final/<name>-sweep.json"`
+→ rc 0 PASS · 1 WARN · 3 FAIL(`reasons[]` 그대로 보고) · 2 판정 불가(파일 없음·형식 오류 — 통과 아님).
+`eval_cases.jsonl` 에 적는 verdict 는 이 출력의 `verdict` 를 그대로 쓴다(저신뢰 비율 = `conf == "low"` 비율, 스크립트 헤더가 정본).

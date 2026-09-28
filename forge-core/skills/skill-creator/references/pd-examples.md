@@ -1,6 +1,6 @@
 # Progressive Disclosure Patterns — Examples
 
-3가지 PD 패턴 예시코드. SKILL.md §Progressive Disclosure Design Principle 참조용.
+3가지 PD 패턴 예시코드. principles.md §4 Progressive Disclosure 참조용.
 
 ## Pattern 1: High-level guide with references
 

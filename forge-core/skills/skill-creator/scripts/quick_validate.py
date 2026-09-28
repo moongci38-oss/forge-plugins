@@ -122,6 +122,30 @@ def validate_skill(skill_path):
         print(f"⚠️ WARN [{tag}]: {msg}", file=sys.stderr)
         print(f"   {hint}", file=sys.stderr)
 
+    # >>> ACI-FAILOUT (#1016 L-1, 2026-09-24) — 실패 출력 계약 절 권장 lint. **WARN 전용 · 종료코드 불변.**
+    #   왜: 스킬이 실패했을 때 무엇을 내놓는지(메시지·종료코드·다음 행동) 적힌 곳이 없으면, 호출자(사람·
+    #     오케스트레이터)가 "실패"와 "빈 결과"를 가르지 못한다. 실측(2026-09-24): `## 실패 시 출력` 보유 0/74.
+    #   동치 머리말(아래 정규식): 실패 시 · 실패 처리 · 에러 출력 · 에러 처리 · 오류 처리 · On failure ·
+    #     Failure output · Error handling. 뜻이 같은 한/영 변형만 넣었다.
+    #     `## 에러`·`## Failure Attribution`(bug-report — 버그 **원인 귀속** 칸이지 출력 계약이 아니다)은 넣지 않는다.
+    #   코드 펜스(``` · ~~~) 안의 머리말은 세지 않는다 — doc-writer 처럼 **산출물 템플릿** 안에 `## 실패 처리` 가
+    #     든 스킬이 자기 계약이 있는 것처럼 통과하는 것을 막는다(실측: doc-writer 의 두 머리말은 모두 펜스 안).
+    #   ⚠️ 무력화되는 입력: ①머리말 없이 본문 문장으로만 실패 동작을 적은 스킬 → WARN 이 뜬다(오탐 — 그래서 WARN).
+    #     ②머리말만 있고 내용이 빈 절 → 통과한다(형식만 본다 — 내용의 타당성은 사람·LLM 몫).
+    #   kill-switch: FORGE_SKILL_FAILOUT_LINT=off · 재현: bash shared/scripts/tests/audit-l1-l3.test.sh
+    #   폐기조건: 채택률이 90% 를 넘거나, 실패 출력 계약이 frontmatter 필드로 옮겨지면 이 블록을 지운다.
+    if os.environ.get('FORGE_SKILL_FAILOUT_LINT', 'on') != 'off':
+        _unfenced = re.sub(r'^(`{3,}|~{3,})[^\n]*\n.*?^\1[ \t]*$', '', body, flags=re.MULTILINE | re.DOTALL)
+        if not re.search(
+            r'^#{2,6}[ \t]+[^\n]*(실패 시|실패 처리|에러 출력|에러 처리|오류 처리|on failure|failure output|error handling)',
+            _unfenced, re.MULTILINE | re.IGNORECASE,
+        ):
+            print("⚠️ WARN [ACI-FAILOUT]: '## 실패 시 출력' 절 없음 — 실패했을 때 무엇을 출력하는지"
+                  "(메시지·종료코드·다음 행동) 적어라", file=sys.stderr)
+            print("   동치 머리말도 인정: ## 실패 처리 · ## 오류 처리 · ## 에러 출력 · ## On failure "
+                  "(코드 펜스 안 머리말은 세지 않는다) · 끄기: FORGE_SKILL_FAILOUT_LINT=off", file=sys.stderr)
+    # <<< ACI-FAILOUT
+
     missing_elements = check_prompt_three_elements(body)
     if missing_elements:
         is_new = _is_untracked(skill_path / 'SKILL.md')

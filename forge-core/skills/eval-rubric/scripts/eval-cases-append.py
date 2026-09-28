@@ -84,6 +84,17 @@ def compute_pass_at_k(verdicts):
     k = len(verdicts)
     if k == 0:
         return None
+    # 2026-09-18: PASS/WARN/FAIL 밖의 값(파싱 실패·"ERROR" 등)을 "PASS 아님"으로 세면
+    #   pass_rate 가 조용히 내려가 **UNSTABLE 로 둔갑**한다 — 못 잰 것을 불안정으로 읽게 된다.
+    #   그런 값이 하나라도 있으면 비율을 내지 않고 UNDECIDED 로 낸다.
+    #   (실측: 기존 pass_at_k 레코드 2건 중 비표준 verdict 0건 — 이 분기로 바뀌는 과거 기록 없음)
+    invalid = [v for v in verdicts if str(v).upper() not in ("PASS", "WARN", "FAIL")]
+    if invalid:
+        return {
+            "k": k, "verdicts": verdicts, "pass_count": None, "pass_rate": None,
+            "threshold": PASS_AT_K_THRESHOLD, "reliability": "UNDECIDED",
+            "invalid_verdicts": invalid, "gate": "advisory",
+        }
     pass_count = sum(1 for v in verdicts if str(v).upper() == "PASS")
     pass_rate = round(pass_count / k, 4)
     return {
@@ -195,6 +206,24 @@ def main():
     if not args.input_context:
         args.input_context = args.target
 
+    # pass@k 산술은 **여기서 먼저** 하고 1줄로 고지한다 (2026-09-18).
+    #   왜: SKILL.md §3 이 LLM 에게 "PASS 개수 / k" 나눗셈과 0.8 비교를 시켰다. 이 스크립트가
+    #   이미 같은 계산을 하는데도 결과를 신규 append 경로에서만 찍어서, dedupe 히트·kill-switch
+    #   경로에서는 LLM 이 손으로 나눌 수밖에 없었다. 그래서 append 여부와 무관하게 먼저 찍는다.
+    #   (append 는 하지 않는다 — kill-switch 의 뜻은 "기록 생략"이지 "계산 생략"이 아니다.)
+    pass_at_k = None
+    if args.pass_at_k_verdicts:
+        pass_at_k = compute_pass_at_k(json.loads(args.pass_at_k_verdicts))
+        if pass_at_k is None:
+            print("PASS_AT_K: UNDECIDED (k=0 — 빈 verdict 목록)")
+        elif pass_at_k["reliability"] == "UNDECIDED":
+            print("PASS_AT_K: UNDECIDED (k=%d, 비표준 verdict %s — 비율을 내지 않는다)"
+                  % (pass_at_k["k"], json.dumps(pass_at_k["invalid_verdicts"], ensure_ascii=False)))
+        else:
+            print("PASS_AT_K: %s (%d/%d, %s, threshold=%s)"
+                  % (pass_at_k["pass_rate"], pass_at_k["pass_count"], pass_at_k["k"],
+                     pass_at_k["reliability"], pass_at_k["threshold"]))
+
     if os.environ.get("EVAL_RUBRIC_AUTO", "").lower() == "off":
         print("EVAL_RUBRIC_AUTO=off → skip", file=sys.stderr)
         return 0
@@ -248,10 +277,6 @@ def main():
 
     key = dedupe_key(args.skill, args.input_context)
     existing = find_dedupe(jsonl, key)
-
-    pass_at_k = None
-    if args.pass_at_k_verdicts:
-        pass_at_k = compute_pass_at_k(json.loads(args.pass_at_k_verdicts))
 
     if existing:
         # observed_count++ 만 append (별도 라인, 빈도 추적 전용 — split 통계에서 제외)
@@ -314,9 +339,10 @@ def main():
     with open(jsonl, "a") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
     # E-4 (2026-07-29): 분모 명시 — pass_rate 단독표기는 k(재채점 횟수)를 숨긴다
-    suffix = (f", pass_at_k={pass_at_k['pass_rate']}"
-              f"({pass_at_k['pass_count']}/{pass_at_k['k']}, {pass_at_k['reliability']})"
-              if pass_at_k else "")
+    suffix = ((f", pass_at_k={pass_at_k['pass_rate']}"
+               f"({pass_at_k['pass_count']}/{pass_at_k['k']}, {pass_at_k['reliability']})")
+              if pass_at_k and pass_at_k["reliability"] != "UNDECIDED"
+              else (", pass_at_k=UNDECIDED" if pass_at_k else ""))
     print(f"APPENDED: {case_id} (split={record['split']}{suffix})")
     return 0
 

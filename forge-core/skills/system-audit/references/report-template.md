@@ -1,8 +1,8 @@
 > 출처: system-audit/SKILL.md — 2026-07-30 harness-diet structure_split, 무손실 보존.
 
-## Wave 3: 통합 보고서 작성
+## 통합 보고서 작성 (SKILL.md Step 5)
 
-**저장 위치:** `docs/reviews/audit/{date}-system-audit[-{target}].md`
+**저장 위치:** `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit[-{target}].md`
 (`target`이 `system`이면 suffix 생략)
 
 **보고서 형식:**
@@ -11,6 +11,14 @@
 # ACHCE 5축 통합 시스템 감사 보고서
 
 **대상**: {target} | **날짜**: {date}
+
+## 0. 실행 방식과 한계
+
+| 항목 | 이번 회차 |
+|---|---|
+| 실행 주체 | 단독 실측(한 세션 또는 에이전트 1개 — #1415) |
+| 평가자 | 린트 + 2단계 판정(PASS/FAIL/미판정 residual) |
+| 측정 오염 | 감사 명령이 남긴 로그 등 (없으면 "없음") |
 
 ## Executive Summary
 
@@ -29,19 +37,19 @@
 ## 1. 축별 감사 결과 요약
 
 ### 1.1 Agentic (자율성·도구·멀티에이전트)
-{axis-agentic summary + top 2 issues}
+{요약 + 발견 ≥2 (위치·이유·방법·재현 명령)}
 
 ### 1.2 Context (컨텍스트 엔지니어링)
-{axis-context summary + top 2 issues}
+{요약 + 발견 ≥2 (위치·이유·방법·재현 명령)}
 
 ### 1.3 Harness (측정·제어·보안)
-{axis-harness summary + top 2 issues}
+{요약 + 발견 ≥2 (위치·이유·방법·재현 명령)}
 
 ### 1.4 Cost (비용 효율)
-{axis-cost summary + top 2 issues}
+{요약 + 발견 ≥2 (위치·이유·방법·재현 명령)}
 
 ### 1.5 Human-AI (경계 설계)
-{axis-human-ai summary + top 2 issues}
+{요약 + 발견 ≥2 (위치·이유·방법·재현 명령)}
 
 ### 1.6 Redundancy (중복/drift 감지) ← 신규
 | 유형 | 항목 | 권고 | 위험도 |
@@ -66,15 +74,24 @@
 
 | 축 | 지표 | 측정값 | 기준값 | 측정 유형 | 판정 |
 |----|------|:-----:|:-----:|:--------:|:---:|
-| Agentic | 도구 커버리지율 | | > 60% | 실측 | |
+| Agentic | evals 보유율 | | > 70% | 실측 | |
 | Context | 세션 시작 토큰 | | < 12,000 | 추정 | |
 | Context | MEMORY 항목 수 | | < 30 | 실측 | |
 | Context | 규칙 중복률 | | < 10% | 추정 | |
+| Context | 프롬프트 구조 포함률 | | > 70% | 실측 | |
 | Harness | Hook 커버리지 | | > 70% | 실측 | |
 | Harness | OWASP 커버리지 | | > 50% | 실측 | |
 | Cost | 모델 계층화율 | | > 60% | 실측 | |
 | Cost | 조건부 로딩률 | | > 50% | 실측 | |
 | Human-AI | 게이트 커버리지 | | 100% | 실측 | |
+
+> 제외 지표(행을 만들지 않는다): 도구 커버리지·게이트 승인/rubber-stamp·override rate(#1416) · 캐시 히트율(#1418).
+
+### 재현 명령 모음
+
+```bash
+# 이 회차 수치를 다시 재는 명령 — SKILL.md Step 1 스크립트 + 판정을 뒤집은 주장별 명령
+```
 
 ## 4. 트렌드 비교 (이전 감사 대비)
 

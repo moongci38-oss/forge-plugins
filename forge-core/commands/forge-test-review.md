@@ -29,13 +29,11 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage test --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: gpt-5.6-sol (codex:high, xhigh effort) — 2026-09-17 하향(구: gpt-6-astra). 최고급 astra 는 advisor 전용(사람 지시). effort 는 실행 경로 기본값(xhigh) 그대로.
-  ⚠️ 구 표기 "모델: gpt-6-astra (2026-09-06 상향) · `--sol` 도 하향 스위치" 는 2026-09-17 폐기 —
-     이제 `--sol` 은 no-op(이미 기본), `--terra`/`--luna` 가 하향 스위치다. 실행 경로 정본 = `commands/codex-review.md §Step 2`.
-- Blocking: severity별 강제 — **단일 Codex 레인**(gpt-5.6-sol 1레그)이다.
+- 모델: **`codex:high`** 티어(xhigh effort) — 이 단일 리뷰 레인은 astra 를 쓰지 않는다. id·하향 스위치(`--terra`/`--luna`)·구 CLI 동작(#745 — 이 레인은 자동 폴백 없음)·구 표기 이력의 정본 = `commands/codex-review.md §Step 2` (6개 래퍼에 복사하지 않는다 — #1139 C034).
+- Blocking: severity별 강제 — **단일 Codex 레인**(gpt-6-sol 1레그)이다.
   ⚠️ **구 표기 "Claude(Opus 5) + Codex(...) 2벤더 교차, 가중 0.5/0.5" 는 2026-09-17 폐기 — 이 래퍼는 교차 검수를 주지 않는다.**
   `/codex-review` 본명령이 스스로 못 박아 둔 그대로다: *"이 커맨드는 단일 Codex 레인이다 — '2벤더 교차' 를 준다고 적지 마라"*(`codex-review.md §⛔ 직접 호출 금지`, 2026-09-13 cr-final HIGH 로 정정된 문장).
-  2벤더 교차(Claude Opus 5 + Codex GPT-6 Astra)는 `/cr-triple`·`/cr-double`(= `forge-multi`)이고 `/forge-pr §Step 3` 이 부르는 것도 그쪽이다. **두 레인은 증거를 다른 곳에 쓴다** — 여기는 `docs/reviews/`, 저기는 `.claude/audit/cr-evidence/`.
+  2벤더 교차(Claude Opus 5.5 + Codex GPT-6 Astra)는 `/forge-multi`이고 `/forge-pr §Step 3` 이 부르는 것도 그쪽이다. **두 레인은 증거를 다른 곳에 쓴다** — 여기는 `docs/reviews/`, 저기는 `.claude/audit/cr-evidence/`.
   근거: 래퍼가 "2벤더 교차" 를 광고하면 사람이 이걸 돌리고 교차 검수를 받았다고 믿는다 — 실제로는 한 벤더만 봤다.
   재현: `grep -n "단일 Codex 레인" .claude/commands/codex-review.md`
   폐기조건: 이 래퍼가 `forge-multi` 로 릴레이하게 바뀌면 그때 2벤더 교차로 다시 적는다.
@@ -56,7 +54,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT 구독, gpt-5.6-sol — OAuth 호출 가능) / 비상 폴백(apikey 시): xhigh effort 는 종량
+$0.00 (ChatGPT 구독, gpt-6-sol — OAuth 호출 가능) / 비상 폴백(apikey 시): xhigh effort 는 종량
 
 ## 관련
 
