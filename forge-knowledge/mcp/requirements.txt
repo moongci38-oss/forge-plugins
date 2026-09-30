@@ -1,11 +1,25 @@
 # forge-tools MCP server dependencies
 #
 # Install:
-#   pip install -r ~/forge/shared/mcp/requirements.txt
+#   pip install -r "${FORGE_ROOT:-$HOME/forge}/shared/mcp/requirements.txt"
 #
 # fastmcp: FastMCP framework used by forge-tools-server.py
 #   - streamable-http transport (NOT sse) required by managed agents
 #   - 3.2.3+ mandatory for managed-agents-2026-04-01 beta compatibility
+#   - ⚠️ 2.x 에서 올릴 때는 **먼저 지우고** 설치한다(#1068) — 이미 깨진 머신의 복구도 같은 명령이다:
+#       pip uninstall -y fastmcp fastmcp-slim && pip install --user -r "${FORGE_ROOT:-$HOME/forge}/shared/mcp/requirements.txt"
+#     ⚠️ `fastmcp` 하나만 지우면 안 고쳐진다 — 남은 `fastmcp-slim` 이 같은 자리를 잡고 있다(실측).
+#     2.x 위에 `pip install -U` 로 덮어 올리면 4.x(fastmcp + fastmcp-slim 로 나뉨)가 남은 2.x 파일과 부딪혀
+#     `from fastmcp import FastMCP` 가 `ImportError … (unknown location)` 로 죽는다 — stdio·http 서버가 모두 안 뜬다.
+#     깨끗한 설치에서는 3.4.7·4.0.9 둘 다 mcp-auth.test.py 7/7 PASS · stdio initialize 정상(2026-09-25 실측).
+#     그래서 상한(<4)을 두지 않는다 — 버전이 아니라 **덮어쓰기**가 원인이다.
+#     재현(격리 venv — mktemp 임시 경로, 공용 환경을 건드리지 않는다):
+#       FM_TMP="$(mktemp -d)" && python3 -m venv "$FM_TMP" \
+#         && "$FM_TMP/bin/pip" -q install 'fastmcp==2.14.7' \
+#         && "$FM_TMP/bin/pip" -q install -U 'fastmcp>=3.2.3' \
+#         && "$FM_TMP/bin/python" -c 'from fastmcp import FastMCP'   # → ImportError (unknown location)
+#       rm -rf "$FM_TMP"
+#     폐기조건: 팀 머신에 fastmcp 2.x 가 남아 있지 않게 되면 이 경고를 지운다.
 #
 # anthropic: Python SDK used by forge-mcp-service.sh update_agents()
 #   to refresh the tunnel URL registered on each managed agent

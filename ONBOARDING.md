@@ -71,12 +71,17 @@ nvm use 22
 
 ---
 
-## 1. 레포 클론 (코어 팀원만)
+## 1. 레포 클론 (**플러그인 사용자도 필수**)
 
-> **플러그인 사용자**: 이 단계 스킵 — 폴더는 setup.sh가 자동 생성합니다.
+> **플러그인 사용자도 이 단계를 해야 합니다 (2026-09-29 결정, forge #1544).** 번들의 커맨드·스킬이 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/…` 의 스크립트를 **실행**하기 때문입니다 —
+> `~/forge` 가 없으면 그 명령들이 "No such file or directory" 로 끝납니다(안내도 없이). 스크립트는 번들에 **동봉하지 않습니다**(두 벌이 되면 드리프트가 생기므로 — 사람 결정).
+> 실측(2026-09-29, 이 레포): `commands/` **21개 파일** · `skills/` **19개 파일** · 호출 지점 **138곳** · 서로 다른 스크립트 **75개**.
+> 재현: `grep -rho 'FORGE_ROOT:-$HOME/forge}/shared/scripts/[A-Za-z0-9._/-]*' forge-*/commands/*.md forge-*/skills/*/SKILL.md | sort -u | wc -l`
+> 영향받는 커맨드 파일: `forge-build`(codex-review · forge-check-traceability · forge-check-ui · forge-deploy · forge-fix · forge-implement · forge-plan · forge-pr · forge-qa · forge-spec · readiness-gate) · `forge-core`(approve-worker · forge-checkpoint · forge-end · forge-multi · forge-start) · `forge-design`(clip · forge-design · generate-image) · `forge-knowledge`(forge-find-item · meeting).
+> 클론만으로 됩니다 — `.env`·`forge-workspace.json`(§2)은 **코어 팀원만** 필요합니다.
 
 ```bash
-# forge 시스템 (규칙·스킬·파이프라인) — 코어 팀원만
+# forge 시스템 (규칙·스킬·파이프라인) — 플러그인 사용자도 클론한다
 git clone git@github.com:moongci38-oss/forge.git ~/forge
 ```
 

@@ -40,7 +40,7 @@
 #     한 번에 정확히 처리하고 슬라이싱이 코드포인트 단위이기 때문이다.
 #     ⚠️ 대가: python3 가 없는 런타임(Windows Git Bash)에서는 이 계측이 조용히 남지 않는다.
 #     기록 실패는 fail-open 이라 훅 동작에는 영향이 없지만 **텔레메트리에 구멍이 생긴다** —
-#     그 환경 판별은 python3-availability-guard.sh(PR #220)가 SessionStart 에서 알린다.
+#     그 환경을 알리던 python3-availability-guard.sh(PR #220)는 등록된 적이 없어 #1474 에서 지웠다 — 알림 없음.
 #     재현: git grep -l 'jq ' origin/develop -- '.claude/hooks/*.sh' | wc -l  → 31
 #
 # fail-open 절대 준수(설계 제약): 이 훅 라이브러리를 쓰는 호출부는 대부분 `set -euo pipefail` 이다.

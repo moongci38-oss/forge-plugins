@@ -104,7 +104,7 @@
 - 인자: `/article <입력> --skip-cr-plan`
 - apply-plan 부재 (비기술 카테고리 → Step 4 자체 skip → 이 절도 자동 skip)
 
-⚠️ **게이트는 `--cr` 하나다.** 검수는 **2벤더 교차 2레그**(Claude Opus 5 + Codex GPT-5.6 Sol)인데,
+⚠️ **게이트는 `--cr` 하나다.** 검수는 **2벤더 교차 2레그**(Claude Opus 5.5 + Codex GPT-6 Sol)인데,
 팀 기본값 `FORGE_AUTO_CR=degrade` 때문에 그냥 부르면 **Codex 레그가 빠져 1레그가 된다** —
 **`--cr on` 을 명시**해야 2레그가 온전히 뜬다. 전역 기본값은 건드리지 않는다
 (정본 `model-routing.md §검수 2레그` — 2026-08-22 승인의 효력은 검수 기본값으로 한정된다).
@@ -122,7 +122,7 @@ PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
 ```
 
 ```
-/cr-triple "$PLAN_FILE" --stage plan --cr on
+/forge-multi "$PLAN_FILE" --stage plan --cr on
 ```
 
 **판정 소비** — 결과는 **Workflow 반환값**(`verdict` / `issues[]` / `degraded`)에서 읽는다.
@@ -156,7 +156,7 @@ PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
 
 ```
 1. analysis md 저장 (01-research/articles/{date}/{slug}-analysis.md)
-2. /cr-triple "{apply-plan 경로}" --stage plan --cr on   (2레그 adversarial — Step 4.7)
+2. /forge-multi "{apply-plan 경로}" --stage plan --cr on   (2레그 adversarial — Step 4.7)
 3. /eval-rubric --target {analysis 경로} (다축 정량 채점)
 4. 두 결과를 eval_cases.jsonl 별도 라인으로 append (skill 필드로 구분)
    - skill="article-codex" + skill="article-rubric"
@@ -181,7 +181,7 @@ PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
 
 | 검증 | 영역 | 강점 | 약점 |
 |------|------|------|------|
-| cr-triple | 2레그 adversarial | 벤더 교차로 단일 모델 맹점 보완 (Claude Opus 5 + Codex GPT-5.6 Sol) | 정량 점수 X |
+| cr-triple | 2레그 adversarial | 벤더 교차로 단일 모델 맹점 보완 (Claude Opus 5.5 + Codex GPT-6 Sol) | 정량 점수 X |
 | eval-rubric | 다축 정량 | clarity/consistency/completeness/safety 4축 점수 | 모델 동일 (자체 편향 가능) |
 
 **상호 보완**: codex가 못 잡는 정량 측면 = eval-rubric 보강. eval-rubric이 못 잡는 적대적 견제 = codex 보강.

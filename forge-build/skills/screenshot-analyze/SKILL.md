@@ -5,428 +5,91 @@ context: fork
 model: sonnet
 ---
 
-**역할**: 당신은 게임/웹/앱 스크린샷을 GPT-5.6 Sol(Codex Vision, `codex-critic` 경유)로 분석하여 UI 구조와 구현 가이드를 생성하는 시각 분석 전문가입니다. (2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 GPT-6 Astra 폐기. 본문의 약칭 "Astra" 는 이 Codex Vision 레그의 옛 이름이다)
-⚠️ 구 표기 "Gemini Vision" 은 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra 로 단일화됐다.
+**역할**: 게임/웹/앱 스크린샷을 Codex Vision(GPT-5.6 Sol, `codex-critic` 경유)으로 분석해 UI 구조·컬러 팔레트·구현 가이드를 만드는 시각 분석 전문가. 본문의 "Astra" = 이 Codex Vision 레그.
+**출력**: 5개 필수 요소를 갖춘 마크다운 분석 보고서.
 **컨텍스트**: 정적 이미지(게임 UI, HUD, 이펙트 프레임, 경쟁작, 구현 검증) 분석이 필요할 때 호출됩니다.
-**출력**: UI 구조·컬러 팔레트·구현 가이드를 5개 필수 요소로 구성된 마크다운 분석 보고서로 반환합니다.
 
 # Screenshot Analyze
 
-스크린샷(게임/웹/앱)을 분석하여 UI 구조, 컬러 팔레트, 구현 가이드를 생성한다.
+| 도구 | 입력 | 대상 |
+|---|---|---|
+| `/video-reference-guide` | 동영상 | 타이밍·연출·모션 |
+| **이 스킬** | 정적 이미지(png/jpg/webp/gif/bmp/URL, `/clip` 클립보드) | 레이아웃·컬러·컴포넌트·아이콘 |
+| `/yt` | YouTube 음성 | 강좌 요약 |
 
-## 역할 분리
+분석 유형: UI 레이아웃 · HUD · 아이콘/에셋 · 이펙트 프레임 · 경쟁작 비교 · 구현 검증(레퍼런스 이미지 필수) · 스타일 추출 · 일관성 검증.
 
-| 도구 | 입력 | 분석 대상 | 출력 |
-|------|------|---------|------|
-| `/video-reference-guide` | 동영상 (mp4/mov/YouTube) | 타이밍, 연출 시퀀스, 모션 | 타임스탬프별 연출 테이블 |
-| **이 스킬** | 정적 이미지 (png/jpg/클립보드) | 레이아웃, 컬러, 컴포넌트 구조, 아이콘 | UI/레이아웃 분석 테이블 |
-| `/yt` | YouTube (음성) | 강좌, 튜토리얼 내용 | 트랜스크립트 요약 |
+## Step 1: 모드·플랫폼 판별 (묻지 않고 컨텍스트로 자동 판단)
 
-## 지원 분석 유형
+출력 첫 줄: `**분석 모드**: [기본/Task Doc/시안 분석/구현 검증/컴포넌트 추출]` + `**플랫폼**: [Game (Unity)/Web (HTML/CSS)/App (Mobile Native)]`
+- 모드: `--extract`·"분리/추출/컴포넌트 뽑아줘" → 컴포넌트 추출 · `--mockup`·`_assets/` 우리 시안 → 시안 분석(확정값) · Element Task Doc 작성 중 → Task Doc(추정값) · 레퍼런스 vs 구현 → 구현 검증 · 그 외 → 기본(추정값)
+- 플랫폼: GodBlade → Game · Portfolio·웹 URL → Web · 앱스토어/모바일 → App · 불명 → 이미지로 추정
+- 입력 변수: `IMAGE_PATH`(공백 구분) · `ANALYSIS_TYPE`(기본 UI 레이아웃) · `REF_NAME` · `PLATFORM` · `EXTRACT_MODE`
 
-| 유형 | 분석 포커스 | 출력 형태 |
-|------|-----------|----------|
-| **UI 레이아웃** | 화면 구성, 계층, 여백, 정렬 | Canvas 구조 테이블 + Anchor 가이드 |
-| **HUD 디자인** | 게임 중 표시 요소, 위치, 크기 | Safe Area 분석 + 정보 밀도 평가 |
-| **아이콘/에셋** | 아이콘 스타일, 크기, 컬러 팔레트 | 아트 디렉션 + Sprite 규격 |
-| **이펙트 프레임** | 정지 상태 이펙트 분석 | 파티클 방향, 블렌딩 모드, 레이어 |
-| **경쟁작 비교** | A사 vs B사 동일 화면 비교 | 레이아웃 차이, UX 패턴 비교표 |
-| **구현 검증** | 구현 스크린샷 vs 레퍼런스 비교 | 일치도 점수 + 개선 항목 |
-| **스타일 추출** | 5-10개 에셋에서 공통 스타일 추출 | style-guide.md 자동 생성 |
-| **일관성 검증** | 다수 에셋의 크로스 에셋 일관성 | 일관성 점수 + 불일치 에셋 식별 |
+## Step 2: 프롬프트 조립
 
-## 입력
+MUST 출력 형식을 프롬프트에 직접 포함한다. 모델 = `ASTRA_MODEL=gpt-6-sol`, `ASTRA_EFFORT=high`.
+공통 분해 규칙·필수 출력 형식·유형별 프롬프트 전문·`--extract` bbox JSON 스키마 → `references/output-format.md`
 
-사용자가 아래 중 하나를 제공한다:
+`--extract` 구조: Pass 1 Analyzer×N(gpt-6-sol, 이미지별 초안 bbox) + 형제 IoU 사전검사 → Pass 2 Verifier×M(크롭 재전송, 잘림 시 확장 방향·px 반환 → bbox 보정) → Extractor(Sonnet, `extract-components.py`) ∥ Evaluator(루브릭 5항목).
 
-1. **로컬 이미지 파일 또는 URL**: png, jpg, jpeg, webp, gif, bmp 경로 또는 http/https URL
-2. **클립보드 이미지**: `/clip` 스킬로 캡처 후 전달
-3. **분석 유형** (선택): UI 레이아웃 / HUD / 아이콘 / 이펙트 / 경쟁작 비교 / 구현 검증
-4. **레퍼런스 이미지** (구현 검증 시 필수): 비교 대상 레퍼런스 이미지 경로/URL
-
-## 워크플로우
-
-### Step 1: 모드 판별 + 플랫폼 감지 + 입력 확인
-
-출력 첫 줄에 모드와 플랫폼을 선언한다:
-
-```
-**분석 모드**: [기본 모드 / Task Doc 모드 / 시안 분석 모드 / 구현 검증 모드 / 컴포넌트 추출 모드]
-**플랫폼**: [Game (Unity) / Web (HTML/CSS) / App (Mobile Native)]
-```
-
-모드 판별:
-```
-├─ `--extract` 플래그 또는 "분리해줘 / 추출해줘 / 컴포넌트 뽑아줘" 언급 → 컴포넌트 추출 모드
-├─ `--mockup` 옵션 또는 _assets/ 경로의 우리 시안 → 시안 분석 모드 (확정값)
-├─ Element Task Doc 작성 중 → Task Doc 모드 (추정값)
-├─ 구현 검증 (레퍼런스 vs 구현 비교) → 구현 검증 모드
-└─ 그 외 (경쟁작, 일반 참고) → 기본 모드 (추정값)
-```
-
-플랫폼 자동 감지:
-```
-├─ GodBlade 프로젝트 컨텍스트 또는 사용자 명시 → Game (Unity)
-├─ Portfolio 프로젝트 컨텍스트 또는 웹사이트 URL → Web (HTML/CSS)
-├─ 앱스토어 스크린샷 또는 모바일 UI → App (Mobile Native)
-└─ 판단 불가 → 이미지 내용으로 추정 (브라우저 크롬 → Web, 게임 HUD → Game)
-```
-
-입력 추출:
-```
-- IMAGE_PATH: 이미지 경로 (여러 장이면 공백 구분)
-- ANALYSIS_TYPE: 분석 유형 (기본: "UI 레이아웃")
-- REF_NAME: 레퍼런스 이름 (파일명 또는 사용자 지정)
-- PLATFORM: 플랫폼 (자동 감지 또는 사용자 지정)
-- EXTRACT_MODE: 컴포넌트 추출 모드 여부 (true/false)
-```
-
-### Step 2: Astra 프롬프트 조립
-
-> **핵심 원칙**: MUST 출력 형식을 Astra 프롬프트에 직접 포함한다.
-> 스킬 문서의 출력 규격과 Astra(Codex CLI)에 보내는 프롬프트가 일치해야 한다.
-
-> **모델**: 기본/`--extract` 모드 공통 — `ASTRA_MODEL=gpt-5.6-sol`, `ASTRA_EFFORT=high` (2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 `gpt-6-astra`·xhigh 폐기).
-> ⚠️ 구 표기 "`--extract` 모드 → `gemini-3.1-pro-preview` 고정 / 기본 분석 → `gemini-3.8-flash`" 는 2026-09-07 폐기 — Gemini 전면 철수로 정밀도용 별도 모델 구분이 사라지고 단일 모델(gpt-6-astra)로 통합됐다.
-
-공통 분해 규칙 블록·필수 출력 형식(3테이블+트리+가이드)·분석 유형별 프롬프트 전문(Game/Web/App UI·HUD·아이콘·이펙트·경쟁작 비교·구현 검증)·`--extract` 모드 bbox JSON 스키마 상세 → `references/output-format.md`
-
-**컴포넌트 추출 모드 — Agent Teams 실행 구조**:
-
-```
-[오케스트레이터 — Sonnet]
-
-Pass 1 (병렬):
-  ├─ [Analyzer Agent × N] (gpt-5.6-sol, Codex Vision)
-  │    → 이미지 N장 동시 분석, 각각 초안 bbox JSON 생성
-  └─ [OverlapDetector] (내부 처리)
-       → bbox 취합 후 형제 IoU 사전 검사
-
-Pass 2 — 정밀 검증 (병렬, CRITICAL):
-  └─ [Verifier Agent × M] (gpt-5.6-sol, Codex Vision)
-       → 각 초안 bbox 크롭을 Astra(Codex CLI)에 재전송
-       → 질문: "이 컴포넌트가 완전히 포함됐는가? 잘린 부분이 있는가?"
-       → 잘림 감지 시: 확장 방향(상/하/좌/우) + 확장량(px) 반환 → bbox 보정
-
-병렬 실행:
-  ├─ [Extractor Agent] (Sonnet) → 보정 bbox → extract-components.py 실행
-  └─ [Evaluator Agent] (내부)  → 루브릭 5항목 자기평가
-```
-
-⚠️ 구 표기 "Analyzer/Verifier = gemini-3.1-pro-preview" 는 2026-09-07 폐기 — Gemini 전면 철수, Vision 위임은 GPT-6 Astra(gpt-6-astra) 로 단일화됐다.
-
-### Step 3: 분석 실행
-
-`analyze-screenshot.sh`를 호출하여 GPT-5.6 Sol(Codex CLI) Vision 분석을 실행한다.
-⚠️ 구 표기 "Gemini Vision API" 는 2026-09-07 폐기 — API 키·base64 인코딩 없이 Codex CLI(구독)에 이미지를 `-i` 로 직접 첨부하는 방식으로 바뀌었다.
-
-**단일 이미지 분석:**
-```bash
-bash ~/.claude/scripts/analyze-screenshot.sh \
-  "{IMAGE_PATH}" \
-  "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" \
-  "{Step 2에서 조립한 전체 프롬프트 — 공통 블록 포함}"
-```
-
-**멀티 이미지 비교 분석** (경쟁작 비교, 구현 검증):
-```bash
-bash ~/.claude/scripts/analyze-screenshot.sh \
-  "{IMAGE1_PATH}" \
-  "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-compare.md" \
-  "{비교 분석 프롬프트}" \
-  "{IMAGE2_PATH}" \
-  "{IMAGE3_PATH}"  # 선택
-```
-
-> 멀티 이미지: 2-3장을 한 번의 Codex CLI 호출로 Astra에 전송하여 직접 비교.
-> 기존 순차 분석 → 텍스트 비교 대비 정확도와 일관성 향상.
-> ⚠️ 구 표기 "Gemini에 전송" 은 2026-09-07 폐기 — Gemini 전면 철수, 현재는 Astra(Codex CLI)에 전송한다.
-
-**모델 선택** (환경변수 `ASTRA_MODEL`·`ASTRA_EFFORT`):
-```bash
-# 기본: gpt-5.6-sol, reasoning effort high (2026-09-17 — 구 표기 gpt-6-astra·xhigh 폐기, 최고급은 advisor 전용)
-ASTRA_MODEL=gpt-5.6-sol bash ~/.claude/scripts/analyze-screenshot.sh ...
-```
-⚠️ 구 표기 "`GEMINI_MODEL` 환경변수 / gemini-3.8-flash·gemini-2.5-pro 선택" 은 2026-09-07 폐기 — Gemini 전면 철수로 단일 모델(gpt-6-astra) 체계로 바뀌었다.
-
-### Step 3.5: 컴포넌트 추출 실행 (--extract 모드 전용)
-
-Pass 1 분석 완료 후, Pass 2 Verifier와 Extractor를 Agent Teams로 병렬 실행한다.
-
-**Pass 2 — Verifier (각 컴포넌트 병렬, gpt-5.6-sol)**:
-
-각 컴포넌트 bbox로 원본 이미지를 임시 크롭 → Astra(Codex CLI) 재전송:
-```bash
-# 임시 크롭 생성
-python3 -c "
-from PIL import Image
-img = Image.open('{IMAGE_PATH}')
-w,h = img.size
-bbox = {bbox_dict}
-left = int(bbox['x']*w); top = int(bbox['y']*h)
-right = int((bbox['x']+bbox['w'])*w); bottom = int((bbox['y']+bbox['h'])*h)
-img.crop((left,top,right,bottom)).save('/tmp/verify_{comp_id}.png')
-"
-
-# Astra 재확인 (⚠️ 구 표기 "Gemini 재확인 / GEMINI_MODEL=gemini-3.1-pro-preview" 는 2026-09-07 폐기)
-ASTRA_MODEL=gpt-5.6-sol bash ~/.claude/scripts/analyze-screenshot.sh \
-  "/tmp/verify_{comp_id}.png" \
-  "" \
-  "이 이미지에서 '{comp_name}'({comp_type}) 컴포넌트가 완전히 포함되어 있는가?
-   잘린 부분(엣지 클리핑)이 있으면 JSON으로 응답:
-   {\"clipped\": true, \"expand\": {\"top\": 0, \"bottom\": 0, \"left\": 0, \"right\": 0}}
-   잘림 없으면: {\"clipped\": false}"
-```
-
-잘림 감지 시 bbox를 expand 값만큼 원본 이미지 기준으로 보정 후 재크롭.
-
-**Extractor (Verifier 완료 후 즉시, Sonnet)**:
+## Step 3: 분석 실행 — `analyze-screenshot.sh` (Codex CLI `-i` 첨부, 캐시: output-file 있으면 호출 안 함)
 
 ```bash
-ASTRA_MODEL=gpt-5.6-sol \
-python3 ~/.claude/scripts/extract-components.py \
-  --image "{IMAGE_PATH}" \
-  --analysis "{ANALYSIS_MD_PATH}" \
-  --output "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components"
+bash ~/.claude/scripts/analyze-screenshot.sh "{IMAGE_PATH}" \
+  "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" "{Step 2 전체 프롬프트}"
+# 비교(2-3장 1회 전송, 4장+는 순차): 결과 파일 -compare.md, 뒤에 "{IMAGE2_PATH}" "{IMAGE3_PATH}"
 ```
 
-**Kill Conditions**:
-- bbox JSON 미포함 → 재프롬프트 1회 → 실패 시 텍스트 분석만 반환 (폴백)
-- Astra(Codex CLI) 오류 → 즉시 폴백, 오류 메시지 출력
-- 이미지 20MB 초과 → 추출 모드 차단
-- 크롭 결과 0개 → 오류 + 안내
+## Step 3.5: 컴포넌트 추출 (`--extract` 전용)
 
-**Canary**:
+Verifier(컴포넌트별 병렬): bbox 로 `/tmp/verify_{comp_id}.png` 크롭(PIL, 정규화 x/y/w/h × 이미지 크기) 후
+```bash
+ASTRA_MODEL=gpt-6-sol bash ~/.claude/scripts/analyze-screenshot.sh "/tmp/verify_{comp_id}.png" "" \
+  "'{comp_name}'({comp_type}) 가 완전히 포함됐나? 잘렸으면 {\"clipped\": true, \"expand\": {\"top\":0,\"bottom\":0,\"left\":0,\"right\":0}}, 아니면 {\"clipped\": false}"
 ```
-🟢 Green  = 루브릭 5항목 PASS (커버리지≥60% / 컴포넌트 2~50 / 크기≥16px / 파일정상 / 중복없음)
-🟡 Yellow = 1~2항목 WARN
-🔴 Red    = bbox JSON 없음 OR 추출 0개
+잘림 시 expand 만큼 원본 기준 보정 후 재크롭. 이어서 Extractor:
+```bash
+ASTRA_MODEL=gpt-6-sol python3 ~/.claude/scripts/extract-components.py --image "{IMAGE_PATH}" \
+  --analysis "{ANALYSIS_MD_PATH}" --output "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components"
 ```
+Kill: bbox JSON 없음 → 재프롬프트 1회 → 실패 시 텍스트 분석만 · Codex 오류 → 즉시 폴백+오류 출력 · 이미지 20MB 초과 → 추출 차단 · 크롭 0개 → 오류+안내.
+Canary: 🟢 루브릭 5항목 PASS · 🟡 1~2 WARN · 🔴 bbox JSON 없음 또는 추출 0개.
 
-### Step 4: 결과 검증 + 출력
-
-Astra 응답에서 아래 5개 필수 요소를 검증한다. **하나라도 누락되면 해당 섹션을 AI가 직접 보완**한다.
-⚠️ 구 표기 "Gemini 응답" 은 2026-09-07 폐기.
-
-**이 5개는 전부 "있나 / 몇 개인가" 라서 눈으로 세지 않는다**(2026-09-17 LLM→프로그램 이관, G2):
+## Step 4: 결과 검증 + 출력
 
 ```bash
 python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/skill-report-lint.py" \
   --skill screenshot-analyze --report "<분석 결과 .md 절대경로>" > /tmp/sa-lint.json
 echo "lint rc=$?"
 ```
-
-- `rc=1` → `items[]` 중 `FAIL` 인 요소만 보완한다(전체 재생성 금지).
-- `rc=0` + `residual` 비어 있음 → 5요소 확정 통과.
-- `rc=2` → 판정이 아니다. 경로를 고쳐 재실행한다.
-
-| # | 필수 요소 | 검증 기준 | 판정 주체 |
-|---|---------|----------|----------|
-| 1 | 컴포넌트 분해 테이블 | 마크다운 테이블, 최소 5행 | 스크립트(`sa-1`) |
-| 2 | 컬러 팔레트 | #RRGGBB Hex 최소 3색 | 스크립트(`sa-2`) |
-| 3 | Prefab 계층 트리 | 트리 구조 코드 블록 | 스크립트(`sa-3`) |
-| 4 | 구현 가이드 | Canvas/Anchor 설정 포함 | 스크립트(`sa-4`) |
-| 5 | (추정)/(확정) 태그 | 모든 추정값에 태그 | 스크립트(태그 존재) + **LLM(전수 여부)** |
-
-⚠️ ⑤의 "**모든** 추정값에" 는 셀 수 없다 — 스크립트는 태그가 하나라도 있으면 PASS 로 두고,
-빠뜨린 추정값이 있는지는 여전히 AI 가 본다(스크립트 머리 주석 §무력화되는 입력 ③).
-⚠️ 개수를 채우기만 하면 통과한다 — 내용이 비어도 센다(같은 주석 ①).
-재현: `bash shared/scripts/tests/skill-report-lint.test.sh` · 역변조: 같은 명령 `--mutation`
-폐기조건: 이 5요소 표가 폐지되면 이 절과 스크립트 프로파일을 함께 지운다.
-
-**--extract 모드 추가 검증 (루브릭 5항목)**:
-
-| # | 항목 | PASS 기준 | FAIL 시 |
-|---|------|----------|--------|
-| 1 | bbox JSON | ```json {"components":[...]} ``` 블록 존재 | 재프롬프트 1회 → 없으면 폴백 |
-| 2 | bbox 커버리지 | 컴포넌트 면적 합계 ≥ 화면 60% | 누락 컴포넌트 경고 |
-| 3 | 컴포넌트 수 | 2 ≤ N ≤ 50 | 0~1: 재시도 / 51+: 상위 50개 |
-| 4 | 파일 생성 | 추출 PNG 정상 저장 | 실패 목록 출력 |
-| 5 | 겹침 상태 | _overlap-report.json GREEN | YELLOW/RED 경고 출력 |
-
-#### 출력 모드별 포맷
-
-**기본 모드**: 위 5개 요소를 순서대로 출력
-
-**시안 분석 모드** (`--mockup`): 모든 값을 `(확정)` 태그로 추출
-
-추가 출력:
-
-##### Section 16-1 — 시안 바인딩 테이블
-
-| 시안 경로 | 시안 내 요소 | 매핑 대상 섹션 | 매핑 파라미터 | 확정값 |
-|----------|-----------|-------------|-----------|:-----:|
-
-##### Section 10 — 디자인 토큰 바인딩 (확정)
-
-| 요소 | 토큰명 | 값 | 출처 |
-|------|--------|-----|------|
-
-> 토큰명: 프로젝트 `style-guide.md` 기존 토큰 매칭 우선. 없으면 `--color-{용도}` 패턴.
-
-##### Section 7 — Prefab 계층 구조 (확정)
-
-트리 구조 + 컴포넌트 테이블 (기본 모드와 동일 형식, 값은 `(확정)`)
-
----
-
-**Task Doc 모드**: Element Task Doc 섹션 형식으로 직접 출력 (경쟁작/참고 자료 — 추정값):
-
-##### Section 7 — Prefab 계층 구조
-
-> UI 프레임워크: [분석에서 감지된 프레임워크, 예: uGUI / NGUI]
-
-```
-Canvas (Screen Space - Overlay)
-├── [관찰된 영역 A] (RectTransform) — [위치 설명]
-│   ├── [자식 요소] ([컴포넌트 추정]) — [역할]
-│   └── ...
-```
-
-| 오브젝트 | 컴포넌트 (추정) | 역할 | Anchor 추정 | Pivot 추정 | 비고 |
-|---------|---------------|------|-----------|----------|------|
-
-##### Section 10 — 디자인 토큰 바인딩
-
-| 요소 | 토큰명 | 값 | 출처 |
-|------|--------|-----|------|
-
-> 토큰명: `--color-{용도}`, `--space-{크기}`, `--font-{레벨}` 패턴.
-
-##### Section 16 — 레퍼런스 바인딩
-
-| 레퍼런스 유형 | 원본 경로 | 참고 구간 | 적용 대상 | 분석 결과 요약 |
-|-------------|----------|----------|----------|-------------|
-
----
-
-### Step 5: 저장 + 후속
-
-1. 구조화된 분석 결과를 사용자에게 출력
-2. `docs/assets/screenshot-refs/`에 분석 파일 저장
-3. **--extract 모드**: 추출 결과를 아래 경로에 저장
-   ```
-   docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components/
-   ├── _manifest.json         ← 컴포넌트 메타데이터 + 픽셀 bbox
-   ├── _overlap-report.json   ← IoU 겹침 경고 + 상태(GREEN/YELLOW/RED)
-   ├── backgrounds/           bg_*.png
-   ├── buttons/               btn_*.png
-   ├── icons/                 icon_*.png
-   ├── overlays/              overlay_*.png
-   ├── text/                  text_*.png
-   ├── images/                img_*.png
-   ├── containers/            container_*.png
-   └── etc/                   기타
-   ```
-4. GDD/Spec 작성 중이면 해당 섹션에 삽입 안내
-5. **--extract 모드 후속**: `_manifest.json` 경로를 `game-asset-generate` 스킬에 전달 가능
-   (추출된 컴포넌트를 에셋 생성 레퍼런스로 바로 활용)
-
-## Trine 연동
-
-| Phase | 사용 시점 | 행동 |
-|-------|----------|------|
-| **S3 (GDD)** | 6.3 UI/UX 가이드, 3.3 화면 상세 | 경쟁작 UI 비교 분석 |
-| **S4 (UI/UX 기획서)** | 와이어프레임 + 레퍼런스 | 레퍼런스 분석 → 기획서에 삽입 |
-| **Trine Phase 2 (Spec)** | Section 9.5 UI 상태 | 목업/스크린샷 기반 UI 구조 정의 |
-| **Phase 2 (Element Task Doc)** | Complex UI 요소 상세 명세 시 | 스크린샷 분석 (Task Doc 모드) → Section 7 + 10 + 16 직접 출력 |
-| **Trine Phase 3 (구현)** | 구현 시 레퍼런스 참조 | 분석 파일 재참조 |
-| **Trine Phase 3 (역비교)** | 구현 완료 후 Check 3 PASS 후 | 구현 스크린샷 vs 레퍼런스 비교 (구현 검증 모드) |
-
-## AI 행동 규칙
-
-1. 이미지 분석 요청 시 Element Task Doc 작성 컨텍스트인지 먼저 판단한다
-2. **Element Task Doc 작성 컨텍스트에서 호출되면 Task Doc 모드를 자동 적용한다**
-3. 기본/Task Doc/시안/구현검증 모드 선택을 사용자에게 묻지 않는다 — 컨텍스트로 자동 판단한다
-4. 분석 전 "X 분석 → [모드] 모드로 실행합니다" 한 줄 선언 후 실행한다
-5. **Astra 응답에 필수 요소가 누락되면 AI가 직접 보완한다** — 누락 상태로 출력 금지 (⚠️ 구 표기 "Gemini 응답" 은 2026-09-07 폐기)
-
-## 스타일 추출 모드 (P0)
-
-구 `/style-train` 스킬에서 호출되던 전용 모드(그 스킬은 **아카이브돼 부재** — 2026-08-03 관측). 지금은 이 스킬을 직접 호출해 쓴다. 5-10개 기존 에셋에서 공통 시각 패턴을 추출한다.
-
-**분석 항목:**
-- 컬러 팔레트 (Primary/Secondary/Accent/Background)
-- 아트 스타일 키워드 (flat/minimal/painted 등)
-- 일관성 패턴 (테두리, 여백, 그림자, 텍스처)
-- 타이포그래피 추정 (폰트 스타일/크기)
-
-**출력**: `style-guide-template.md` 형식에 맞춘 초안
-
-## 일관성 검증 모드 (P4)
-
-에셋 5개 이상이 생성된 후, 전체를 컴포지트 이미지로 배치하여 "같은 프로젝트의 에셋으로 보이는가?"를 검증한다.
-
-**검증 항목:**
-1. 컬러 팔레트 일관성
-2. 아트 스타일 일관성 (선/채색/텍스처)
-3. 비율/크기 규격 준수
-4. 조명 방향 통일
-
-**출력**: 일관성 점수 (High/Medium/Low) + 불일치 에셋 목록
-
-## AI 크리틱 모드
-
-에셋 생성 후 4항목 자동 검증:
-
-1. **계층 (Hierarchy)**: 시각적 중요도 순서가 명확한가?
-2. **일관성 (Consistency)**: style-guide.md 키워드/규격과 일치하는가?
-3. **안티패턴 (Anti-pattern)**: `ai-anti-patterns.md` 항목에 해당하지 않는가?
-4. **브리프 부합 (Brief Compliance)**: art-direction-brief.md와 일치하는가?
-
-## 환경 요구사항
-
-- Codex CLI **0.153.4 이상** 설치 + 구독 인증(`auth_mode=chatgpt`) — API 키 불필요
-- `~/.claude/scripts/analyze-screenshot.sh` 스크립트 존재
-- Python 3 (JSON 파싱용)
-- curl (URL 이미지 다운로드용)
-
-⚠️ 구 표기 "`GEMINI_API_KEY` 환경변수 설정 필수 / curl(API 호출용)" 은 2026-09-07 폐기 — Gemini 전면 철수로 API 키가 필요 없어지고 Codex CLI(구독)로 이미지를 직접 첨부하는 방식으로 바뀌었다.
-
-## 주의사항
-
-- 이미지 분석은 Codex CLI(구독) 사용량을 소비한다 — 불필요한 반복 분석 방지
-- 캐싱: output-file이 이미 존재하면 모델을 호출하지 않는다
-- 비교 분석 시 멀티 이미지 모드(2-3장 동시 전송)를 우선 사용, 4장 이상은 순차 분석
-
-⚠️ 구 표기 "Gemini API 크레딧을 소비 / 이미지 크기 제한 20MB 이하" 는 2026-09-07 폐기 — Codex CLI 는 파일을 직접 첨부해 base64 인코딩·API 크기 제한이 없다.
-
-## 보안 주의사항
-
-이 스킬은 이미지 파일을 **Codex CLI(구독, `-i` 첨부)로 GPT-5.6 Sol 에 전달**한다.
-⚠️ 구 표기 "이미지 전체를 base64로 인코딩하여 Google Gemini API로 전송" 은 2026-09-07 폐기 — Gemini 전면 철수로 base64 인코딩·외부 API 호출 없이 파일을 직접 첨부하는 방식으로 바뀌었다.
-아래 유형의 이미지는 전송 전 확인이 필요하다:
-
-| 주의 대상 | 이유 | 대안 |
-|----------|------|------|
-| 미공개 게임/앱 기능 스크린샷 | 사전 공개 위험 | 출시 후 또는 공개 베타 버전만 사용 |
-| 경쟁사 NDA 적용 베타 화면 | 제3자 정보 무단 전송 | 공식 스토어/사이트 스크린샷만 사용 |
-| PII가 포함된 화면 | 개인정보 유출 | 캡처 전 민감 정보 마스킹 처리 |
-
-**권장**: 경쟁사 분석에는 App Store, Google Play, 공식 웹사이트의 **공개 스크린샷**만 활용한다.
-
-## Workflow 통합 (계획서 P1)
-
-병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Codex(Astra) Vision → Claude 자체 분석 fallback.
-⚠️ 구 표기 "Codex Vision→Gemini fallback" 은 2026-09-07 폐기 — Gemini 레그 자체가 사라져 폴백 대상이 Claude 자체 분석으로 바뀌었다.
-
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })`
-
-`CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
-
-### `--cr` 옵션 (crMode)
-
-Codex(Astra) Vision 사용 여부를 제어한다. caller는 `~/forge/shared/scripts/cr-mode.sh` 조회 후 `args.crMode`로 전달한다.
-
-| 값 | 동작 |
-|----|------|
-| `on` (기본) | Codex(Astra) Vision (default) |
-| `degrade` | Codex 레그 제외, Claude 자체 Vision 분석으로 축소 |
-| `off` | Codex 레그 제외, Claude 자체 Vision 분석으로 축소 |
-
-로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Claude 자체 분석`
-
-⚠️ 구 표기 "degrade/off → Gemini Vision 직행" 은 2026-09-07 폐기 — Gemini 레그 자체가 사라졌다.
-
-> ⚠️ Phase 0 전제: Vision 용 codex-critic approve-worker 토큰 외부 선발행 필수 (Workflow는 셸 직접 호출 불가).
-
+- `rc=1` → `items[]` 중 FAIL 요소만 보완(전체 재생성 금지) · `rc=0`+`residual` 없음 → 통과 · `rc=2` → 경로 고쳐 재실행.
+- 필수 5요소: ①컴포넌트 분해 테이블(≥5행) ②컬러 팔레트(#RRGGBB ≥3) ③Prefab 계층 트리(코드블록) ④구현 가이드(Canvas/Anchor) ⑤(추정)/(확정) 태그 — ⑤의 "모든 추정값" 전수 여부는 LLM 이 본다. 누락 상태로 출력 금지.
+- `--extract` 루브릭: bbox JSON 블록 존재 · 커버리지 ≥60% · 2≤N≤50(0~1 재시도, 51+ 상위 50) · PNG 저장 정상 · `_overlap-report.json` GREEN.
+
+모드별 포맷:
+- **기본**: 5요소 순서대로.
+- **시안 분석**(`--mockup`, 전부 `(확정)`): Section 16-1 시안 바인딩(`시안 경로|시안 내 요소|매핑 대상 섹션|매핑 파라미터|확정값`) · Section 10 디자인 토큰(`요소|토큰명|값|출처`, `style-guide.md` 토큰 우선, 없으면 `--color-{용도}`) · Section 7 Prefab 계층(트리+테이블).
+- **Task Doc**(추정값): Section 7 Prefab 계층(UI 프레임워크 명시, `Canvas (Screen Space - Overlay)` 트리 + `오브젝트|컴포넌트 (추정)|역할|Anchor 추정|Pivot 추정|비고`) · Section 10 토큰(`--color-/--space-/--font-` 패턴) · Section 16 레퍼런스 바인딩(`레퍼런스 유형|원본 경로|참고 구간|적용 대상|분석 결과 요약`).
+
+## Step 5: 저장 + 후속
+
+1. 결과 출력 + `docs/assets/screenshot-refs/` 에 저장. GDD/Spec 작성 중이면 삽입 위치 안내.
+2. `--extract`: `{YYYY-MM-DD}-{REF_NAME}-components/` 아래 `_manifest.json`(메타+픽셀 bbox) · `_overlap-report.json` · `backgrounds/ buttons/ icons/ overlays/ text/ images/ containers/ etc/`. `_manifest.json` 은 `game-asset-generate` 레퍼런스로 전달 가능.
+
+## 파이프라인 연동
+S3 GDD(경쟁작 UI 비교) · S4 UI/UX 기획서 · Spec Section 9.5 · Element Task Doc(Task Doc 모드 → Section 7+10+16) · 구현 시 재참조 · 구현 후 역비교(구현 검증 모드).
+
+## 부가 모드
+- **스타일 추출**: 에셋 5-10개 → 컬러(Primary/Secondary/Accent/Background)·스타일 키워드·일관성 패턴·타이포 추정 → `style-guide-template.md` 형식 초안.
+- **일관성 검증**: 에셋 5+개 컴포지트 → 컬러·아트 스타일·비율/규격·조명 방향 → High/Medium/Low + 불일치 에셋 목록.
+- **AI 크리틱**: 계층 · `style-guide.md` 일관성 · `ai-anti-patterns.md` 안티패턴 · `art-direction-brief.md` 부합.
+
+## 환경·보안
+- Codex CLI 0.156.1+ 구독 인증(`auth_mode=chatgpt`) · `~/.claude/scripts/analyze-screenshot.sh` · Python 3 · curl(URL 다운로드). 반복 분석 자제(구독 사용량 소비).
+- 전송 전 확인: 미공개 기능·NDA 베타·PII 화면은 보내지 않는다(공개 스토어/공식 사이트 스크린샷만, PII 는 마스킹).
+
+## Workflow 실행
+`Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })` — Codex Vision → Claude 자체 분석 fallback. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 위 Step 직접 실행.
+`crMode`: caller 가 `~/forge/shared/scripts/cr-mode.sh` 조회 후 전달 — `on`(기본, Codex Vision) · `degrade`/`off`(Codex 제외, Claude 자체 Vision). 로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Claude 자체 분석`
+⚠️ 전제: Vision 용 codex-critic approve-worker 토큰 외부 선발행 필수(Workflow 는 셸 직접 호출 불가).

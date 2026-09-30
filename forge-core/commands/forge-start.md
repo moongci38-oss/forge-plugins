@@ -56,7 +56,7 @@ fi
 - 루트 `CLAUDE.md` `## 핵심정보` + `.claude/MEMORY.md` 로드(부재 시 "`## 핵심정보` 미설정 — `/forge-onboard` 권고" 1줄).
 - `SHARED_CHECKOUT=yes` 면 브랜치명·dirty 수를 내 상태로 요약 금지(`(공유 체크아웃 — 소유 불명, 타 세션 작업 포함)` 라벨). `DIRTY_COUNT=unknown` 은 설계. `gitStatus` 블록도 옮겨 적지 않는다.
 - 코드를 고칠 예정이면 `EnterWorktree` 로 자기 폴더 확보. 로스터 0개는 직접 처리할 근거가 아니다(`team-routing.md §1`).
-## 4b. 총괄 보조 데몬 상태 — `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/orch/orch-daemons.sh" status` — rc 0 = 둘 다 떠 있음 · 1 = 꺼짐 → `총괄 데몬 꺼짐(board-sync·stage-autoapply) — 필요하면 orch-daemons.sh start` 1줄 · 2 = 판정 불가(넘어간다). ⛔ 자동으로 띄우지 않는다.
+## 4b. 부팅 자동 기동 점검 — `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/boot-check.sh" --quiet` — rc 0 = 이 PC 몫 전부 떠 있음(요약에 안 싣는다) · 1 = DOWN·EXTRA 있음 → 출력의 `DOWN`/`EXTRA` 줄을 그대로 싣고 (각 줄에 기동 경로가 있다) 마지막 `boot-check:` 요약 1줄 · 2 = 판정 불가(넘어간다). 목록 정본 = `shared/config/boot-services.tsv`(orch 데몬 4개·autosync 타이머·터널·pm2 등 — #1455). `DOWN user-bus` 는 systemd --user 소켓이 없다는 뜻이다(이미 걸린 자동 기동은 다음 부팅에 뜬다). ⛔ 자동으로 띄우지 않는다.
 ## 4c. 내 이슈만 (read-only)
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-start-my-issues.sh"` — `MYISSUE_OWNER=ok`(rc 0) → `MYISSUE_LINE` 1줄 그대로 · `unknown`(rc 2, 판정 불가) → `MYISSUE_LINE`(이번 세션은 이슈를 집지 않는다) 그대로 · `no_origin` → 침묵. 다른 사람·다른 PC 일감은 착수 금지(읽기·코멘트만).
 출력은 개수 1줄. 목록이 필요하면 `issue-owner.sh filter <owner/repo> [라벨]`.

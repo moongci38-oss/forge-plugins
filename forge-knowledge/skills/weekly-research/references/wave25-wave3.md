@@ -6,7 +6,7 @@
 ## 목차
 - Wave 2.5 — 독립 Evaluator subagent
 - Wave 2.55 — 적대적 검수 (cr-triple **2벤더 교차 2레그**, 계획서 전용 · **비차단**)
-- Wave 3 — Notion 자동 등록 + 블로그 발행
+- Wave 3 — 블로그 발행
 
 ---
 
@@ -14,7 +14,7 @@
 
 
 > **핵심 원칙: Lead의 컨텍스트(의도, 가정)를 공유하지 않는 별도 에이전트가 검증한다.**
-> Wave 2 Lead 취합 완료 직후, Wave 3(Notion 등록 + 블로그 발행) 진행 전에 반드시 실행한다.
+> Wave 2 Lead 취합 완료 직후, Wave 3(블로그 발행) 진행 전에 반드시 실행한다.
 
 ```
 subagent_type: general-purpose
@@ -76,7 +76,7 @@ L-56·L-61과 같은 narration-not-execution 계열).
 - [파일명] [항목]: [위치] → [이유] → [개선 방법]
 ```
 
-PASS 확인 후 Wave 2.6(학습노트) → Wave 2.7(HTML 대시보드) → Wave 3(Notion 자동 등록 + 블로그 발행)으로 진행한다.
+PASS 확인 후 Wave 2.6(학습노트) → Wave 2.7(HTML 대시보드) → Wave 3(블로그 발행)으로 진행한다.
 ⚠️ **진입조건 정합(cr-final pr267-chunk4)**: 이 문서에서 "PASS 후/PASS 확인 후"는 전부
 **`PASS` 또는 `FAIL(AUTO-PROCEED)`**(위 §2회 연속 FAIL 무인 실행 원칙의 자동 선택 완료 상태)를 뜻한다.
 순수 `FAIL`(자동 선택 미실행)만 진행 불가다 — 헤드리스 실행이 잔존 "PASS 후" 문구를 문자 그대로 읽고
@@ -91,7 +91,7 @@ PASS 확인 후 Wave 2.6(학습노트) → Wave 2.7(HTML 대시보드) → Wave 
 커버리지 게이트가 맡는다. cr-triple 은 코드·계획서용 루브릭이라 본문에 걸면 오탐이 는다.
 
 왜 벤더를 가르나: 한 벤더만 보면 그 벤더의 맹점을 그대로 통과시킨다.
-Claude(Opus 5)와 Codex(**gpt-5.6-sol**)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
+Claude(Opus 5.5)와 Codex(**gpt-6-sol**)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
 ⚠️ 구 표기 "Claude(Fable 5.1)·Codex(gpt-6-astra)" 는 2026-09-17 폐기 — 사람 지시 "advisor 에서만 최고급 모델 사용해"(레그 모델은 `cr-risk-tier.sh` 등급이 정한다).
 ⚠️ 완화 장치이지 무편향 보장이 아니다(`cr-multi/SKILL.md §self-referential bias`).
 ⚠️ **구 표기 "3레그 — Claude·Codex(gpt-5.6-sol)·Gemini" 는 2026-09-12 폐기.** 2026-09-07 Gemini
@@ -101,7 +101,7 @@ Claude(Opus 5)와 Codex(**gpt-5.6-sol**)가 각각 읽고 교차하면 한 모�
 **호출**
 
 ```
-/cr-triple "01-research/projects/{project}/{date}-s1-research.md" --stage plan --cr on
+/forge-multi "01-research/projects/{project}/{date}-s1-research.md" --stage plan --cr on
 ```
 
 ⚠️ **`--cr on` 을 빼면 교차 검증이 성립하지 않는다.** 팀 기본값 `FORGE_AUTO_CR=degrade` 가
@@ -133,10 +133,43 @@ weekly 월요일). 사람이 없는 자리에서 멈추면 그날 리포트가 �
 
 ---
 
-## Wave 3 — Notion 자동 등록 + 블로그 발행
+## Wave 3 — 블로그 발행
+
+> 근거: 2026-09-25 사람 결정(#1104) — Notion 연동 해제. 인덱스·블로그·리포트 사이트는 유지.
 
 
-3종 파일 작성 완료 + Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 확인 후, 아래 2개를 순차 실행한다.
+3종 파일 작성 완료 + Evaluator PASS(또는 FAIL(AUTO-PROCEED)) 확인 후, 아래를 순차 실행한다.
+
+**Step 0: index.json 등록 (무조건 · 최우선 · #738)**
+
+⚠️ **블로그의 성공/실패와 무관하게 먼저 실행한다.** 종전에는 이 단계가 어디에도
+없어서(2026-09-24 실측: 이 문서와 SKILL.md 양쪽에 index.json 등록 지시 0건) 회차가 조용히
+빠졌다 — `01-research/weekly/2026-09-14/` 는 산출물이 다 있는데 `index.json` 에는 없었다.
+이력: 종전 발행 절차의 뒤쪽에 두면 실패 경로에서 같이 건너뛰어질 수 있어 **Step 0** 으로 분리했다.
+
+```bash
+# 등록(있으면 갱신) — 백필도 같은 경로로 한다
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/weekly-index-register.py" \
+  --date "{date}" \
+  --tech-count N --biz-count N --items-count N \
+  --eval PASS --eval-score NN \
+  --business-item "{선정 아이템}" \
+  --file tech_trends=01-research/weekly/{date}/tech-trends.md \
+  --file biz_trends=01-research/weekly/{date}/biz-trends.md \
+  --file dashboard=01-research/weekly/{date}/dashboard.html
+```
+
+- 값이 없으면(skip) **키를 생략한다 — null 채움 금지**(스키마 규약, SKILL.md §index.json).
+- 소실돼 복원 불가한 값은 `--eval unknown` 처럼 **정직하게** 적는다. 추정치를 PASS 로 적지 않는다.
+
+**완료 게이트 (이 Wave 를 끝내기 전 반드시 rc=0)**
+
+```bash
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/weekly-index-gate.sh" "{date}"
+# rc 0 = 해당 date 항목 존재 / 1 = 없음(등록 누락) / 2 = 판정 불가(index.json 부재·파싱 실패)
+```
+
+rc≠0 이면 Wave 3 를 완료로 보고하지 않는다. rc=2 는 PASS 가 아니다.
 
 **Step 1: 블로그 자동 발행** (선택적)
 
@@ -154,62 +187,3 @@ tech-trends.md 내용을 프로젝트 블로그에 자동 발행한다.
 - 실패 시: 경고 출력 후 블로그 발행 = "발행실패" (파이프라인 중단 안 함)
 
 **⚠️ API 서버 미기동 시**: 경고만 출력하고 스킵. 블로그 발행 = "미발행".
-
-**Step 2: Notion DB 자동 등록**
-
-Notion "Weekly Research" DB에 페이지를 자동 생성한다.
-
-**Notion DB 정보:**
-- Data Source ID: `d7ba2bc1-4c7b-400d-872f-8d78bfeea213`
-- DB URL: `https://www.notion.so/8023d8cc603d48e3b6f99e95739457fd`
-
-**실행 순서:**
-
-1. `Read("01-research/weekly/{date}/tech-trends.md")` → 전체 내용 변수 저장
-2. `Read("01-research/weekly/{date}/biz-trends.md")` → 전체 내용 변수 저장
-3. `Read("01-research/weekly/{date}/stock-trends.md")` (존재하면) → 전체 내용 변수 저장. 미존재(skip) 시 이 단계 생략.
-4. `Read("01-research/weekly/{date}/study-notes.md")` (존재하면) → 전체 내용 변수 저장. 미존재(skip) 시 이 단계 생략.
-5. tech + biz + (stock, 있으면) + (study-notes, 있으면) 내용을 구분선(`---`)으로 이어 붙여 `content` 구성
-6. `mcp__notion__notion-create-pages` 호출
-
-**`mcp__notion__notion-create-pages` 호출:**
-
-```json
-{
-  "parent": { "data_source_id": "d7ba2bc1-4c7b-400d-872f-8d78bfeea213" },
-  "pages": [{
-    "properties": {
-      "제목": "{date} 주간 리서치 리포트",
-      "요약": "{tech-trends 핵심 3줄 + biz-trends 핵심 3줄}",
-      "date:날짜:start": "{date}",
-      "상태": "완료",
-      "기술 트렌드": "{tech-trends.md 핵심 뉴스 Top 3 요약}",
-      "비즈니스 트렌드": "{biz-trends.md 핵심 뉴스 Top 3 요약}",
-      "사업 아이템": "{선정된 사업 아이템 제목}",
-      "블로그 발행": "{Step 1 결과: 발행완료/발행실패/미발행}",
-      "tech-trends 경로": "01-research/weekly/{date}/tech-trends.md",
-      "biz-trends 경로": "01-research/weekly/{date}/biz-trends.md",
-      "s1-research 경로": "01-research/projects/{project}/{date}-s1-research.md",
-      "stock-trends 경로": "01-research/weekly/{date}/stock-trends.md (있으면만)",
-      "study-notes 경로": "01-research/weekly/{date}/study-notes.md (있으면만)"
-    },
-    "content": "{tech-trends.md 전체 내용}\n\n---\n\n{biz-trends.md 전체 내용}\n\n---\n\n{stock-trends.md 전체 내용, 있으면}\n\n---\n\n{study-notes.md 전체 내용, 있으면}"
-  }]
-}
-```
-
-**리포트 구성** (content 본문 섹션 순서, 있는 것만 포함 — additive):
-- 기술/비즈니스 트렌드 (기존)
-- 📈 주식 브리핑 (`stock-trends.md`, 워치리스트 없으면 섹션 생략)
-- 🎓 학습노트 (`study-notes.md`, 핵심 개념 0건이면 섹션 생략)
-
-**속성 값 추출 규칙:**
-- 요약: tech-trends + biz-trends 각 핵심 3줄 합산
-- 기술/비즈니스 트렌드: 각 파일의 Top 3 뉴스 항목 1줄씩
-- 사업 아이템: s1-research에서 최종 선정된 아이템명
-- 블로그 발행: Step 1 결과 반영
-- content: **tech-trends.md 전체 + `---` 구분선 + biz-trends.md 전체** (Notion 페이지에서 스크롤하며 전체 내용 열람 가능)
-
-**실패 처리:**
-- Notion MCP 미연결 시 경고 출력 후 스킵 (리포트 파일은 이미 저장됨)
-- 페이지 생성 실패 시 에러 로그 출력 후 스킵 (파이프라인 중단 안 함)

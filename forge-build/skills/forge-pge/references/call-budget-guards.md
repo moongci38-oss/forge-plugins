@@ -51,6 +51,7 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 [루프 지시] 사이클 N 완료 후 게이트 G → 결정표(순위1~5)를 순서대로 1회 평가 (PGE_EVAL_HISTORY.jsonl 참조). 먼저 매칭되는 행에서 즉시 행동·중단, 이후 행 미평가 (상호 배타). 단계 번호 = 결정표(G + 1~5)와 1:1:
 
   G. data_integrity (전제 게이트 — 평가 가능성): Evaluator append 직후 루프(메인)가 **반드시** 사이클 N의 **eval-record**(`type=eval`, cycle=N인 마지막 라인)를 읽어 파싱(N+1로 미루지 않음 — STOP 경로가 N+1을 막을 수 있어 당-사이클 검증 필수). **regression(순위3) 평가하는 N≥2 사이클에서는 N-1 eval-record도 함께 파싱**. eval-record 누락·JSON 파싱불가 → 즉시 [STOP] DATA_INTEGRITY. (security_event 라인은 별개 type — 같은 cycle 공존이 정상이라 '중복'으로 STOP하지 않음. 순위1이 별도로 스캔.)
+    **Codex Evaluator 사이클이면**(`$EVAL_MODEL` 이 `gpt-*`) 파싱 직후 전사 무결성도 본다(#1170): `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/pge-eval-raw-check.sh" {project_root}/.claude/state N --eval-model "$EVAL_MODEL"` — rc≠0(원문에 없는 줄·RAW 없음·인자 누락) → 즉시 [STOP] DATA_INTEGRITY. Claude Evaluator 면 스크립트가 `SKIP`(rc 0)을 낸다 — 레인을 빼먹으면 rc 2 로 멈춘다(조용한 통과 방지).
     > **결정론 validator = B2 트랙 (정직성)**: 진짜 mechanical JSONL 검증(파서 exit-code 강제 + per-run 격리 + 동시성 lock)은 **B2 훅(Human 승인)** 영역. inline prose는 LLM이 읽어 STOP하는 **의도**만 규정 — 100% 기계 강제 보장 아님. (이전 인라인 python `-c`/heredoc은 diff base·exit-code·동시성 버그를 양산해 제거.)
 
   1. security_crit / rollback_trigger:

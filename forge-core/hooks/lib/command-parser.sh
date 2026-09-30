@@ -140,7 +140,6 @@ if re.search(r'<\s*\(', cmd):
 #   소비처 실측(2026-09-02) — 전부 판정 경로다:
 #     check-supply-chain.sh  : .normalized → NORM → stage-1 게이트 + 검사 1~13
 #     check-supply-chain.sh  : .normalized → heredoc 재판정(검사 2)
-#     asi-1-2-3-5-7-9.sh     : parse_canonical() → .normalized/.bypasses → ASI 판정
 #     hooks/tests/supply-chain-bypass.test.sh : 키 존재만 확인
 #   재현: grep -rn "get('normalized'\|\.normalized" --include='*.sh' .claude/hooks/
 #
@@ -186,8 +185,8 @@ parse_hook_input() {
 # stdout JSON 을 기대해 왔다:
 #   - check-supply-chain.sh: `echo "$CMD" | bash "$PARSER"` → PARSED='' → BYPASSES 상시 공백
 #     → bypass BLOCK(설치 명령 bypass 탐지) 도달 불가
-#   - asi-1-2-3-5-7-9.sh:    `subprocess.run(['bash', PARSER], input=text)` → json.loads('') 예외
-#     → `except: return text, []` 로 조용히 폴백(주석 :150-152 가 이 사실을 이미 기록)
+#   - asi-1-2-3-5-7-9.sh(#1474 삭제): `subprocess.run(['bash', PARSER], input=text)` → json.loads('') 예외
+#     → `except: return text, []` 로 조용히 폴백
 # 재현(수정 전): printf 'npm install lodash' | bash lib/command-parser.sh → rc=0, stdout 0바이트
 # → 직접 실행 시 stdin(hook JSON 또는 raw 명령 문자열)을 읽어 JSON 을 내보낸다.
 #   source 경로의 동작·변수 계약(parse_hook_input / CP_*)은 무변경.

@@ -1,54 +1,48 @@
 ---
-description: "Forge Dev P5 Check P5.6 UI/UX 품질 검수 — 독립 실행. Vision 레그 = GPT-6 Astra(codex-critic) 단일 (구 표기 'Gemini Vision 폴백' 은 2026-09-07 폐기 — Gemini 전면 철수)."
-allowed-tools: Bash, Read, Grep, Glob, ToolSearch
+description: "Forge Dev P5 Check P5.6 UI/UX 품질 게이트 — 독립 실행 진입점. 실행은 `forge-check-ui` 스킬(workflow.js 5축 + 조건부 L3)이 한다. Lighthouse/Vision 축 = codex-critic(모델은 workflow.js `codexUiModel` 이 정한다)."
+allowed-tools: Bash, Read, Grep, Glob, Skill, Agent, ToolSearch
 model: sonnet
 group: verify
 ---
 
 # /forge-check-ui — UI/UX 품질 게이트
 
-P5 Check P5.6 UI/UX 검증을 독립적으로 실행합니다.
+P5 Check P5.6 UI/UX 검증을 독립적으로 실행합니다. **이 커맨드는 입구일 뿐이고, 실행 절차는 스킬 한 곳에만 있습니다.**
+
+> #1139 C013(2026-09-27): 이 파일이 실행 절차(변경 파일 → `ui-a11y-lint.sh` 기계 축 → `ui-quality-checker` 스폰 →
+> 시각 검증 → 합산)를 직접 적고 있었는데 같은 절차가 `skills/forge-check-ui/workflow.js` 에 코드로 있었다.
+> 경로가 둘이면 한쪽만 고쳐져 판정이 갈린다 — 그래서 절차는 스킬로 모으고 여기는 호출만 한다.
+> 절차를 바꾸려면 **`workflow.js`(와 `SKILL.md`)를 고친다** — 여기에 단계를 다시 적지 않는다.
 
 ## 실행
 
-1. UI 관련 파일 변경 목록 확인
-2. 정적 분석 (U-1~U-5) → **기계 축 먼저** → `ui-quality-checker` agent 스폰:
-   2-a. U-2·U-4(eslint-plugin-jsx-a11y)·U-5(grep) 판정 — 단독 명령으로 실행하고 stdout JSON 을 그대로 받는다:
-   ```bash
-   bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/ui-a11y-lint.sh" --root "$PWD" -- {changed_files}
-   ```
-   대상 프로젝트에 eslint·jsx-a11y 가 없으면 스크립트가 U-2·U-4 를 `UNAVAILABLE`(미설치 — 판정 불가)로 내고 에이전트가 직접 본다.
-   **이 커맨드는 아무것도 설치하지 않는다.** exit 0 이 아니면 `MECHANICAL_JSON` 자리에 `없음(스크립트 실패)` 을 넣는다(fail-open).
-   2-b. 에이전트 스폰 — JSON 원문을 요약하지 말고 그대로 넣는다:
-
-```python
-Agent(subagent_type="ui-quality-checker",
-      prompt="변경 파일 목록: {changed_files}. Spec: {spec_path}. 6축 정적 검증 실행.\n"
-             "기계 축 판정 JSON(PASS/WARN/FAIL 축은 확정값 — 다시 판정하지 말고 옮겨 적는다. "
-             "UNDECIDED 는 residual 만, UNAVAILABLE 은 직접 판정):\n{MECHANICAL_JSON}")
+```
+Skill(forge-check-ui, args='{"url": "<검사 URL, 기본 http://localhost:3000>", "projectRoot": "<프로젝트 루트>", "changedFiles": [<UI 변경 파일 — 생략하면 스킬이 작업트리 변경분을 쓴다>]}')
 ```
 
-3. U-6 Lighthouse/반응형 시각 검증 → Playwright MCP는 미설치. 시각 검증은 qa/forge-fix와 동일한 `shared/scripts/playwright-devtools-capture.mjs`(자체 playwright Node 헬퍼) 또는 `visual-loop` 스킬로 수행(로직 단일화 — 새 경로 신설 금지). MCP는 설치 시에만 선택적으로 사용.
-4. 두 결과 합산 → JSON 반환
+반환 = `{verdict, l3, axes[], failedAxes[], pixelDiffGate, stop}` (스킬 `workflow.js` 마지막 `return`). 재검은 호출자 몫이다(스킬 GC1 — 내부 재실행 없음).
 
-## Advisor 자문 (advisory-only · non-blocking · 리졸버 기본 = **GPT-6 Astra**)
+## 커맨드 고유 계약 (스킬이 지켜야 하는 것 — 절차 사본이 아니다)
 
-UI/UX 게이트 판정이 PASS/FAIL 경계일 때 `advisor-strategist` 조언을 구한다(모델 = `advisor-model-resolve.sh` 출력, **기본 `gpt-6-astra`**). **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+- **아무것도 설치하지 않는다.** eslint·jsx-a11y 가 없으면 U-2·U-4 는 `UNAVAILABLE`(미설치 — 판정 불가)로 떨어지고 에이전트가 직접 본다.
+  구현 위치: `shared/scripts/ui-a11y-lint.sh`(머리 주석 "아무것도 설치하지 않는다" · `not-installed` 분기).
+- **기계 축 판정 JSON 은 요약하지 않고 원문 그대로 에이전트에 넣는다** — PASS/WARN/FAIL 축은 확정값(재판정 금지),
+  `UNDECIDED` 는 residual 만, `UNAVAILABLE` 은 직접 판정. 린트가 exit 0 이 아니면 `없음(스크립트 실패)` 로 넣는다(fail-open).
+  구현 위치: `workflow.js` source-quality 축(`MECH_SCHEMA` · `mechJson` · `agentType: 'ui-quality-checker'`) · 에이전트 쪽 `agents/ui-quality-checker.md §기계 축 입력 처리`.
+- **시각 검증(U-6 Lighthouse·반응형)은 기존 경로 하나로만** — `shared/scripts/playwright-devtools-capture.mjs`(자체 playwright 헬퍼, L1.5 단일 chokepoint) 또는 `visual-loop` 스킬.
+  Playwright MCP 는 설치돼 있을 때만 선택적으로 쓴다. **새 시각 검증 경로를 신설하지 않는다**(로직 단일화 — qa·forge-fix 와 같은 헬퍼).
+- ⚠️ **알려진 손실 — Spec 입력 없음**: 구 커맨드는 `ui-quality-checker` 에 `Spec: {spec_path}` 를 넘겼지만 스킬 `workflow.js` source-quality 축은 spec 을 받지 않는다 → **U-3 breakpoint 는 Spec 과 대조하지 않고 코드만 본다**. 스킬에 spec 인자를 배선하는 일은 후속(#1139 백로그)으로 넘긴다.
+  Spec 대조가 필요하면 `ui-quality-checker` 에이전트를 직접 스폰해 프롬프트에 `Spec: <spec 경로>` 를 함께 넘긴다(이 게이트의 판정을 대신하지는 않는다 — 보조 확인).
 
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
-```python
-Agent(subagent_type="advisor-strategist", prompt="UI 검수 결과·접근성/UX 지적·현재 점수 맥락 3-5줄. 질문: 이 UI의 접근성·핵심 UX 리스크 중 게이트 판정을 바꿀 2-3개는?")
-```
+## Advisor 자문 (advisory-only · non-blocking)
 
-- 트리거: 게이트 판정 경계(접근성·핵심 UX 결함 논쟁 시)
-- 반환 조언은 참고만 — 최종 판단·실행은 커맨드가 수행.
-- **advisor 모델 = `advisor-model-resolve.sh` 출력**(**기본 `gpt-6-astra`** · Fable 5.1 은 `FORGE_ADVISOR_MODEL=fable` 또는 `FORGE_ADVISOR_EXECUTOR=codex|gpt`(벤더 교차) 일 때만 · `FORGE_ADVISOR_MODEL=opus` 로 Opus 고정). 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)로 스폰한다.
-  ⚠️ 2026-08-12 이전 문구 **"Fable 5 미배선 — Human 수동 에스컬레이션 전용 · `advisor-model-resolve` 호출 금지"는 폐기**했다 — 이 커맨드에 advisor 자문 레그가 실재하는데 리졸버 호출을 금지해 라우팅이 서로 어긋났다(cr-final HIGH). 정본 → `rules/model-routing.md §Advisor 전략 상시 가동`
-- 모델 라우팅: 본 커맨드 작업=Sonnet · 탐색=Haiku · advisor=`advisor-model-resolve.sh` 출력(**기본 `gpt-6-astra`** · CLI<0.153.4 면 `gpt-5.6-sol` 로 하향).
-  ⚠️ **구 표기 "기본 Fable 5.1 · 대체 gpt-6-astra" 는 2026-09-17 폐기** — 2026-09-07 Human 지시(advisor 기본 Fable→Astra)를 이 파일이 따라오지 못했다. 문서는 fable, 리졸버는 astra 를 내고 있었다.
-  실측 재현: `bash shared/scripts/advisor-model-resolve.sh` → `gpt-6-astra` · `bash shared/scripts/advisor-spawn-guard.sh resolve` → `gpt-6-astra` (2026-09-17 관측).
-  근거: 문서가 조언자 벤더를 틀리게 적으면 "실행자와 다른 벤더에게 묻는다" 는 교차 규율을 사람이 손으로 뒤집는다. 정본 → `rules/model-routing.md §세션 운영 모델`.
-  폐기조건: 사람이 기본 조언자를 다시 정하면 이 줄을 갱신한다.
+게이트 판정이 PASS/FAIL **경계**일 때(접근성·핵심 UX 결함 논쟁) 조언자에게 "판정을 바꿀 접근성·UX 리스크 2~3개"를 묻는다.
+**게이트 차단이 아니다 — 미가용·실패 시 기본 흐름대로 진행(fail-open).** 반환 조언은 참고만, 최종 판단은 이 커맨드가 한다.
+
+- 모델·스폰 방식 = **`shared/scripts/advisor-spawn-guard.sh resolve` 출력만** 따른다(`claude-*` → `Agent(subagent_type="advisor-strategist", model:…)` · `gpt-*` → `mcp__codex__codex` sandbox=read-only).
+  리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
+- 정본 → `rules/model-routing.md §Advisor 전략 상시 가동` · 분기표 → `agents/advisor-strategist.md §비용 특성`.
+- 모델 라우팅: 본 커맨드 작업 = Sonnet · 탐색 = Haiku · advisor = 위 리졸버 출력.
 
 ## 트리거 조건
 

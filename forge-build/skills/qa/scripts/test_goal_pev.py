@@ -166,13 +166,17 @@ with tempfile.TemporaryDirectory() as d:
 # ── E (cross-process 계약): qa-event-router consumer ↔ goal-pev/producer 계약 검증 ──
 # parents: [0]=scripts [1]=qa [2]=skills [3]=.claude → hooks는 .claude/hooks = parents[3]
 HOOK = str(Path(__file__).resolve().parents[3] / "hooks" / "qa-event-router.sh")
-ACCUM = str(Path(__file__).resolve().parents[3] / "hooks" / "loop-call-accum.sh")
+# 생산자 loop-call-accum.sh 는 삭제됐다(4e9cf8301 #1358) — 그 생산자를 돌리던 E3·E11 을 뺐다.
 
 
 def run_hook(workdir, event, payload, env_extra, drop_sid=False):
     env = dict(os.environ)
     if drop_sid:
         env.pop("CLAUDE_SESSION_ID", None)
+    # 격리(2026-09-17): 훅의 call-cap 소비자는 `${CLAUDE_PROJECT_DIR:-$HOME}/.claude/agent-budget` 를 읽는다
+    #   (qa-event-router.sh:86). 이걸 안 주면 **실제 $HOME 을 읽어** 샌드박스 밖 값으로 판정한다.
+    #   생산자(loop-call-accum.sh:15)도 같은 앵커다 — 커밋 854c5466(2026-07-04)이 CWD 상대경로를 없애며 바꿨다.
+    env["CLAUDE_PROJECT_DIR"] = str(workdir)
     env.update(env_extra)
     # 테스트 격리: QA_HOOK_DEPTH 카운터(/tmp/qa-hook-depth-${SID}.txt)를 호출 전 리셋
     # (반복 호출 시 depth 누적으로 false BLOCK 방지 — 실제 세션에선 dispatch 끝에 reset됨)
@@ -207,17 +211,6 @@ with tempfile.TemporaryDirectory() as d:
 
 # (E4 제거) foreign-kill 방지 테스트 — goal-pev read_call_count 폐지로 moot. hook check_call_cap은
 # payload SID를 우선 사용하므로 타 세션 오살 위험 없음(E3가 payload-SID 우선 도출을 검증).
-
-# E3: SID 정렬 — producer/consumer 모두 payload .session_id 사용(CLAUDE_SESSION_ID env 달라도 같은 파일)
-with tempfile.TemporaryDirectory() as d:
-    Path(d, ".claude").mkdir()
-    payload = '{"session_id":"sidmatch","tool_name":"Bash"}'
-    for _ in range(3):  # producer 3회
-        subprocess.run(["bash", ACCUM], cwd=d, input=payload, capture_output=True, text=True)
-    cnt = int(Path(d, ".claude/agent-budget/sidmatch.calls").read_text().strip())
-    # consumer: env CLAUDE_SESSION_ID는 일부러 다른 값 — payload 우선 도출이면 sidmatch.calls(=3) 읽어 WARN
-    err = run_hook(d, "PostToolUse", payload, {"QA_CALL_CAP": "2", "CLAUDE_SESSION_ID": "WRONGSID"})
-    results["E3 SID align (payload 우선)"] = (cnt == 3 and "tool-call 3/2" in err, (cnt, "WARN" if "tool-call 3" in err else "no-warn(theater!)"))
 
 # E5: result="" + fail>0 → 정상 재주입(queue append) — rewrite 후 정상 경로 보존 확인
 with tempfile.TemporaryDirectory() as d:
@@ -290,20 +283,6 @@ with tempfile.TemporaryDirectory() as d:
                        env=env, capture_output=True, text=True, timeout=30)
     # set -e abort면 exit≠0 + 완료로그 부재. 가드 정상이면 exit0 + 'QA 완료'.
     results["E10 zero-FAIL set -e abort 금지"] = (p.returncode == 0 and "QA 완료" in p.stderr, (p.returncode, p.stderr.strip()[-70:]))
-
-# E11 (r8, Gemini HIGH 회귀): env-fallback 중간 tier 정렬 — payload SID 없고 CLAUDE_SESSION_ID 있을 때
-# producer(loop-call-accum.sh)/consumer(check_call_cap)가 둘 다 CLAUDE_SESSION_ID로 fallback → 같은 .calls 버킷.
-# (E3=payload-SID tier, E8=no-SID 'unknown' tier 사이의 미커버 중간 tier — 불일치 시 WARN theater 재발.)
-with tempfile.TemporaryDirectory() as d:
-    Path(d, ".claude").mkdir()
-    payload = '{"tool_name":"Bash"}'   # session_id 없음 → 양측 CLAUDE_SESSION_ID fallback
-    penv = dict(os.environ); penv["CLAUDE_SESSION_ID"] = "e11sid"
-    for _ in range(3):  # producer 3회 (payload SID 없음)
-        subprocess.run(["bash", ACCUM], cwd=d, input=payload, env=penv, capture_output=True, text=True)
-    cnt = int(Path(d, ".claude/agent-budget/e11sid.calls").read_text().strip())
-    # consumer: 동일 CLAUDE_SESSION_ID fallback → e11sid.calls(=3) 읽어 WARN. 불일치면 다른 버킷→no-warn(theater).
-    err = run_hook(d, "PostToolUse", payload, {"QA_CALL_CAP": "2", "CLAUDE_SESSION_ID": "e11sid"})
-    results["E11 env-fallback tier 정렬(producer==consumer)"] = (cnt == 3 and "tool-call 3/2" in err, (cnt, "WARN" if "tool-call 3" in err else "no-warn(misalign!)"))
 
 # (E12 미채택) malformed-JSON 전체-hook 내성은 line46 외 다른 함수의 unguarded jq에서 먼저 abort —
 # 실무상 PostToolUse INPUT은 항상 valid JSON이라 미발생(Codex LOW '일관성 갭'). line46 `|| sid=""` 가드는

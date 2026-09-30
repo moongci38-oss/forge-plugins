@@ -144,7 +144,7 @@ def score_auth(pyfile: Path) -> dict:
     if fn is None:
         return _fail("no target function (verify_token / verify / check_token / validate_token)")
 
-    secret = "s3cr3t"
+    secret = "s3cr3t"  # forge-sec: allow S1 HMAC 위변조 채점용 고정 키(실서비스 키 아님)
     sig = hmac.new(secret.encode(), b"42", hashlib.sha256).hexdigest()
     valid = f"42.{sig}"
     tampered = f"999.{sig}"  # user_id replaced, signature reused

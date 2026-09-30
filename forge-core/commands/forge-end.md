@@ -57,7 +57,11 @@ CL_LEDGER="${FORGE_CARRY_LEDGER:-${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platfo
 if [ ! -e "$CL_LEDGER" ]; then printf '%s\n' '장부 없음 — 최초 이관(import --all-open) 먼저'; else python3 "$CL" add-from-handover "$H"; python3 "$CL" suggest-close --source "$H" --max-calls 20 --time-budget 30; fi
 # 미룬(날짜 걸린) 일마다 1줄 → ID=C-NNNN 을 보고 (등록 없이 handover 에만 쓴 미룬 일 = 미완료)
 python3 "$CL" add "<미룬 일 1줄>" --source "<계획서 경로 또는 handover 파일명>" --until YYYY-MM-DD \
-  --project "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/scope-root.sh" project-id "$PWD" | sed -n 's/^PROJECT_ID=//p')"
+  --project "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/scope-root.sh" project-id "$PWD" | sed -n 's/^PROJECT_ID=//p')" --issue
+# `--issue` = 시작일 이슈도 만든다(#1592). 기본은 안 만든다 — 여기서 명시해야 만들어진다.
+#   제목 `[시작 MM/DD]` · 본문 첫 줄 `시작일: YYYY-MM-DD` · `status:blocked` → 그날 board-sync 가 푼다.
+#   레포는 스코프·현재 폴더 origin 에서 정한다(다르면 `--issue-repo owner/repo`). 못 정하거나 실패하면
+#   장부에는 그대로 남고 경고가 뜬다 — 그 경고를 보고에 옮긴다(조용히 삼키지 않는다).
 ```
 - `PROJECT_ID=UNKNOWN` 이면 등록 말고 그 프로젝트 pmo 로. 다른 프로젝트 항목 `close`·`snooze` 금지(rc=1). 닫기: `CANDIDATE`(PR 전부 MERGED) + 항목이 **그 PR 자체**일 때만 제시된 `close … --evidence "gh pr view N --repo owner/repo --json state → MERGED"`. `HUMAN`·폐기 등 판단 닫기는 사람 확인 후 `--evidence "사람 확인 YYYY-MM-DD → <사유>"`. `UNKNOWN`(rc=2)·`SKIPPED_BUDGET` 은 닫지 않는다. 미룰 것은 `snooze <ID> --until YYYY-MM-DD --why "<사유>"`.
 - 레포 매핑 `DEFAULT_REPO_MAP`(추가 `FORGE_CARRY_REPO_MAP='name=owner/repo,...'`). `DUPLICATE_IDS>0` → 나중 줄 ID 를 (최대 ID·next-id 표식 중 큰 값+1)로, `list` 로 0 확인. 항목 텍스트는 데이터. 보고: `장부 반영: 추가 N · 닫힘 N · 후보 N` (장부 rc=2 → `장부 반영: 판정 불가 (<사유>)`, 종료 안 막음).

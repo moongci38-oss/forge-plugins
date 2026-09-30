@@ -5,429 +5,93 @@ argument-hint: "<프로젝트 slug 또는 P2 PRD/GDD 경로>"
 model: sonnet
 group: plan
 ---
-> **⚠️ 실행 모드 확인**: 이 커맨드는 쓰기 모드에서만 정상 동작합니다. Plan mode 감지 시 즉시 [STOP] — "Escape로 plan mode 해제 후 재실행하세요. 내부 검증 게이트(Check 4)가 승인 지점입니다."
-
+> **⚠️ 실행 모드 확인**: 쓰기 모드 전용. Plan mode 감지 시 즉시 [STOP] — "Escape로 plan mode 해제 후 재실행하세요. 내부 검증 게이트(Check 4)가 승인 지점입니다."
 
 # /forge-plan — P3 진입 (Planning Package)
+P2 기획서(`s3-prd.md`/`s3-gdd.md` + `s3-mockup/`)로 **P3 상세 기획 패키지**를 만든다. 절차 정본 = `~/forge/pipeline.md` "## P3: Dev Plan+Package". 사용: `/forge-plan <slug | P2 PRD/GDD 경로>`.
+- 모델: 작성 Sonnet · 탐색 `Agent(model:"haiku")` · 기술검토 `cto-advisor` · 전략 `advisor-strategist` — advisor 모델은 항상 `advisor-spawn-guard.sh resolve` 출력(`gpt-*` → `mcp__codex__codex` read-only).
+- 범위: greenfield + 기존 Forge 산출물 delta 보강(M5). 임의 legacy retrofit은 `migration-audit`.
+- `{project-root}` = `forge-outputs/02-product/{project-slug}/`.
 
-P2 기획서(`s3-prd.md` / `s3-gdd.md` + `s3-mockup/`)를 가지고 있을 때 **P3 상세 기획 패키지**를 작성하는 단일 진입 커맨드.
+## Step 0 — 기억 회상 (선행 필수)
+`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/recall-context.sh" --stage forge-plan --query "<키워드>"` (조회 기록 자동). 적중은 "선행 지식"에 출처(learnings ID·파일 경로), 0건이면 "조회함 + 0건" 1줄.
 
-> 절차 정본 = `~/forge/pipeline.md` "## P3: Dev Plan+Package" (필수 산출물 3종 / Spec 크기 가드레일 5원칙 / 실행 순서 Step 1~6 / Check 3 게이트). 본 커맨드는 그 절차의 실행 래퍼.
-
-## 모델 라우팅 (2026-07-04)
-
-| 작업 | 모델 | 방법 |
-|------|------|------|
-| 기획 패키지 작성 | **Sonnet** | frontmatter `model: sonnet` |
-| 탐색(기존 spec/제품 인덱스·레포 확인) | **Haiku** | `Agent(model:"haiku")` subagent |
-| 기술 검토(7축 ADR) | (기존) | `cto-advisor` 에이전트/스킬 |
-| 비기술 전략 자문 | **Fable 5.1**(대체 `gpt-6-astra`) | `advisor-strategist` — 모델은 `advisor-model-resolve.sh` 출력 |
-
-근거: `~/.claude/rules/model-routing.md §Advisor 전략 상시 가동`. ⚠️ 2026-08-12 부터 advisor 기본은 **Fable 5**다(구 "Opus 고정 · Fable 자동 없음" 폐기, 2026-09-02: Fable 5.1 로 업그레이드). 리졸버 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(read-only)로 스폰한다.
-
-## 사용법
-
-```
-/forge-plan <프로젝트 slug>       # forge-outputs/02-product/<slug>/ 에 s3-* 존재
-/forge-plan <P2 PRD/GDD 경로>     # 경로에서 프로젝트 추론
-```
-
-⚠️ **같은 파일에서 "P3" 가 두 가지를 뜻하던 것을 2026-09-17 에 정리했다** — 제목·본문의 `P3` 는 **이 커맨드가 만드는 상세 기획 패키지**이고, 구 표기 `Phase 3 PRD/GDD`·`Phase 3 기획서` 는 **레거시 번호**라 새 번호로는 **P2**(= `/prd`·`/forge-design` 산출물)다. 둘을 같은 이름으로 부르면 "P3 를 먼저 하라"는 안내가 자기 자신을 가리키게 된다.
-근거: `pipeline.md §Legacy Phase 매핑` — `Phase 3 Design Doc | P2 Design Doc` · 재현: `grep -n 'Phase 3' pipeline.md`
-폐기조건: 레거시 번호 표기가 레포에서 전부 사라지면 이 각주를 지운다.
-
-## 적용 범위 (스코프 가드 — P5)
-
-> **greenfield 한정** — brownfield(임의 legacy 코드/도메인 역설계·retrofit)는 본 파이프라인 범위 밖, 별도 `migration-audit` 트랙.
-> **단 기존 Forge P2/P3 산출물의 delta 검증·보강(M5)은 유효**(범위 내) — M5 검증·보강 모드(Step 1-M5)가 이 경로를 처리한다.
-> 즉: "기존 Forge 산출물 보강 = in-scope / 임의 legacy retrofit = out-of-scope"
-
-## Step 0 — Brain recall (선행 필수, 회사 두뇌 계획서 §3.6 파이프라인 회수 배선 / A4-5)
-
-기획 패키지 작성 착수 **전에 브레인 조회 1회**를 수행한다. 축적한 wiki·RAG 지식이 기획 중 잠들어 있는 구멍을 막는 스텝이다.
-
-1. 프로젝트/기능 키워드로 `rag-search` 1회 + wiki 조회(`mcp__…__wiki_search` 또는 20-wiki Glob) 1회
-2. **결과가 0건이어도 "조회함 + 0건"을 기록한다** — 브레인을 *안 물어본 것*과 *물어봤는데 없는 것*은 다르다
-3. 기록(1줄):
-   ```bash
-   printf '{"ts":"%s","stage":"forge-plan","query":"<키워드>","hits":<n>}\n' "$(date -u +%FT%TZ)" \
-     >> "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/brain-recall.jsonl"
-   ```
-4. 적중 건이 있으면 기획 패키지 본문 "선행 지식" 항목에 출처 링크로 남긴다.
-
-> T3 미연결(강등) 세션이면 조회 결과가 팀과 다를 수 있다 — 세션 시작 배너(`t2-degraded-banner.sh`) 경고를 그대로 신뢰하고, 중요한 근거는 T3 복구 후 재조회한다.
-
-## 전제조건
-
-- `PIPELINE-IRON-1`: P2 기획서(`s3-prd.md` 또는 `s3-gdd.md`) + `s3-style-guide.md` + `s3-mockup/` 없이는 진입 금지 — 기획서 absent 시 GUIDE-STOP, 형식 불일치는 ADAPT 자동보완
-- 산출물 경로 `{project-root}` = `forge-outputs/02-product/{project-slug}/` (`folderMap.product` 해석 결과)
-
-## Phase 0 — Readiness 판정 (요건 기반 3-way 게이트)
-
-→ 공통 헬퍼: `/readiness-gate` 참조 (4-state 판정 + GUIDE-STOP 산출기 + ADAPT 규칙)
-
-**선행 Phase 게이트 (기계 검증, 선행 필수)**
+## Phase 0 — Readiness (공통 헬퍼 `/readiness-gate`)
 ```bash
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} P3-ENTRY
 ```
-`exit 1` → **즉시 GUIDE-STOP**(P2 미완). 요소 스캔보다 **먼저** 돌린다.
-상세 규칙 → `/readiness-gate §선행 Phase 게이트`.
+`exit 1` → 즉시 GUIDE-STOP(P2 미완). 이후 `/readiness-gate` 진입계약 표의 **모든 행**을 4-state(ok/normalize/derive/absent) 판정: 전부 ok → PASS · normalize/derive만 → ADAPT(자동보완) · absent 1+ → GUIDE-STOP(`forge-plan-readiness-{date}.md` 출력 후 정지). PIPELINE-IRON-1: 기획서·`s3-style-guide.md`·`s3-mockup/` 없으면 진입 금지.
 
-forge-plan 진입 계약(**표에 있는 요소 전부** — 2026-08-11 현재 A~E 5요소, `E`=선행 Phase 상태)
-기준으로 P2 아티팩트 스캔:
-
-> ⚠️ **개수를 여기에 다시 적지 말고 `/readiness-gate` 표를 읽어 그 행 전부를 판정한다.**
-> 2026-08-11 실사고: 계약 표에 `E`/`I` 를 추가했는데 이 문장이 "A~D"로 고정돼 있어
-> 신설 항목이 조회되지 않을 뻔했다(적대적 검수 Critical). 표가 정본이고 이 문장은 요약이다.
-- 요소별 4-state 판정(ok/normalize/derive/absent)
-- 라우팅:
-  - 전부 ok       → **PASS** (실행 흐름 Step 1 진행)
-  - normalize/derive만 → **ADAPT** (자동보완 후 Step 1 진행)
-  - absent 1개+  → **GUIDE-STOP** (`forge-plan-readiness-{date}.md` 출력 후 정지)
-
-기존 PIPELINE-IRON-1 [STOP]은 absent A(기획서)=GUIDE-STOP으로 대체:
-기획서가 완전히 없으면 GUIDE-STOP. 있으나 불완전하면 ADAPT.
-
-## 실행 흐름 (pipeline.md P3 Step 1~6)
-
-### Step 1 — 도메인 폴더 + 상세 기획서 자동생성 *(메인 AI 직접)*
-- 입력: `s3-prd.md`/`s3-gdd.md` + `s3-mockup/`
-- 화면별 동작 + 데이터 흐름 + 사이트맵 + **핵심 화면 목록 표** (`화면 ID`(kebab-case 영문, 고유) | 화면명 | 1줄 목적) — `s4-pages/` 디렉토리명의 SSoT
-- **도메인 폴더 구조 자동생성** (s4-detailed-plan.md 단일 파일 → 폴더화, 고정번호 규약):
-  ```
-  {project-root}/{domain}/
-  ├── 00-도메인개요.md           ← 개요(목적·범위·용어)
-  ├── _registry.yaml             ← canonical manifest (Phase 3 M2에서 생성)
-  ├── 기능명세/                  ← 기능별 분할 (api-정의서·sequences와 일관)
-  │   └── F-01-{기능명}.md ...   ← 파일명은 반드시 {feature_id}- 로 시작(registry_gate 계약)
-  ├── 10-화면정의.md             ← 고정번호 (화면 ID·레이아웃·상태)
-  ├── 11-테이블명세.md           ← 고정번호 (스키마·관계)
-  ├── 12-상세개발계획서.md       ← 고정번호 (세션 로드맵·기술스택·ADR)
-  ├── s4-pages/                  ← 화면별 UI 소스코드 (구 s4-ui-source/ 대체)
-  └── _STATUS.md                 ← 진행 원장(M6)
-  ```
-- 도메인명 = 프로젝트 slug (단일 도메인 프로젝트) 또는 PRD §핵심 도메인에서 추출 (멀티 도메인).
-- 기존 `s4-detailed-plan.md` = legacy 단일 포맷 (기존 프로젝트 하위호환). 신규 = 도메인 폴더 우선.
-- 산출물: `{project-root}/{domain}/` 도메인 폴더
-
-#### 1-M5: 자산 감지 → 검증·보강 모드 판정
-Step 1 실행 전 기존 도메인 폴더 유무 확인:
-- **기존 `{domain}/` 존재 → 검증·보강 모드**: `/readiness-gate` M5 섹션 실행 (delta 방식 — 누락 파일만 추가, 기존 파일 SSoT 유지). orphan 감지 시 FAIL/WARN 분류.
-- **기존 폴더 없음 → 신규 생성 모드**: 아래 도메인 폴더 구조 전체 생성.
-
-> **⚠️ M8 stale-cascade는 pull-only(WARN, additive)**: `/readiness-gate` M8은 forge-plan이 재호출될 때만 stale을 감지·전파한다 — P2 기획서(`s3-prd.md`/`s3-gdd.md`)가 변경됐는데 forge-plan이 재호출되지 않으면 P3 산출물(`{domain}/` 전체)이 조용히 stale된 채 방치될 수 있다. 검증·보강 모드 진입 시 P2 산출물 mtime이 `{domain}/_STATUS.md` 마지막 갱신일보다 최신이면 → "P2 변경 감지 — M8 stale-cascade 재검증 권고" WARN 1줄 출력(차단 아님, 강제 재실행 아님).
-
-> **➕ M8 mid-session 재트리거 (freshness check, WARN-first, fail-open)**: 위 pull-only 갭 보완 — forge-plan 재호출 없이도 **같은 세션 내에서** Step 2~6 각 진입 직전, P2 기획서 mtime을 직전 생성된 P3 산출물(Step 1 `_registry.yaml` 또는 도메인 폴더) mtime과 비교:
-> ```
-> # ⚠️ 리터럴 파일명 금지 — 쓰는 쪽(`prd.md` 의 "산출물: `YYYY-MM-DD-s3-prd.md`" 항과 "**저장**:" 항)은
-> #    `YYYY-MM-DD-s3-prd.md` 로 **날짜 접두**를 붙인다. (⚠️ 줄번호로 가리키지 않는다 — 리팩터마다 조용히 거짓이 된다)
-> # 구 표기 `"{project-root}/s3-prd.md"` 는 실존 파일과 안 맞아 P2_MTIME 이 **항상 공백** →
-> # 아래 `[ -n "$P2_MTIME" ]` 가 늘 실패 → fail-open 으로 조용히 통과 = 이 WARN 이 **한 번도
-> # 발화할 수 없었다**(2026-08-07 실측: `ls {FO}/02-product/arborAI/s3-prd.md` → 부재,
-> # `2026-07-27-s3-prd.md` 존재). `forge-gate-check.sh` 의
-> # `for _pat in "$PROJECT_PRODUCT"/*s3-prd*.md …` 루프는 이미 글롭을 쓴다 — 스크립트는 맞고 이 줄만 틀렸다.
-> # ⚠️ 구 표기 "같은 파일 `:58,138`(readiness-gate)과 `forge-gate-check.sh:216` 은 이미 글롭을 쓴다" 는
-> #    2026-09-17 폐기 — 셋 다 죽은 앵커였다(실측: readiness-gate `:58`=코드펜스 · `:138`=헤딩 ·
-> #    forge-gate-check `:216`=빈 줄). 게다가 readiness-gate 는 애초에 글롭을 쓰지 않는다(리터럴 `s3-prd.md` 표기뿐).
-> #    재현: `grep -n 's3-prd' shared/scripts/forge-gate-check.sh .claude/commands/readiness-gate.md`
-> P2_FILE=$(ls -t "{project-root}"/*s3-prd*.md "{project-root}"/*s3-gdd*.md 2>/dev/null | head -1)
-> P2_MTIME=$(stat -c %Y "$P2_FILE" 2>/dev/null)
-> P3_MTIME=$(stat -c %Y "{domain}/_registry.yaml" 2>/dev/null)
-> [ -n "$P2_MTIME" ] && [ -n "$P3_MTIME" ] && [ "$P2_MTIME" -gt "$P3_MTIME" ] && echo "WARN: P2 기획서가 세션 중 변경됨 — 현재 Step 진행 전 영향받는 Step 재실행 권고 (M8 mid-session stale)"
-> ```
-> 감지 시 → 영향받는 Step(대개 Step 1 재실행 후 하위 Step 이어가기) 재실행을 권고하는 WARN 1줄 출력 + 계속 진행 여부 확인 프롬프트(사용자 확인, 강제 재실행 아님). mtime 조회 실패(파일 부재·권한·`stat` 미가용 등 `P2_MTIME`/`P3_MTIME` 공백)는 **fail-open** — freshness 판정 불가 시에도 조용히 진행, 차단 금지. 기존 pull-only 흐름을 대체하지 않고 병행(재호출 시점 + 세션 내 매 Step 진입 시점 이중 커버).
-
-#### 1-M2: canonical 레지스트리 자동생성 (`_registry.yaml`)
-도메인 폴더 생성 직후 `{domain}/_registry.yaml` 자동 생성:
-```yaml
-# {domain}/_registry.yaml — canonical manifest (M2). 직접편집 금지: forge-plan이 SSoT.
-domain: {slug}
-generated: YYYY-MM-DD
-features:
-  - id: F-01
-    name: {기능명}
-    priority: Must|Should|Could|Won't   # PRD RICE / GDD MoSCoW
-    fr_refs: [FR-01, FR-02]             # 기능명세/F-01-{기능명}.md §FR
-    ac_refs: [AC-01, AC-02]             # 기능명세/F-01-{기능명}.md §AC
-    pages: [page-id-1, page-id-2]       # 10-화면정의.md 화면 ID
-    spec_ref: .specify/specs/YYYY-MM-DD-{slug}.md
-    # ── P1 신규 필드 (additive, 모두 선택적) ──────────────────────────────
-    state: design       # 신규 라이프사이클. 값: design→modeled→spec'd→converted→implemented→verified
-    # status: planned   # legacy 보존 (기존 프로젝트 마이그레이션 금지). read alias: state ‖ map(status)
-    stack: next.js      # 이 feature의 주 기술 스택
-    mockup_refs:        # 연관 목업 파일 (key: 화면ID, value: 경로)
-      {page-id}: s3-mockup/{page-id}.png
-    api_contract:       # 핵심 API 계약 (EP + 응답 1줄)
-      - "POST /endpoint → 201 {resultId}"
-    aggregate: null     # DDD 집합체 (P3 기능명세 DDD 섹션 작성 후 채움 — 2차)
+## Step 1 — 도메인 폴더 + 상세 기획서 *(메인 AI)*
+화면별 동작·데이터 흐름·사이트맵·**핵심 화면 목록 표**(`화면 ID` kebab-case 고유 | 화면명 | 1줄 목적 — `s4-pages/` 디렉토리명 SSoT). 도메인명 = slug 또는 PRD §핵심 도메인. 구조:
+`{domain}/` = `00-도메인개요.md` · `_registry.yaml` · `기능명세/F-01-{기능명}.md`(**반드시 `{feature_id}-` 접두**) · `10-화면정의.md` · `11-테이블명세.md` · `12-상세개발계획서.md` · `s4-pages/` · `_STATUS.md`. (legacy `s4-detailed-plan.md` 하위호환)
+- **1-M5**: 기존 `{domain}/` 있으면 검증·보강 모드(`/readiness-gate` M5 — 누락만 추가, orphan FAIL/WARN) / 없으면 신규 생성. 재진입은 `/readiness-gate §M9`(완료 M스텝 재실행 금지).
+- **M8 freshness (WARN, fail-open)**: 보강 모드 진입 시와 Step 2~6 진입 직전:
+```bash
+P2_FILE=$(ls -t "{project-root}"/*s3-prd*.md "{project-root}"/*s3-gdd*.md 2>/dev/null | head -1)
+P2_MTIME=$(stat -c %Y "$P2_FILE" 2>/dev/null)
+P3_MTIME=$(stat -c %Y "{domain}/_registry.yaml" 2>/dev/null)
+[ -n "$P2_MTIME" ] && [ -n "$P3_MTIME" ] && [ "$P2_MTIME" -gt "$P3_MTIME" ] && echo "WARN: P2 기획서가 세션 중 변경됨 — 현재 Step 진행 전 영향받는 Step 재실행 권고 (M8 mid-session stale)"
 ```
-> **state / status read alias 규약 (P1)**: 신규 feature = `state` 사용. 기존 `status` 보존 (재작성·migration 금지).
-> 레지스트리를 읽는 도구는 `state ‖ map(status)` 순서로 해석 — `state` 있으면 우선, 없으면 `status`를 state-enum으로 매핑(planned→design, in_progress→converted, done→verified).
-> **⚠️ 상태 전이 enum 검증은 P1 범위 밖** — 상태머신이 미완성 상태임을 인지하고 진행 (P4 소비자 배선과 함께 2차 도입).
-pages:
-  - id: {화면ID-kebab-case}
-    name: {화면명}
-    purpose: {1줄 목적}
-    feature_refs: [F-01]
+  감지 시 재실행 권고 + 계속 여부 확인(강제 아님).
+- **1-M2 `_registry.yaml`** (직접편집 금지, 기존 있으면 diff-merge — 덮어쓰기 금지): `domain`·`generated`·`features[]`{`id`,`name`,`priority`(Must|Should|Could|Won't),`fr_refs`,`ac_refs`,`pages`,`spec_ref: .specify/specs/YYYY-MM-DD-{slug}.md`, 선택 `state`(design→modeled→spec'd→converted→implemented→verified),`stack`,`mockup_refs`{page-id: `s3-mockup/{page-id}.png`},`api_contract`,`aggregate`}·`pages[]`{`id`,`name`,`purpose`,`feature_refs`}. 전 기능 등록. legacy `status` 보존, 읽기는 `state ‖ map(status)`(planned→design, in_progress→converted, done→verified). fr/ac_refs는 기능명세 §FR·§AC와 1:1.
+- **1-M2b `_product.yaml`** (도메인 ≥2일 때만, advisory): `generated`·`size_profile`(S=1/M=2-5/L=6+)·`domains[]`{`slug`,`registry`,`must_count`}.
+```bash
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --product {project-root} || echo "WARN: registry_gate 미가용(스크립트 미발견/실행실패) — advisory 스킵"
 ```
-- Must 기능 전수 등록. Should/Could/Won't도 등록(state=design 또는 legacy status=planned).
-- fr_refs/ac_refs = 기능명세 파일 §FR·§AC 항목 ID와 1:1 (누락 = orphan, Phase 4 M3 게이트 대상).
-- 기존 `_registry.yaml` 존재 시 → diff-merge (기존 항목 보존, 신규 추가만). 덮어쓰기 금지.
-
-#### 1-M2b: `_product.yaml` reconcile (P2 additive — domains≥2 시만)
-_registry.yaml 생성·갱신 직후, 프로젝트 루트 전체 도메인 폴더 수를 확인:
-
-| 규모 프로파일 | 도메인 수 | _product.yaml |
-|-------------|---------|--------------|
-| **S** (단일) | 1개 | **미생성** — 단일 도메인 프로젝트는 불필요 |
-| **M** (중간) | 2~5개 | **advisory 생성** — 제품 인덱스 권고 |
-| **L** (대규모) | 6개+ | **advisory 생성** — 제품 인덱스 권고 |
-
-도메인 수 ≥2 → `{project-root}/_product.yaml` 생성 (없으면 신규, 있으면 reconcile):
-```yaml
-# {project-root}/_product.yaml — 제품 인덱스 (P2 additive, advisory). forge-plan이 SSoT.
-generated: YYYY-MM-DD
-size_profile: M      # S(1 domain) / M(2-5) / L(6+)
-domains:
-  - slug: {domain-slug}
-    registry: {domain}/_registry.yaml
-    must_count: {Must 기능 수}
+- **1-M3 게이트 B**: ①orphan — feature ↔ `기능명세/{feature_id}-*.md` 누락 = **FAIL** · page ↔ `s4-pages/{화면ID}/` 누락 = WARN · sub-flow FR 미역매핑 = WARN ②발산 — 같은 엔티티(기능 수·화면 수 등)가 문서 간 3개+ 값 = **FAIL**(`발산 탐지: {엔티티} = {값A}(출처A) / ...`) ③충분 바 floor: Must 전수 + 기능마다 ≥1 FR·AC·화면. Should/Could 미완 WARN. 기존 Figma 자산을 HTML/스크린샷으로 대체해도 감점 없음(Figma 신규 생성 금지). FAIL → [STOP] + 보강 지시 · WARN만 → 목록 보고 후 계속.
+```bash
+test -f "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" && python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --domain {domain} || echo "WARN: registry_gate 미발견/실행실패 — advisory 스킵(orphan FAIL로 오판 금지)"
 ```
+  exit 2 = FAIL([STOP]) · exit 0 = 통과 · 스크립트 부재/실패 = fail-open WARN.
+- **1-M4**: 기능명세마다 `## 조건별 페이지 전환` 표(`| 조건 | 전환 유형 | 목적지/처리 | 비고 |` — 성공·에러(입력/서버/권한)·확인필요·로딩). 전환 유형 ∈ `페이지이동|팝업|토스트|모달|인라인`. Must 누락/미명시 = FAIL, Should/Could = WARN.
+- **1-M4b** (advisory, UI 표와 별도 섹션): `## 도메인 상태전이/이벤트/불변식` — 상태전이 표(현재|이벤트|다음|조건)·도메인 이벤트·불변식·Aggregate. 누락 WARN. 불변식≥2/상태전이≥3/aggregate 참조≥2면 registry `aggregate` 채움.
+- **1-M6 `{domain}/_STATUS.md`** 초기화: `# {domain} 진행 원장` / `## 현재 Phase`(stage: P3_IN_PROGRESS, updated, session) / `## Phase 이력` 표(Phase|시작|완료|산출물) / `## 수렴 상태`(round: 0, last_delta: —, plateau_count: 0, status: OPEN) / `## 미결 항목`. 규약: 각 Phase 진입 시 `stage` 확인(충돌 = [STOP]) · 쓰기 = Step1 `P3_IN_PROGRESS` · Step5 PASS `P3_DONE` · [STOP] 시 `P3_BLOCKED` + 미결 추가.
 
-**advisory 원칙**: `_product.yaml` 미생성/미갱신은 WARN(advisory)만 — 기존 파이프라인 게이트 차단 불가.
+## Step 2 — 개발 계획 → `{project-root}/s4-development-plan.md`
+기술 스택 + C4(Mermaid) · ADR(`/cto-advisor` 템플릿 — 스택·데이터스토어·인증인가·배포·비가역 결정별 1개; 모듈/이음매 ADR은 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/codebase-design.md` 어휘, 이음매 신설은 변하는 것 2개+ 근거) · 보안 설계(인증·인가·시크릿 관리·감사 로깅·입력 검증 — 각 항목 설계 또는 `N/A`+사유) · DB 스키마·마이그레이션(역방향·백업/복원·롤백 트리거) · 세션 로드맵 `"Session N — Spec M: [제목] (X SP)"`(X 1-8, 12+ 분리, 번들링 사유) · 테스트 전략(테스트 계층 unit/integration/e2e + 커버리지 목표). `admin_required: true`면 `s4-admin-detailed-plan.md` 추가.
+- 표면 분할(권고, 차단 아님): 각 Spec 항목에 새 장치 수를 적고 `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-surface-count.py" declare --count <N> --name "<Spec 제목>"` → rc 1이면 `⚠️ spec 단계에서 분할 예정` 표기(진행 계속).
 
-**verify**: `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --product {project-root} || echo "WARN: registry_gate 미가용(스크립트 미발견/실행실패) — advisory 스킵"` → exit 0 (advisory WARN 확인). 스크립트 미발견/실행실패 시 fail-open(WARN만 남기고 진행, 차단 금지).
+## Step 3 — UI 소스 *[Human 직접]*
+- 3.0: `shared/design-tokens/DESIGN.template.md` → `{project-root}/DESIGN.md` 복사 후 `s3-style-guide.md`·`s3-mockup/`·전역 기본값 근거로 채움(direction 1개, primitive→semantic→component). 이후 Edit-only. advisory(프론트는 권고).
+- Primary **`/forge-mockup`**: `s3-mockup/{화면ID}/screen.html`이 있으면 그대로 `s4-pages/{화면ID}/` 초안으로 채택, 없으면 먼저 실행(모델은 `/forge-mockup §모델 선택`). 자립형 아니거나 화면 ID 1:1 아니면 새로 생성. Fallback: Human 통보 후 Claude Design. Stitch 금지.
+- 산출: `{domain}/s4-pages/{화면 ID}/` — `10-화면정의.md` ID와 1:1(누락/중복/잉여 = [STOP]). `s4-ui-source/` 허용.
 
-#### 1-M3: 기능셋 1:1 게이트 B (orphan + 발산 탐지)
-`_registry.yaml` 생성·갱신 직후 실행:
+## Step 4 — 검증 (병렬 3종)
+헤더 규약: md 첫 줄 `Verdict: PASS|FAIL`, 둘째 `Critical: N`(트레이서빌리티는 `Missing: N` 추가) · JSON `{"verdict":"PASS|FAIL","critical_count":N}` · 재실행 `-r2`/`-r3` 접미사.
+- ① 트레이서빌리티+디렉션 *(메인)*: P2 FR/NFR → 상세기획 매핑(누락=Missing) · 화면 ID 1:1(Critical) · 로드맵 SP/번들링(Critical) · P2 디렉션 5축 Don't 위반(Critical, P2 skip 시 gate-log 5요소 5/5 확인) → `{project-root}/docs/reviews/wave2-verification-{date}.md`
+- ② cto-advisor **리졸버 경유**: `MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" resolve)` → `claude-*`면 `Agent(subagent_type="cto-advisor", model:"fable"|"opus")`, `gpt-*`면 `mcp__codex__codex`(read-only). 7축(아키텍처·API·데이터모델·보안·성능·테스트·기술부채, 부적절한 `N/A` 포함) → `{project-root}/docs/reviews/wave3-cto-{date}.md`
+- ③ `/forge-check-ui` on `s4-pages/`: critical ≥1이면 `/visual-loop` 최대 2회 재시도, 3회 후 잔존 [STOP] → `{project-root}/docs/reviews/ui-check-{date}.json`
+- 전략 advisor(조건부, advisory): MVP 범위·L 제품 순서/리소스·타임라인-스코프 충돌 시만 리졸버 경유 `Agent(subagent_type="advisor-strategist", prompt="<계획 맥락+전략 분기 500토큰> 범위·순서·리소스 권고 + trade-off 1~2개")`. 기술 결정은 cto-advisor — 중복 금지.
 
-**① orphan 체크 (계층 매핑)**:
-- `_registry.yaml` features 전수 → `기능명세/{feature_id}-*.md` 1:1 매핑 (누락 = 기능 orphan → **FAIL**)
-  ⚠️ **파일명은 `F-01-…` 처럼 feature_id 로 시작해야 한다.** `01-…` 로 지으면 Must 기능 전건이
-  orphan FAIL 로 잡힌다(2026-08-11 실측: 백점 7건 전부 FAIL → `F-` 접두 후 즉시 PASS).
-- `_registry.yaml` pages 전수 → `s4-pages/{화면ID}/` 디렉토리 1:1 매핑 (누락 = visual asset orphan → **WARN**)
-- 기능명세/에 있는 sub-flow FR → 부모 feature `fr_refs`로 전수 역매핑 (미연결 = FR orphan → **WARN**)
-
-**② 발산(divergence) 탐지**:
-동일 엔티티(기능 수·화면 수·팀원 수·SP 합계 등)가 문서 간 3개 이상 다른 값으로 기술될 경우 → **FAIL**:
-```
-발산 탐지: {엔티티명} = {값A}(출처A) / {값B}(출처B) / {값C}(출처C)
-```
-예: PRD "기능 3개", registry features 7개, 기획서 "총 5개 기능" → 발산 탐지: 기능 수 = 3/7/5 → FAIL
-
-**③ 충분 바(sufficiency bar)**:
-- floor(강제) 기준: Must 기능 전수 + 각 기능 ≥1 FR + ≥1 AC + ≥1 화면 매핑
-- ceiling(권고) 아님: Should/Could 기능 명세 미완성은 WARN만
-- substitution matrix(→ readiness-gate.md §M5) 적용: HTML/스크린샷이 **기존** Figma 자산을 대체할 때 비율로 감산하지 않음 (대체형 자체가 ok)
-  ⛔ **Figma 신규 생성은 중단이다** — 이 줄은 "이미 있는 `.fig` 를 HTML·스크린샷으로 갈음해도 감점 없다"는 뜻이지 Figma 를 새로 쓰라는 뜻이 아니다(`tool-rules.md §UI/UX 작업`: *"⛔ Figma 중단"*). 신규 시안 1순위 = `/forge-mockup` 코드 목업. ⚠️ 구 표기 "HTML/스크린샷이 Figma 대체 시" 는 2026-09-17 폐기 — 읽는 쪽이 Figma 를 현행 레인으로 오해할 자리였다.
-
-**결과**: orphan FAIL 또는 발산 FAIL → [STOP] + 보강 작업지시. WARN만 → 목록 보고 후 계속.
-
-**verify**: `test -f "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" && python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --domain {domain} || echo "WARN: registry_gate 미발견/실행실패 — advisory 스킵(orphan FAIL로 오판 금지)"` → exit 2 = FAIL([STOP]), exit 0 = 통과 (WARN은 stderr 출력 후 계속). 스크립트 미발견·실행실패는 fail-open — orphan 게이트의 exit 2(FAIL)와 혼동 금지, WARN만 남기고 진행.
-
-#### 1-M4: 조건별 페이지 전환 포맷 검증 (M4)
-기능명세/ 파일 생성 직후 실행. 각 기능명세 파일에 **조건별 페이지 전환** 표 포함 여부 체크:
-
-```
-## 조건별 페이지 전환
-| 조건 | 전환 유형 | 목적지/처리 | 비고 |
-|------|---------|-----------|------|
-| 성공 | 페이지이동 | /home | |
-| 에러(입력오류) | 인라인 | 필드 오류 메시지 | 팝업 금지 |
-| 에러(서버) | 토스트 | "서버 오류" | |
-| 에러(권한없음) | 모달 | 로그인 유도 | |
-| 확인필요(비가역) | 모달 | 확인/취소 | |
-| 로딩 | 인라인 | 스켈레톤 | 전체차단 금지 |
-```
-
-검증 기준:
-- Must 기능 전수 = 조건별 페이지 전환 표 **필수** (누락 = FAIL)
-- 전환 유형 = `페이지이동|팝업|토스트|모달|인라인` 중 명시 (미명시 = FAIL)
-- Should/Could = WARN (차단 아님)
-
-#### 1-M4b: 도메인 상태전이/이벤트/불변식 섹션 (P3 additive — UI 전환표와 분리)
-기능명세 파일에 **조건별 페이지 전환** 표와 **별도 섹션**으로 추가. UI 행동 표(1-M4)와 절대 혼합 금지.
-
-```markdown
-## 도메인 상태전이/이벤트/불변식
-> *(P3 DDD 데이터 자리. 상태전이/이벤트/불변식이 명확해지면 채움. opt-in — 비워도 파이프라인 차단 없음)*
-
-### 도메인 상태전이
-| 현재 상태 | 이벤트 | 다음 상태 | 조건 |
-|---------|-------|---------|------|
-| | | | |
-
-### 도메인 이벤트
-- `{EventName}`: {발생 조건 1줄}
-
-### 불변식 (Invariant)
-- {불변식 1}: {위반 시 결과}
-
-### Aggregate (registry `aggregate` 필드와 동기화)
-> aggregate: {AggregateRoot명} — registry _registry.yaml features[id=F-xx].aggregate 에 채움
-```
-
-**advisory 원칙**:
-- 이 섹션 **누락 = WARN만** (blocking 아님). DDD opt-in 게이트는 2차(P4 spec-writer 소비자 배선과 함께).
-- `불변식 ≥2` 또는 `도메인 상태전이 ≥3` 또는 `aggregate 참조 ≥2` → registry `aggregate` 필드 채움 권고.
-- 채운 경우 → `_registry.yaml` 해당 feature `aggregate: {AggregateRoot}` 동기화.
-
-#### 1-M6: `_STATUS.md` 진행 원장 초기화 (M6)
-도메인 폴더 생성 완료 직후 `{domain}/_STATUS.md` 초기 기록:
-
-```markdown
-# {domain} 진행 원장
-> Phase 전환 시 업데이트. 직접편집 가능 (forge-plan이 자동기록, 수동 보정 허용).
-
-## 현재 Phase
-- stage: P3_IN_PROGRESS
-- updated: YYYY-MM-DD
-- session: {세션ID or 날짜}
-
-## Phase 이력
-| Phase | 시작 | 완료 | 산출물 |
-|-------|------|------|--------|
-| P2 기획 | {날짜} | {날짜} | s3-prd.md |
-| P3 상세기획 | {날짜} | — | |
-
-## 수렴 상태
-- round: 0
-- last_delta: —
-- plateau_count: 0
-- status: OPEN
-
-## 미결 항목
-- (없음)
-```
-
-⚠️ **삽입 위치 오류 정정 (2026-09-17)**: 위 템플릿 코드블록 **안**에 advisor 리졸버 경고문("아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다 …")이 들어가 있었다. 이 템플릿은 **그대로 복사해 프로젝트 원장 `{domain}/_STATUS.md` 를 만드는 것**이라, 무관한 모델 라우팅 경고가 프로젝트 파일에 복사되고 있었다. 그 경고문은 원래 자리인 **§Step 4 전략 advisor** 로 옮겼다(내용은 한 글자도 바꾸지 않았다).
-재현: `sed -n '/^# {domain} 진행 원장/,/^```$/p' .claude/commands/forge-plan.md | grep -c '리졸버'` → `0`
-폐기조건: `_STATUS.md` 템플릿이 별도 파일로 빠지면 이 각주를 지운다.
-
-**`_STATUS.md` 읽기/쓰기 규약**:
-- **읽기**: 각 Phase Step 0 진입 시 → `_STATUS.md` 존재 확인 + `stage` 필드 확인 (충돌 Phase = [STOP])
-- **쓰기**: ① Step 1 완료 시 `stage: P3_IN_PROGRESS` ② Step 5 PASS 시 `stage: P3_DONE` ③ [STOP] 에스컬레이션 시 `stage: P3_BLOCKED` + 미결 항목 추가
-
-> **⟳ 세션 재진입 시**: `/readiness-gate §M9` 재진입 안전성 규약 적용 — `_STATUS.md` read → resume/fresh 판정 → resume 리포트 출력 후 다음 미완료 M스텝부터 재개. 완료 M스텝 재실행 금지.
-
-### Step 2 — 개발 계획 작성 *(메인 AI 직접 + 헬퍼 스킬)*
-- 기술 스택 + C4 아키텍처(Mermaid 인라인 — Context/Container/Component)
-- ADR: `/cto-advisor` 스킬의 ADR 템플릿 — 한정 범위(기술 스택·데이터 스토어·인증/인가·배포 방식·되돌리기 어려운 결정)별 1 ADR
-  - 모듈·이음매 결정을 담는 ADR은 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/codebase-design.md` 어휘로 서술(깊이·이음매·어댑터). 이음매 신설 ADR은 **변하는 것이 실제로 2개 이상**임을 근거로 제시해야 한다.
-- 보안 설계: 인증·인가·시크릿 관리·감사 로깅·입력 검증 — 각 항목 = 설계 명시 또는 `N/A` + 1줄 사유
-- DB 필요 시: AI 직접 스키마 + 마이그레이션 설계(역방향 가능 명시 + 백업/복원 경로 + 롤백 트리거)
-- 세션 로드맵: 각 줄 = `"Session N — Spec M: [제목] (X SP)"` 형식 (X 권장 1-8, 12+ = Spec 분리). 번들링 시 분리 불가 사유 1줄
-- 테스트 전략: 테스트 계층(unit/integration/e2e) + 커버리지 목표
-- 산출물: `{project-root}/s4-development-plan.md`
-- `s3-prd.md`/`s3-gdd.md` 헤더 `admin_required: true` 시: `{project-root}/s4-admin-detailed-plan.md` 추가 필수 (PHASE3-IRON-2)
-
-### Step 3 — UI 소스코드 추출 *[Human 직접]*
-
-#### 3.0 — DESIGN.md 커밋 계약 생성 (선행, UI 소스 추출 전)
-- `shared/design-tokens/DESIGN.template.md`를 `{project-root}/DESIGN.md`로 복사 → `s3-style-guide.md`·`s3-mockup/`·전역 기본값(design-rules.md/instagram-default.json)을 근거로 프로젝트 특화 채움(committed direction 1개 확정, 토큰 계층 primitive→semantic→component 작성).
-- **생성 후 Edit-only**(재작성 금지). 이후 claude.ai/design UI 소스 생성·forge-check-ui·visual-loop·pge가 이 DESIGN.md를 SSoT로 참조.
-- advisory(WARN-우선) — 미생성이 기존 게이트를 차단하지 않음. 단 프론트 프로젝트는 생성 권고.
-
-- 입력: `s3-mockup/` + `{domain}/10-화면정의.md`(또는 기존 `s4-detailed-plan.md`)
-- Primary: **`/forge-mockup`**(배선 완료 2026-09-15) — Astra 코드 목업이 `s3-mockup/{화면ID}/screen.html` 로 이미 나와 있으면 **그 코드를 `s4-pages/{화면ID}/` 의 초안으로 채택한다**(시안→코드를 다시 뽑지 않는다 — 같은 일을 두 번 하는 자리였다). 없으면 `/forge-mockup` 을 먼저 돌린다.
-  Fallback(2순위): 실패 시 Human 통보 후 Claude Design(`claude.ai/design`) 소스 생성. ⛔ Stitch 는 2026-09-15 사용 중단 — 폴백으로 쓰지 않는다
-  ⚠️ 이 병합이 무력화되는 입력: `screen.html` 이 자립형이 아니거나(외부 CDN 참조) 화면 ID 가 `10-화면정의.md` 와 1:1 이 아닌 경우 — 그때는 종전대로 화면별 소스를 새로 만든다.
-  근거: 계획서 `2026-09-15-astra-lanes-plan.md` 레인2-2(④⑥ 병합 — 목업 코드가 곧 s4-pages 초안) · 구 표기 "배선 전까지 Human 이 Astra 에 생성 요청" 폐기
-  ⚠️ **미해소 충돌 (2026-09-17)**: `gpt-6-astra` 는 이제 advisor 전용이다(예외 = cr-final Codex 검수 레그). 목업은 구현 레인이므로 `ASTRA_MODEL=gpt-5.6-sol` 로 덮어써서 부른다 — 상세·재현 → `prd.md` 8번 항목의 같은 경고.
-  폐기조건: `/forge-mockup` 이 없어지거나 프론트 1순위가 바뀌면 이 줄을 되돌린다.
-- 산출물: `{project-root}/{domain}/s4-pages/{화면 ID}/` — `화면 ID` 디렉토리 = `{domain}/10-화면정의.md` 핵심 화면 목록의 ID와 정확히 1:1 (누락/중복/잉여 = [STOP]). 기존 `s4-ui-source/` 경로 허용(하위호환)
-
-### Step 4 — 검증 (병렬 3종)
-리포트 헤더 규약: 마크다운(`*wave2-verification*.md` / `*wave3-cto*.md`) 첫 줄 = `Verdict: PASS|FAIL`, 둘째 줄 = `Critical: N` (트레이서빌리티는 `Missing: N` 추가). JSON(`ui-check-*.json`) = `{"verdict":"PASS|FAIL","critical_count":N,...}`. 동일 날짜 재실행 시 `-r2`/`-r3` 접미사, gate = mtime 기준 최신 1개 (`-r2`/`-r3` 접미사는 사전순 정렬을 깨뜨려 `-2` < `.md`가 되므로 사전순 최후순 금지 — 아래 Step 5 참조).
-- ① 트레이서빌리티 + 디렉션 일관성 *(메인 AI 직접)*: P2 FR/NFR 전수 → `s4-detailed-plan.md` 매핑(누락=`Missing`) / 화면 ID 1:1 대조(누락·중복·잉여=`Critical`) / 세션 로드맵 SP·번들링 검토(위반=`Critical`) / P2 디렉션 5축 vs 산출물(Don't 위반=`Critical`, P2 skip 시 gate-log 5요소 5/5 확인) → `{project-root}/docs/reviews/wave2-verification-{date}.md`
-- ② `cto-advisor` 에이전트 Subagent: `s4-development-plan.md` 7축(아키텍처·API·데이터모델·보안·성능·테스트전략·기술부채) 검토 — 부적절한 보안 `N/A`도 검토 → `{project-root}/docs/reviews/wave3-cto-{date}.md`
-- ③ `/forge-check-ui`: `s4-pages/`(또는 기존 `s4-ui-source/`) UI 품질. 초기 1회 + `critical_count` ≥1 시 `/visual-loop` 재시도 최대 2회(총 3회). 3회 후 잔존 → [STOP] → `{project-root}/docs/reviews/ui-check-{date}.json`
-
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-model-resolve.sh` 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5`→`model:"opus"`, **`gpt-6-astra`(대체 기본)·`gpt-5.6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회된다.
-> (이 경고문은 2026-09-17 까지 §1-M6 `_STATUS.md` 템플릿 코드블록 안에 잘못 들어가 있었다 — 여기가 원 자리다.)
-
-**전략 advisor (조건부, advisory-only — cto-advisor 기술축과 별개)**: 비-기술 전략 분기에서 advisor-strategist(리졸버 기본 = Fable 5.1) 자문 — 트리거: MVP 범위 결정 분기 / L(대규모) 제품 순서·리소스 배분 / 타임라인-스코프 충돌. `Agent(subagent_type="advisor-strategist", prompt="<계획 맥락+전략 분기 500토큰> 범위·순서·리소스 권고 + trade-off 1~2개")`. 단순 계획(단일 제품·명확 범위)은 스폰 X. advisory only, non-blocking. 기술 결정(아키텍처·스택·보안)은 cto-advisor가 담당 — 중복 스폰 금지. 중첩 시 [→Lead 위임].
-
-### Step 5 — 게이트 판정 (Check 4 — 모두 충족. 리포트 = 패턴 매칭 중 mtime 최신 1개 `ls -t {dir}/{pattern} | head -1`. 매칭 0개 = FAIL)
-<!-- mtime 기준 선정 이유: `-r2`/`-r3` 재시도 접미사는 사전순 정렬을 깨뜨림 (`-` 0x2D < `.` 0x2E → `...-r2.md`가 `....md`보다 사전순 앞섬), 따라서 `sort | tail -1`은 원본(stale) 리포트를 오선택할 수 있음 -->
-1. `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} S4` → PASS
-   ⚠️ **`~/.claude/scripts/forge-gate-check.sh` 를 쓰지 않는다** — 그 경로의 사본은 의존 파일
-   (`forge-paths.sh`·`json-get.sh`·`artifact-resolver.sh`)이 없어 `No such file` 3연발 후
-   `FAIL: forge-workspace.json not found` 를 내며, 이 메시지가 **의존 결손을 프로젝트 설정
-   문제로 오진하게 만든다**(2026-08-11 실측). 4개 파일은 `shared/scripts/` 에 함께 있다. (필수 파일·리포트 존재 + 테스트전략/보안설계 grep + 세션로드맵 형식 grep + Phase 3 `admin_required:` 헤더 + `true` 시 admin plan 존재)
-2. `wave2-verification-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Missing: 0$'` && `grep '^Critical: 0$'`
-3. `wave3-cto-*.md` mtime 최신: `head -1` == `Verdict: PASS` && `grep '^Critical: 0$'`
-4. `ui-check-*.json` mtime 최신: `jq '.verdict == "PASS" and .critical_count == 0'` == true
-5. **사람 결정 선수집 (B10, 2026-09-15)** — 기능명세와 개발 계획서를 넣어 돌린다:
-   `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-open-decisions.py" {domain}/<기능명세>.md {project-root}/s4-development-plan.md`
-   - `0` → 통과. `1` → **[STOP]** 출력 항목 전부를 **한 번의 질문**으로 묶어 사람에게 묻고, 답을 번호(`O-N`)를 붙여 계획서 결정표(위 명령에 넘긴 파일)·`<기능명세>.impl-notes.md` 에 기록한 뒤 재실행해 `0` 을 확인한다(`_STATUS.md` 는 자동으로 읽지 않는다 — 다른 기능의 같은 번호로 닫히는 fail-open 방지, #562 R2-3). `2` → 판정 불가 = FAIL(0 으로 읽지 않는다).
-   - ⛔ 결정표에 **"결정 대기 없음" 을 적기 전에** 이 스크립트가 `0` 이어야 한다 — 출력의 `불일치` 줄이 그 주장과 문서가 어긋난다는 증거다.
-   - 근거: 2026-09-14 home-page 계획서가 "결정 대기 없음" 이라 적었으나 Spec `O-5`(프록시 홉 = 사람)가 미결이라, P5 구현 PR 이 검수 후 머지 불가로 묶였다. 폐기조건: Spec 템플릿이 결정 항목을 구조화 필드로 강제하게 되면 이 항목을 그 필드 확인으로 대체한다.
+## Step 5 — 게이트 (Check 4 — 전부 충족. 리포트 = `ls -t {dir}/{pattern} | head -1`, 0개 = FAIL; 사전순 금지)
+1. `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-gate-check.sh" {project} S4` → PASS (`~/.claude/scripts/` 사본 사용 금지 — 의존 파일 부재로 오진)
+2. `wave2-verification-*.md`: `head -1` == `Verdict: PASS` && `grep '^Missing: 0$'` && `grep '^Critical: 0$'`
+3. `wave3-cto-*.md`: `head -1` == `Verdict: PASS` && `grep '^Critical: 0$'`
+4. `ui-check-*.json`: `jq '.verdict == "PASS" and .critical_count == 0'` == true
+5. 사람 결정 선수집: `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-open-decisions.py" {domain}/<기능명세>.md {project-root}/s4-development-plan.md` — `0` 통과 · `1` **[STOP]** 항목 전부 한 번에 질문 → 답을 `O-N`으로 결정표·`<기능명세>.impl-notes.md`에 기록 후 재실행(`_STATUS.md`로 닫지 않음) · `2` = FAIL(0으로 읽지 않음). "결정 대기 없음" 기재 전 반드시 `0`.
 
 하나라도 FAIL → [STOP] 에스컬레이션.
 
-### Step 5.5 — 수렴 루프 + plateau guard (M6)
+## Step 5.5 — 수렴 루프 + plateau guard
+FAIL 재시도마다 `_STATUS.md` 수렴 상태 갱신: `round++`, `delta = (이번 FAIL 수 - 이전)/이전` → `last_delta`, `plateau_count`. `last_delta < 5%` 2회 연속 또는 `round ≥ 4` FAIL 잔존 → `status: PLATEAU` + **[STOP]**: A. 추가 라운드(사용자 수정 후) / B. P3 override(AD-50 human override) / C. 범위 축소.
 
-Step 5 FAIL 시 재작성 루프 진입 전 수렴 상태 체크:
-
-```
-수렴 루프:
-  round++ → _STATUS.md 수렴 상태 업데이트
-  delta = (FAIL 항목 수 이번 라운드 - 이전 라운드) / 이전 라운드
-  → last_delta 기록, plateau_count 갱신
-```
-
-**plateau guard** (무한 루프 차단):
-- `last_delta < 5%` 인 라운드가 **2회 연속**이면 plateau 선언 → `status: PLATEAU`
-- plateau 선언 시 → **[STOP]** 다음 옵션 제시:
-  ```
-  📊 plateau 감지 — {round}라운드 진행, 개선율 < 5% 2회 연속.
-  A. 추가 라운드 (사용자 직접 수정 후 재시도)
-  B. 현재 상태로 P3 override 진행 (AD-50 기준 human override)
-  C. 범위 축소 (scope-down + D 단순화)
-  ```
-- `round ≥ 4` 이상에서도 FAIL 잔존 → `status: PLATEAU` 자동 선언 (override 여부 무관)
-
-`_STATUS.md` 수렴 상태 필드는 Step 5 매 재시도 후 갱신 의무.
-
-### Step 6 — 전환
-1. **M7 EXIT self-check** (`/readiness-gate §M7`): P3 EXIT 항목 전수 확인 → `forge-plan-exit-readiness-{date}.md` 자동생성. FAIL = [STOP].
-2. **M7-P5 computed 트리거 기록** (advisory — P5 스코프 가드):
-   `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --product {project-root} || echo "WARN: registry_gate 미가용 — computed 트리거 기록 스킵(advisory)"` 실행 → (CWD 무관 절대경로 — 프로젝트 워크트리 등 non-forge cwd에서도 스크립트 탐색 가능). 스크립트 미발견/실행실패 시 fail-open(WARN 후 진행, 차단 금지).
-   결과의 `p4_review_recommended` / `ddd_activation_recommended` 값을 각 `{domain}/_STATUS.md`에 기록:
-   ```
-   p4_trigger_status: PENDING   # domains<2 (p4_review_recommended=false)
-   p4_trigger_status: ACTIVE    # domains>=2 (p4_review_recommended=true)
-   ```
-   **멱등 규칙**: 이미 `ACTIVE` 또는 `BYPASSED`이면 덮어쓰기 금지. `PENDING`만 갱신 허용.
-   이 스텝은 advisory(exit 0) — 기존 게이트 차단 불가.
-3. `gate-log.md` 업데이트 (s3 → s4 전환). `_STATUS.md` `stage: P3_DONE` + `수렴 상태 status: CONVERGED` + `stage: P4_READY` 기록.
-4. 게이트 통과 시점 1 커밋 (`chore(s4): check 3 pass — {slug}`).
-5. **P4 진입** (/forge-onboard P3 packaging checklist 흡수 완료 → `/forge` 또는 **`/forge-spec`**로 P4 시작).
-   ⚠️ 구 표기 `/spec-write` 는 **쓰지 않는다** — `commands/spec-write.md` 는 `[DEPRECATED alias]` 이고
-   frontmatter 에 `disable-model-invocation: true` 가 걸려 있어(`:2,5`, 2026-08-07 실측) **모델이
-   자동 호출할 수 없다**. 사람이 치면 동작하지만 agent 체인에서는 이 경로로 진입하면 실패한다.
-   정본은 `/forge-spec`.
+## Step 6 — 전환
+1. M7 EXIT self-check(`/readiness-gate §M7`) → `forge-plan-exit-readiness-{date}.md`. FAIL = [STOP].
+2. `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --product {project-root} || echo "WARN: registry_gate 미가용 — computed 트리거 기록 스킵(advisory)"` → `p4_review_recommended` 값으로 각 `_STATUS.md`에 `p4_trigger_status: PENDING`(false)/`ACTIVE`(true). `ACTIVE`/`BYPASSED`는 덮어쓰기 금지.
+3. `gate-log.md` 갱신(s3→s4). `_STATUS.md` `stage: P3_DONE` + `status: CONVERGED` + `stage: P4_READY`.
+4. 커밋 `chore(s4): check 3 pass — {slug}`.
+5. P4 진입 = `/forge` 또는 **`/forge-spec`** (`/spec-write` 사용 금지 — 모델 호출 불가).
 
 ## Iron Laws
-
-- **PHASE3-IRON-1**: `s4-development-plan.md`(또는 `{domain}/12-상세개발계획서.md`) 완성 전 Gate 통과 금지. `s4-pages/`(또는 기존 `s4-ui-source/`) = 조건부 (미존재 허용)
-- **PHASE3-IRON-2**: P2 기획서 `admin_required: true` 시 `s4-admin-detailed-plan.md` 필수
-- **PHASE3-IRON-3**: 세션 로드맵 `"Session N — Spec M: [제목] (X SP)"` 형식 미준수 시 gate-check FAIL. SP 추정 12+ 또는 번들링 정당화 누락 = `wave2-verification`에 `Critical` → Check 3 FAIL
+- PHASE3-IRON-1: `s4-development-plan.md`(또는 `12-상세개발계획서.md`) 완성 전 Gate 금지. `s4-pages/`는 조건부.
+- PHASE3-IRON-2: `admin_required: true` → `s4-admin-detailed-plan.md` 필수.
+- PHASE3-IRON-3: 로드맵 형식 미준수 = gate-check FAIL. SP 12+ 또는 번들링 정당화 누락 = wave2 `Critical`.
 
 ## 에스컬레이션
-
 | 상황 | 행동 |
-|------|------|
-| **P2** 기획서/style-guide/mockup 부재 | **[STOP]** "`/forge-design`으로 **P2** 먼저 완료하세요" (⚠️ 구 표기 `Phase 3` 는 레거시 번호 — 2026-09-17 폐기, §사용법 각주 참조) |
-| 화면 ID 1:1 불일치 (누락·중복·잉여) | **[STOP]** 불일치 목록 + 수정 방향 |
-| Check 4 항목 1개 이상 FAIL | **[STOP]** 실패 항목 + 리포트 헤더 값 보고 |
-| `/forge-check-ui` 3회 후에도 critical 잔존 | **[STOP]** UI 잔여 이슈 + Claude Design 재시도 제안 |
-
-## 도구
-
-`/forge-mockup` 코드 목업(primary — ⚠️ 모델은 `ASTRA_MODEL=gpt-5.6-sol` 로 덮어쓴다, §Step 3 목업 절의 미해소 충돌 참조), Claude Design(fallback — 2순위; Stitch 는 2026-09-15 중단), `/cto-advisor`(스킬 — ADR), `cto-advisor`(에이전트 — 7축 검토), `/forge-check-ui`, `/visual-loop`, `forge-gate-check.sh`, Mermaid(인라인)
-
-## forge-sync 배포 대상
-
-이 커맨드는 `forge-sync` 실행 시 `~/.claude/commands/forge-plan.md`에 자동 배포된다.
+|---|---|
+| P2 기획서/style-guide/mockup 부재 | **[STOP]** "`/forge-design`으로 **P2** 먼저 완료하세요" |
+| 화면 ID 1:1 불일치 | **[STOP]** 불일치 목록 + 수정 방향 |
+| Check 4 항목 FAIL | **[STOP]** 실패 항목 + 리포트 헤더 값 |
+| `/forge-check-ui` 3회 후 critical 잔존 | **[STOP]** 잔여 이슈 + Claude Design 재시도 제안 |

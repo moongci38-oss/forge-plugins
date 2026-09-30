@@ -3,10 +3,11 @@
 > `daily-system-review` SKILL.md 의 **Wave 2.5 / 2.55 를 실제로 돌릴 때** Read 한다.
 > (2026-08-28 분리 — SKILL.md 500줄 규정 준수. 프롬프트·배점·판정 기준은 원문 그대로다.)
 
-### Wave 2.5 (독립 Evaluator subagent — Wave 2 완료 후, Wave 3 이전)
+### Wave 2.5 (독립 Evaluator subagent — Wave 2 완료 후, Wave 3.5 이전)
 
 > **핵심 원칙: Lead의 컨텍스트(의도, 가정)를 공유하지 않는 별도 에이전트가 검증한다.**
-> Wave 2 Lead 리포트 완성 직후, Wave 3(Notion 등록) 진행 전에 반드시 실행한다.
+> Wave 2 Lead 리포트 완성 직후, Wave 3.5(인덱스 등록) 진행 전에 반드시 실행한다.
+> 근거: 2026-09-25 사람 결정(#1104) — Notion 연동 해제, 로컬 인덱스·리포트 사이트가 유일 경로.
 
 ```
 subagent_type: codex-critic  # 교차모델(OpenAI) — 동일모델(Claude) 평가는 편향 전파(arXiv 2606.20493 Contagion Networks).
@@ -70,7 +71,9 @@ ls -l "${BASE}/01-research/daily/{date}/ai-system-analysis.md" \
 - [섹션 N] [항목]: [위치] → [이유] → [개선 방법]
 ```
 
-PASS 확인 후 Wave 2.7(HTML 대시보드) → Wave 3(Notion 자동 등록)으로 진행한다.
+PASS 확인 후 Wave 2.7(HTML 대시보드) → Wave 3.5(인덱스 등록)으로 진행한다.
+
+근거: 2026-09-25 사람 결정(#1104) — Notion 연동 해제, 로컬 인덱스·리포트 사이트가 유일 경로.
 
 ---
 
@@ -81,7 +84,7 @@ PASS 확인 후 Wave 2.7(HTML 대시보드) → Wave 3(Notion 자동 등록)으�
 커버리지 게이트가 맡는다. cr-triple 은 코드·계획서용 루브릭이라 본문에 걸면 오탐이 는다.
 
 왜 벤더를 가르나: 한 벤더만 보면 그 벤더의 맹점을 그대로 통과시킨다.
-Claude(Opus 5)와 Codex(**gpt-5.6-sol**)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
+Claude(Opus 5.5)와 Codex(**gpt-6-sol**)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
 ⚠️ 구 표기 "Claude(Fable 5.1)·Codex(gpt-6-astra)" 는 2026-09-17 폐기 — 사람 지시 "advisor 에서만 최고급 모델 사용해"(레그 모델은 `cr-risk-tier.sh` 등급이 정한다).
 ⚠️ 완화 장치이지 무편향 보장이 아니다(`cr-multi/SKILL.md §self-referential bias`).
 ⚠️ **구 표기 "3레그 — Claude·Codex(gpt-5.6-sol)·Gemini" 는 2026-09-11 폐기.** 2026-09-07 Gemini
@@ -91,7 +94,7 @@ Claude(Opus 5)와 Codex(**gpt-5.6-sol**)가 각각 읽고 교차하면 한 모�
 **호출**
 
 ```
-/cr-triple "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md" --stage plan --cr on
+/forge-multi "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md" --stage plan --cr on
 ```
 
 ⚠️ **`--cr on` 을 빼면 교차 검증이 성립하지 않는다.** 팀 기본값 `FORGE_AUTO_CR=degrade` 가

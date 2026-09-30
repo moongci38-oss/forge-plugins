@@ -81,4 +81,3 @@
 | Product Hunt (AI 카테고리) | 신규 AI 제품/도구 |
 | AI 전문 뉴스레터 | The Batch, TLDR AI, Import AI |
 | a16z AI Blog | VC 관점 AI 트렌드 |
-| 주식 워치리스트 (`stock-watchlist.json`) | 종목별 뉴스·공시·시황 — **daily 모드 = 경량(1~2줄, 최근 24~48h 헤드라인만)**. stock-research-analyst가 Collect 단계에서 병렬 스폰. 워치리스트 없으면 fail-open skip. |
