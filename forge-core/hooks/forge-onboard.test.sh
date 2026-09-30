@@ -120,8 +120,16 @@ for _r in context-engineering dev-workflow-rules model-routing security-agent-in
   [ -f "$PLUGIN_ROOT/rules/$_r.md" ]
   check $? "카논 rules 번들 포함: $_r.md" "번들에 없음 — 사용자가 이 규범을 못 받는다"
 done
-[ -f "$FAKE_HOME/.claude/skills/cr-multi/workflow.js" ]
-check $? "cr-multi workflow.js 자가설치(설치 후 /cr-multi 동작 조건)"
+# 자가설치 목록(§6 SKILL_SCRIPT_SRCS)이 **전부 번들에 실재**하고 실제로 설치되는가 (forge #1685).
+#   왜: 스킬 개명(cr-multi → forge-multi)으로 소스가 사라졌는데 훅은 `[ -f "$src" ]` 에서 조용히 건너뛰었다.
+#   파일 하나를 박아 두면 다음 개명도 같은 식으로 샌다 — 목록을 훅에서 직접 읽어 전수로 본다.
+_SRCS="$(sed -n '/^SKILL_SCRIPT_SRCS=(/,/^)/p' "$HOOK" | grep -o '/skills/[^"]*')"
+[ -n "$_SRCS" ]
+check $? "자가설치 소스 목록을 훅에서 읽었다" "SKILL_SCRIPT_SRCS 블록을 못 찾음 — 이 검사가 헛돈다"
+for _s in $_SRCS; do
+  [ -f "$PLUGIN_ROOT$_s" ] && [ -f "$FAKE_HOME/.claude$_s" ]
+  check $? "자가설치 번들 실재+설치: ${_s#/skills/}" "번들에 없거나 설치 안 됨 — 개명·삭제 뒤 목록이 안 따라왔다"
+done
 
 echo
 echo "=== 멱등성 ==="
