@@ -94,10 +94,12 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 번들의 커맨드·스킬이 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/…` 를 **실행**한다(커맨드 21파일·스킬 19파일·호출 138곳·스크립트 75개 — 실측 2026-09-29). 스크립트는 번들에 동봉하지 않으므로(두 벌 관리 회피 — 사람 결정) 이 클론이 없으면 그 명령들이 안내 없이 "No such file or directory" 로 끝난다.
 
 ```bash
+gh auth login     # 먼저 GitHub 로그인 (HTTPS 선택) — gh 가 없으면 https://cli.github.com 에서 설치
 git clone https://github.com/moongci38-oss/forge.git ~/forge
 ```
 
-> forge 는 **공개 저장소**(2026-09-30~)라 SSH 키 없이 https 로 받는다(기본 브랜치 `develop`). 구 표기 `git@github.com:…` (SSH) 는 키가 없으면 실패해서 2026-09-30 바꿨다.
+> forge 는 **비공개 저장소**다 — 접근 권한 있는 팀원만 받는다(권한은 관리자에게 요청). 먼저 `gh auth login` 으로 로그인하면 SSH 키 없이 https 로 받아진다(기본 브랜치 `develop`).
+> 구 표기 `git@github.com:…` (SSH) 는 키가 없으면 실패해서 2026-09-30 https 로 바꿨다. 같은 날 적었던 "공개 저장소라 누구나" 는 저장소가 다시 비공개가 되어 폐기.
 > 클론만 하면 된다 — `.env`·`forge-workspace.json` 설정은 코어 팀원만 필요하다(`ONBOARDING.md` §1·§2).
 
 ### Step 1 — Marketplace 등록 (최초 1회)

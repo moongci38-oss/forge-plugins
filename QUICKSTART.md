@@ -26,13 +26,18 @@ curl -fsSL https://claude.ai/install.sh | bash
 
 플러그인은 Forge 본체 폴더(`~/forge`)에 있는 스크립트를 불러 씁니다.
 이 폴더가 없으면 명령을 칠 때 "No such file or directory" 오류가 납니다.
-Forge 본체는 공개 저장소라 **SSH 키 없이** 아래 한 줄로 받을 수 있습니다
+Forge 본체는 **비공개 저장소**입니다 — 접근 권한이 있는 팀원만 받을 수 있습니다.
+먼저 `gh auth login` 으로 GitHub 에 로그인하면 **SSH 키 없이** https 로 받아집니다
 (윈도우 PowerShell·맥 터미널 모두 같은 줄):
 
 ```
+gh auth login
 git clone https://github.com/moongci38-oss/forge.git "$HOME/forge"
 ```
 
+- "gh: command not found" 가 나오면 gh(GitHub CLI) 가 없으면 먼저 설치하세요 — https://cli.github.com (윈도우 `winget install GitHub.cli` · 맥 `brew install gh`).
+- 로그인 중 "GitHub.com 에 git 작업할 때 무엇을 쓸까요?" 를 물으면 **HTTPS** 를 고르세요.
+- 받기가 실패하면(권한 없음·404) 관리자에게 forge 저장소 접근 권한을 요청하세요.
 - "git: command not found" 가 나오면 Git 을 먼저 설치하세요 — 윈도우 https://git-scm.com/download/win · 맥은 터미널에 `xcode-select --install`.
 - "already exists" 가 나오면 이미 받아 둔 것이니 그대로 다음 단계로 가면 됩니다.
 

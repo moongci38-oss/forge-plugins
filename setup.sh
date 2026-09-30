@@ -62,7 +62,7 @@ echo ""
 echo "  이 스크립트가 자동으로 처리하는 것:"
 echo "    • 필수 프로그램 설치 (Codex, GitNexus, hwpx 등)"
 echo "    • ~/forge-outputs 폴더 구조 생성"
-echo "    • Forge 본체(~/forge) 받기 (없을 때만 · 공개 저장소라 SSH 키 불필요)"
+echo "    • Forge 본체(~/forge) 받기 (없을 때만 · 비공개 — gh auth login 으로 로그인돼 있어야 함)"
 echo "    • AI 도구 연결 (MCP 서버 5종)"
 echo "    • 플러그인 설치 및 활성화"
 echo ""
@@ -295,13 +295,21 @@ install_pip_pkgs hwpx-mcp-server Pillow pytesseract pdf2image playwright
 banner "5단계: 스킬·에이전트 동기화 (forge-sync)"
 
 # root-cause: 플러그인 커맨드·스크립트도 ~/forge 를 부른다(forge #1544) — 없으면 조용히 넘기지 않고 받는다.
-#             forge 는 공개 저장소라 https 로 SSH 키 없이 받는다. 실패하면 안내 1줄만 남기고 계속한다.
+#             forge 는 비공개 저장소 — gh 로그인(https 자격 증명)으로 SSH 키 없이 받는다. 실패하면 안내만 남기고 계속한다.
 if [ ! -d "${FORGE_ROOT}" ]; then
+  if ! command -v gh &>/dev/null; then
+    warn "gh(GitHub CLI) 가 없습니다 — https://cli.github.com 에서 설치 후 gh auth login 하세요"
+  elif ! gh auth status &>/dev/null; then
+    warn "권한이 없거나 로그인 안 됨 — gh auth login 후 다시 실행하세요 (forge 접근 권한은 관리자에게 요청)"
+  else
+    gh auth setup-git &>/dev/null || true   # git 이 gh 로그인으로 https 인증하게
+  fi
   info "~/forge 가 없습니다 — Forge 본체 받는 중 (https)..."
-  if git clone https://github.com/moongci38-oss/forge.git "${FORGE_ROOT}"; then
+  # GIT_TERMINAL_PROMPT=0 — 로그인 안 됐을 때 아이디·비밀번호 입력창에서 멈추지 않게
+  if GIT_TERMINAL_PROMPT=0 git clone https://github.com/moongci38-oss/forge.git "${FORGE_ROOT}"; then
     ok "Forge 본체 받기 완료 (${FORGE_ROOT})"
   else
-    warn "Forge 본체 받기 실패 — 나중에 직접: git clone https://github.com/moongci38-oss/forge.git \"${FORGE_ROOT}\""
+    warn "Forge 본체 받기 실패 — 권한이 없거나 로그인 안 됨 — gh auth login 후 다시 실행하세요 (forge 접근 권한은 관리자에게 요청)"
   fi
 fi
 if [ -f "${FORGE_SYNC}" ]; then

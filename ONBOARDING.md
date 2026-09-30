@@ -35,7 +35,7 @@ bash setup.sh
 - CLI 도구 설치: Codex, GitNexus, Lighthouse, **Playwright** (+ Chromium), **jq**
 - Python 패키지: hwpx-mcp-server, Pillow, pytesseract, pdf2image, playwright
 - API 키 입력 안내 (브라우저 자동 열기)
-- Forge 본체 `~/forge` 받기 (없을 때만 · https 라 SSH 키 불필요 — §1)
+- Forge 본체 `~/forge` 받기 (없을 때만 · 비공개 저장소 — `gh auth login` 으로 로그인돼 있어야 함, SSH 키는 불필요 — §1)
 - MCP 서버 5종 `~/.claude.json` 등록 (notion · tavily · gitnexus · codex · brave-search — Figma 는 사용 중단이라 등록하지 않습니다)
 - 플러그인 5종 설치·활성화 (forge-core + forge-knowledge + forge-build + forge-design + forge-game)
 - Codex 로그인 브라우저 열기
@@ -83,10 +83,11 @@ nvm use 22
 
 ```bash
 # forge 시스템 (규칙·스킬·파이프라인) — 플러그인 사용자도 클론한다
+gh auth login     # 먼저 GitHub 로그인 (HTTPS 선택) — gh 가 없으면 https://cli.github.com 에서 설치
 git clone https://github.com/moongci38-oss/forge.git ~/forge
 ```
 
-> forge 는 **공개 저장소**(2026-09-30~)라 SSH 키 없이 https 로 받습니다. 기본 브랜치는 `develop` 입니다.
+> forge 는 **비공개 저장소**입니다 — 접근 권한 있는 팀원만 받을 수 있습니다(권한은 관리자에게 요청). 먼저 `gh auth login` 으로 로그인하면 SSH 키 없이 https 로 받아집니다. 기본 브랜치는 `develop` 입니다.
 
 > forge-outputs 저장소 클론은 별도 승인 필요 — 관리자에게 문의하세요.
 
