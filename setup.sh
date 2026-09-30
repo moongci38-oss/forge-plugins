@@ -22,7 +22,10 @@ FORGE_ROOT="${HOME_DIR}/forge"
 FORGE_OUTPUTS="${HOME_DIR}/forge-outputs"
 CLAUDE_JSON="${HOME_DIR}/.claude.json"
 # root-cause: 플러그인 사용자는 ~/forge 없음 — ~/.forge.env 폴백 (forge 있으면 우선)
-if [ -d "${FORGE_ROOT}" ]; then ENV_FILE="${FORGE_ROOT}/.env"; else ENV_FILE="${HOME_DIR}/.forge.env"; fi
+# 이미 만든 키 파일이 있으면 그것을 계속 쓴다 — 5단계가 ~/forge 를 새로 받아도 다음 실행에서 키를 다시 묻지 않게.
+if [ -f "${FORGE_ROOT}/.env" ]; then ENV_FILE="${FORGE_ROOT}/.env"
+elif [ -f "${HOME_DIR}/.forge.env" ]; then ENV_FILE="${HOME_DIR}/.forge.env"
+elif [ -d "${FORGE_ROOT}" ]; then ENV_FILE="${FORGE_ROOT}/.env"; else ENV_FILE="${HOME_DIR}/.forge.env"; fi
 FORGE_SYNC="${FORGE_ROOT}/dev/scripts/forge-sync.mjs"
 # ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 `GEMINI_KEY_FILE="${HOME_DIR}/.gemini-api-key"`
 # (모든 모델을 구독으로만 호출한다. 종량 과금 API 키 벤더를 끊었다.)
@@ -59,7 +62,8 @@ echo ""
 echo "  이 스크립트가 자동으로 처리하는 것:"
 echo "    • 필수 프로그램 설치 (Codex, GitNexus, hwpx 등)"
 echo "    • ~/forge-outputs 폴더 구조 생성"
-echo "    • AI 도구 연결 (MCP 서버 7종)"
+echo "    • Forge 본체(~/forge) 받기 (없을 때만 · 비공개 — gh auth login 으로 로그인돼 있어야 함)"
+echo "    • AI 도구 연결 (MCP 서버 5종)"
 echo "    • 플러그인 설치 및 활성화"
 echo ""
 echo "  사람이 직접 해야 하는 것 (스크립트 중간에 안내):"
@@ -196,7 +200,7 @@ if [ ! -f "${ENV_FILE}" ]; then
 
   echo ""
   echo "  [선택 — 필요한 경우에만]"
-  ask_key "FIGMA_API_KEY"       "Figma API Key (디자인 작업 시, 없으면 Enter)" ""
+  # Figma 는 사용 중단(팀 규범 — 이미지는 GPT Image → Claude Design). 구 표기 "ask_key FIGMA_API_KEY" 제거.
   ask_key "GITHUB_TOKEN"        "GitHub Personal Token (PR 작업 시, 없으면 Enter)" ""
   ask_key "OPENAI_API_KEY"      "OpenAI API Key (GPT 리뷰 시, 없으면 Enter)" ""
   ask_key "REPLICATE_API_TOKEN" "Replicate Token (이미지 생성 시, 없으면 Enter)" ""
@@ -290,19 +294,36 @@ install_pip_pkgs hwpx-mcp-server Pillow pytesseract pdf2image playwright
 # ══════════════════════════════════════════════════════
 banner "5단계: 스킬·에이전트 동기화 (forge-sync)"
 
-# root-cause: forge-sync는 forge 레포 클론한 코어 팀원용 — 플러그인 사용자는 스킵
+# root-cause: 플러그인 커맨드·스크립트도 ~/forge 를 부른다(forge #1544) — 없으면 조용히 넘기지 않고 받는다.
+#             forge 는 비공개 저장소 — gh 로그인(https 자격 증명)으로 SSH 키 없이 받는다. 실패하면 안내만 남기고 계속한다.
+if [ ! -d "${FORGE_ROOT}" ]; then
+  if ! command -v gh &>/dev/null; then
+    warn "gh(GitHub CLI) 가 없습니다 — https://cli.github.com 에서 설치 후 gh auth login 하세요"
+  elif ! gh auth status &>/dev/null; then
+    warn "권한이 없거나 로그인 안 됨 — gh auth login 후 다시 실행하세요 (forge 접근 권한은 관리자에게 요청)"
+  else
+    gh auth setup-git &>/dev/null || true   # git 이 gh 로그인으로 https 인증하게
+  fi
+  info "~/forge 가 없습니다 — Forge 본체 받는 중 (https)..."
+  # GIT_TERMINAL_PROMPT=0 — 로그인 안 됐을 때 아이디·비밀번호 입력창에서 멈추지 않게
+  if GIT_TERMINAL_PROMPT=0 git clone https://github.com/moongci38-oss/forge.git "${FORGE_ROOT}"; then
+    ok "Forge 본체 받기 완료 (${FORGE_ROOT})"
+  else
+    warn "Forge 본체 받기 실패 — 권한이 없거나 로그인 안 됨 — gh auth login 후 다시 실행하세요 (forge 접근 권한은 관리자에게 요청)"
+  fi
+fi
 if [ -f "${FORGE_SYNC}" ]; then
   info "forge 레포 감지됨 — forge-sync 실행 중..."
   node "${FORGE_SYNC}" sync 2>&1 | grep -E "✔|✘|→|Sync|완료|오류" | head -10 || true
-  ok "동기화 완료 (플러그인 설치는 6단계에서 자동 스킵됨)"
+  ok "동기화 완료 (플러그인 설치는 7단계에서 자동 스킵됨)"
 else
-  ok "플러그인 모드 — forge-sync 스킵 (스킬은 플러그인으로 설치됩니다)"
+  warn "forge-sync 를 찾지 못해 건너뜀 (${FORGE_SYNC}) — ~/forge 를 받은 뒤 setup.sh 를 다시 실행하세요"
 fi
 
 # ══════════════════════════════════════════════════════
 banner "6단계: AI 도구 연결 (MCP)"
 
-info "AI 도구 7종 연결 중..."
+info "AI 도구 5종 연결 중..."
 
 node << MCPEOF
 const fs = require('fs');
@@ -319,7 +340,7 @@ const servers = {
   "notion":       { type:"http", url:"https://mcp.notion.com/mcp" },
   "tavily":       { type:"stdio", command:"npx", args:["-y","tavily-mcp"], env:{"TAVILY_API_KEY":"\${TAVILY_API_KEY}"} },
   "gitnexus":     { type:"stdio", command:"gitnexus", args:["mcp"] },
-  "figma":        { type:"stdio", command:"npx", args:["-y","@figma/figma-developer-mcp","--stdio"], env:{"FIGMA_API_KEY":"\${FIGMA_API_KEY}"} },
+  // Figma MCP 는 사용 중단(팀 규범 — 이미지는 GPT Image → Claude Design). 구 표기 "figma" 서버 등록 제거.
   "codex":        { type:"stdio", command:"codex", args:["mcp-server"] },
   // ⚠️ 2026-09-07 Gemini 전면 철수로 폐기 — 구 표기 "gemini-text MCP 자동 등록
   //    (forge 레포 있으면 dev/scripts/gemini-text-mcp/start.sh, 없으면 @google/gemini-cli-mcp)"
@@ -344,9 +365,9 @@ if [ "$SKILL_COUNT" -gt 20 ]; then
   ok "스킬 mirror가 있습니다 (${SKILL_COUNT}개) — 플러그인 중복 설치 건너뜀"
 else
   info "플러그인 마켓플레이스 등록 중..."
-  claude plugin marketplace add forge-plugins github:moongci38-oss/forge-plugins 2>/dev/null || true
+  claude plugin marketplace add moongci38-oss/forge-plugins 2>/dev/null || true  # 인자는 source 1개뿐
 
-  for p in forge-core forge-dev forge-plan forge-research forge-design forge-game; do
+  for p in forge-core forge-build forge-knowledge forge-design forge-game; do
     # root-cause: grep 패턴 대신 이름만 매칭 — 출력 형식(❯/공백) 무관
     if claude plugin list 2>/dev/null | grep -q "${p}"; then
       info "${p} 업데이트 중..."
