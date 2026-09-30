@@ -35,7 +35,8 @@ bash setup.sh
 - CLI 도구 설치: Codex, GitNexus, Lighthouse, **Playwright** (+ Chromium), **jq**
 - Python 패키지: hwpx-mcp-server, Pillow, pytesseract, pdf2image, playwright
 - API 키 입력 안내 (브라우저 자동 열기)
-- MCP 서버 7종 `~/.claude.json` 등록
+- Forge 본체 `~/forge` 받기 (없을 때만 · 비공개 저장소 — `gh auth login` 으로 로그인돼 있어야 함, SSH 키는 불필요 — §1)
+- MCP 서버 5종 `~/.claude.json` 등록 (notion · tavily · gitnexus · codex · brave-search — Figma 는 사용 중단이라 등록하지 않습니다)
 - 플러그인 5종 설치·활성화 (forge-core + forge-knowledge + forge-build + forge-design + forge-game)
 - Codex 로그인 브라우저 열기
 
@@ -82,8 +83,11 @@ nvm use 22
 
 ```bash
 # forge 시스템 (규칙·스킬·파이프라인) — 플러그인 사용자도 클론한다
-git clone git@github.com:moongci38-oss/forge.git ~/forge
+gh auth login     # 먼저 GitHub 로그인 (HTTPS 선택) — gh 가 없으면 https://cli.github.com 에서 설치
+git clone https://github.com/moongci38-oss/forge.git ~/forge
 ```
+
+> forge 는 **비공개 저장소**입니다 — 접근 권한 있는 팀원만 받을 수 있습니다(권한은 관리자에게 요청). 먼저 `gh auth login` 으로 로그인하면 SSH 키 없이 https 로 받아집니다. 기본 브랜치는 `develop` 입니다.
 
 > forge-outputs 저장소 클론은 별도 승인 필요 — 관리자에게 문의하세요.
 
@@ -205,7 +209,10 @@ bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/setup-cli.sh
 
 forge-sync는 `${FORGE_ROOT:-$HOME/forge}/`의 스킬·에이전트·커맨드를 `$HOME/.claude/`에 미러링합니다.
 
+먼저 `~/forge` 를 최신으로 받은 뒤 동기화합니다 (옛 판을 받아 두었으면 옛 스킬이 그대로 복사됩니다):
+
 ```bash
+cd ${FORGE_ROOT:-$HOME/forge} && git pull
 node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync
 ```
 
@@ -376,11 +383,20 @@ done
 
 ### 6-4. 이후 업데이트
 
+순서대로 합니다 — 마켓플레이스 목록을 먼저 새로 받아야 플러그인이 새 버전을 찾습니다.
+
 ```bash
+# 1) Forge 본체도 같이 최신으로 (플러그인이 이 폴더의 스크립트를 부릅니다)
+cd ${FORGE_ROOT:-$HOME/forge} && git pull
+# 2) 마켓플레이스 목록 새로 받기
+claude plugin marketplace update forge-plugins
+# 3) 플러그인마다 하나씩 업데이트 (한 줄에 여러 이름을 몰아 쓰면 오류)
 for p in forge-core forge-knowledge forge-build forge-design forge-game; do
   claude plugin update ${p}@forge-plugins
 done
 ```
+
+4) Claude Code 를 **완전히 껐다 켭니다** → 5) `claude plugin list` 로 버전이 올라갔는지 확인합니다.
 
 ---
 

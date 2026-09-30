@@ -17,6 +17,28 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 ok "Claude Code 확인: $(claude --version 2>/dev/null | head -1)"
 
+# 0-1. Forge 본체(~/forge) — 플러그인 커맨드·스크립트가 이 폴더를 부른다(forge #1544).
+#      비공개 저장소 — gh 로그인(https 자격 증명)으로 SSH 키 없이 받는다. 실패해도 설치는 계속한다.
+FORGE_DIR="${FORGE_ROOT:-$HOME/forge}"
+say "Forge 본체 확인 ($FORGE_DIR)"
+if [ -d "$FORGE_DIR" ]; then
+  ok "이미 있음: $FORGE_DIR (최신으로 받으려면: cd \"$FORGE_DIR\" && git pull)"
+else
+  if ! command -v gh >/dev/null 2>&1; then
+    warn "gh(GitHub CLI) 가 없습니다 — https://cli.github.com 에서 설치 후 gh auth login 하세요"
+  elif ! gh auth status >/dev/null 2>&1; then
+    warn "권한이 없거나 로그인 안 됨 — gh auth login 후 다시 실행하세요 (forge 접근 권한은 관리자에게 요청)"
+  else
+    gh auth setup-git >/dev/null 2>&1 || true   # git 이 gh 로그인으로 https 인증하게
+  fi
+  # GIT_TERMINAL_PROMPT=0 — 로그인 안 됐을 때 아이디·비밀번호 입력창에서 멈추지 않게
+  if GIT_TERMINAL_PROMPT=0 git clone https://github.com/moongci38-oss/forge.git "$FORGE_DIR"; then
+    ok "받기 완료: $FORGE_DIR"
+  else
+    warn "Forge 본체 받기 실패 — 권한이 없거나 로그인 안 됨 — gh auth login 후 다시 실행하세요 (forge 접근 권한은 관리자에게 요청)"
+  fi
+fi
+
 # 1. 마켓플레이스 등록 (이미 있으면 통과)
 say "마켓플레이스 등록"
 if claude plugin marketplace add "$MARKET" 2>/dev/null; then
