@@ -91,14 +91,14 @@ done
 # commands/skills invoke these via $HOME/.claude/skills/... (Bash tool has no
 # CLAUDE_PLUGIN_ROOT access outside hook processes), but marketplace-only installs
 # only bundle them under ${CLAUDE_PLUGIN_ROOT}/skills/... — copy them out so
-# /cr-multi, /cr-triple, /approve-worker work post-install.
+# /approve-worker works post-install.
+# (forge #1685: cr-multi/workflow.js 항목 제거 — 스킬이 forge-multi 로 개명돼 번들에 없고,
+#  /forge-multi 는 ${FORGE_ROOT:-$HOME/forge} 쪽 엔진을 읽으므로 ~/.claude 복사본은 아무도 안 읽었다)
 SKILL_SCRIPT_SRCS=(
-  "${CLAUDE_PLUGIN_ROOT}/skills/cr-multi/workflow.js"
   "${CLAUDE_PLUGIN_ROOT}/skills/approve-worker/scripts/approve-worker-sign.py"
   "${CLAUDE_PLUGIN_ROOT}/skills/approve-worker/scripts/approve-worker-verify.py"
 )
 SKILL_SCRIPT_DSTS=(
-  "$HOME/.claude/skills/cr-multi/workflow.js"
   "$HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py"
   "$HOME/.claude/skills/approve-worker/scripts/approve-worker-verify.py"
 )
