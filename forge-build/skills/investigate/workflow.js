@@ -127,7 +127,7 @@ const investigateResult = await agent(
   `2.의심 파일 탐색: grep 에러 메시지 + git blame 최근 변경 파일. ` +
   `3.경계 식별: 어떤 컴포넌트 책임 경계에서 버그 발생? ` +
   `suspectFiles[] + graphAnalysis + errorMessages[] 반환.`,
-  { label: 'investigate:source', phase: 'Investigate', schema: INVESTIGATE_SCHEMA }
+  { model: 'sonnet', label: 'investigate:source', phase: 'Investigate', schema: INVESTIGATE_SCHEMA }
 )
 log(`[Investigate] suspectFiles=${investigateResult?.suspectFiles?.length}개 risk=${investigateResult?.graphAnalysis?.riskLevel}`)
 
@@ -141,7 +141,7 @@ const analyzeResult = await agent(
   `각 가설: id + title + rootCause(5W1H) + evidence[] + confidence(HIGH/MEDIUM/LOW) + impactFiles[]. ` +
   `gitnexus_impact({target: 최의심 함수, direction: upstream, maxDepth: 2}) 호출 → 영향 범위. ` +
   `primaryHypothesis(가장 높은 confidence id) + hypotheses[] 반환.`,
-  { label: 'analyze:hypotheses', phase: 'Analyze', schema: ANALYZE_SCHEMA }
+  { model: 'opus', label: 'analyze:hypotheses', phase: 'Analyze', schema: ANALYZE_SCHEMA }
 )
 log(`[Analyze] 가설=${analyzeResult?.hypotheses?.length}개 primary=${analyzeResult?.primaryHypothesis}`)
 
@@ -168,7 +168,7 @@ const verifyResult = await agent(
   `5)investigate-report.md 생성. ` +
   `verifiedHypothesis + reproduced + rootCauseConfirmed + fixPlan[] + reportPath 반환.` +
   `\n\n[STOP] Stage 3 완료 후 Stage 4+5(재현+수정)는 /healer 또는 /forge-pge로 위임.`,
-  { label: 'verify:hypothesis', phase: 'Verify', schema: VERIFY_SCHEMA }
+  { model: 'opus', label: 'verify:hypothesis', phase: 'Verify', schema: VERIFY_SCHEMA }
 )
 log(`[Verify] reproduced=${verifyResult?.reproduced} confirmed="${verifyResult?.rootCauseConfirmed?.slice(0, 60)}"`)
 log(`[STOP] Stage 4+5 = /healer 또는 직접 수정 (Workflow 범위 외)`)

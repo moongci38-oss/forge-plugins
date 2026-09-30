@@ -37,9 +37,10 @@ import mcp_audit
 HOME = Path.home()
 FORGE_OUTPUTS = Path(os.environ.get("FORGE_OUTPUTS", HOME / "forge-outputs"))
 FORGE_ROOT = Path(os.environ.get("FORGE_ROOT", HOME / "forge"))
-# 머신마다 다른 외부 드라이브다 — 하드코딩하면 PUBLIC 번들로 그대로 나간다(#881).
+# 이 경로는 머신마다 다른 외부 드라이브다 — 하드코딩하면 PUBLIC 번들로 그대로 나간다(#881).
 #   ⚠️ **기본값을 두지 않는다.** 어떤 값을 적어도 그것은 누군가의 실제 경로이고, 이 파일은
-#   공개 번들로 복사된다. 미설정이면 그 프로젝트를 매핑에서 빼고 호출 시 사유를 말한다.
+#   공개 번들로 복사된다(실측: 기본값을 넣자 스캐너가 곧바로 그것을 유출로 잡았다).
+#   미설정이면 그 프로젝트를 매핑에서 뺀다 — 요청되면 "알 수 없는 프로젝트" 로 떨어진다.
 GODBLADE_ROOT = os.environ.get("GODBLADE_ROOT", "")
 FORGE_MCP_TOKEN = os.environ.get("FORGE_MCP_TOKEN", "")
 # 기본 바인딩을 0.0.0.0 → 127.0.0.1 로 좁힌다. cloudflared 는 localhost 로 붙으므로
@@ -66,7 +67,7 @@ mcp = FastMCP("forge-tools")
 
 
 # ── 감사 미들웨어 ──────────────────────────────────────────────────────────
-# 도구 17개에 데코레이터를 하나씩 붙이지 않고 여기 1곳만 두는 이유:
+# 도구 16개에 데코레이터를 하나씩 붙이지 않고 여기 1곳만 두는 이유:
 # 앞으로 추가될 도구가 조용히 무기록으로 태어나는 것을 막는다.
 try:
     from fastmcp.server.middleware import Middleware
@@ -775,81 +776,8 @@ def harness_probe() -> str:
     return "\n".join(lines)
 
 
+# 2026-09-25 (#1104): notion_create_page 제거 — 사람 결정 "Notion 연동만 끊는다". 되살리려면 이 커밋을 revert.
 # ── Telegram 알림 도구 ─────────────────────────────────────────────────────
-
-@mcp.tool()
-def notion_create_page(database_id: str, properties: dict, content: str = "") -> str:
-    """Notion 데이터베이스에 새 페이지 생성.
-
-    Args:
-        database_id: Notion DB ID (예: "43829f7b-8d3f-47f1-90a1-84f40d39239e")
-        properties: 페이지 속성 딕셔너리 (title, date, status 등)
-        content: 페이지 본문 (Markdown — Notion 블록으로 변환)
-    """
-    import urllib.request
-    import json
-
-    token = os.environ.get("NOTION_API_TOKEN", "")
-    if not token:
-        return "NOTION_API_TOKEN 미설정 — Notion 등록 불가"
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28",
-    }
-
-    # properties → Notion API 포맷 변환
-    def _notion_props(props: dict) -> dict:
-        result = {}
-        for key, val in props.items():
-            if isinstance(val, str) and key.lower() in ("제목", "title", "name", "이름"):
-                result[key] = {"title": [{"text": {"content": val[:2000]}}]}
-            elif isinstance(val, str) and "날짜" in key.lower() or "date" in key.lower():
-                result[key] = {"date": {"start": val}} if val else {"date": None}
-            elif isinstance(val, (int, float)):
-                result[key] = {"number": val}
-            elif isinstance(val, str):
-                result[key] = {"rich_text": [{"text": {"content": val[:2000]}}]}
-        return result
-
-    # content → Notion 블록 (단락으로 분할, 최대 100블록)
-    def _content_blocks(text: str) -> list:
-        blocks = []
-        for chunk in text.split("\n\n")[:100]:
-            chunk = chunk.strip()
-            if not chunk:
-                continue
-            blocks.append({
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [{"type": "text", "text": {"content": chunk[:2000]}}]
-                }
-            })
-        return blocks
-
-    payload = {
-        "parent": {"database_id": database_id},
-        "properties": _notion_props(properties),
-        "children": _content_blocks(content) if content else [],
-    }
-
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        "https://api.notion.com/v1/pages",
-        data=data, headers=headers
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read())
-            page_id = result.get("id", "unknown")
-            url = result.get("url", "")
-            return f"Notion 페이지 생성 완료: {page_id}\nURL: {url}"
-    except Exception as e:
-        return f"Notion 생성 실패: {e}"
-
-
 @mcp.tool()
 def telegram_notify(message: str) -> str:
     """Telegram으로 완료 알림 발송. chat_id는 환경변수 고정.

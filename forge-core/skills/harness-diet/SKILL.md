@@ -11,6 +11,7 @@ argument-hint: "[--dry-run] [--queue <path-to-diet-queue.json>]"
 
 **역할**: harness-legacy-scan 이 만든 diet-queue.json 을 소비해 `diet_auto=true && risk=low` 항목만 자동 적용한다(medium/high 는 목록 반환 → Human 승인).
 **출력**: 7보고 섹션 (변경목록/이유/Before-After/diff요약/Claude행동변화/Human승인목록/smoke-test).
+**컨텍스트**: `/harness-diet` 호출 시. 반드시 scan 리포트를 먼저 검토·납득한 후 실행할 것.
 
 ## 쓰지 말아야 할 때
 

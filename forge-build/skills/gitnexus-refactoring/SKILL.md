@@ -62,12 +62,10 @@ disable-model-invocation: true
 
 ## Tools
 
-**gitnexus_rename** — automated multi-file rename:
+**gitnexus_rename** — automated multi-file rename (dry_run → graph edits = high confidence, ast_search edits = review; e.g. config.json dynamic refs):
 
 ```
 gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: true})
-→ 12 edits across 8 files
-→ 10 graph edits (high confidence), 2 ast_search edits (review)
 → Changes: [{file_path, edits: [{line, old_text, new_text, confidence}]}]
 ```
 
@@ -75,17 +73,14 @@ gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_
 
 ```
 gitnexus_impact({target: "validateUser", direction: "upstream"})
-→ d=1: loginHandler, apiMiddleware, testUtils
-→ Affected Processes: LoginFlow, TokenRefresh
+→ d=1: loginHandler, apiMiddleware · Affected Processes: LoginFlow, TokenRefresh
 ```
 
 **gitnexus_detect_changes** — verify your changes after refactoring:
 
 ```
 gitnexus_detect_changes({scope: "all"})
-→ Changed: 8 files, 12 symbols
-→ Affected processes: LoginFlow, TokenRefresh
-→ Risk: MEDIUM
+→ Changed: 8 files, 12 symbols · Affected processes: LoginFlow · Risk: MEDIUM — run tests for these flows
 ```
 
 **gitnexus_cypher** — custom reference queries:
@@ -103,20 +98,3 @@ RETURN caller.name, caller.filePath ORDER BY caller.filePath
 | Cross-area refs     | Use detect_changes after to verify scope  |
 | String/dynamic refs | gitnexus_query to find them               |
 | External/public API | Version and deprecate properly            |
-
-## Example: Rename `validateUser` to `authenticateUser`
-
-```
-1. gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: true})
-   → 12 edits: 10 graph (safe), 2 ast_search (review)
-   → Files: validator.ts, login.ts, middleware.ts, config.json...
-
-2. Review ast_search edits (config.json: dynamic reference!)
-
-3. gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: false})
-   → Applied 12 edits across 8 files
-
-4. gitnexus_detect_changes({scope: "all"})
-   → Affected: LoginFlow, TokenRefresh
-   → Risk: MEDIUM — run tests for these flows
-```

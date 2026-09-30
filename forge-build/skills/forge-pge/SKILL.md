@@ -3,503 +3,94 @@ name: forge-pge
 description: "Planner-Generator-Evaluator 하네스. Evaluator만 subagent로 격리해 독립 검수한다. spec 없이 개발할 때 사용한다. 버그 수정은 /forge-fix."
 ---
 
-**역할**: 당신은 PGE 하네스를 **직접 실행**하는 에이전트입니다. Planner와 Generator를 메인 컨텍스트에서 수행하고, Evaluator만 subagent로 스폰합니다.
+**역할**: PGE 하네스를 **직접 실행**한다 — Planner·Generator 는 메인 컨텍스트, Evaluator 만 독립 실행체(자기평가 금지, Generator 컨텍스트 미상속).
+**출력**: 산출물 + `docs/pge/YYYY-MM-DD-{task-name}-pge-report.md`. **spec 없는 개발 전용** — spec 有 = `/forge-implement`, 버그 = `/forge-fix` (결정표 `.claude/rules-on-demand/harness-family-map.md`).
 **컨텍스트**: 복잡한 구현/생성 작업에서 품질이 결과를 결정할 때 사용합니다.
-**출력**: 최종 산출물 + PGE 실행 보고서 (`docs/pge/YYYY-MM-DD-{task-name}-pge-report.md`)
-
-> **spec 없는 개발 전용** 하네스 — 버그 수정은 `/forge-fix` 사용.
-
-# PGE — Planner-Generator-Evaluator 하네스
-
-AI 출력 품질의 핵심 변수는 모델이 아니라 **구조(하네스)**다.
-
-**Grader Isolation 원칙**: Evaluator subagent는 Generator 컨텍스트를 상속받지 않는다. 독립 판단 보장.
-> **설계 배경**: self-referential bias(모델이 자기 산출물을 검증할 때 관대해지는 편향) 완화가 Grader Isolation의 목적이다. 단, 동일 모델계열 내 편향은 컨텍스트 격리만으로 완전히 제거되지 않으므로, 이종 모델 검수(cr-multi/cr-triple)와 병행 운용한다.
-
-
-**아키텍처 원칙**:
-- **Planner + Generator**: 메인 컨텍스트에서 직접 실행 → 이전 분석/실패 이력을 자연스럽게 참조
-- **Evaluator**: subagent로 격리 → Generator의 의도/가정을 모른 채 코드 자체만 보고 독립 검수
-- **자기평가 금지**: Generator가 만든 코드를 Generator가 평가하지 않는다
-
-**forge-implement와의 관계 (oracle 가용성 분기 — 병합하지 않음)**: spec이 있는 구현은 `/forge-implement`가 담당하며 Evaluator 역할을 qa(Check 5.8)에 위임한다 — forge-pge는 spec이 없는 국면 전용이고, 여기서는 forge-pge 자체 Evaluator subagent가 그 독립-채점자 역할을 수행한다. 즉 둘은 하나의 구현 하네스 패밀리(oracle 가용성 분기)이며 병합하지 않는다. (라우팅 결정표: `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/harness-family-map.md` 참조.)
-
 ## 사용법
-
 ```
-/forge-pge <task description>
-/forge-pge --rubric custom  # 커스텀 Rubric 사용
-/forge-pge --cycles 2       # maxCycles=2 (기본 3). max_cycles·same_issue 트리거가 이 값에 연동됨 (하드코딩 아님)
-/forge-pge --coder codex:high  # Generator를 Codex(sol)로 라우팅(Evaluator는 독립 Claude 고정). claude:tier|codex:tier|sol|terra|luna|ab — codex:max(Astra)는 advisor 전용(2026-09-17)
-/forge-pge --coder claude:high --advisor sol  # Opus 구현 + Codex sol advisor(무료·독립). --advisor sol|terra|opus|fable
+/forge-pge <task> [--rubric custom] [--cycles N(기본 3)] [--coder claude:tier|codex:tier|sol|terra|luna|ab] [--advisor sol|terra|opus|fable]
 ```
+## 진입 트리아지 (먼저 판정)
+- **P0**: harness-family 3분기를 실측 — `ls .specify/specs/` 를 열어 **이 작업을 다루는 spec** 이 있으면 `/forge-implement`, 버그·증상이면 `/forge-fix` 로 재라우팅 제안. **P0b**: 1회성 상태변경(시드·백필)·단순 조회·설정 변경 → PGE 거부, 직접 실행/스크립트 제안.
+- **P0c**: `.claude/rules-on-demand/pre-work-branch-sweep.md` 실행 — 미머지 완성물 있으면 재작성 금지. **P1**: 1~2파일·수 줄 → "PGE 부적합 — 직접 외과 수정 권고" WARN 후 직접 편집(모호하면 PGE).
+- **P2**: "제안/체크/분석/확인/봐줘"류 → 조사 리포트 + AskUserQuestion 결정 게이트(`rules-on-demand/grilling-protocol.md`). 구현 명시 시에만 PGE. pre-flight(WARN): prettier/eslint 충돌 → `references/pge-phase-details.md §스타일 정합 pre-flight`.
+## Phase -1: Design Source (신규 UI 화면 빌드 한정, 아니면 "Phase -1 스킵" 1줄)
+a) Claude Design 산출물/`DESIGN.md`/`05-design/` → b) 레포 자매 화면 패턴 → c) 둘 다 없으면 **[STOP] DESIGN_SOURCE_ABSENT** (GUIDE-STOP): Human 이 산출물 제공·자매 화면 지정·"임의 생성 승인" 중 택1 전까지 Phase 2 보류. 결과를 `PGE_SPEC.md` `## Design Source` 에 기록.
+## Phase 0: Rubric (Generator 전 확정)
+| 항목 | 가중 | 불합격 |
+|---|:-:|---|
+| 요구사항 충족도 | 40 | 핵심 미충족 → 즉시 FAIL |
+| 품질/완성도 | 30 | AI 슬롭 → 0 (UI 는 `references/pge-phase-details.md §UI rubric 보강 (G7·G10-b)`) |
+| 구조/아키텍처 | 20 | 설계 의도 위반 → 0 |
+| 문서/명확성 | 10 | 주요 누락 → 5 이하 |
+PASS = 70+ & 즉시 FAIL 없음. Evaluator 는 score-blind(점수 최적화 금지). 판정은 스크립트:
+`python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/rubric-weighted-score.py" --file <축점수.json>` → rc 0 PASS · 1 FAIL · 2 UNDECIDED(통과 아님). JSON `{"threshold":70,"axes":[{"name","weight","score"}]}`, 미응답 축 `{"state":"missing","reason":...}`(0점 아님), 즉시 FAIL `"immediate_fail": true`.
+**Sprint Contract**(Planner 작성, 예시 → `reference.md §Sprint Contract 예시`): `scope` · `out_of_scope` · `done_criteria` · `eval_ids`(done_criteria 별 canonical `{requirement}:{check}` id — Evaluator 는 이 목록에서만 선택, 신규 결함만 새 id 제안 후 다음 사이클 append, 재명명 금지; 타이밍 → `references/pge-phase-details.md §eval_ids 타이밍 (false-stop 방지)`) · `rollback_trigger`.
 
-## 적용 대상
-
-| 적합 | 부적합 |
-|------|--------|
-| 코드 기능 구현 | 단순 정보 조회 |
-| 기획서/문서 초안 작성 | 파일 탐색 |
-| 에셋/이미지 생성 기획 | 1회성 수정 |
-| — | 설정 변경 |
-
-> **버그 수정은 여기 해당 없음** — `/forge-fix` 사용 (PGE = spec 없는 개발 전용).
-
-### 진입 트리아지 (fast-path — P1/P2, WARN-우선)
-PGE 기구(Rubric/Sprint Contract/Evaluator/Codex 2차)는 무겁다. 진입 시 아래를 먼저 판정한다:
-
-- **P0 harness-family 강제 판별 (2026-07-10)**: 사용자가 "미구현 = pge"로 지목했어도 그대로 진입하지 않는다 — `harness-family-map.md` 3분기(spec有→`/forge-implement` / spec無 생성→pge / 버그·증상→`/forge-fix`)를 **실측**으로 먼저 판정하고, 불일치 시 올바른 하네스로 재라우팅 제안. ⚠️ **spec 판정 축은 폴더가 아니라 "이 작업을 다루는 spec"이다**(2026-08-21 정정) — `.specify/specs/` 가 존재해도 그 안이 **다른 기능**의 spec 뿐이면 이 작업에는 spec 이 **없는** 것이고 PGE 가 맞다. 폴더 존재만 보면 작년에 끝난 다른 공사의 계약서를 근거로 이번 공사를 하라는 지시가 된다. 재현: `ls .specify/specs/` 로 파일명을 **열어 보고** 이번 요청의 대상 기능이 그 안에 있는지 확인한다 — 없으면 PGE 유지. 근거: 2026-08-21 arborAI 세션(폴더에 2026-07-30 관수판정 spec 1건만 존재, 요청은 수목 상세 제어 UI 재편). 폐기조건: `.specify/specs/` 가 태스크별 디렉터리로 바뀌어 경로만으로 판별되면 이 단서를 삭제한다. 실증: 2026-07-09 optool 세션 2/2가 pge 부적합(정산 4메뉴=implement, 시드=직접) — "미구현처럼 보임"의 다수는 미연동·미머지·설정 드리프트다.
-- **P0b 1회성 상태변경 차단**: QA 시드·데이터 백필 같은 1회성 작업은 PGE(반복 개선 루프) 부적합 — §적용 대상 표 기준으로 거부하고 직접 실행 or 스크립트를 제안한다.
-- **P0c pre-work branch sweep**: 착수 전 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/pre-work-branch-sweep.md` 실행 — 대상 도메인의 미머지 완성물이 있으면 재작성 금지.
-- **P1 사소 편집 fast-path**: 변경 예상 규모가 **1~2파일·수 줄**(콘텐츠 트윅·문구·상수 등)이면 → **"PGE 부적합 — 직접 외과 수정 권고" WARN** 후 경량 경로(직접 편집)로. 무거운 PGE를 돌리지 않는다(커맨드-행동 불일치 방지). 판정 모호·규모 초과 시 정상 PGE 진행(fail-open).
-- **P2 조사/제안 요청 라우팅**: 사용자 의도어가 **"제안/체크/분석/확인/봐줘"류(구현 아님)**면 → PGE(구현 전용) 진입 대신 **조사 리포트 + 결정 게이트(AskUserQuestion — 질의 방식은 `rules-on-demand/grilling-protocol.md` 준수: 권고안+근거 동반, 사실은 조사해 `(detected)` 표기)**로 라우팅(`dev-workflow-rules §"리서치만/분석만/확인만 → 직접 응답"` 정합). PGE Phase 2 Generator는 코드를 생성하므로 "제안만" 요청에 부적합. "구현/만들어/추가해"류 명시 시에만 정상 PGE.
-
----
-
-## 실행 워크플로우
-
-**스타일 정합 pre-flight (P3, WARN — 증분 UI 셰이핑 마찰 방지)**: 착수 전 (a) prettier config 부재 + (b) eslint↔prettier 스타일 충돌(코드베이스 실제 스타일 vs prettier 기본값, 예: 작은따옴표 코드에 큰따옴표 기본 prettier)을 감지하면 WARN. 미정합 시 pre-commit `prettier --write`가 전파일 재포맷 → diff 부풀림 + 편집 워크트리 vs 커밋 브랜치 발산(증분 패치 깨짐·워크트리 재구성 반복)을 유발한다. 권고: 세션 시작 시 스타일 정합 1회 처리(prettier config 정렬 또는 `eslint-config-prettier` 정렬). non-blocking(감지·경고만, forge-fix에도 동일 적용).
-
-### Phase -1: Design Source 확정 (신규 UI 화면 빌드 한정)
-
-> **적용 조건**: 산출물이 **신규 UI 화면 빌드**(트랙 B — 웹/앱 화면을 처음 생성)일 때만 실행한다. 기존 화면 수정·버그수정·비-UI 산출물(서버 로직/문서/게임 연출 등)은 이 Phase를 **skip**하고 바로 Phase 0으로 진행한다(1줄 명시: "Phase -1 스킵 — 신규 UI 화면 아님").
-
-**이유**: 디자인 파이프라인(`DESIGN.md` 토큰)을 먼저 거친다(`tool-rules.md §UI/UX 작업`). Design source 없이 Generator가 UI를 생성하면 rubric Phase 0의 anti-slop 축(G7·G10-b, 라인 62)이 사후 감점만 할 뿐 애초에 근거 없는 디자인이 만들어지는 것을 막지 못한다 — Phase -1은 그 사전 게이트다.
-
-**절차**:
-1. Design source 확정 순서 (먼저 매칭되는 것을 채택):
-   a. **claude.ai/design 컴포넌트 라이브러리** — 사용자가 제공한 Claude Design 링크/export 또는 프로젝트에 이미 저장된 디자인 산출물(`{project_root}/DESIGN.md`, `05-design/` 등) 존재 확인
-   b. 없으면 **레포 내 자매 화면(sibling-screen) 패턴** 탐색 — 동일 프로젝트의 유사 화면(레이아웃/컴포넌트/토큰)을 재사용 가능한지 확인 (Grep/Glob로 유사 라우트·컴포넌트 디렉토리 탐색)
-   c. 둘 다 없으면 → **[STOP] DESIGN_SOURCE_ABSENT (WARN, GUIDE-STOP)**: "신규 UI 화면인데 확정된 design source가 없음 — Claude Design(claude.ai/design)에서 컴포넌트를 먼저 만들거나, 재사용할 자매 화면을 지정하라. 디자인 소스 없이 임의 생성 진행 시 AI 슬롭 위험." Human이 (i) Claude Design 산출물 제공, (ii) 자매 화면 명시적 지정, (iii) "임의 생성 승인"(명시적 override) 중 하나를 선택할 때까지 Generator(Phase 2) 진입 보류. AD-168 WARN-first — 자동 hard-BLOCK 아님, Human 확인 없이 침묵 진행도 아님.
-2. 확정된 design source를 `PGE_SPEC.md` 상단 `## Design Source` 섹션에 기록 (경로 또는 링크 + 채택 사유 a/b/c). Phase 0 Rubric의 anti-slop 축·Phase 2 Generator가 이 섹션을 참조한다.
-
-### Phase 0: Rubric 확정
-
-Evaluator가 사용할 평가 기준을 Generator 실행 **전**에 명시한다.
-
-기본 Rubric (작업 유형에 따라 조정):
-
-| 항목 | 가중치 | 불합격 기준 |
-|------|:------:|-----------|
-| 요구사항 충족도 | 40% | 핵심 요구사항 미충족 시 즉시 FAIL |
-| 품질/완성도 | 30% | AI 슬롭(무의미 반복·복붙·미완성) 감지 시 0점 |
-| 구조/아키텍처 | 20% | 설계 의도 위반 시 0점 |
-| 문서/명확성 | 10% | 주요 내용 누락 시 5점 이하 |
-
-**UI 태스크(트랙 B) rubric 보강 (G7·G10-b)**: 산출물이 UI면 "품질/완성도" 축을 구체화한다 — (a)프로젝트 `{project-root}/DESIGN.md` 존재 시 committed direction·토큰 계층(primitive→semantic→component)·간격/타이포 스케일 준수 여부, (b)anti-slop = `forge-check-ui` 블랙리스트 위반(shadcn-gray/Inter방치/cardocalypse/획일 fade-in 등) 시 감점. "museum quality"를 이 기준으로 조작 가능하게(측정가능) 만든다. reference 표의 `design-tokens/design-rules.md`도 로드.
-**rubric = 대리지표(G15)**: Evaluator는 점수를 좇지 말 것 — 점수 최적화·무한 폴리싱은 reward hacking. eval_ids 격리(이미 보유)에 더해, Evaluator는 목표 점수를 모른 채 결함 유무로 판정(score-blind).
-
-**PASS 기준**: 합산 70점 이상 + 요구사항 즉시 FAIL 없음
-
-### Sprint Contract (Generator ↔ Evaluator 합의 형식)
-
-PGE Workflow 시작 시 Planner가 다음 contract를 작성. Generator·Evaluator 양쪽이 참조.
-
-```yaml
-sprint_contract:
-  scope: "이번 반복에서 다룰 것 (구체적 기능 / 파일 / 출력)"
-  out_of_scope: "명시적 제외 (다음 반복에서 다룸 또는 영구 제외)"
-  done_criteria: "Evaluator가 PASS 판정하는 객관적 조건"
-  eval_ids: "done_criteria별 canonical 평가 id 목록 ({requirement}:{check} kebab). Evaluator는 이 목록의 id만 사용 — 신규 wording 금지"
-  rollback_trigger: "이 조건 충족 시 즉시 STOP + 사용자 에스컬레이션"
-```
-
-> **eval_ids = id 안정성 레지스트리 (필수)**: stop-condition 결정표(regression·same_issue·data_integrity)는 사이클 간 **byte-identical id**를 전제한다. Evaluator(비결정적 subagent)가 같은 결함에 사이클마다 다른 wording의 id를 붙이면(예: `payment-api:stripe-validation` ↔ `payment-api:stripe-response-validation`) regression이 조용히 누락된다(false-negative). 이를 막기 위해 Planner가 done_criteria마다 canonical id를 **여기 고정**하고, Evaluator는 이 목록에서만 id를 선택한다. 목록에 없는 신규 결함 발견 시 → Evaluator가 새 id를 제안하고 다음 사이클부터 레지스트리에 추가(append). id 변형·재명명 금지.
-> **타이밍 (false-stop 방지)**: 신규 id는 **발견 당-사이클 items[]에 즉시 포함**(보통 FAIL verdict)되므로 rubric_all_pass(순위2)의 당-사이클 커버리지 계산에 이미 들어간다. "다음 사이클부터 레지스트리 추가"는 **후속 사이클의 커버 floor 갱신용**일 뿐 — 당-사이클 items에 그 id가 존재하므로 "커버 누락"으로 오판되지 않는다. 즉 동적 append와 당-사이클 커버 요구는 충돌하지 않는다.
-
-> Sprint Contract 작성 예시(YAML, 결제 API 케이스) → `reference.md §Sprint Contract 예시` (필요 시 Read)
-
-> 출처: 하네스 엔지니어링 백과사전 제9장 Generator-Evaluator 패턴 — Sprint Contract.
-> 효과: Generator 범위 이탈 방지 + Evaluator 판정 기준 명확화 → codex-review FAIL 사이클 감소.
-
-### Phase 1: Planner (메인 컨텍스트에서 직접 실행)
-
-> **subagent 스폰하지 않는다. 메인 대화에서 직접 수행한다.**
-> 이유: subagent는 이전 분석/실패 이력을 참조하지 못해 동일 실수를 반복한다.
-
-1. `{project_root}/.claude/reference/` 존재 확인 → 태스크 유형에 맞는 파일 Read (하단 Reference 로딩 표 참조)
-1b. **과거 PGE 실패·버그 패턴 로드 (compounding — 필수)**:
-   ```bash
-   LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load pge-failure 2>/dev/null
-   LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
-   ```
-   → `pge-failure` 항목의 `apply` = "이 방식은 이전 PGE에서 FAIL했음 — 피하라". 실행 계획에 반영. (access.log 자동 기록.)
-2. 작업 요구사항 분석
-2b. **GitNexus 구조 탐색 (인덱스된 프로젝트에서 추가 실행 — 계획서 P1-G3)**:
-   ```
-   1. mcp__gitnexus__list_repos → indexed_date 확인 (7일+ stale = 경고)
-   2. mcp__gitnexus__query({query: "기능_요약"}) → 기존 구현 패턴 (재사용 가능?)
-   3. mcp__gitnexus__context({name: "수정_대상_클래스"}) → breaking change 위험 callers
-   4. mcp__gitnexus__impact({target: "수정_함수", maxDepth: 2})
-      → d=1 심볼 = Generator에 "반드시 테스트" 전달
-      → d=2 심볼 = 회귀테스트 범위
-   → gitnexus 인덱스 없으면 skip
-   ```
-3. **Unity 클라이언트 .cs 수정이 포함된 경우** (필수 순서):
-   1. `{project_root}/.claude/state/current-analysis.md` 존재 확인 — **있으면 먼저 Read**하여 이전 분석 재사용 판단
-   2. `{project_root}/.claude/reference/key-file-map.md` **Read** — 기능별 파일 위치 + 쌍 수정 패턴
-   3. `{project_root}/.claude/reference/code-snippets.md` **Read** — DOTween/UI/이벤트 표준 패턴
-   4. `{project_root}/.claude/reference/pre-modification-analysis-detail.md` **Read** — Step 0~5 의존성 분석 지침 (핵심: Step 3 실행 흐름 추적)
-   5. `{project_root}/.claude/reference/pge-game-evaluator-rubric-detail.md` **Read** — 평가 기준 숙지
-   6. `pre-modification-analysis-detail.md`의 Step 0~4 지침을 순서대로 수행 (Step 3 실행 흐름 추적이 가장 중요)
-   7. 분석 결과를 `{project_root}/.claude/state/current-analysis.md`에 **저장 (Write)** — Step 0~4 섹션 + 대상 파일명 필수 포함
-      → Hook이 내용 검증함: Step 0~4 섹션 없거나 대상 파일명 없으면 .cs 수정이 차단됨
-4. **이전 시도 실패 이력 확인**: 대화 컨텍스트에 이전 PGE 시도가 있으면 실패 원인을 current-analysis.md "## 이전 시도 실패 이력" 섹션에 기록하고, 같은 접근을 반복하지 않는다
-5. 산출물 구조 설계 (목차, 컴포넌트, 인터페이스 등)
-6. Phase 0에서 확정한 Rubric을 실행 계획에 포함
-
-**출력**: `{project_root}/.claude/state/PGE_SPEC.md` + (Unity .cs 수정 시) `{project_root}/.claude/state/current-analysis.md`
-- 상단에 "## 참조 컨텍스트" 섹션 — 로드한 reference 파일 목록 + 핵심 내용 요약
-- 이후 실행 계획 본문
-
-### Phase 1.5: Codex Plan Review (자동, blocking)
-
-Planner 산출 직후 Codex 2차 게이트 실행. PGE_SPEC.md의 요구 명확성·누락·모순·YAGNI 위반 검증.
-
+## Phase 1: Planner (메인 — subagent X)
+1. `{project_root}/.claude/reference/` 에서 유형별 파일 Read(`references/pge-phase-details.md §프로젝트 Reference 로딩 표`). 과거 실패 로드: `LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load pge-failure 2>/dev/null` · `LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null` → 실패 접근 회피.
+2. 요구 분석 · GitNexus 인덱스 있으면 `§Planner 2b — GitNexus 구조 탐색`(list_repos→query→context→impact).
+3. Unity .cs 포함 시 `§Planner 3 — Unity 클라이언트 .cs 수정 절차` 7단계 필수(`current-analysis.md` Step 0~4 + 대상 파일 없으면 Hook 이 .cs 수정 차단). 이전 시도 실패 → `current-analysis.md` `## 이전 시도 실패 이력` append. 산출물 구조 설계 + Rubric 포함.
+**출력**: `{project_root}/.claude/state/PGE_SPEC.md`(상단 `## 참조 컨텍스트`) + (Unity) `current-analysis.md`.
+## Phase 1.5: Codex Plan Review (blocking)
+`/codex-review --stage plan --target {project_root}/.claude/state/PGE_SPEC.md --blocking` → PASS/WARN = Phase 2 · FAIL = issues[] 를 실패 이력에 추가 후 Planner 재실행.
+## Phase 2: Generator (메인 — subagent X)
 ```bash
-/codex-review --stage plan --target {project_root}/.claude/state/PGE_SPEC.md --blocking
+WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"   # 별도 워크트리 Generator 면 앞에서 WORKTREE 지정
+CODER_SPEC=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-lane-detect.sh" "$WORKTREE" --coder "$CODER_SPEC" ${FRONT_TASK:+--task "$FRONT_TASK"} ${ESCALATE:+--escalate "$ESCALATE"})
+MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")   # 순서 계약: 레인 먼저, 모델 다음
+GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")      # skip=advisor 생략 · advise=조언 주입
 ```
-
-- **결과**: `forge-outputs/docs/reviews/plan/{date}-forge-pge-spec-{slug}.{md,json}`
-- **PASS/WARN** → Phase 2 진입
-- **FAIL** → Planner 재실행 (Codex issues[]를 PGE_SPEC.md `## 이전 시도 실패 이력` 섹션에 추가하여 같은 갭 반복 방지)
-- **비용**: ChatGPT OAuth `gpt-5.6-terra` = $0.00. API key + `gpt-5-mini` = ~$0.02
-
-### Phase 2: Generator (메인 컨텍스트에서 직접 실행)
-
-> **subagent 스폰하지 않는다. 메인 대화에서 직접 수행한다.**
-> 이유: Planner 분석 결과와 이전 실패 맥락을 그대로 보유한 상태에서 구현해야 한다.
-
-**Generator 실행자 라우팅 (--coder, DMC 트랙C — 2026-07-15)**: `--coder` 지정 시 **Generator(코드 생성)만** Claude/Codex/ab로 라우팅한다. **Phase 3 Evaluator는 항상 독립 Claude subagent 고정**(무변경) — Grader Isolation 원칙(자기평가 금지)은 어느 모델이 생성했든 유지된다. 즉 Codex가 Generator여도 Evaluator는 Codex를 상속·검수하지 않는다(구현자≠검증자).
-  - CODER_SPEC 파싱. **미지정이면 `coder-lane-detect.sh "$WORKTREE"` 가 기본 레인을 정한다**(2026-09-15 D2 · 2026-09-17 난도별): 프론트면 난도별 `codex:low`(luna)·`codex:default`(terra)·`codex:high`(sol), 그 밖은 `claude:default`(= 기존 메인 컨텍스트 생성과 같다). Planner 가 태스크 성격을 알면 `--task <유형>` 을 넘긴다. ⛔ `codex:max`(Astra)는 advisor 전용이라 자동으로 안 나온다(구 서술 "프론트면 codex:max(Astra)" 는 2026-09-17 폐기). 판정표 정본 = `forge-implement.md §3.6`.
-    **같은 실패 2회(Evaluator FAIL 반복) → `--escalate 2` 로 재판정**(한 단계 상향, high 가 상한 — 더 막히면 Claude(Opus) 폴백 또는 사람 판단).
-    ⚠️ **순서가 계약이다** — 레인 기본값을 **먼저** 채우고 그 다음에 모델을 푼다. 거꾸로 하면 프론트 판정이 `codex:*` 를 내도 MODEL 은 이미 Claude 로 굳어 있다(PR #573 검수 MED-6 · `forge-implement.md §3.6` 과 같은 순서).
-    인자는 `$WORKTREE` 다 — 이 문서에 정의가 없으므로 **여기서 정한다**(r3 L8): `WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"` = Generator 가 쓰는 체크아웃의 루트(아래 `coder-attribution.sh write "$WORKTREE"` 와 같은 값). 종전 `$REPO_ROOT` 도 정의가 없어 **빈 문자열**로 넘어갔는데(MED-7), 빈 인자는 `coder-lane-detect.sh` 의 `ROOT="${1:-…}"` 폴백(`git rev-parse --show-toplevel || pwd`)으로 **CWD 의 toplevel** 을 판정한다 — 워크트리 안이면 워크트리, 워크트리를 만들고 cd 하지 않은 세션이면 메인 체크아웃이다(구 서술 "항상 메인 체크아웃" 은 실측과 다르다. 재현: `cd <워크트리> && bash shared/scripts/coder-lane-detect.sh ""`, 2026-09-16).
-    ⚠️ **미리 정한 값을 덮어쓰지 않는다**(r4 R4): 오케스트레이터가 **메인 체크아웃에 남은 채** Generator 만 별도 워크트리에서 돌릴 때는 이 줄 **앞에서** `WORKTREE=<그 워크트리 절대경로>` 를 먼저 정한다(`forge-implement.md §Preflight-1.5` 의 worktree 격리와 같은 축) — 폴백은 CWD 의 toplevel 이라 그 경우 메인 체크아웃을 판정한다. 무력화되는 입력: WORKTREE 를 빈 문자열로 export 해 둔 셸 — `${WORKTREE:-…}` 는 빈 값도 미정으로 보고 폴백한다.
-    `WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"`
-    `CODER_SPEC=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-lane-detect.sh" "$WORKTREE" --coder "$CODER_SPEC" ${FRONT_TASK:+--task "$FRONT_TASK"} ${ESCALATE:+--escalate "$ESCALATE"})`
-    `MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$CODER_SPEC")`
-    ⚠️ **Phase 3 Evaluator 는 이 변경과 무관하게 독립 Claude 고정**이다(Grader Isolation) — 프론트 레인이 열려도 채점자는 바뀌지 않는다.
-  - **codex:tier** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=현재 워크트리, model=$MODEL). PGE_SPEC.md·Sprint Contract·Rubric·Planner 분석을 프롬프트에 주입(Codex 재탐색 방지). Codex 산출물은 표시·커밋 전 `secret-content-scan.sh` 경유(LN-03 마스킹). Codex는 메인 컨텍스트를 상속하지 못하므로 Planner 결과를 명시 주입해야 한다(위 no-op 경로의 "맥락 보유" 이점은 Codex 라우팅 시 프롬프트 주입으로 대체).
-  - **Unity/게임 프로젝트 감지(`ProjectSettings/ProjectVersion.txt` 또는 Unity .cs 수정 포함) → Claude 폴백**. Codex Linux 샌드박스는 Unity batchmode 불가(실측 확정 2026-07-15). PGE의 Unity .cs 경로(Phase 2 항목 2·6)는 Codex로 라우팅하지 않는다.
-  - **advisor tier-gate (2026-07-16 · 2026-08-12 판정 기준 변경)**: `GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")`. **`skip`**(Generator tier ≥ **현재 advisor tier**) → Phase 1.5 Codex Plan Review의 strategic 조언 성격은 유지하되 advisor 접근조언은 **생략**(tier 역전 방지). **`advise`**(Generator tier < advisor tier) → advisor 조언을 Generator 프롬프트에 주입.
-    ⚠️ **구 서술 "skip=Generator≥Opus(sol/terra/opus/fable)" 는 폐기**(2026-08-12). advisor 기본이 Fable 5.1(max)라 기준선이 Opus 가 아니다 — **`opus`·`terra` 는 이제 `advise`** 이고, 기본 advisor 기준 `skip` 은 `fable`·`astra` 뿐(⚠️ 2026-09-07 두 군데를 고쳤다: ①`sol` → `astra` — Astra 도입으로 codex 사다리가 재배치돼 sol 이 max 에서 high 로 내려왔다 ②`gemini-2.5-pro` **삭제** — 이건 처음부터 틀렸다. gemini 는 default 와 max 가 같은 id(`gemini-3.8-flash`)라 구현자 랭크 산정의 동률해소 min 이 default(rank 1)를 집어 **어떤 gemini id 도 skip 에 닿지 않는다**. 재현: `bash shared/scripts/advisor-tier-gate.sh gemini-2.5-pro` → `advise` · `... gemini-3.8-flash` → `advise` · `... claude-fable-5-1` → `skip`, 2026-09-07 실측)이다. advisor 가 내려가면 경계도 함께 내려간다(하드코딩 없음).
-    재현: `bash shared/scripts/advisor-tier-gate.sh opus` → `advise` · 전수 판정표는 `shared/scripts/test-advisor-tier-gate.sh` (33케이스).
-    ⚠️ **bounding/STOP·T4는 tier 무관 유지**. (Phase 3 Evaluator 독립은 별개 — 무변경.)
-  - **--advisor 오버라이드 (2026-07-16)**: `--advisor <spec>`(sol/terra/opus/fable)로 advisor 모델을 경우별 선택. `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → 결과가 gpt/codex면 **`mcp__codex__codex`(sandbox=read-only)로 advisor 스폰**(sol/terra, Plus 정액=무료·독립 관점), claude면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`(opus/fable). 미지정=리졸버 기본(2026-08-12 부터 **Fable 5**, 못 쓰면 `gpt-5.6-sol` — 구 "Opus + tier-gate" 폐기 · 2026-09-02: Fable 5.1 로 업그레이드). ⚠️ **독립성: advisor 벤더 ≠ 구현자 벤더 권고**(같은 벤더=자기훈수 무의미 → Codex 구현엔 opus/fable advisor, Claude 구현엔 sol/terra advisor). fable 은 **구독 정액**(Human 확인 2026-08-12 · 5.1 재확인 2026-09-02)이라 sol(Plus 정액)과 **동급으로 자유 선택 가능**하다 — 호출당 추가 과금이 없다. 일일 캡은 기본 0(무제한)이며 필요하면 `FORGE_ADVISOR_FABLE_CAP=N` 으로 켠다. advisor-model-resolve 가드는 kill-switch·가용성 폴백만 상시 동작한다.
-  - **coder-attribution (기계 강제)**: Generator 직후 `coder-attribution.sh write "$WORKTREE" "$MODEL"` → Phase 1.5 Codex Plan Review 및 후속 cr-* 진입 시 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")`를 `--cr $MODE`로 전달(codex Generator→`cross`=**2레그 유지 + 교차 승인 강제**, `author-vendor` 출력을 workflow args `authorVendor` 로 동반 / 그 외→`on` / 무마커→`on` fail-open. ⚠️ 2026-09-15 `degrade` 배제 방식 폐기 — 생존 1레그는 `quorumFail` 로 FAIL 이 확정됐다). Phase 3 Evaluator(Claude subagent)는 원래 독립이라 별개. 자기검수 방지 = 스크립트 강제.
-  - kill-switch `FORGE_DUAL_CODE=off` → codex 요청도 Claude(메인) 대체. Codex 미가용 = Claude 폴백(로그+경고, fail-open). 모델 id = `model-registry.json` SSoT(버전무관).
-
-1. `{project_root}/.claude/state/PGE_SPEC.md` 읽기 (Phase 1에서 이미 작성했으므로 컨텍스트에 있음)
-2. **Unity .cs 수정이 포함된 경우 필수**: `{project_root}/.claude/state/current-analysis.md` 재확인
-3. 계획에 따라 산출물 생성/구현 — **반드시 reference의 패턴/규칙을 준수**
-4. Rubric 기준을 의식하며 생성. 목표: **"museum quality"** (라이브러리 기본값·AI 슬롭 패턴 금지)
-5. **QA 핸드오프 전 자기검토**:
-   - [ ] Rubric 불합격 조건 직접 확인
-   - [ ] key-file-map의 쌍 수정 패턴 준수 여부
-   - [ ] code-snippets의 대상 파일 애니메이션 방식 준수 여부
-   - [ ] 이전 시도에서 실패한 접근을 반복하지 않았는지 확인
-6. **Unity .cs 수정 완료 후**: `{project_root}/.claude/state/current-analysis.md`의 Step 4에 수정 결과 추가 (수정된 파일:라인, 수정 전/후 동작 차이, 잔존 이슈)
-
-**출력**: `{project_root}/.claude/state/PGE_SELF_CHECK.md` + 산출물(코드/파일) + (Unity .cs 수정 시) 갱신된 `current-analysis.md`
-
-### Phase 3: QA — 독립 에이전트 검증 (subagent)
-
-> **핵심 원칙: 개발자 ≠ 테스터**
-> Generator(메인)의 컨텍스트(의도, 시도, 가정)를 공유하지 않는 **별도 subagent**가 검증한다.
-
-#### QA 에이전트 스폰
-
-```
-Generator 완료 (메인 컨텍스트)
-  ↓ subagent 스폰 — 전달: 변경 파일 목록 + PGE_SPEC.md 경로 (Generator의 의도/가정은 전달하지 않음)
-  ↓
-QA Agent (별도 subagent, 독립 컨텍스트)
-  ↓ 변경 파일 확장자로 트랙 자동 감지
-  ↓
-트랙별 검증 실행
-```
-
-> **변경 파일 목록 = 기계적 산출 (필수)**: `git diff --name-only {base}...HEAD`(또는 `git status --porcelain`)로 산출한다. Generator나 사람이 손으로 골라 전달하지 않는다 — principal-agent 갭(Generator가 자신에게 유리한 파일만 선별해 넘기는 위험) 차단.
-
-#### 트랙 라우팅 (변경 파일 기반 자동 감지)
-
-| 트랙 | 감지 조건 | 호출 대상 | 비고 |
-|------|----------|----------|------|
-| **A. 기능** | 서버/로직 코드 변경 (.cs service, .ts service, .py) | `verify.sh code` + 데이터 흐름 트레이싱 | 항상 실행 |
-| **B. 웹/앱 UI** | .tsx/.jsx/.css/.html 변경 | `/visual-loop` + `/playwright-parallel-test` | 해당 시만 |
-| **C. 게임 연출/UI** | Unity .cs + .prefab + .anim 변경 | `/game-qa` | 해당 시만 |
-
-트랙은 **중복 가능** — 서버+클라이언트 동시 변경이면 A+C 모두 실행.
-
-#### 프로젝트-로컬 도구 부재 처리 (fail-open, WARN — Node-Repair 패턴 준용)
-
-트랙 A의 `verify.sh`, 트랙 B의 `/visual-loop`는 프로젝트마다 존재 여부가 다른 **프로젝트-로컬 도구**다. 부재를 브릭(무한 실패·정지)이 아니라 WARN + 대체 경로로 처리한다(`forge-implement.md §Node-Repair` — 진단→대체 절차→재시도의 fail-open 정신을 도구-부재 케이스에 적용):
-
-1. **진단 먼저**: 호출 직전 존재 확인 — `test -f "{project_root}/verify.sh"` / `/visual-loop` 스킬 설치 여부(`claude plugin list` 또는 `.claude/skills/visual-loop/` 존재).
-2. **verify.sh 부재 시 (트랙 A)**: `WARN: verify.sh 없음 — {project_root}/package.json의 test/build 스크립트(`npm test`, `npm run build`) 또는 언어별 표준 명령(pytest, dotnet test 등)으로 대체`. 대체 명령도 없으면 "**빌드**" 단계만으로 축소하고 QA_RESULT에 `verify.sh: SKIPPED (not found, no fallback)` 명시 — 트랙 A 전체를 실패 처리하지 않는다.
-3. **`/visual-loop` 부재 시 (트랙 B)**: `WARN: /visual-loop 미설치 — /playwright-parallel-test 단독으로 진행`(트랙 B는 이미 2개 도구를 병기하므로 하나만 남아도 검증 자체는 유지). 둘 다 없으면 트랙 B를 `PGE_QA_RESULT.md`에 `SKIPPED (no UI test tool available)`로 기록하고 Phase 4 Evaluator에 그 사실을 전달(Evaluator가 UI 검증 부재를 감안해 판정, 침묵 PASS 금지).
-4. **fail-open 원칙**: 도구 부재로 PGE 전체를 중단시키지 않는다(AD-168 WARN-first + 전역 무블로킹 롤아웃 §fail-open). 단 SKIPPED 사실은 반드시 QA_RESULT·Evaluator 전달 정보에 명시 — 검증 없이 조용히 PASS 처리되는 것을 방지.
-
-#### 트랙 A: 기능 테스트
-
-- **DB 격리 실증 게이트 (P0)**: 트랙 A가 실DB에 접촉(db_query/seed/E2E write)하기 전 필수 — `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/assert-db-isolation.sh"`. `DB_ISOLATION: WARN`(격리 미증명) 시 격리 DB(*_test/*_qa) 지정 후 재확인. WARN-first(non-blocking, `FORGE_DB_ISOLATION_ENFORCE=1` opt-in BLOCK, fail-open).
-
-1. **빌드**: 프로젝트 빌드 실행 → Error 0건 확인
-2. **데이터 흐름 트레이싱** (버그 수정 시 필수):
-   - 수정한 코드의 전체 호출 경로를 추적
-   - 각 단계에서 값 유효성 확인
-3. **결과**: `PGE_QA_RESULT.md`에 PASS/FAIL 기록
-
-#### 트랙 B: 웹/앱 UI/UX 테스트
-
-2. `/playwright-parallel-test` → 3-Agent 병렬 브라우저 테스트
-3. **결과**: `PGE_QA_RESULT.md`에 병합
-
-#### 트랙 C: 게임 연출/UI 테스트
-
-`/game-qa` 스킬을 호출한다.
-
-검증 3계층:
-1. **파라미터 검증**: 코드 수치 ↔ 기획서/레퍼런스 1:1 대조
-2. **런타임 검증**: Unity MCP로 캡처 → 레퍼런스 비교
-3. **Human 필요 항목 명시**: AI가 판단할 수 없는 퀄리티 항목을 리스트업
-
-**QA FAIL 시**: `PGE_QA_RESULT.md`를 메인 컨텍스트의 Generator에 전달 → Phase 2 재실행
-
-### Phase 4: Evaluator (subagent — 독립 검수)
-
-> **반드시 subagent로 스폰한다. 메인 컨텍스트에서 실행하지 않는다.**
-> 이유: Generator와 같은 컨텍스트에서 평가하면 자기평가 편향이 발생한다.
-
+- Evaluator FAIL 같은 실패 2회 → `ESCALATE=2` 재판정(상한 max). 판정표 정본 `forge-implement.md §3.6`.
+- **codex:*** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=$WORKTREE, model=$MODEL) + PGE_SPEC·Contract·Rubric·Planner 분석 주입, 산출물은 `secret-content-scan.sh` 경유. **Unity**(`ProjectSettings/ProjectVersion.txt` 또는 .cs) → Claude 폴백. `FORGE_DUAL_CODE=off`·Codex 미가용 → Claude(경고).
+- `--advisor`: `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → gpt 면 `mcp__codex__codex`(read-only), claude 면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`. 권고: advisor 벤더 ≠ 구현 벤더.
+- **attribution(필수)**: 폴백 시 `$MODEL` 을 실제 모델로 갱신 후 `coder-attribution.sh write "$WORKTREE" "$MODEL"`. 후속 cr-* 는 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")` → `--cr $MODE`(codex Generator=`cross`, `author-vendor` → `authorVendor`).
+- 절차: PGE_SPEC(·current-analysis) 재확인 → reference 패턴 준수 구현("museum quality") → 자기검토(Rubric 불합격 조건·key-file-map 쌍 수정·code-snippets 방식·실패 접근 반복 여부) → Unity 면 current-analysis Step 4 갱신.
+**출력**: `PGE_SELF_CHECK.md` + 산출물.
+## Phase 3: QA (별도 subagent — 변경 파일 목록 + PGE_SPEC 경로만 전달)
+변경 파일 = `git diff --name-only {base}...HEAD`(또는 `git status --porcelain`) **기계 산출**. 흐름도 → `§QA 에이전트 스폰 흐름도`.
+| 트랙 | 감지 | 실행 |
+|---|---|---|
+| A 기능 | 서버/로직(.cs service·.ts service·.py) | 선행 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/assert-db-isolation.sh"`(WARN 시 격리 DB 지정, `FORGE_DB_ISOLATION_ENFORCE=1` 시 BLOCK) → 빌드 Error 0 → `verify.sh code` + 데이터 흐름 트레이싱 |
+| B 웹/앱 UI | .tsx/.jsx/.css/.html | `/visual-loop` + `/playwright-parallel-test` |
+| C 게임 | Unity .cs+.prefab+.anim | `/game-qa`(3계층 → `§트랙 C — 검증 3계층`) |
+- 중복 가능. 도구 부재(fail-open): verify.sh 없음 → npm test/build·pytest 등 대체, 그것도 없으면 빌드만 + `verify.sh: SKIPPED (not found, no fallback)` · UI 도구 둘 다 없음 → `SKIPPED (no UI test tool available)` 를 Evaluator 에 전달(침묵 PASS 금지).
+- 결과 `PGE_QA_RESULT.md`. FAIL → Generator 로 되돌려 Phase 2 재실행.
+## Phase 4: Evaluator (독립 실행체 — Generator 반대 벤더·같은 등급)
 ```bash
-# ⛔ --coder 를 상속하지 않는다. 채점자는 항상 독립 Claude `claude:high` 레인으로 고정한다.
-# 2026-09-17 사람 결정 — Evaluator 등급 확정(상향). 최고급(claude:max=Fable 5.1)은 advisor 전용이라 쓰지 않고,
-#   Generator 상한이 claude:default(Opus)/codex:high(sol) 이므로 claude:high 로도 "채점자 ≥ 응시자" 가 성립한다.
-EVAL_MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" claude:high)"
-# → claude-opus-5. Agent(subagent_type="general-purpose", model=$EVAL_MODEL)
+IMPL_MODEL="$(cat "$WORKTREE/.coder-attribution" 2>/dev/null)"   # 실제 구현 모델(요청 레인 아님)
+EVAL_SPEC="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/evaluator-lane.sh" "$IMPL_MODEL")"
+EVAL_MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$EVAL_SPEC")"
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/evaluator-lane.sh" --verify "$IMPL_MODEL" "$EVAL_MODEL" || echo "⛔ 교차 불성립 — 판정 보류"  # rc 3 같은 벤더 · 2 판정 불가
 ```
-
-> **왜 여기만 고정인가** — 두 축이 동시에 걸린다. ①`model-routing.md §워커 tier`: verify/judge/review 는 **대상 worker 의 tier 이상이고 하향 금지**다. 이 스킬의 Generator 는 `claude:default`(Opus) 또는 `codex:high`(sol)까지 올라가는데(§Phase 2 `--coder`) 채점자를 그 아래로 두면 **응시자가 채점자보다 높아진다**. ②Generator 가 Codex 로 갔을 때 Evaluator 까지 같은 벤더면 **자기검수**가 된다 — 독립 Claude 고정(벤더 교차)이 이 Phase 의 존재 이유다. 선례: `frontend-design/SKILL.md §Phase 3` 이 2026-09-15 에 같은 실패를 같은 방식으로 이미 고쳤다.
-> ⚠️ 구 표기 `model: sonnet` 고정은 **2026-09-17 폐기** — Generator 상한이 Opus/sol 로 올라가 채점자가 응시자보다 낮아졌다.
-> ⚠️ **Grader Isolation 은 이 등급의 근거가 아니다(정정).** `.claude/rules-on-demand/opus-5-best-practices.md §PGE Evaluator` 가 이 핀의 유지 근거로 적던 **Grader Isolation(컨텍스트 격리)** 과 "동일-모델 맹점은 **별도 Codex 2차 리뷰**(§Phase 4.5)가 보완한다"는 서술은 **그대로 유효하다** — 다만 그것이 정당화하는 것은 "Evaluator 를 subagent 로 띄운다"이지 **등급이 아니다.** 격리와 tier 는 다른 축이고, 등급의 근거는 위 ①②다. (구 표기 "그 근거로 sonnet 을 유지한다" 는 2026-09-17 폐기.)
-> ⚠️ **이 방어가 무력화되는 입력**: 호출자가 "비용 아끼자"며 Evaluator 에도 `--coder`/`model` 을 넘기는 경우 — 이 Phase 는 그 값을 **무시하고** `claude:high` 로 간다. 낮추려면 규칙(`model-routing.md §워커 tier`)을 먼저 고쳐야 한다.
-> 근거: 사람 결정 2026-09-17(Evaluator 등급 상향 · 최고급은 advisor 전용) + `model-routing.md §워커 tier` "verify/judge/review 는 대상 worker 의 tier 이상(하향 금지)".
-> 재현: `grep -n 'coder-model-resolve.sh" claude:high' .claude/skills/forge-pge/SKILL.md` · `bash shared/scripts/coder-model-resolve.sh claude:high` → `claude-opus-5` (2026-09-17 실측)
-> 폐기조건: verify/judge tier 하향 금지 규칙이 폐기되거나 Evaluator 를 벤더 교차 밖으로 빼기로 하면 이 고정을 푼다.
-
-subagent에 전달하는 정보:
-- `{project_root}/.claude/state/current-analysis.md` (분석 기준)
-- `{project_root}/.claude/state/PGE_SPEC.md` (요구사항)
-- `{project_root}/.claude/state/PGE_QA_RESULT.md` (QA 결과)
-- 코드 diff (변경된 파일 목록 — `git diff --name-only {base}...HEAD`(또는 `git status --porcelain`)로 **기계적 산출**, Generator/사람이 손으로 고르지 않음 + git diff 본문)
-- (게임/Unity 트랙[트랙 C] 한정) `{project_root}/.claude/reference/pge-game-evaluator-rubric-detail.md` — **파일 존재 시에만** 전달. 부재 시 WARN + Phase 0 기본 Rubric(요구사항충족도/품질완성도/구조아키텍처/문서명확성)만으로 진행(fail-open). 비-게임/비-Unity 트랙(A/B)은 이 항목 자체를 스킵.
-
-**전달하지 않는 정보**: Generator의 의도, 시도 과정, 실패 이력 (독립 판정을 위해)
-
-Evaluator 수행:
-1. 루브릭 파일 읽기 (게임/Unity 트랙 한정 — 파일 존재 시. 부재하거나 비-게임 트랙이면 Phase 0 기본 Rubric 사용)
-2. PGE_SPEC.md 읽기 (참조 컨텍스트 확인)
-3. Phase 0의 Rubric으로 항목별 점수 산정
-4. QA 결과 반영 — 잔존 이슈가 있으면 감점
-5. **항목별 PASS/FAIL 판정 + 구조화 id 부여 (필수)**:
-   - 모든 평가 항목(`{requirement}:{check}` kebab-case)에 대해 PASS 또는 FAIL을 개별 선언한다.
-   - FAIL 항목 형식: `FAIL [{requirement}:{check}] — {위치} / {이유} / {방법}` (위치+이유+방법 3요소 필수)
-   - PASS 항목 형식: `PASS [{requirement}:{check}]`
-   - **CRITICAL 보안 발견 시**: 점수·등급 무관하게 `SECURITY_CRIT [{requirement}:{check}] — {발견 내용}` 을 별도 섹션에 명시한다.
-   - id 규칙: 동일 결함은 사이클이 달라도 동일 id. 설명 wording 변경 금지. **id는 Sprint Contract `eval_ids` 레지스트리에서만 선택** — 목록에 없는 신규 결함만 새 id 제안(다음 사이클부터 레지스트리 append). 변형·재명명 금지(regression false-negative 방지).
-6. **절대 관대하게 보지 마라**: Generator 자체검토(SELF_CHECK.md)를 그대로 믿지 않는다
-7. **사이클 레코드를 `PGE_EVAL_HISTORY.jsonl`에 append** (덮어쓰기 금지):
-   ```json
-   {"cycle": <N>, "score": <합산 점수>, "items": [{"id": "<requirement>:<check>", "verdict": "PASS|FAIL"}, ...], "security_crit": [<id>, ...]}
-   ```
-   이 레코드가 regression(oscillation 포섭)·same_issue·security_crit·data_integrity 판정의 유일한 데이터 소스다.
-
-**출력**:
-- `{project_root}/.claude/state/PGE_QA_REPORT.md` (Rubric 판정 전문 — 사이클마다 덮어씀)
-- `{project_root}/.claude/state/PGE_EVAL_HISTORY.jsonl` (사이클별 누적 레코드 — append 전용, 절대 덮어쓰지 않음)
-
-### Phase 4.5: Codex 2차 리뷰 (자동, 이중 게이트)
-
-Evaluator 산출 직후 Codex 코드 리뷰 자동 실행. Evaluator(Claude) 동일-모델 맹점 보완.
-
-```bash
-/codex-review --stage code --target <PGE diff>
-```
-
-**Evaluator 점수별 정책**:
-- **80점+ (PASS)**: Codex 일반 리뷰 (`--effort medium`) — 확인 차원
-- **60~79점 (경계)**: Codex 적대적 리뷰 (`--effort high`) — 추가 검증
-- **60점 미만 (FAIL)**: Codex 일반 리뷰 생략 — 이미 명백한 실패. **단 변경 파일이 보안 민감 경로/확장자에 해당하면 → Codex 보안 관점 리뷰 1회 실행**(`/codex-review --stage code --target <PGE diff>`, 프롬프트에 "보안 관점 우선" 명시). 점수·Evaluator 분류 무관 — under-report 보완. 보안 민감 surface(가이드): `auth/login/session/token/password/crypt/payment/billing/checkout/secret/credential` 키워드, `api·routes·controllers·handlers·middleware` 경로, `.env/.pem/.key` 확장자.
-  > **결정론 enforcement = B2 트랙 (정직성)**: 변경 파일 경로를 git에서 결정론적으로 추출(stage/commit/working-tree 전부 + diff base 정확)해 자동 발동하는 것은 inline prose bash로는 신뢰 불가(diff base 누락·동시성·exit-code swallow). 진짜 mechanical 보안 게이트는 **B2 훅(Human 승인)** 영역 — `b2-token-enforcement-design.md` 패턴. 본 spec은 LLM 실행 **의도**만 규정.
-
-> ⚠️ **security STOP = best-effort advisory (B2까지)**: 본 보안 게이트(gate G·security_crit·security_event)는 전부 비결정적 LLM의 "의도" 실행이다. Evaluator가 SECURITY_CRIT를 미방출하거나 루프가 append/STOP를 누락하면 또 다른 비결정 단계가 잡지 못해 CRITICAL이 조용히 누락(fail-open)될 수 있다. **운영자·리뷰어는 이 보안 STOP을 hard gate가 아니라 best-effort로 취급**하라 — 진짜 mechanical 강제는 B2 훅(Human 승인). 이하는 그 전제 위의 의도 규정:
-> ⚠️ **security_crit 예외 (양방향)**: (a) Evaluator가 `SECURITY_CRIT`를 보고하면 점수 정책 무관 Phase 5 `security_crit` 중단 즉시 발화 — Codex 생략 여부 무관, Evaluator 단독으로 **STOP 보장**(best-effort). (b) 역으로 Evaluator 누락 위험은 위 보안 민감 surface Codex 리뷰로 *완화*. Codex가 CRITICAL을 발견하면 루프(메인)가 그 finding을 **별도 `security_event` 라인으로 JSONL에 append**(새 라인 = append-only 유지 + 중단/재개에도 보존, durable) → Phase 5 순위1에서 사이클 `security_crit[]` ∪ `security_event`로 [STOP]. **in-memory 휘발 보유 금지** — 보안 신호 소실(fail-open) 방지.
-
-**Evaluator vs Codex diff 처리** (Plan v2-C2 spec 기반):
-- `agreement` → Evaluator 점수 확정
-- `disagreement` → Phase 4.6 (Advisor 에스컬레이션) 호출
-- `extension` (Codex가 추가 이슈 발견) → Codex issues PGE_QA_REPORT.md에 추가, 사용자 컨펌 후 진행 (자동 재평가 X — code stage = blocking NO per v2-C1)
-
-**출력**: `PGE_QA_REPORT.md`에 Codex 섹션 추가 (`forge-outputs/docs/reviews/code/{date}-forge-pge-{slug}.md` 링크).
-
-### Phase 4.6: Advisor 에스컬레이션 (경계 케이스 + 모순 시)
-
-**PASS(80점+ & Codex 동의)면 건너뛴다.** 아래 둘 중 하나일 때만 advisor 를 부른다 —
-①Evaluator 점수 60~79점(경계) ②Phase 4.5 에서 Evaluator-Codex `disagreement`.
-`FORGE_ADVISOR_AUTO=off` 면 이 Phase 자체를 끈다.
-
-> **발동 조건에 걸렸을 때 Read**: `references/call-budget-guards.md §Phase 4.6`
-> — 호출 규약·프롬프트 전문·결과 반영 방식이 거기 있다.
-
-### Phase 5: 피드백 루프 (stop-condition 결정표)
-
-사이클 N 완료(Evaluator + Codex + EVAL_HISTORY append) 후, **아래 결정표를 우선순위 순으로 1회 평가**한다. 먼저 매칭되는 행에서 즉시 행동하고 이후 행은 평가하지 않는다(상호 배타 보장). 모든 판정은 `PGE_EVAL_HISTORY.jsonl` 누적 레코드의 **구조화 id**만 사용 (string fuzzy 금지 — 루프-커널 표준 §2). **유일한 예외 = `rollback_trigger`**(순위1) — Human이 작성한 prose hard-STOP 조건이라 structured-id가 없고 자연어 판정을 허용한다(명시적 carve-out, 그 외 전 조건은 id-only).
-
-**`maxCycles` = `--cycles` 인자 (기본 3).** 아래 표의 N=maxCycles·N<maxCycles는 이 값에 연동(하드코딩 아님). same_issue는 3사이클 연속 FAIL 휴리스틱이라 `maxCycles≥3`에서만 도달 가능. ⚠️ **`--cycles 1~2`면 regression(N≥2)·same_issue(N≥3) 가드가 모두 비활성** = 회귀 보호 없는 단발/이중 모드(명시적 선택 시에만 권장 — 기본 3 유지 권고).
-
-**전제 게이트 G (평가 가능성 — 번호 없음)**: `data_integrity`. 사이클 N 레코드(regression 평가 시 N-1 포함) 누락·JSON 파싱불가면 결정표 평가 자체가 불가 → 즉시 **[STOP] DATA_INTEGRITY**. 아래 [루프 지시] 게이트 G가 규정(검증 = LLM 실행 의도; 진짜 mechanical 파서 = B2 트랙). ("우선순위"가 아니라 "평가 가능 여부" 게이트라 번호를 빼 1↔2 순위 모순 제거.)
-
-| 순위 | 조건 | 트리거 (EVAL_HISTORY 기반) | 발화 사이클 | 행동 |
-|:---:|------|---------------------------|:----------:|------|
-| 1 | `security_crit` / `rollback_trigger` | 사이클 N 레코드 `security_crit[]` ≠ ∅ **OR** JSONL에 `security_event` 라인 존재(Codex CRITICAL을 별도 라인 append — durable, append-only) 또는 Sprint Contract `rollback_trigger` 충족(prose 조건 — structured-id 예외, 아래 주) | N≥1 | **[STOP]** Human (메시지 `[SECURITY_CRIT]` / 비보안은 `[ROLLBACK]`) |
-| 2 | `rubric_all_pass` | 사이클 N items가 **eval_ids 레지스트리 ∪ 이전 PASS id 합집합을 커버** AND **items[] 전체**(커버 집합 + 신규 발견 id 포함) verdict=PASS (FAIL이 단 1개라도 items[]에 있으면 — 신규 비등록 결함이라도 — SUCCESS 아님. 항목판정 authoritative; 합산<70이면 재산정 1회) | N≥1 | **SUCCESS** → 산출물 저장 + 보고서. **커버 누락 OR items[] 내 FAIL 존재 시 SUCCESS 아님** → N≥2면 순위3(regression) 재확인, **N=1이면 continue(재시도)** |
-| 3 | `regression` | (N-1 PASS id) ∩ (N FAIL id **또는 N items에서 사라진 id — 1회 re-emit 재확인 후**) ≠ ∅. ※N-1 레코드 누락/파싱불가 시 게이트 G로 [STOP] DATA_INTEGRITY | N≥2 | **[STOP]** Human — 이전 통과 깨짐(위험). *oscillation 첫 flip 포섭* |
-| 4 | `same_issue` (kernel 실호출, 아래 [루프 지시] 4번) | 동일 id가 3사이클 연속(N-2·N-1·N) 모두 FAIL — 구조적 막힘 (maxCycles>3: cap 전 조기 STOP / 기본 maxCycles=3: cap과 동시 발화 = STOP **메시지 구분만**, 조기종료 효과 X) | N≥3 (maxCycles<3이면 dead row — 의도됨) | **[STOP]** + "구현 방식 전환 권고" |
-| 5 | `max_cycles` | N ≥ maxCycles **또는** PGE_CALL_CAP(tool-call 횟수) 초과 | N=maxCycles | **[STOP]** 현재 상태 + 잔존 이슈 전달 |
-| — | (그 외 FAIL 잔존) | 게이트 G·순위 1~5 미해당 | N<maxCycles | **continue** → Phase 2 재진입. Evaluator FAIL 피드백 = **접근방식 전환 입력** (정상 루프 본체) |
-
-> **id 표기**: 사람용 라벨 `SECURITY_CRIT`(대문자) = JSONL 필드 `security_crit`(소문자) = 동일 개념(verdict PASS/FAIL은 라벨·필드 모두 대문자). 결정표(게이트 G + 순위1~5)와 아래 [루프 지시] 단계(G + 1~5)는 **1:1 정렬**.
-
-**도달성·상호배타 (검수 모순 해소)**:
-- **oscillation 별도 분기 없음 (의도적)**: PGE는 regression이 **첫 PASS→FAIL에서 [STOP]** → flip-back(PASS→FAIL→PASS→FAIL) 관측 자체가 불가능. 따라서 oscillation은 regression(순위3)에 **포섭**된다. 루프-커널 §2-b oscillation 개념은 cap이 큰 루프(`/forge-loop-maker` maxCycles≥6, regression이 STOP 아닌 advisory)에서 별도 분기로 살아있고, PGE에서는 regression이 흡수하는 것이 정확한 구현. (이전 버전의 oscillation continue 분기 = dead code였음 — 제거.)
-- **same_issue continue 없음 (의도적)**: same_issue는 3연속 FAIL 구조적 막힘을 **maxCycles 도달 전이라도 조기 [STOP]**(maxCycles>3 시) 또는 cap과 동시 [STOP](maxCycles=3 시)하는 종료 신호. 사이클 재진입(이전 버전 "사이클 종료하지 않음 재진입" = cap 모순)은 제거. 접근방식 전환은 N<maxCycles 정상 재진입(continue 행)이 담당.
-
-**STOP 메시지 형식**:
-- regression: `"[REGRESSION] {req}:{check} — 사이클 {N-1} PASS → 사이클 {N} FAIL(또는 items 소멸). Human 에스컬레이션."`
-- security_crit: `"[SECURITY_CRIT] {finding}. 보안 CRITICAL — Human 에스컬레이션."` (Sprint Contract `rollback_trigger` 중복 시 동일)
-- same_issue: `"[SAME_ISSUE] {id} 3사이클 연속 FAIL = 구조적 막힘. 구현 방식 전환 권고(현 접근 회피)."` + current-analysis.md "## 이전 시도 실패 이력"에 id 기록
-- data_integrity: `"[DATA_INTEGRITY] 사이클 {N 또는 N-1} 레코드 누락/파싱불가 — 평가/regression 판정 불가. fail-safe STOP."`
-
-최대 maxCycles 사이클(결정표 순위5, 기본 3). 도달 후 FAIL 잔존 시 현재 상태로 전달 + 이슈 보고.
-
-> Phase 5 결정표 Acceptance trace(C1~C3 워크스루) + SSoT 단일화 현황 rationale(same_issue kernel 실호출 vs 나머지 4종 정직한 경계) → `reference.md §Phase 5 결정표 Acceptance trace` / `§SSoT 단일화 현황` (필요 시 Read)
-
-### call-budget 캡 + stop-condition 가드 (P1 / B2 배선 2026-06-17)
-
-사이클(Phase 1→2→3→4)에 **진입하기 전** 두 가지를 확인한다 — ①`loop-budget.sh` 로 읽은
-**실측 tool-call 누적치**가 캡을 넘었는가(`loop-call-accum.sh` PostToolUse 훅이 누적) ②
-stop-condition(same_issue·plateau·oscillation·max_cycles 등)에 걸렸는가. 둘 중 하나면 사이클을
-더 돌리지 않고 종료 경로로 간다.
-
-Evaluator 가 3사이클 후에도 FAIL 이면 **접근 자체가 막혔다는 신호**로 보고,
-`pge-failure 후보:` 1줄을 핸드오버에 남겨 `/forge-end` 가 learnings 로 넘기게 한다.
-
-> **사이클을 돌릴 때 Read**: `references/call-budget-guards.md`
-> — 캡 수치·훅 경로·stop-condition 판정표·failure 기록 명령 전문이 거기 있다.
-> 1회 통과(즉시 PASS)면 Read 불필요.
-
-### Phase 6: 사후 Spec 발행 (`.specify/` 프로젝트 한정, WARN-first)
-
-**배경 (2026-07-12 실발화, Batch 4-1)**: PGE는 spec 없는 개발 전용 하네스다. 그런데 SDD를 채택한 프로젝트(`.specify/specs/` 존재)에서는 CI `spec-validation` job이 `fix/*` 외 브랜치에 대해 `.specify/specs/{branch}.md` 존재를 요구한다 — PGE 산출물은 이 요구를 충족하지 못해 PR 단계에서 항상 FAIL한다. 라우팅(spec 無 = pge)과 프로젝트 CI(spec 요구)가 구조적으로 모순되므로, PGE 자신이 종료 시점에 트레이서빌리티 자산을 남겨 이 모순을 해소한다.
-
-**절차** (Phase 5 `SUCCESS` 판정 직후, PR 단계 진입 전):
-
-1. **두 조건을 모두** 확인한다(2026-08-21 정정 — 구 규칙은 `test -d .specify` 하나만 봤다).
-   ① `test -d "{project_root}/.specify"` ② **CI 가 실제로 `.specify/specs/{branch}.md` 를 요구하는가**
-   (`grep -rl 'spec-validation\|specify/specs' {project_root}/.github/` → 1건 이상).
-   - **①만 충족(CI 요구 없음)**: "Phase 6 스킵 — `.specify/` 는 있으나 그것을 요구하는 CI 가 없음
-     (재현: 위 grep → 0건)" 1줄 명시 후 종료. 이 절의 존재 이유가 **CI 통과**이므로, 요구하는
-     CI 가 없으면 발행은 산출물이 아니라 **쓰레기**다 — 특히 브랜치명이 임시 워크트리명이면
-     머지 후 삭제될 이름으로 spec 이 남는다.
-   - **①② 모두 충족**: 아래 2~3 진행.
-   - **① 부재**: "Phase 6 스킵 — 이 프로젝트는 SDD(.specify/)를 채택하지 않음" 1줄 명시 후
-     종료(fail-open — 모든 프로젝트가 SDD를 쓰는 건 아니다).
-   > 근거: 2026-08-21 arborAI — `.specify/` 는 있는데 `.github/workflows/` 자체가 없어 spec 을
-   > 요구하는 CI 가 0건이었다. 구 규칙대로면 임시 브랜치명(`worktree-arborai-0821-…`)으로
-   > spec 을 발행할 뻔했다. **§P0 라우팅의 "폴더 존재 ≠ 이 작업의 spec"과 같은 계열의 결함**이다
-   > — 폴더가 있다는 사실에서 그 폴더의 목적이 살아 있다고 추론하면 안 된다.
-   > 폐기조건: Phase 6 이 CI 외의 이유(트레이서빌리티 자산 자체)로 재정의되면 이 항을 고쳐 쓴다.
-2. `.specify/specs/{branch-name}.md` 사후 Spec 발행 (현재 브랜치명 = `git rev-parse --abbrev-ref HEAD`로 기계적 산출). 기존 파일 있으면 덮어쓰지 않고 append 섹션 추가. 최소 포함 항목:
-   - `## 구현된 FR` — Sprint Contract `done_criteria`/`eval_ids`를 FR 형태로 역변환
-   - `## 변경 범위` — `git diff --name-only {base}...HEAD` 산출 파일 목록
-   - `## 검증 결과` — Phase 4 Evaluator 최종 점수 + PGE_EVAL_HISTORY.jsonl 최종 사이클 items[] 요약
-   - `## 산출 근거` — PGE_SPEC.md·PGE_QA_REPORT.md 경로 링크 (사후 검토 가능하도록)
-3. 발행 완료 후 완료 보고에 "Phase 6: `.specify/specs/{branch}.md` 발행 완료" 1줄 추가.
-
-> **WARN-first**: 발행 실패(쓰기 권한·경로 오류 등)해도 PGE 전체를 FAIL 처리하지 않는다 — WARN 후 완료 보고에 "spec 발행 실패, 수동 보완 필요" 명시(AD-168 준수, 신규 hard-BLOCK 아님).
-
----
-
-## 파일 기반 통신 프로토콜
-
-모든 PGE 중간 파일은 `{project_root}/.claude/state/`에 저장한다.
-
-| 파일 | 작성자 | 읽는 자 | 쓰기 방식 | 내용 |
-|------|--------|---------|---------|------|
-| `PGE_SPEC.md` | Planner (메인) | Generator (메인), QA (subagent), Evaluator (subagent) | 덮어쓰기 | 설계서 + reference 목록 |
-| `current-analysis.md` | Planner (메인) | Generator (메인), Evaluator (subagent) | 본체 덮어쓰기 + `## 이전 시도 실패 이력` 섹션은 **append**(사이클 간 누적) | 4단계 의존성 분석(덮어쓰기) + 이전 시도 실패 이력(append — same_issue 추적 입력, 덮어써 유실 금지) |
-| `PGE_SELF_CHECK.md` | Generator (메인) | QA (subagent), Evaluator (subagent) | 덮어쓰기 | 자체 점검 결과 |
-| `PGE_QA_RESULT.md` | QA (subagent) | Evaluator (subagent), Generator (메인, 피드백 시) | 덮어쓰기 | 트랙별 검증 결과 |
-| `PGE_QA_REPORT.md` | Evaluator (subagent) | Generator (메인, 피드백 시) | 덮어쓰기 | Rubric 판정 + 개선 지시 (사이클별 최신 상태) |
-| `PGE_EVAL_HISTORY.jsonl` | Evaluator (subagent) + 루프(security_event 라인) | Phase 5 루프 (메인) | **append 전용** (절대 덮어쓰기 금지) | 사이클별 누적 레코드(cycle 레코드) + Codex CRITICAL `security_event` 라인 — regression(oscillation 포섭)·same_issue·security_crit·data_integrity 판정의 유일한 데이터 소스. 누락/손상 시 data_integrity STOP |
-
-### 프로젝트 Reference 로딩 (Planner 필수)
-
-| 태스크 유형 | 읽을 파일 |
-|------------|---------|
-| **Unity 클라이언트** | `key-file-map.md`, `code-snippets.md`, `pre-modification-analysis-detail.md` |
-| **서버 / 웹 / 앱** | `codebase-analysis.md` (존재 시), `key-file-map.md`, `code-snippets.md`, `golden-rules.md` |
-| **웹 / 앱 UI** | `~/forge/shared/design-tokens/design-rules.md` |
-| 프로토콜 / 네트워크 | `key-file-map.md`, `protocol-ranges.md`, `tech-stack.md` |
-| 빌드 / 배포 | `build-commands.md`, `dependency-order.md` |
-
----
-
-## 산출물 및 완료 보고
-
-완료 시 아래 형식으로 보고:
-
-```
-## PGE 실행 완료
-
-**결과물**: [산출물 경로]
-**QA 반복 횟수**: X회
-**최종 점수**: [항목별]
-
-**실행 흐름**:
-1. Planner (메인): [분석 내용 한 줄]
-2. Generator R1 (메인): [구현 결과 한 줄]
-3. QA (subagent): [검증 결과 한 줄]
-4. Evaluator (subagent): [판정 + 핵심 피드백 한 줄]
-5. Generator R2 (메인): [수정 내용 한 줄] (해당 시)
-...
-```
-
----
-
-## 하네스 원칙 요약
-
-| 원칙 | 적용 |
-|------|------|
-| **컨텍스트 연속성** | Planner+Generator는 메인에서 실행 → 이전 분석/실패 이력 자동 참조 |
-| **독립 검수** | Evaluator는 subagent → Generator의 맥락 오염 없이 코드만 보고 판정 |
-| **자기평가 금지** | Generator(메인) ≠ Evaluator(subagent), 같은 에이전트가 생성+평가하지 않음 |
-| **실패 이력 영속화** | current-analysis.md에 "이전 시도 실패 이력" 섹션 → 같은 실수 반복 방지 |
-| **분석 프로토콜 강제** | PreToolUse hook이 current-analysis.md 내용 검증 → 분석 없이 코드 수정 차단 |
-
-## 자동 평가 (eval-rubric 통합)
-
-산출물 저장 직후 자동 eval-rubric 4축 채점 → eval_cases.jsonl 누적. 통합 패턴(절차·holdout·dedupe·비활성·통합효과·보안) 정본 → `eval-rubric/references/skill-integration.md`.
-
-- **target**: {산출물 경로} — Evaluator subagent 결과(PGE Phase 4 종료) 직후
-- **case_id**: `EC-forge-pge-{N}` · **eval_cases**: `~/.claude/skills/forge-pge/eval_cases.jsonl`
-
-## Workflow 통합 (계획서 P1)
-
-병렬/다단계 실행 = Workflow 도구로 컨텍스트 격리 + resume 지원. 패턴: Plan→Generate→Evaluate (Evaluator에 plan 미전달 격리).
-
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-pge/workflow.js") })`
-
-`CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식 fallback.
-
+- `gpt-*` → `mcp__codex__codex`(model=$EVAL_MODEL, sandbox=read-only, cwd=$WORKTREE) · 그 외 → `Agent(subagent_type="general-purpose", model=$EVAL_MODEL)`. 호출자가 넘긴 `--coder`/`model` 무시.
+- ⛔ `--verify` rc≠0·Codex 호출 실패 → Claude 로 갈아타지 말고 **이 사이클 판정 보류** + 사람 알림(PASS 넘기지 않음).
+- Codex 전사 규약: 프롬프트에 "끝에 사이클 레코드 JSON 1줄" 요구 → 원문 전체 `{project_root}/.claude/state/PGE_EVAL_RAW.txt` 덮어쓰기 → JSON 줄을 바이트 그대로 JSONL append, 나머지를 QA_REPORT 로 · JSON 없음/파싱불가 = 지어내지 말고 `data_integrity` STOP. 메인은 판정·점수 수정 금지.
+- 전달: `current-analysis.md` · `PGE_SPEC.md` · `PGE_QA_RESULT.md` · 기계 산출 diff · (트랙 C, 존재 시) `.claude/reference/pge-game-evaluator-rubric-detail.md`. **미전달**: Generator 의도·시도·실패 이력.
+- 수행: Rubric 채점 → QA 잔존 이슈 감점 → 항목별 `PASS [{req}:{check}]` / `FAIL [{req}:{check}] — {위치} / {이유} / {방법}` / `SECURITY_CRIT [{req}:{check}] — {내용}`(별도 섹션) → SELF_CHECK 불신 → 레코드 append:
+  `{"cycle": N, "score": S, "items": [{"id": "<req>:<check>", "verdict": "PASS|FAIL"}], "security_crit": [<id>]}`
+**출력**: `PGE_QA_REPORT.md`(덮어쓰기) + `PGE_EVAL_HISTORY.jsonl`(append 전용).
+## Phase 4.5: Codex 2차 리뷰 — `/codex-review --stage code --target <PGE diff>`
+80+ = `--effort medium` · 60~79 = `--effort high` · <60 = 생략, 단 보안 민감 surface(auth/session/token/password/crypt/payment/secret/credential · api/routes/controllers/handlers/middleware · .env/.pem/.key) 면 "보안 관점 우선" 1회.
+- SECURITY_CRIT → 점수 무관 Phase 5 순위1. Codex CRITICAL → JSONL 에 별도 `security_event` 라인 append(in-memory 보유 금지). 보안 STOP 은 best-effort.
+- `agreement` → 점수 확정 · `disagreement` → 4.6 · `extension` → 이슈를 QA_REPORT 에 추가, 사용자 컨펌 후 진행. 링크 `forge-outputs/docs/reviews/code/{date}-forge-pge-{slug}.md`.
+## Phase 4.6: Advisor (60~79 또는 disagreement 일 때만, `FORGE_ADVISOR_AUTO=off` 면 끔) → `references/call-budget-guards.md §Phase 4.6` Read.
+## Phase 5: 결정표 (`maxCycles`=`--cycles`, 위에서부터 첫 매칭 1회, 구조화 id 만 — `rollback_trigger` 만 prose)
+- **게이트 G**: 사이클 N(regression 시 N-1) 레코드 누락·파싱불가 또는 `shared/scripts/pge-eval-raw-check.sh` 원문 대조 불일치 → **[STOP] DATA_INTEGRITY**.
+| 순위 | 조건 | 트리거 | 행동 |
+|:-:|---|---|---|
+| 1 | security_crit / rollback | `security_crit[]`≠∅ 또는 `security_event` 라인 또는 rollback_trigger 충족 | **[STOP]** `[SECURITY_CRIT]`/`[ROLLBACK]` |
+| 2 | rubric_all_pass | eval_ids ∪ 이전 PASS id 커버 AND items[] 전부 PASS | SUCCESS (아니면 N≥2 → 순위3, N=1 → continue) |
+| 3 | regression (N≥2) | (N-1 PASS) ∩ (N FAIL 또는 사라진 id, 1회 re-emit 재확인) ≠ ∅ | **[STOP]** 이전 통과 깨짐 |
+| 4 | same_issue (N≥3, kernel) | 동일 id 3사이클 연속 FAIL | **[STOP]** + 구현 방식 전환 권고 |
+| 5 | max_cycles | N≥maxCycles 또는 PGE_CALL_CAP 초과 | **[STOP]** 현상태+잔존 이슈 |
+| — | 그 외 FAIL | N<maxCycles | continue → Phase 2 (FAIL = 접근 전환 입력) |
+- STOP 메시지 형식 → `references/pge-phase-details.md §Phase 5 STOP 메시지 형식`. 사이클 진입 전 call-budget·stop-condition 확인(`loop-budget.sh`·`loop-call-accum.sh`) → `references/call-budget-guards.md`(1회 PASS 면 불필요). 3사이클 후 FAIL → 핸드오버에 `pge-failure 후보:` 1줄.
+## Phase 6: 사후 Spec (SUCCESS 직후, WARN-first)
+① `test -d "{project_root}/.specify"` ② `grep -rl 'spec-validation\|specify/specs' {project_root}/.github/` ≥1 — 둘 다일 때만 `.specify/specs/$(git rev-parse --abbrev-ref HEAD).md` 발행(있으면 append): `## 구현된 FR` · `## 변경 범위` · `## 검증 결과` · `## 산출 근거`. 아니면 스킵 사유 1줄. 실패해도 PGE FAIL 아님.
+## 파일 (`{project_root}/.claude/state/`)
+`PGE_SPEC.md`(Planner, 덮어쓰기) · `current-analysis.md`(본체 덮어쓰기 + 실패 이력 append) · `PGE_SELF_CHECK.md` · `PGE_QA_RESULT.md` · `PGE_QA_REPORT.md` · `PGE_EVAL_RAW.txt` · `PGE_EVAL_HISTORY.jsonl`(append 전용, 유일한 판정 소스).
+## 완료·통합
+- 보고 형식 → `references/pge-phase-details.md §완료 보고 형식`.
+- eval-rubric(`eval-rubric/references/skill-integration.md`): Phase 4 후 target=산출물, case_id `EC-forge-pge-{N}` → `~/.claude/skills/forge-pge/eval_cases.jsonl`.
+- Workflow: `Workflow({ script: Bash("cat ~/.claude/skills/forge-pge/workflow.js") })` (`CLAUDE_CODE_DISABLE_WORKFLOWS=1` → fallback).

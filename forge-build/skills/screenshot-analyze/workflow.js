@@ -1,4 +1,4 @@
-// root-cause: Gemini 전면 철수(2026-09-07) — Vision 위임을 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-5.6 Sol)로 단일화.
+// root-cause: Gemini 전면 철수(2026-09-07) — Vision 위임을 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-6 Sol)로 단일화.
 //   구독이 Gemini API 를 안 덮어 유일한 종량 벤더였고, 키가 막혀 이 경로가 통째로 죽어 있었다.
 //   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
 //   ⚠️ Astra 는 로컬 파일을 직접 읽는다 — 이미지 내용을 인라인할 필요 없이 **절대경로**만 주면 된다.
@@ -10,7 +10,7 @@
 //   ⚠️ 구 의미("degrade/off → Gemini Vision 직행")는 폐기. Gemini 레그 자체가 사라졌다.
 export const meta = {
   name: 'screenshot-analyze',
-  description: '스크린샷 Vision 분석 — Codex(GPT-5.6 Sol) Vision, 실패 시 Claude 자체 분석 fallback',
+  description: '스크린샷 Vision 분석 — Codex(GPT-6 Sol) Vision, 실패 시 Claude 자체 분석 fallback',
   phases: [
     { title: 'Analyze', detail: 'Codex(sol) Vision → (실패 시) Claude 자체 분석 fallback' },
   ],
@@ -39,7 +39,7 @@ const prompt = `${intent}. 이미지: ${imagePath}. description + elements + iss
 //   codex:high 의 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high). 사다리가 바뀌면 여기도 함께 고친다.
 // 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 codex:max(gpt-6-astra) 기본값 폐기 → sol · effort high(분석 레인, 게이트 아님).
 //   ⚠️ 무력화되는 입력: 호출자가 args.codexModel 로 최고급 id 를 넘기면 그대로 쓴다(사람 override).
-const codexModel = _a?.codexModel || 'gpt-5.6-sol'
+const codexModel = _a?.codexModel || 'gpt-6-sol'
 
 // ── Phase 1: Analyze (Codex(sol) Vision → Claude 자체 분석 fallback) ────────
 phase('Analyze')

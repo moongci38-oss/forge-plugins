@@ -36,7 +36,7 @@
 
 - `~/forge/dev/scripts/forge-sync.mjs` HOOKS_ALLOWLIST: 11종 (10 gate + 1 helper)
 - `~/.claude/settings.json` PreToolUse: H9(Edit|Write) / H10(Write) / helper(Read)
-- `_ad97-pending/`: H4/H5/H8/H11~H25/H29 — AD-97 진입 전 발동 X
+- (구 `_ad97-pending/`: H4/H5/H8/H11~H25/H29 — AD-97 미진입 스텁) → 2026-09-24 아카이브(#1012). 복원: `git checkout archive/ad97-pending-20260924 -- .claude/hooks/_ad97-pending`
 
 ## bug-fix-plan.md 필수 필드 (H10 검증)
 
