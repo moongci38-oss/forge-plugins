@@ -22,6 +22,22 @@ curl -fsSL https://claude.ai/install.sh | bash
 
 ---
 
+## 1-2단계 — Forge 본체(`~/forge`) 받기 (처음 한 번만, 꼭 필요)
+
+플러그인은 Forge 본체 폴더(`~/forge`)에 있는 스크립트를 불러 씁니다.
+이 폴더가 없으면 명령을 칠 때 "No such file or directory" 오류가 납니다.
+Forge 본체는 공개 저장소라 **SSH 키 없이** 아래 한 줄로 받을 수 있습니다
+(윈도우 PowerShell·맥 터미널 모두 같은 줄):
+
+```
+git clone https://github.com/moongci38-oss/forge.git "$HOME/forge"
+```
+
+- "git: command not found" 가 나오면 Git 을 먼저 설치하세요 — 윈도우 https://git-scm.com/download/win · 맥은 터미널에 `xcode-select --install`.
+- "already exists" 가 나오면 이미 받아 둔 것이니 그대로 다음 단계로 가면 됩니다.
+
+---
+
 ## 2단계 — 이 문장을 Claude Code에 그대로 붙여넣기
 
 Claude Code를 열고, 아래 회색 상자 안 내용을 **통째로 복사해서 붙여넣은 뒤 엔터**를 치세요.
@@ -77,17 +93,28 @@ Claude Code를 열고, 아래 회색 상자 안 내용을 **통째로 복사해�
 ## 5단계 — 나중에 최신으로 받기 (업데이트)
 
 플러그인은 **저절로 갱신되지 않습니다.** 팀 채널에 "플러그인 업데이트하세요" 공지가 뜨면
-Claude Code에서 아래를 그대로 말하면 됩니다.
+Claude Code에서 아래를 그대로 말하면 됩니다. **순서가 중요합니다** — 마켓플레이스 목록을 먼저 새로 받아야
+플러그인이 새 버전을 찾습니다.
 
 ```
-설치된 forge 플러그인을 전부 업데이트하고, 끝나면 재시작하라고 알려줘:
+아래 순서대로 실행해서 forge 플러그인을 전부 업데이트해줘:
 
-for p in forge-core forge-knowledge forge-build forge-design forge-game; do
-  claude plugin update ${p}@forge-plugins
-done
+1. Forge 본체도 같이 최신으로 받아줘 (플러그인이 이 폴더의 스크립트를 씁니다):
+   cd ~/forge && git pull
+
+2. 마켓플레이스 목록을 새로 받아줘:
+   claude plugin marketplace update forge-plugins
+
+3. 플러그인을 하나씩 업데이트해줘:
+   for p in forge-core forge-knowledge forge-build forge-design forge-game; do
+     claude plugin update ${p}@forge-plugins
+   done
+
+4. 끝나면 "Claude Code를 완전히 껐다 켜라"고 한국어로 안내해줘.
 ```
 
-업데이트 후에도 **Claude Code를 껐다 켜야** 새 버전이 로드됩니다.
+업데이트 후에는 **Claude Code를 완전히 껐다 켜야** 새 버전이 로드됩니다.
+다시 켠 뒤 `claude plugin list` 를 실행해 버전 번호가 올라갔는지 확인하세요.
 
 > ⚠️ **한 줄에 이름 5개를 몰아 쓰면 안 됩니다.** `claude plugin update` 는 플러그인을 **한 번에 하나만** 받습니다.
 > 재현: `claude plugin update --help | head -1` → `Usage: claude plugin update [options] <plugin>` (2026-09-08 관측).

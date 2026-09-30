@@ -56,13 +56,13 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 
 | 플러그인 | 버전 | 스킬 / 커맨드 / 에이전트 | 설명 | 의존성 |
 |---------|------|------|------|--------|
-| **forge-core** | v0.7.17 | 23 / 22 / 6 | 핵심 인프라 — cr-multi/approve-worker/rag-search + **세션관리 3종** + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·axis 5축·migration-audit) + 저작 도구(skill-creator/subagent-creator/slash-command-creator/hook-creator) | 없음 (기반) |
-| **forge-build** | v0.4.24 | 32 / 24 / 7 | 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI 검수) + GitNexus 코드 인텔리전스 6종 | forge-core |
-| **forge-knowledge** | v0.2.22 | 15 / 7 / 6 | 지식·리서치 — learn/memory-manage/wiki-sync + article/yt/site-deep-analyze/weekly-research/daily-system-review + 문서 변환(pdf/docx/pptx), forge-tools MCP(ADR-174 unified_search) | forge-core |
-| **forge-design** | v0.2.17 | 7 / 4 / 2 | 디자인·에셋 — image-orchestrate/visual-loop/figma-screen-capture/style-forge/asset-critic | forge-core |
-| **forge-game** | v0.1.16 | 10 / 1 / 1 | 게임팩 — game-qa/game-asset-pipeline/asset-extract/dungeon 루프 2종 (Unity 전용) | forge-core, forge-design |
+| **forge-core** | v0.7.24 | 11 / 13 / 1 | 핵심 인프라 — approve-worker/forge-multi/rag-search + **세션관리 3종**(`/forge-start`·`/forge-checkpoint`·`/forge-end`) + 하네스 정리(harness-legacy-scan/harness-diet/external-harness-sweep) + 감사(system-audit) + 저작 도구(skill-creator/slash-command-creator) + eval-rubric/forge-loop-maker | 없음 (기반) |
+| **forge-build** | v0.4.27 | 19 / 12 / 6 | 제품 생성 파이프라인 — 구현·검증(qa/healer/investigate/forge-pge/codex-review/forge-check-security·-exec/forge-check-ui/spec-compliance-checker/canary/playwright-cli) + GitNexus 코드 인텔리전스 6종 + frontend-design | forge-core |
+| **forge-knowledge** | v0.2.24 | 12 / 4 / 5 | 지식·리서치 — learn/wiki-sync + article/yt/site-deep-analyze/weekly-research/daily-system-review(+daily·weekly-analyze)/video-reference-guide + 문서 변환(pdf/docx), forge-tools MCP(ADR-174 unified_search) | forge-core |
+| **forge-design** | v0.2.20 | 2 / 4 / 0 | 디자인·에셋 — visual-loop/style-forge (+ 커맨드 forge-design/forge-design-review/generate-image/clip) | forge-core |
+| **forge-game** | v0.1.17 | 10 / 1 / 1 | 게임팩 — game-qa/game-asset-pipeline/game-asset-generate/asset-extract/dungeon 루프 2종 등 (Unity 전용) | forge-core, forge-design |
 
-> **이 표의 숫자를 어떻게 셌나** (2026-09-08 관측). 버전은 각 번들의 `plugin.json` 이 정본이고,
+> **이 표의 숫자를 어떻게 셌나** (2026-09-30 재측정 · 처음 2026-09-08). 버전은 각 번들의 `plugin.json` 이 정본이고,
 > 개수는 폴더를 센 것입니다. 숫자가 의심스러우면 표를 믿지 말고 아래를 직접 돌려 보십시오.
 >
 > ```bash
@@ -79,9 +79,11 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 > ⚠️ 구 표기 `forge-core v0.7.9 · forge-build v0.4.20 · forge-knowledge v0.2.18 · forge-design v0.2.13 · forge-game v0.1.15` 은
 > 2026-09-08 폐기했습니다 — 손으로 적어 둔 값이라 실제 `plugin.json` 과 4단계 이상 벌어져 있었습니다.
 > ⚠️ 구 표기 "**세션관리 5종**" 도 같은 날 폐기 — 모델별 분기(`/start-opus`·`/end-sonnet` 등)가
-> 2026-08-01 에 통합돼, 지금 남은 세션 커맨드는 `/forge-start`·`/forge-checkpoint`·`/forge-end` **3종**과
-> 보조 `/forge-resume` 1종입니다
-> (재현: `ls forge-core/commands/ | grep -E 'forge-(start|end|checkpoint|resume)'` → 4건, 2026-09-08 관측).
+> 2026-08-01 에 통합돼, 지금 남은 세션 커맨드는 `/forge-start`·`/forge-checkpoint`·`/forge-end` **3종**입니다
+> (재현: `ls forge-core/commands/ | grep -E 'forge-(start|end|checkpoint|resume)'` → 3건, 2026-09-30 관측).
+> ⚠️ 구 표기 "보조 `/forge-resume` 1종 (→ 4건, 2026-09-08)" 은 2026-09-30 폐기 — `/forge-resume` 은 2026-09-17 삭제됐습니다.
+> ⚠️ 구 표기(2026-09-08) `forge-core v0.7.17 23/22/6 · forge-build v0.4.24 32/24/7 · forge-knowledge v0.2.22 15/7/6 ·
+> forge-design v0.2.17 7/4/2 · forge-game v0.1.16 10/1/1` 은 2026-09-30 폐기 — 그 사이 스킬 정리로 개수가 줄었습니다.
 
 ---
 
@@ -92,9 +94,10 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 번들의 커맨드·스킬이 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/…` 를 **실행**한다(커맨드 21파일·스킬 19파일·호출 138곳·스크립트 75개 — 실측 2026-09-29). 스크립트는 번들에 동봉하지 않으므로(두 벌 관리 회피 — 사람 결정) 이 클론이 없으면 그 명령들이 안내 없이 "No such file or directory" 로 끝난다.
 
 ```bash
-git clone git@github.com:moongci38-oss/forge.git ~/forge
+git clone https://github.com/moongci38-oss/forge.git ~/forge
 ```
 
+> forge 는 **공개 저장소**(2026-09-30~)라 SSH 키 없이 https 로 받는다(기본 브랜치 `develop`). 구 표기 `git@github.com:…` (SSH) 는 키가 없으면 실패해서 2026-09-30 바꿨다.
 > 클론만 하면 된다 — `.env`·`forge-workspace.json` 설정은 코어 팀원만 필요하다(`ONBOARDING.md` §1·§2).
 
 ### Step 1 — Marketplace 등록 (최초 1회)
@@ -176,13 +179,26 @@ Claude Code 세션 시작 시 `forge-core`의 SessionStart 훅이 자동 실행:
 ### 팀원 업데이트 절차
 
 ```bash
-# 1. 업데이트 실행
-claude plugin update forge-core
-claude plugin update forge-knowledge    # 설치한 것만
-claude plugin update forge-build
+# 1. Forge 본체도 최신으로 (플러그인이 ~/forge 의 스크립트를 부른다)
+cd ~/forge && git pull
 
-# 2. Claude Code 재시작
+# 2. 마켓플레이스 목록 새로 받기 (이걸 먼저 해야 새 버전이 보인다)
+claude plugin marketplace update forge-plugins
+
+# 3. 플러그인마다 하나씩 업데이트 (설치한 것만 · 한 줄에 여러 이름 금지)
+claude plugin update forge-core@forge-plugins
+claude plugin update forge-knowledge@forge-plugins
+claude plugin update forge-build@forge-plugins
+claude plugin update forge-design@forge-plugins
+claude plugin update forge-game@forge-plugins
+
+# 4. Claude Code 완전히 종료 후 재시작
+# 5. 버전 확인
+claude plugin list
 ```
+
+> ⚠️ 구 표기 "`claude plugin update forge-core` … → 재시작" 은 2026-09-30 폐기 — 마켓플레이스 갱신(2번)과
+> `~/forge` 받기(1번)가 빠져 있어, 새 판이 나와도 "이미 최신"으로 넘어가거나 옛 스크립트가 그대로 돌았습니다.
 
 ### 업데이트 알림
 
@@ -472,7 +488,8 @@ cd ~/forge-plugins-repo && git pull
 | `/rag-search` | `/rag-search <질문>` | forge-outputs 문서 벡터+BM25 하이브리드 검색 |
 
 > ⚠️ 위 7종은 2026-09-08 에 추가한 항목입니다 — 번들에는 진작 들어 있었는데 README 표에만 빠져 있었습니다
-> (재현: `ls -1 forge-core/skills | wc -l` → 23, 구 README 표에 적힌 건 12개뿐이었습니다).
+> (당시 재현: `ls -1 forge-core/skills | wc -l` → 23, 구 README 표에 적힌 건 12개뿐이었습니다).
+> 지금(2026-09-30 재측정) forge-core 스킬은 **11개**입니다 — `git ls-tree --name-only HEAD:forge-core/skills | wc -l` → 11.
 
 ### forge-build (개발자)
 
@@ -577,8 +594,9 @@ cd ~/forge-plugins-repo && git pull
 | `/game-bug-runtime-loop` | — | 런타임 버그 반복 수정 루프 |
 
 > ⚠️ 구 표기에서 forge-design 은 스킬 1개, forge-game 은 4개만 적혀 있었습니다 — 2026-09-08 폐기.
-> 실측은 각각 **7개·10개**입니다(재현: `ls -1 forge-design/skills | wc -l` → 7 ·
-> `ls -1 forge-game/skills | wc -l` → 10, 2026-09-08 관측).
+> 2026-09-30 재측정은 각각 **2개·10개**입니다(재현: `ls -1 forge-design/skills | wc -l` → 2 ·
+> `ls -1 forge-game/skills | wc -l` → 10). forge-design 은 스킬 정리로 7→2 로 줄었습니다
+> (남은 것: style-forge · visual-loop — 위 표의 나머지 forge-design 스킬은 `/` 자동완성에 없을 수 있습니다).
 
 ### 빠른 시작 예시
 
@@ -684,24 +702,24 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 ```
 forge-plugins-repo/
 ├── .claude-plugin/marketplace.json    — 마켓플레이스 인덱스 (5개 플러그인)
-├── forge-core/                        — (v0.7.18) 기반 + 하네스 정리 + AI 감사 + 저작 도구
+├── forge-core/                        — (v0.7.24) 기반 + 하네스 정리 + AI 감사 + 저작 도구
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 23개
+│   ├── .mcp.json                      — codex MCP
+│   ├── skills/                        — 11개
 │   │   ├── approve-worker/            — forge 승인 워커
-│   │   ├── cr-multi/                  — 멀티 검수 오케스트레이터
+│   │   ├── forge-multi/               — 2벤더 교차 검수
 │   │   ├── rag-search/                — 하이브리드 RAG 검색
-│   │   ├── forge-loop-maker/          — Generic refinement loop
-│   │   ├── skill-creator/ subagent-creator/ slash-command-creator/ hook-creator/  — 저작 4종
-│   │   ├── eval-rubric/ doc-verifier/ office-hours/ product-manager-toolkit/
+│   │   ├── forge-loop-maker/          — 반복 자동화 루프 설계
+│   │   ├── skill-creator/ slash-command-creator/  — 저작 2종
+│   │   ├── eval-rubric/               — 루브릭 채점
 │   │   ├── harness-legacy-scan/ harness-diet/ external-harness-sweep/  — 하네스 정리 3종
-│   │   └── system-audit/ audit-agentic/ audit-context/ audit-cost/ audit-harness/ audit-human-ai/ migration-audit/  — 감사 7종
-│   ├── agents/                        — 6개 (advisor-strategist + axis-agentic/context/cost/harness/human-ai)
-│   ├── commands/                      — 22개 슬래시 커맨드
-│   ├── hooks/                         — 실행본 7개 (+ 테스트 2개, lib/)
+│   │   └── system-audit/              — 6축 통합 감사
+│   ├── agents/                        — 1개 (advisor-strategist)
+│   ├── commands/                      — 13개 슬래시 커맨드
+│   ├── hooks/                         — 실행본 5개 (+ 테스트 2개, lib/)
 │   │   ├── forge-onboard.sh           — SessionStart 자동 실행 (규칙·디렉터리·스크립트 설치)
 │   │   ├── main-write-guard.sh        — 배포 브랜치 직접 쓰기 차단
 │   │   ├── brain-integrity-check.sh / brain-placement-guard.sh   — 지식 레인 무결성
-│   │   ├── forge-plugin-learn-inject.sh / -reminder.sh           — learnings 주입·리마인드
 │   │   └── session-placement-advisory.sh
 │   └── rules/                         — 8개 (세션마다 자동 로드되는 전역 규칙)
 │       ├── forge-core.md              — 경로·보안·병렬 실행·Git
@@ -712,28 +730,28 @@ forge-plugins-repo/
 │       ├── dev-workflow-rules.md      — 브랜치·배포·SDD 진입
 │       ├── security-agent-input.md    — 외부 입력 프롬프트 인젝션 방어
 │       └── success-is-silent.md       — 성공 시 침묵
-├── forge-build/                       — (v0.4.25) 구 forge-dev + forge-plan 통합
+├── forge-build/                       — (v0.4.27) 구 forge-dev + forge-plan 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 32개 (qa/healer/investigate/api-e2e + spec 계열/writing-plans/autoplan + gitnexus 6종 등)
-│   ├── commands/                      — 24개 (forge-implement/forge-qa/forge-fix/forge-pr + forge-spec/prd/forge-plan/forge-deploy 등)
-│   └── agents/                        — 7개 (canary-judge/code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
-├── forge-knowledge/                   — (v0.2.22) 구 forge-brain 개명 + forge-research 통합
+│   ├── skills/                        — 19개 (qa/healer/investigate/forge-pge/codex-review/canary/playwright-cli/screenshot-analyze/spec-compliance-checker/frontend-design + forge-check-security·-exec·-ui + gitnexus 6종)
+│   ├── commands/                      — 12개 (forge-implement/forge-qa/forge-fix/forge-pr + forge-spec/prd/forge-plan/forge-deploy 등)
+│   └── agents/                        — 6개 (code-reviewer/cto-advisor/healer/performance-checker/spec-writer-base/ui-quality-checker)
+├── forge-knowledge/                   — (v0.2.24) 구 forge-brain 개명 + forge-research 통합
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                        — 15개 (learn/memory-manage/wiki-sync/yt/article/weekly-research/daily-system-review + pdf·docx·pptx 등)
-│   ├── commands/                      — 7개 (article/site-deep-analyze/forge-find-item/find-item/wiki-sync/grants/meeting)
-│   ├── agents/                        — 6개 (academic-researcher/article-analyst/fact-checker/yt-cross-analyst/yt-research-followup/yt-video-analyst)
+│   ├── skills/                        — 12개 (learn/wiki-sync/yt/article/site-deep-analyze/weekly-research/weekly-analyze/daily-system-review/daily-analyze/video-reference-guide + pdf·docx)
+│   ├── commands/                      — 4개 (article/site-deep-analyze/forge-find-item/wiki-sync)
+│   ├── agents/                        — 5개 (academic-researcher/article-analyst/fact-checker/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
-├── forge-design/                      — (v0.2.18)
-│   ├── skills/                        — 7개 (image-orchestrate/visual-loop/figma-screen-capture/style-forge/asset-critic/doc-writer/design-plan-closeout)
-│   ├── commands/                      — 4개 (forge-design/forge-design-review/generate-image/clip)
-│   └── agents/                        — 1개 등록 (doc-writer) — ⚠️ 2026-09-07 Gemini 전면 철수로 구 표기 "2개 (doc-writer/gemini)" 폐기. `agents/gemini.md` 파일은 forge SSoT sync 대상이라 남아 있으나 **plugin.json 등록에서 빠져 로드되지 않습니다**
+├── forge-design/                      — (v0.2.20)
+│   ├── skills/                        — 2개 (style-forge/visual-loop)
+│   └── commands/                      — 4개 (forge-design/forge-design-review/generate-image/clip)
+│                                        (agents/ 폴더 없음 — 구 표기 "1개 등록 (doc-writer) · agents/gemini.md 파일 잔존" 은 2026-09-30 폐기)
 └── forge-game/                        — (v0.1.17)
-    ├── skills/                        — 10개 (game-qa/game-asset-pipeline/asset-extract/game-logic-visualize/dungeon 루프 2종 등)
+    ├── skills/                        — 10개 (game-qa/game-asset-pipeline/game-asset-generate/asset-extract/game-logic-visualize/gamedesign-analyze/game-reference-collect/game-bug-runtime-loop/dungeon 루프 2종)
     ├── commands/                      — 1개 (gdd)
     └── agents/                        — 1개 (gdd-writer)
 ```
 
-> **세는 명령** (2026-09-08 관측):
+> **세는 명령** (2026-09-30 재측정 · 처음 2026-09-08):
 > `for p in forge-core forge-build forge-knowledge forge-design forge-game; do echo "$p: skills=$(ls -1 $p/skills 2>/dev/null|wc -l) commands=$(ls -1 $p/commands/*.md 2>/dev/null|wc -l) agents=$(ls -1 $p/agents/*.md 2>/dev/null|wc -l)"; done`
 >
 > ⚠️ **폐기한 서술 3건** (2026-09-08):
@@ -742,6 +760,7 @@ forge-plugins-repo/
 >    재현: `ls forge-core/hooks/handover-manager.sh` → 없음 · 사유 원문은 `forge-core/hooks/forge-onboard.sh` §5 주석.
 > ② `rules/` 3개 나열 — 실제 **8개**입니다(재현: `ls -1 forge-core/rules/*.md | wc -l` → 8).
 > ③ 번들 버전·개수 — 위 세는 명령 결과와 어긋나 있었습니다(forge-build 스킬 30→**32**, forge-design 3→**7**, forge-game 4→**10**).
+>    2026-09-30 재측정: 스킬 정리 뒤 **core 11 · build 19 · knowledge 12 · design 2 · game 10** 입니다(위 트리에 반영).
 
 ---
 

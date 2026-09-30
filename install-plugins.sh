@@ -17,6 +17,18 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 ok "Claude Code 확인: $(claude --version 2>/dev/null | head -1)"
 
+# 0-1. Forge 본체(~/forge) — 플러그인 커맨드·스크립트가 이 폴더를 부른다(forge #1544).
+#      공개 저장소라 https 로 SSH 키 없이 받는다. 실패해도 설치는 계속한다.
+FORGE_DIR="${FORGE_ROOT:-$HOME/forge}"
+say "Forge 본체 확인 ($FORGE_DIR)"
+if [ -d "$FORGE_DIR" ]; then
+  ok "이미 있음: $FORGE_DIR (최신으로 받으려면: cd \"$FORGE_DIR\" && git pull)"
+elif git clone https://github.com/moongci38-oss/forge.git "$FORGE_DIR"; then
+  ok "받기 완료: $FORGE_DIR"
+else
+  warn "Forge 본체 받기 실패 — 나중에 직접 실행하세요: git clone https://github.com/moongci38-oss/forge.git \"$FORGE_DIR\""
+fi
+
 # 1. 마켓플레이스 등록 (이미 있으면 통과)
 say "마켓플레이스 등록"
 if claude plugin marketplace add "$MARKET" 2>/dev/null; then
