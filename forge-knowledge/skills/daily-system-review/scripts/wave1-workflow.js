@@ -84,7 +84,7 @@ const merged = await agent(
 ${JSON.stringify(valid, null, 2)}
 
 출력: { summary: "전체 동향 1-2문장", top_items: [{tier, title, significance}], tier_coverage: N }`,
-  { label: 'merge', phase: '수집 결과 집계' }
+  { model: 'sonnet', label: 'merge', phase: '수집 결과 집계' }
 )
 
 return { tiers: valid, merged }

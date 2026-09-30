@@ -46,18 +46,18 @@ const [errorRate, latency, memory] = await parallel([
     `에러율 모니터링 ${duration}분. endpoint: ${healthUrl}. 1분 간격 폴링. ` +
     `에러율 >1% → status=warn, >5% → status=fail. 평균 에러율(%) value 반환. type="error-rate".` +
     QUALITATIVE_HINT,
-    { label: 'error-rate', phase: 'Monitor', schema: METRIC_SCHEMA }
+    { model: 'sonnet', label: 'error-rate', phase: 'Monitor', schema: METRIC_SCHEMA }
   ),
   () => agent(
     `응답 시간 모니터링 ${duration}분. endpoint: ${healthUrl}. 1분 간격 폴링. ` +
     `p95 >500ms → status=warn. p95 응답 시간(ms) value 반환. type="latency-p95".` +
     QUALITATIVE_HINT,
-    { label: 'latency', phase: 'Monitor', schema: METRIC_SCHEMA }
+    { model: 'sonnet', label: 'latency', phase: 'Monitor', schema: METRIC_SCHEMA }
   ),
   () => agent(
     `메모리 사용량 모니터링 ${duration}분. 1분 간격 프로세스 체크. ` +
     `>80% → status=warn. 평균 메모리 사용률(%) value 반환. type="memory-pct".`,
-    { label: 'memory', phase: 'Monitor', schema: METRIC_SCHEMA }
+    { model: 'sonnet', label: 'memory', phase: 'Monitor', schema: METRIC_SCHEMA }
   ),
 ])
 
@@ -95,7 +95,7 @@ async function runJudgeScript(payload, selfCheck = false) {
     `[CMD]\nprintf '%s' '${_shq(json)}' | node "${JUDGE_SCRIPT_SH}"${flag}\n[/CMD]\n` +
     `종료코드와 무관하게 stdout 을 그대로 옮겨라(--self-check 는 불일치 시 exit 1 이어도 stdout 에 JSON 을 낸다). ` +
     `반환 스키마: {"stdout": "<그 JSON 줄 전체를 그대로>"}. stdout 이 비었으면 stdout="".`,
-    { label: selfCheck ? 'judge-selfcheck-exec' : 'judge-exec', phase: selfCheck ? 'Evaluate' : 'Judge',
+    { model: 'haiku', label: selfCheck ? 'judge-selfcheck-exec' : 'judge-exec', phase: selfCheck ? 'Evaluate' : 'Judge',
       schema: { type: 'object', properties: { stdout: { type: 'string' } }, required: ['stdout'] } }
   )
   try {

@@ -36,7 +36,7 @@ const SCANS = [
   { id: 'S1', name: '하드코딩 시크릿', desc: 'password/secret/api_key 하드코딩 grep (CRITICAL)' },
   { id: 'S2', name: 'SQL 인젝션', desc: '문자열 concat SQL 패턴 검출 (HIGH)' },
   { id: 'S3', name: '인증 누락', desc: 'auth 미들웨어 없는 보호 라우트 확인 (HIGH)' },
-  { id: 'S4', name: '민감 데이터 로그', desc: 'console.log + password/token 패턴 (MEDIUM)' },
+  { id: 'S4', name: '민감 데이터 로그', desc: 'console.log + password/token 패턴 (MEDIUM)' },  // forge-sec: allow S4 스캐너 자기 설명 문자열(로그 호출 아님)
   { id: 'S5', name: 'XSS 위험', desc: 'innerHTML 미검증 입력 패턴 (MEDIUM)' },
   { id: 'S6', name: '취약 의존성', desc: 'npm audit CRITICAL/HIGH 결과 (HIGH)' },
   // root-cause: S7 추가 — pip-audit OSV Python 의존성 취약점 검사 (S6 npm 대응)
@@ -49,7 +49,7 @@ const results = await parallel(SCANS.map(s => () =>
   agent(
     `보안 스캔 ${s.id}: ${s.name}. 대상 경로: ${target}. ` +
     `${s.desc}. 발견 항목(파일:라인 + 설명) 목록과 실제 severity 반환. id="${s.id}".`,
-    { label: `scan-${s.id}`, phase: 'Scan', schema: SCAN_SCHEMA }
+    { model: 'opus', label: `scan-${s.id}`, phase: 'Scan', schema: SCAN_SCHEMA }
   )
 ))
 
@@ -69,7 +69,7 @@ const report = await agent(
   `스캔 결과: ${JSON.stringify(valid)}. ` +
   `판정 기준: CRITICAL≥1 → FAIL, HIGH≥1 → WARN, 없음 → PASS. ` +
   `report = 마크다운 (CRITICAL/HIGH/MEDIUM/LOW 섹션 + 판정 근거).`,
-  { label: 'report', phase: 'Report', schema: REPORT_SCHEMA }
+  { model: 'sonnet', label: 'report', phase: 'Report', schema: REPORT_SCHEMA }
 )
 log(`security ${report?.verdict}: critical=${report?.criticalCount} high=${report?.highCount}`)
 // root-cause: P0-1 — CRITICAL≥1 시 halt:true 반환 (기존 advisory 로그만 = security theater)

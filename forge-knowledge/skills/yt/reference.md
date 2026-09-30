@@ -224,7 +224,7 @@
 - 인자: `/yt <입력> --skip-cr-plan`
 - apply-plan 부재 (비기술 카테고리 → Step 4 자체 skip → 이 절도 자동 skip)
 
-⚠️ **게이트는 `--cr` 하나다.** 검수는 **2벤더 교차 2레그**(Claude Opus 5 + Codex GPT-5.6 Sol)인데,
+⚠️ **게이트는 `--cr` 하나다.** 검수는 **2벤더 교차 2레그**(Claude Opus 5.5 + Codex GPT-6 Sol)인데,
 팀 기본값 `FORGE_AUTO_CR=degrade` 때문에 그냥 부르면 **Codex 레그가 빠져 1레그가 된다** —
 **`--cr on` 을 명시**해야 2레그가 온전히 뜬다. 전역 기본값은 건드리지 않는다
 (정본 `model-routing.md §검수 2레그` — 2026-08-22 승인의 효력은 검수 기본값으로 한정된다).
@@ -242,7 +242,7 @@ PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
 ```
 
 ```
-/cr-triple "$PLAN_FILE" --stage plan --cr on
+/forge-multi "$PLAN_FILE" --stage plan --cr on
 ```
 
 **판정 소비** — 결과는 **Workflow 반환값**(`verdict` / `issues[]` / `degraded`)에서 읽는다.
@@ -279,7 +279,7 @@ PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
 
 ```
 1. analysis md 저장 (01-research/videos/analyses/{slug}-analysis.md)
-2. /cr-triple "{apply-plan 경로}" --stage plan --cr on   (2레그 adversarial — Step 4.7)
+2. /forge-multi "{apply-plan 경로}" --stage plan --cr on   (2레그 adversarial — Step 4.7)
 3. /eval-rubric --target {analysis 경로} (다축 정량 채점)
 4. 두 결과를 eval_cases.jsonl 별도 라인으로 append (skill 필드로 구분)
    - skill="yt-codex" + skill="yt-rubric"
@@ -306,7 +306,7 @@ PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
 
 | 검증 | 영역 | 강점 | 약점 |
 |------|------|------|------|
-| cr-triple (2레그) | adversarial extension | 벤더 교차로 동일 모델 맹점 보완 (Claude Opus 5 · Codex GPT-5.6 Sol) | 정량 점수 X |
+| cr-triple (2레그) | adversarial extension | 벤더 교차로 동일 모델 맹점 보완 (Claude Opus 5.5 · Codex GPT-6 Sol) | 정량 점수 X |
 | eval-rubric | 다축 정량 | clarity/consistency/completeness/safety 4축 점수 | 모델 동일 (자체 편향 가능) |
 
 **상호 보완**: cr-triple 이 못 잡는 정량 측면 = eval-rubric 보강. eval-rubric 이 못 잡는 적대적 견제 = cr-triple 보강.
@@ -364,7 +364,7 @@ echo "lint rc=$?"
 | 1 | 핵심 포인트 5개 이상 | 항목 수를 센다(확정) | — |
 | 2 | 요약이 원본을 왜곡 없이 반영 | — | **항상 residual**(트랜스크립트 대조) |
 | 3 | ACHCE 축 태그 1개 이상 | 태그 표기를 찾으면 PASS | 못 찾았을 때만(UNDECIDED) |
-| 4 | Notion 업로드 실행 기록 | 완료·미업로드 기록을 찾으면 PASS | 못 찾았을 때만(UNDECIDED) |
+| 4 | 인덱스 등록(`append_index_record.py`) 실행 기록 | 등록 완료·실패 기록을 찾으면 PASS | 못 찾았을 때만(UNDECIDED) |
 
 ⚠️ ③④를 **못 찾았다고 FAIL 로 찍지 않는다** — 이 리포트 템플릿(§보고서 형식)에 그 자리가 없어
 표기 관행이 고정돼 있지 않다. 없는 관행을 근거로 떨어뜨리면 매번 거짓 FAIL 이 난다.
@@ -388,7 +388,7 @@ Agent(
 1. 핵심 인사이트(핵심 포인트)가 5개 이상 도출됐는지 확인한다. 5개 미만이면 FAIL.
 2. 요약(TL;DR 및 핵심 포인트)이 원본 영상 내용을 왜곡 없이 정확하게 반영하는지 확인한다. 사실 오류·과장·생략이 있으면 FAIL.
 3. 결과물에 ACHCE 축 태그(Agentic/Context/Harness/Cost/Human-AI) 중 하나 이상이 부여됐는지 확인한다. 태그 없으면 FAIL.
-4. Notion 업로드 완료 여부(Step 5 실행 기록)가 결과물에 명시됐는지 확인한다. 미실행이면 FAIL.
+4. 인덱스 등록(`append_index_record.py`) 실행 여부(Step 5 실행 기록)가 결과물에 명시됐는지 확인한다. 미실행이면 FAIL.
 
 판정: PASS(기준 충족) / FAIL(재작업 필요)
 피드백 형식: [파일명+섹션] — [이유] → [방법]

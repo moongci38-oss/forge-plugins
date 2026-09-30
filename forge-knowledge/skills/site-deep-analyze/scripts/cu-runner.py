@@ -129,17 +129,6 @@ def redact_actions(actions: list) -> list:
 # Main runner
 # ---------------------------------------------------------------------------
 
-def _log_cache_stats(source: str, model: str, cache_read: int, cache_creation: int, raw_input: int, phase: str = "cu-runner") -> None:
-    """AD-105: cache hit 통계를 ~/.claude/cache-stats.jsonl에 기록 (H2 wiring: phase 파라미터 추가)."""
-    import subprocess, shutil
-    logger = shutil.which("cache-stats-logger.sh") or os.path.expanduser("~/.claude/scripts/cache-stats-logger.sh")
-    if os.path.isfile(logger):
-        subprocess.run(
-            ["/bin/bash", logger, source, model, str(cache_read), str(cache_creation), str(raw_input), phase],
-            capture_output=True,
-        )
-
-
 def run_cu(scenario: str, output_dir: Path, max_cost: float, max_actions: int,
            credentials: str | None, dry_run: bool) -> None:
     """Computer Use 시나리오 실행."""
@@ -248,18 +237,13 @@ def run_cu(scenario: str, output_dir: Path, max_cost: float, max_actions: int,
                 sys.exit(3)
             actions.append(action_data)
 
-        # 실제 비용 계산 (usage 정보) + cache stats 로깅
+        # 실제 비용 계산 (usage 정보)
         if hasattr(response, "usage"):
             u = response.usage
             actual_cost = (
                 getattr(u, "input_tokens", 0) / 1_000_000 * PRICE_INPUT_PER_MTOK +
                 getattr(u, "output_tokens", 0) / 1_000_000 * PRICE_OUTPUT_PER_MTOK
             )
-            cache_read = getattr(u, "cache_read_input_tokens", 0) or 0
-            cache_creation = getattr(u, "cache_creation_input_tokens", 0) or 0
-            raw_input = getattr(u, "input_tokens", 0) or 0
-            _log_cache_stats("cu-runner", "claude-3-5-sonnet-20241022",
-                             cache_read, cache_creation, raw_input)
 
         # 결과 저장 (C-3: redact 적용)
         (output_dir / "actions.json").write_text(

@@ -1,5 +1,5 @@
 // root-cause: site-deep-analyze Phase 2(정적) + Phase 3(Vision) = 독립 → parallel() 병렬화. 계획서 P2-6.
-// root-cause: Vision 벤더 전환(2026-09-07) — Gemini 전면 철수로 Vision 레그를 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-5.6 Sol)로 교체.
+// root-cause: Vision 벤더 전환(2026-09-07) — Gemini 전면 철수로 Vision 레그를 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-6 Sol)로 교체.
 //   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
 //   ⚠️ Astra 는 스크린샷을 **절대경로로 직접 읽는다** — 인라인 불필요.
 // Vision 레그: codex-critic approve-worker 토큰 외부 선발행 전제.
@@ -106,7 +106,7 @@ const SEMANTIC_SCHEMA = {
   required: ['summary'],
 }
 
-// root-cause: T2 — static analysis infers apiEndpoints/components without HAR/DOM verification, emitting inferences as facts. VERIFY_SCHEMA adds adversarial phase 2.5 to surface evidence gaps before output. (deep-research c+d, research-verification-protocol.md #4)
+// root-cause: T2 — static analysis infers apiEndpoints/components without HAR/DOM verification, emitting inferences as facts. VERIFY_SCHEMA adds adversarial phase 2.5 to surface evidence gaps before output. (deep-research c+d, 반증탐색)
 const VERIFY_SCHEMA = {
   type: 'object',
   properties: {
@@ -236,7 +236,7 @@ const gateResult = await agent(
   `WebFetch "${url}/robots.txt" → Disallow: / 시 robotsBlocked=true. ` +
   `ToS 확인 권고 (FORGE_SELF_SITES 매핑 시 skip). ` +
   `slug = hostname kebab-case ≤30자. allowed + slug 반환.`,
-  { label: 'gate:ethics', phase: 'Gate', schema: GATE_SCHEMA }
+  { model: 'opus', label: 'gate:ethics', phase: 'Gate', schema: GATE_SCHEMA }
 )
 // root-cause: Codex HIGH — robotsBlocked LLM 판단에만 의존. LLM이 allowed=true 오판 가능. 코드레벨 명시적 차단 필수.
 if (gateResult?.robotsBlocked) {
@@ -257,12 +257,12 @@ const crawlResult = await agent(
   `각 페이지: 스크린샷 3 viewport(${viewport}) + DOM HTML + HAR. ` +
   `playwright-cli 스킬 참조. ` +
   `pagesFound + screenshotPaths[] + domPaths[] + harPath 반환.`,
-  { label: 'crawl:playwright', phase: 'Crawl', schema: CRAWL_SCHEMA }
+  { model: 'sonnet', label: 'crawl:playwright', phase: 'Crawl', schema: CRAWL_SCHEMA }
 )
 log(`[Crawl] pages=${crawlResult?.pagesFound} screenshots=${crawlResult?.screenshotPaths?.length}개`)
 
 // ── Phase 2+3: Analyze (multi-modal fan-out 5각도 병렬) ───────────────────────
-// root-cause: (a) fan-out 심화 — 기존 2각(static+vision) → 5각 독립 parallel(). research-verification-protocol.md §multi-modal sweep.
+// root-cause: (a) fan-out 심화 — 기존 2각(static+vision) → 5각 독립 parallel() — multi-modal sweep.
 // 각도: by-component(DOM) / by-API(HAR) / by-CSS-token / by-page-type / by-interaction + Codex(sol) Vision
 phase('Analyze')
 const analyzeAgents = [
@@ -273,33 +273,33 @@ const analyzeAgents = [
     `CSS→style-forge Mode A 호환(colorPalette/typography/spacing/border-radius). ` +
     `HAR→API 엔드포인트(URL pattern + HTTP method + status + 인증방식). ` +
     `components[] + colorPalette[] + apiEndpoints[] 반환.`,
-    { label: 'analyze:static', phase: 'Analyze', schema: STATIC_SCHEMA }
+    { model: 'opus', label: 'analyze:static', phase: 'Analyze', schema: STATIC_SCHEMA }
   ),
   () => agent(
     `site-deep-analyze fan-out: by-page-type 각도. DOM paths: ${JSON.stringify(crawlResult?.domPaths?.slice(0, 5))}. ` +
     `각 페이지 URL·DOM 구조를 분석하여 페이지 유형 분류: auth(로그인/회원가입)/list(목록/검색)/detail(상세)/dashboard(대시보드)/landing(랜딩)/form(폼). ` +
     `라우트 패턴과 페이지 유형 매핑. pageTypes[] + routePatterns[] 반환.`,
-    { label: 'analyze:by-page-type', phase: 'Analyze', schema: PAGE_TYPE_SCHEMA }
+    { model: 'opus', label: 'analyze:by-page-type', phase: 'Analyze', schema: PAGE_TYPE_SCHEMA }
   ),
   () => agent(
     `site-deep-analyze fan-out: by-interaction 각도. DOM paths: ${JSON.stringify(crawlResult?.domPaths?.slice(0, 5))}. ` +
     `DOM 이벤트 핸들러 패턴(click/hover/focus/submit/scroll/drag) 추출. ` +
     `폼 패턴(validation/multi-step/auto-save). 내비게이션 패턴(SPA/MPA/tabs/modal). ` +
     `eventPatterns[] + formPatterns[] + navigationPatterns[] 반환.`,
-    { label: 'analyze:by-interaction', phase: 'Analyze', schema: INTERACTION_SCHEMA }
+    { model: 'opus', label: 'analyze:by-interaction', phase: 'Analyze', schema: INTERACTION_SCHEMA }
   ),
   () => agent(
     `site-deep-analyze fan-out: by-css-token 각도. DOM paths: ${JSON.stringify(crawlResult?.domPaths?.slice(0, 5))}. ` +
     `CSS 변수(:root var(--*)) 추출. 컬러 시스템(primary/secondary/neutral/semantic 토큰). ` +
     `스페이싱 스케일(4px/8px base 확인). cssVariables[] + colorSystem{} + spacingScale[] 반환.`,
-    { label: 'analyze:by-css-token', phase: 'Analyze', schema: CSS_TOKEN_SCHEMA }
+    { model: 'opus', label: 'analyze:by-css-token', phase: 'Analyze', schema: CSS_TOKEN_SCHEMA }
   ),
 ]
 // root-cause: Workflow 샌드박스는 Bash 불가 → model-registry-resolve.sh 를 직접 못 부른다.
 //   codex:high 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high).
 // 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 codex:max(gpt-6-astra) 기본값 폐기 → sol · effort high(분석 레인, 게이트 아님).
 //   ⚠️ 무력화되는 입력: 호출자가 args.codexModel 로 최고급 id 를 넘기면 그대로 쓴다(사람 override).
-const codexVisionModel = _a?.codexModel || 'gpt-5.6-sol'
+const codexVisionModel = _a?.codexModel || 'gpt-6-sol'
 if (!skipVision) {
   analyzeAgents.push(() => agent(
     `site-deep-analyze Phase 3 시각 분석 (Codex Vision). 외부 토큰 선발행 전제.\n` +
@@ -323,7 +323,7 @@ const visionResult = skipVision ? null : analyzeResults[4]
 log(`[Analyze] components=${staticResult?.components?.length} apis=${staticResult?.apiEndpoints?.length} pageTypes=${pageTypeResult?.pageTypes?.length} interactions=${interactionResult?.eventPatterns?.length} cssVars=${cssTokenResult?.cssVariables?.length} vision=${visionResult ? 'OK' : 'skip'}`)
 
 // ── Phase 2.x: Coverage Loop (completeness critic, cap 2라운드) ──────────────
-// root-cause: (e) coverage-loop — Analyze 후 미탐색 항목 식별 → 타겟 재분석(cap 2). research-verification-protocol.md §coverage-loop.
+// root-cause: (e) coverage-loop — Analyze 후 미탐색 항목 식별 → 타겟 재분석(cap 2).
 let _cvComponents = [...(staticResult?.components || [])]
 let _cvApis = [...(staticResult?.apiEndpoints || [])]
 for (let _cr = 0; _cr < 2; _cr++) {
@@ -337,7 +337,7 @@ for (let _cr = 0; _cr < 2; _cr++) {
     `미탐색 항목 식별 — DOM·HAR에 존재하지만 아직 미분류:\n` +
     `1. 미분류 컴포넌트 유형\n2. 미크롤 페이지 카테고리\n3. 미매핑 API 패턴\n` +
     `gap 있으면 hasGaps=true + gaps[] 반환. 없으면 hasGaps=false.`,
-    { label: `coverage:critic:r${_cr + 1}`, phase: 'Analyze', schema: COVERAGE_SCHEMA }
+    { model: 'opus', label: `coverage:critic:r${_cr + 1}`, phase: 'Analyze', schema: COVERAGE_SCHEMA }
   )
   if (!_critic?.hasGaps || !_critic.gaps?.length) {
     log(`[Coverage] round ${_cr + 1}: gap 없음 — coverage 완료`)
@@ -349,7 +349,7 @@ for (let _cr = 0; _cr < 2; _cr++) {
     `site-deep-analyze 커버리지 보완 (round ${_cr + 1}/2). ` +
     `DOM paths: ${JSON.stringify(crawlResult?.domPaths?.slice(0, 5))}. HAR: ${crawlResult?.harPath}. ` +
     `보완 대상 gap:\n${_gapDesc}\n각 gap에 대해 추가 분석 후 components[], apiEndpoints[] 보완.`,
-    { label: `coverage:supplement:r${_cr + 1}`, phase: 'Analyze', schema: STATIC_SCHEMA }
+    { model: 'opus', label: `coverage:supplement:r${_cr + 1}`, phase: 'Analyze', schema: STATIC_SCHEMA }
   )
   _cvComponents = [...new Set([..._cvComponents, ...(_supplement?.components || [])])]
   _cvApis = [...new Set([..._cvApis, ...(_supplement?.apiEndpoints || [])])]
@@ -362,8 +362,26 @@ const finalStaticResult = { ...staticResult, components: _cvComponents, apiEndpo
 // ── Phase 2.5: 추론검증 (adversarial inference verification) ─────────────────
 // root-cause: staticResult infers apiEndpoints via HAR pattern-matching and components via DOM frequency,
 // then emits them as facts. This phase adversarially checks each inference against actual HAR requests
-// and real DOM selectors before they reach the output. Ref: research-verification-protocol.md #4 반증탐색.
+// and real DOM selectors before they reach the output. (반증탐색)
 phase('Verify')
+// root-cause: G1-53·G1-54 — HAR/DOM 존재 대조는 기계 일이다. Agent 가 눈으로 훑으면 같은 입력에서도
+// verified/unverified 가 흔들렸다. 존재 판정은 har-endpoint-verify.py(rc 0=판정완료·2=판정불가)가 하고,
+// Agent 는 그 JSON 을 옮기기만 한다. 샌드박스라 여기서 실행 못 하므로 Agent 가 Bash 로 실행한다.
+// 보안(PR #673 r1 HIGH): harPath·domPaths 는 외부 사이트를 크롤한 에이전트 출력(untrusted)이다. 셸 큰따옴표
+// 안에 넣으면 $()·백틱·$VAR 가 확장돼 이 머신에서 명령이 실행된다. 그래서 harPath 는 작은따옴표 인용(_hevSq),
+// DOM 경로는 JSON 배열로 quoted heredoc 임시 파일에 써서 --dom-list 로 넘긴다(셸 인자로 풀지 않는다).
+// JSON.stringify 결과는 한 줄이라 heredoc 종결자(SDA_EOF) 줄을 만들 수 없다.
+// DOM 은 자르지 않는다(r1 MEDIUM — slice(0, 5) 로 자르면 6번째 이후에만 있는 컴포넌트가 "미검증"으로 확정됐다).
+// 무력화되는 입력: 이후 수정에서 _hevSq·heredoc 을 거치지 않고 새 untrusted 값을 이 문자열에 끼워 넣는 경우.
+const _hevSq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`
+const _hevDomList = (crawlResult?.domPaths || []).map((p) => String(p))
+const _hevCmd =
+  `SDA_C=$(mktemp) && SDA_D=$(mktemp) && cat > "$SDA_C" <<'SDA_EOF'\n${JSON.stringify(finalStaticResult?.components || [])}\nSDA_EOF\n` +
+  `cat > "$SDA_D" <<'SDA_EOF'\n${JSON.stringify(_hevDomList)}\nSDA_EOF\n` +
+  `python3 "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/har-endpoint-verify.py" --har ${_hevSq(crawlResult?.harPath || '')} --endpoints -` +
+  (_hevDomList.length ? ` --dom-list "$SDA_D" --components "$SDA_C"` : '') +
+  ` <<'SDA_EOF'\n${JSON.stringify(finalStaticResult?.apiEndpoints || [])}\nSDA_EOF\n` +
+  `SDA_RC=$?; rm -f "$SDA_C" "$SDA_D"; echo "SDA_RC=$SDA_RC"`
 const verifyResult = await agent(
   `site-deep-analyze Phase 2.5 추론검증 (adversarial inference verification). ` +
   `NO new network or crawl calls — use only already-collected artefacts. ` +
@@ -373,6 +391,14 @@ const verifyResult = await agent(
   `정적분석 추론 결과 (coverage-loop 보완 후) — API 엔드포인트: ${JSON.stringify(finalStaticResult?.apiEndpoints)}. ` +
   `정적분석 추론 결과 (coverage-loop 보완 후) — 컴포넌트: ${JSON.stringify(finalStaticResult?.components)}. ` +
   `\n검증 절차:\n` +
+  `0. **먼저 Bash 로 기계 대조를 실행한다**(아래 명령을 **글자 그대로** — 경로를 다시 쓰거나 따옴표를 바꾸지 않는다):\n${_hevCmd}\n` +
+  `   마지막 줄 SDA_RC=<n> 이 스크립트 종료코드다(그 위가 출력 JSON).\n` +
+  `   SDA_RC=0 → 출력 JSON 의 verifiedApis·unverifiedApis·verifiedComponents·unverifiedComponents·summary 를 **그대로** 옮긴다. ` +
+  `재판정 금지(존재 여부는 이미 확정됐다 — 눈으로 다시 대조하지 않는다). ` +
+  `stats.components_checked 가 false 면 컴포넌트만 아래 2번 종전 방식으로 한다. ` +
+  `residual[] 항목(패턴 파싱 불가)만 아래 1·2번 방식으로 직접 판단한다.\n` +
+  `   SDA_RC 가 0 이 아니면(2 = 판정 불가 — HAR/DOM 부재·파싱 실패, 1·그 밖 = 예상 못 한 실패 — 전부 같게 다룬다) → ` +
+  `출력에 error 가 있으면 summary 에 적고 아래 1~3번 종전 방식으로 한다.\n` +
   `1. 각 apiEndpoint에 대해: HAR 파일에서 동일 URL 패턴의 실제 요청이 존재하는지 확인. ` +
   `   존재하면 → verifiedApis[]에 {endpoint, evidence_har_url, method} 추가. ` +
   `   없으면 → unverifiedApis[]에 {endpoint, confidence:"low", unverified:true} 추가.\n` +
@@ -380,8 +406,8 @@ const verifyResult = await agent(
   `   근거 selector 존재 → verifiedComponents[]에 {name, selector_evidence} 추가. ` +
   `   근거 없음 → unverifiedComponents[]에 {name, unverified:true} 추가.\n` +
   `3. summary: 검증 비율 요약 (예: "APIs 8/12 verified, Components 5/7 verified").\n` +
-  `참조 표준: ~/.claude/rules-on-demand/research-verification-protocol.md #4 반증탐색.`,
-  { label: 'verify:adversarial', phase: 'Verify', schema: VERIFY_SCHEMA }
+  `참조 표준: 핵심 주장마다 반대 증거를 1회 이상 찾는다(반증탐색).`,
+  { model: 'opus', label: 'verify:adversarial', phase: 'Verify', schema: VERIFY_SCHEMA }
 )
 log(`[Verify] verifiedApis=${verifyResult?.verifiedApis?.length} unverifiedApis=${verifyResult?.unverifiedApis?.length} verifiedComponents=${verifyResult?.verifiedComponents?.length} unverifiedComponents=${verifyResult?.unverifiedComponents?.length}`)
 
@@ -392,7 +418,7 @@ const semanticResult = await agent(
   `Tavily tavily_extract 호출(JS 렌더링 처리). ` +
   `본문 텍스트 + OG tags + JSON-LD + 다국어 감지. ` +
   `mainContent + ogTags + jsonLd + languages[] 반환.`,
-  { label: 'semantic:tavily', phase: 'Semantic', schema: SEMANTIC_SCHEMA }
+  { model: 'sonnet', label: 'semantic:tavily', phase: 'Semantic', schema: SEMANTIC_SCHEMA }
 )
 log(`[Semantic] languages=${semanticResult?.languages?.join(',')}`)
 
@@ -423,7 +449,7 @@ const outputResult = await agent(
   `생성 파일: analysis-report.md(첫줄 영감 재구현 고지 필수) + style-guide.md + components.md + api-schema.json + reconstruction-spec.md. ` +
   `Phase 6: 다음 액션 안내(forge-plan --from-site-analysis / wiki-sync). ` +
   `outputDir + analysisReportPath + styleGuidePath + componentsPath + reconstructionSpecPath 반환.`,
-  { label: 'output:generate', phase: 'Output', schema: OUTPUT_SCHEMA }
+  { model: 'opus', label: 'output:generate', phase: 'Output', schema: OUTPUT_SCHEMA }
 )
 log(`[Output] ${outputResult?.outputDir} report=${outputResult?.analysisReportPath}`)
 

@@ -71,5 +71,6 @@ branch: {브랜치} ({repo 경로})
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-checkpoint-resume.sh" "$(pwd)"` → `CP=` 가 복원 대상(빈값 = "체크포인트 없음 — 처음부터"). `CP_OWNERSHIP`: `own` 내 것 · `switched` 타 세션 것 건너뛰고 미소비 내 것으로 교체 · `nosid`/`nofield` fail-open(WARN 줄 그대로 보고) · `none` 없음. 항상 exit 0.
 2. 브랜치 불일치 → "⚠️ 브랜치 불일치" 경고 후 계속. uncommitted 변경은 경고만(덮어쓰기 금지).
 3. "다음 스텝" 1번부터 그대로 출력 후 실행. `## 날짜 걸린 할 일` 이 "없음"이 아니면 항목마다 장부 등록 → 나온 `ID=C-NNNN` 을 보고(`PROJECT_ID=UNKNOWN` 이면 등록 말고 pmo 로):
-   `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" add "<1줄>" --source "<출처>" --until <날짜> --project "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/scope-root.sh" project-id "$PWD" | sed -n 's/^PROJECT_ID=//p')"`
+   `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" add "<1줄>" --source "<출처>" --until <날짜> --project "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/scope-root.sh" project-id "$PWD" | sed -n 's/^PROJECT_ID=//p')" --issue`
+   `--issue` = 시작일 이슈도 만든다(#1592) — 제목 `[시작 MM/DD]` · 본문 첫 줄 `시작일:` · `status:blocked`. 그날이 오면 board-sync 가 풀어 배정 흐름에 넣는다. 붙이지 않으면 장부에만 남는다(기본은 안 만든다). 만든 이슈 번호는 장부 `이슈` 칸과 출력에 같이 나온다 — 보고에 적는다.
 4. 복원 완료 시 `touch "${CP}.consumed"`.

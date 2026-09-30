@@ -48,7 +48,7 @@ phase('Plan')
 const plan = await agent(
   `구현 계획 수립. 요구사항: ${requirement}. Sprint Contract: ${contract}. ` +
   `steps + acceptance criteria + risks 반환.`,
-  { label: 'plan', phase: 'Plan', schema: PLAN_SCHEMA }
+  { model: 'opus', label: 'plan', phase: 'Plan', schema: PLAN_SCHEMA }
 )
 log(`Plan: ${plan?.steps?.length || 0} steps, ${plan?.acceptance?.length || 0} acceptance`)
 
@@ -57,7 +57,7 @@ phase('Generate')
 const code = await agent(
   `구현 실행. plan: ${JSON.stringify(plan)}. ` +
   `summary + filesChanged + diff 반환.`,
-  { label: 'generate', phase: 'Generate', schema: CODE_SCHEMA }
+  { model: 'opus', label: 'generate', phase: 'Generate', schema: CODE_SCHEMA }
 )
 log(`Generate: ${code?.filesChanged?.length || 0} files`)
 
@@ -68,7 +68,7 @@ const evaluation = await agent(
   `summary: ${code?.summary}. filesChanged: ${JSON.stringify(code?.filesChanged)}. ` +
   `diff: ${(code?.diff || '').slice(0, 4000)}. ` +
   `acceptance 기준 충족 여부를 코드만으로 역추론. verdict PASS/WARN/FAIL + score(0-100 정수) + issues.`,
-  { label: 'evaluate', phase: 'Evaluate', schema: EVAL_SCHEMA }
+  { model: 'opus', label: 'evaluate', phase: 'Evaluate', schema: EVAL_SCHEMA }
 )
 log(`Evaluate: ${evaluation?.verdict} score=${evaluation?.score}/100`)
 

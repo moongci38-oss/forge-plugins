@@ -194,7 +194,7 @@ if (useMatrix) {
     `절대 조용히 빈 스코프로 진행하지 말고 guideStop=true + message="매칭 도메인/앱 없음. 사용 가능: [...]" + ` +
     `available.apps/available.domains에 실제 열거된 전체 목록을 담아 반환하라 — 이것이 QA GUIDE-STOP 지점이다. ` +
     `app 입력이 비어있으면(미지정) apps=[](레이어 없음 판정, CWD 단일앱으로 처리)로 반환.`,
-    { label: 'phase-a0:resolve', phase: 'Setup', schema: RESOLVE_SCHEMA }
+    { model: 'sonnet', label: 'phase-a0:resolve', phase: 'Setup', schema: RESOLVE_SCHEMA }
   )
   if (!resolveResult) { log('[STOP] Phase A0 실패 — 리소스 해석 불가'); return { error: 'phase-a0-failed' } }
   if (resolveResult.guideStop) {
@@ -240,7 +240,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     //   서버를 기동·판정한다 — 앱 특정값 하드코딩 없음, 전부 프로젝트 선언.
     `서버 기동(선택): qa-config에 serverSetup이 있으면 licenseEnv에 나열된 env 키를 .env/secret에서 주입 후 startCommand로 기동, healthUrl 있으면 그 URL이 응답할 때까지 readyTimeoutSec(기본 60초) 대기 후 진행. serverSetup 미선언·기동 실패 시 → 기존 스택 자동감지 fallback(WARN, 비차단). ` +
     `브랜치명 + log 경로 반환.`,
-    { label: `${tagPrefix}phase-a:branch`, phase: 'Setup', schema: BRANCH_SCHEMA }
+    { model: 'haiku', label: `${tagPrefix}phase-a:branch`, phase: 'Setup', schema: BRANCH_SCHEMA }
   )
   if (!branchResult) { log('[STOP] Phase A 실패 — 브랜치 생성 불가'); return { error: 'phase-a-failed' } }
   log(`[A] 브랜치: ${branchResult.branch}`)
@@ -259,7 +259,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     `scope="${scope}" 필터 → scenarios-filtered.md. 면제 시 사유 명시. ` +
     (exhaustive ? `exhaustive 모드 — Phase C T2에서 수집될 clickable 요소 전수 크롤 결과가 이 시나리오 세트를 보강한다는 점을 scenarios.md에 1줄 명시. ` : '') +
     `scenariosPath + filteredCount 반환.`,
-    { label: `${tagPrefix}phase-b:scenarios`, phase: 'Setup', schema: SCENARIOS_SCHEMA }
+    { model: 'opus', label: `${tagPrefix}phase-b:scenarios`, phase: 'Setup', schema: SCENARIOS_SCHEMA }
   )
   if (mode !== 'hotfix' && !scenariosResult) {
     log('[STOP] Phase B 실패 — 시나리오 미작성')
@@ -306,7 +306,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
           `Phase C T1 — API 전수 테스트. scenarios=${scenariosResult?.scenariosPath}.${acctNote} ` +
           `verify.sh 실행. 백엔드 7축(HTTP/스키마/로그/데이터무결성/FR/Latency/트랜잭션).${accessInstr} ` +
           `FAIL = flaky 2회 재시도. 버그 발견 시 artifacts/ 3종 로그 수집.${acctTagInstr} testType="T1".`,
-          { label: `${tagPrefix}phase-c-r${round}:T1-api${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
+          { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T1-api${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
         ),
         () => agent(
           `Phase C T2 — UI 시각 검증. Playwright 3 viewport(mobile/tablet/desktop).${acctNote} ` +
@@ -328,7 +328,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
               `[C4 mock-unwired 탐지] 데이터를 표시하는 화면(테이블/목록/카드에 행이 렌더됨)인데 상호작용(클릭/필터제출/탭전환/상세오픈) 후 crawl-trace의 network_delta_since_prev=0(특히 /api·/api/proxy 백엔드 호출 0건)이면 → mock 미배선 의심으로 WARN 버그 파일링(false-green 방지). 근거: 실데이터 화면은 상호작용 시 백엔드를 최소 1회 친다. placeholder('준비중'/빈화면)와 구분 — mock은 그럴듯한 데이터 행을 렌더하지만 상호작용이 서버에 안 닿는다. 신호 부재·판정 모호 시 기존 PASS 유지(fail-open, 비차단). `
             : '') +
           `FAIL = 4종 로그 수집 + RED before 스크린샷×3.${acctTagInstr} testType="T2".`,
-          { label: `${tagPrefix}phase-c-r${round}:T2-ui${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
+          { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T2-ui${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
         ),
       ]
     })
@@ -338,7 +338,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
       () => agent(
         `Phase C T3 — DB 데이터 검증. seed 기준 CRUD 결과 + 무결성(FK/nullable/타입). ` +
         `직접 SQL 쿼리로 실제 저장값 확인. testType="T3".`,
-        { label: `${tagPrefix}phase-c-r${round}:T3-db`, phase: 'Discover', schema: TEST_SCHEMA }
+        { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T3-db`, phase: 'Discover', schema: TEST_SCHEMA }
       ),
       () => agent(
         // root-cause: B1 (Wave-4) — forge-check-security 구조화 신호 흡수. verdict/criticalCount/halt 명시 매핑.
@@ -348,12 +348,12 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
         `결과 매핑: verdict=FAIL or criticalCount≥1 → status="FAIL" + haltSignal=true + criticalCount=<N>. ` +
         `HIGH → status="WARN". MEDIUM/LOW → report-only (status 변경 없음). testType="T6". ` +
         `bugs[]에 CRITICAL/HIGH 발견 항목 포함(title+type+complexity="HIGH").`,
-        { label: `${tagPrefix}phase-c-r${round}:T6-security`, phase: 'Discover', schema: TEST_SCHEMA }
+        { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T6-security`, phase: 'Discover', schema: TEST_SCHEMA }
       ),
       () => agent(
         `Phase C T7 — 성능 기준선. scenarios.md GET 엔드포인트 최대 10개 5회 평균. ` +
         `>2000ms → WARN. >5000ms → FAIL. baseline.json 대비 +25% → WARN. testType="T7".`,
-        { label: `${tagPrefix}phase-c-r${round}:T7-perf`, phase: 'Discover', schema: TEST_SCHEMA }
+        { model: 'sonnet', label: `${tagPrefix}phase-c-r${round}:T7-perf`, phase: 'Discover', schema: TEST_SCHEMA }
       ),
     ])
 
@@ -389,7 +389,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     `버그별 필수: 유형/cross_repo/5W1H(Why_hypothesis)/영향파일/복잡도(SIMPLE|MODERATE|HIGH|AMBIGUOUS)/healer분담. ` +
     `버그에 account 필드가 있으면 계획서에도 "발견 계정" 열로 보존(계정별 리포트 분리용, Phase H에서 사용). ` +
     `cross_repo 자동 감지(영향 리포≥2→true). evaluator-contract.json 생성. planPath + bugs[] 반환.`,
-    { label: `${tagPrefix}phase-d:plan`, phase: 'Plan', schema: PLAN_SCHEMA }
+    { model: 'opus', label: `${tagPrefix}phase-d:plan`, phase: 'Plan', schema: PLAN_SCHEMA }
   )
   if (!planResult?.bugs?.length) {
     log('[QA] 버그 없음 — PASS')
@@ -459,7 +459,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
         `Phase E/P-3 레인 검증 — Bug #${bug.id}: ${bug.title}. ` +
         // 구 표기 "cr-bug 조기 검증"(Codex 래퍼) 은 2026-09-16 폐기(검수 다이어트 §A2) — 레인 검증은 RED→GREEN 증거 확인만 한다.
         `해당 fix(worktree)의 RED→GREEN 증거(healer.log a0/a4 · TEST_PROOF) 조기 확인. Codex·/cr-* 래퍼 호출 금지. fixed=${fixRes?.fixed}. 한 줄 verdict(PASS/WARN/FAIL) + bugId=${bug.id}.`,
-        { label: `${tagPrefix}phase-e:lane-verify-${bug.id}`, phase: 'Fix', schema: HEALER_SCHEMA }
+        { model: 'opus', label: `${tagPrefix}phase-e:lane-verify-${bug.id}`, phase: 'Fix', schema: HEALER_SCHEMA }
       ).then(v => ({ ...(fixRes || {}), laneVerify: v })).catch((e) => {
         // root-cause: cr-code HIGH — 레인 검증 실패를 침묵 삼키지 말 것. 로그로 표면화(최종 게이트는 Phase F 불변).
         log(`[E/P-3 WARN] lane-verify 실패 bug#${bug.id} (${e?.message || e}) — fix 보존, 최종 code-review Phase F가 판정`)
@@ -545,7 +545,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
       `wiki-sync nohup background. prUrl + merged 반환.`
   const shipResult = await agent(
     shipPrompt,
-    { label: `${tagPrefix}phase-g-h:ship`, phase: 'Ship', schema: SHIP_SCHEMA }
+    { model: 'opus', label: `${tagPrefix}phase-g-h:ship`, phase: 'Ship', schema: SHIP_SCHEMA }
   )
   log(`[G] PR: ${shipResult?.prUrl} merged=${shipResult?.merged}`)
   log('[H] 지식 축적 완료')

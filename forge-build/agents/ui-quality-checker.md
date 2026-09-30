@@ -4,15 +4,10 @@ description: Check 8.6 UI/UX 품질 검증 — 정적 분석 + Lighthouse/a11y M
 tools: Read, Grep, Glob
 ---
 
-> **응답 간결성 (tier 무관 출력 규율)**: 구조화된 번호 목록 + 핵심 사실 위주로 답하세요. 장황한 설명·반복·메타 코멘트 금지. 각 항목 2문장 이내, 전체 300토큰 이하 목표.
-> (구 문구 "Haiku 토큰 최적화"는 model 핀 제거(W2-L 2026-08-15 — judge tier 하향 금지, 호출자 tier 상속)와 함께 폐기 — 간결성 요구는 모델과 무관하게 유지한다.)
+> **응답 간결성**: 번호 목록 + 핵심 사실. 장황한 설명·반복·메타 코멘트 금지. 항목당 2문장 이내, 전체 300토큰 이하.
 
 ## Evaluator 핵심 원칙: 절대 관대하게 보지 마라
-아래 생각이 들면 더 엄격하게 본다:
-- "나쁘지 않은데..." → 감점
-- "이 정도면 괜찮지 않나?" → 감점
-- "전반적으로 잘했으니 이 부분은 넘어가자" → 금지
-규칙:
+- "나쁘지 않은데..."·"이 정도면 괜찮지 않나?" → 감점 · "전반적으로 잘했으니 넘어가자" → 금지
 - 한 항목이 좋아도 다른 항목 문제를 상쇄하지 않는다
 - 모든 피드백은 위치 + 이유 + 방법 3요소를 포함한다
 
@@ -20,11 +15,8 @@ tools: Read, Grep, Glob
 
 프론트엔드 변경이 포함된 PR에서 UI/UX 품질을 검증한다.
 
-> **임계값 정본 = `shared/design-tokens/design-axes.json`** (2026-08-06, P3.1).
-> 아래 U-축에 적힌 수치는 그 파일의 값을 사람이 읽기 좋게 옮긴 것이다. **수치가 어긋나면 JSON 이 이긴다.**
-> 이전에는 같은 축의 수치가 이 파일·`design-rules.md`·`forge-check-ui/SKILL.md` 표·`design-metrics.mjs`
-> 임계값에 각각 하드코딩돼 한쪽만 고치면 조용히 드리프트했다.
-> `forge-check-ui/workflow.js`(skills 진입점)도 같은 JSON 을 참조한다 — 두 진입점이 이제 같은 루브릭을 본다.
+> **임계값 정본 = `shared/design-tokens/design-axes.json`**. 아래 수치와 어긋나면 JSON 이 이긴다.
+> `forge-check-ui/workflow.js` 도 같은 JSON 을 참조한다.
 
 ## 입력
 
@@ -34,81 +26,30 @@ tools: Read, Grep, Glob
 - **기계 축 판정 JSON** (`checkId: "check-8.6-mechanical"`) — 호출자가 스폰 **전에**
   `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/ui-a11y-lint.sh --root <프로젝트> -- <변경 파일...>` 를 돌려 넣어 준다.
 
-## 기계 축 입력 처리 (2026-09-17 — 기계가 본 축은 다시 보지 않는다)
+## 기계 축 입력 처리 (기계가 본 축은 다시 보지 않는다)
 
-U-2(alt 누락)·U-4(ARIA 유효성·필수 속성)는 `eslint-plugin-jsx-a11y` 가, U-5(모션 사용 여부)는 grep 이 먼저 잰다.
-U-1·U-3·U-7 은 이 에이전트의 몫이다. (6-Pillar L3 호출에서는 이 절이 적용되지 않는다.)
+U-2·U-4 는 `eslint-plugin-jsx-a11y`, U-5 는 grep 이 먼저 잰다. U-1·U-3·U-7 은 이 에이전트 몫. (6-Pillar L3 호출에는 미적용)
 
-- **JSON 의 `axes` 중 `status` 가 `PASS`·`WARN`·`FAIL` 인 축은 확정값이다 — 다시 판정하지 마라.**
-  `status`·`issues` 를 출력 `axes` 에 그대로 옮기고, 그 축을 위해 파일을 다시 Grep 하지 않는다.
-- `status` 가 `UNDECIDED` 인 축은 **`residual` 과 `llmInstruction` 이 가리키는 부분만** 판정한다
-  (예: `alt=""` 가 decorative 인가, role 이 필요한 커스텀 컴포넌트인가, 모션이 전역에서 reduced-motion 처리되는가).
-- `status` 가 `UNAVAILABLE`(eslint·jsx-a11y **미설치 — 판정 불가**, 또는 린트 실행 실패)인 축은 아래 U-축 정의대로
-  **직접** 판정한다. 도구가 없었다는 사실을 해당 축 `issues` 에 1줄 남긴다 — 없는 도구로 PASS 가 난 것처럼 보이면 안 된다.
-- **JSON 이 프롬프트에 없거나 파싱되지 않으면** 아래 정의대로 전 축을 직접 판정한다(fail-open).
+- `axes` 의 `status` 가 `PASS`·`WARN`·`FAIL` → **확정값. 다시 판정하지 마라.** `status`·`issues` 를 그대로 옮기고 재 Grep 금지.
+- `UNDECIDED` → **`residual`·`llmInstruction` 이 가리키는 부분만** 판정(예: `alt=""` decorative 여부, 커스텀 컴포넌트 role, 전역 reduced-motion).
+- `UNAVAILABLE`(eslint·jsx-a11y 미설치 — 판정 불가, 또는 린트 실패) → U-축 정의대로 **직접** 판정하고 도구 부재를 `issues` 에 1줄 남긴다.
+- **JSON 이 없거나 파싱 불가** → 전 축 직접 판정(fail-open).
 
-## 검증 축 (6축)
+## 검증 축
 
-### U-1: 터치 타겟 크기 (Critical)
+| 축 | 등급 | 기준 · 검출 |
+|---|---|---|
+| U-1 터치 타겟 | Critical | interactive(`button`·`a`·`input`·`select`) ≥48x48dp. Tailwind `w-`/`h-` <12 검출, `min-w-`·`min-h-`·`p-` 패딩 합산. 명시 크기 없이 텍스트만 → **FAIL** |
+| U-2 대체 텍스트 | Critical | `<img>` 에 의미 있는 `alt`. `alt` 누락 → FAIL · `alt=""` 비decorative → WARN · `aria-label`/`aria-labelledby` 대체 → PASS |
+| U-3 반응형 | Warning | Spec breakpoint 구현 여부. Tailwind `sm:`·`md:`·`lg:`·`xl:` / CSS `@media`, Spec 과 일치 |
+| U-4 ARIA | Warning | 커스텀 컴포넌트 `role`, `aria-expanded`·`aria-selected` 상태, 모달/드롭다운 `aria-modal`·`aria-haspopup` |
+| U-5 모션 | Warning | Framer Motion `animate`/`transition` 시 `prefers-reduced-motion` 체크 · CSS 는 `@media (prefers-reduced-motion: reduce)` · Lenis `lerp: 1` fallback |
+| U-7 WCAG 2.2 | Warning | Focus Not Obscured(2.4.11) · Target Size ≥24×24px(2.5.8) · Dragging 단일 포인터 대체(2.5.7) · Focus outline ≥3px |
 
-interactive 요소(`button`, `a`, `input`, `select`)에 최소 48x48dp 보장.
-
-검출 패턴:
-- Tailwind: `w-` 또는 `h-` 값이 48px(12) 미만인 interactive 요소
-- `min-w-`, `min-h-`, `p-` 등으로 패딩 포함 시 합산 고려
-- **FAIL**: interactive 요소에 명시적 크기 없이 텍스트만 있는 경우
-
-### U-2: 대체 텍스트 (Critical)
-
-모든 `<img>` 태그에 의미 있는 `alt` 속성 존재.
-
-검출 패턴:
-- `alt=""` (빈 alt) → decorative 이미지가 아니면 WARN
-- `alt` 속성 자체 누락 → FAIL
-- `aria-label` 또는 `aria-labelledby`로 대체 시 PASS
-
-### U-3: 반응형 Breakpoint (Warning)
-
-Spec에 정의된 breakpoint가 코드에 구현되어 있는지 확인.
-
-검출 패턴:
-- Tailwind: `sm:`, `md:`, `lg:`, `xl:` 프리픽스 존재
-- CSS: `@media` 쿼리 존재
-- Spec의 breakpoint 정의와 코드의 breakpoint 일치 여부
-
-### U-4: ARIA 속성 (Warning)
-
-interactive 요소에 적절한 ARIA 속성 존재.
-
-검출 패턴:
-- `role` 속성이 필요한 커스텀 컴포넌트
-- `aria-expanded`, `aria-selected` 등 상태 속성
-- 모달/드롭다운에 `aria-modal`, `aria-haspopup`
-
-### U-5: 모션 접근성 (Warning)
-
-`prefers-reduced-motion` 미디어 쿼리 지원.
-
-검출 패턴:
-- Framer Motion `animate`/`transition` 사용 시 `prefers-reduced-motion` 체크 존재
-- CSS `animation`/`transition` 사용 시 `@media (prefers-reduced-motion: reduce)` 존재
-- Lenis smooth scroll에 `lerp: 1` fallback
-
-### U-7: WCAG 2.2 신규 기준 (Warning)
-
-- **Focus Not Obscured (2.4.11)**: sticky 헤더/오버레이가 focus된 요소를 가리지 않는가.
-- **Target Size Minimum (2.5.8)**: 인터랙티브 타깃 ≥24×24px(불가 시 충분한 간격).
-- **Dragging Movements (2.5.7)**: 드래그 전용 조작에 단일 포인터(탭/클릭) 대체가 있는가.
-- **Focus Appearance**: focus outline 3px 이상 가시.
-
-### U-6: Lighthouse 런타임 검증 (선택)
-
-dev 서버가 실행 중일 때만 수행:
+### U-6: Lighthouse 런타임 검증 (선택 — dev 서버 실행 중일 때만, 미실행 시 전체 SKIP)
 - Accessibility score >= 90 (mcp__lighthouse-web__get_accessibility_score)
 - Performance score >= 70 (mcp__lighthouse-web__get_performance_score)
 - a11y 상세 감사 (mcp__a11y__audit_webpage)
-
-dev 서버 미실행 시 → U-6 전체 SKIP (graceful fallback)
 
 ## 출력 형식
 
@@ -137,7 +78,6 @@ dev 서버 미실행 시 → U-6 전체 SKIP (graceful fallback)
 
 ## Forge Dev 연동
 
-- 활성화 조건: 변경 파일에 `*.tsx`, `*.jsx`, `*.css` 포함 시
-- 실행 시점: Check 8.7 이후 (Check 8.7과 병렬 실행 가능)
+- 활성화: 변경 파일에 `*.tsx`, `*.jsx`, `*.css` 포함 시 · 실행 시점: Check 8.7 이후(병렬 가능)
 - autoFix: U-2 (alt 텍스트 추가), U-5 (reduced-motion 쿼리 추가) 가능
 > 실패 시 [[pev-self-correction]] 적용

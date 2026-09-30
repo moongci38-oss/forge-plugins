@@ -7,7 +7,7 @@ export const meta = {
     { title: 'Collect', detail: '6-Tier 소스 병렬 수집 (haiku x2 + sonnet x1)' },
     { title: 'Evaluate', detail: '독립 Evaluator adversarial verify' },
     { title: 'Synthesize', detail: '취합 + 산출물 3종 생성' },
-    { title: 'Publish', detail: 'Notion 등록 + index.json 갱신' },
+    { title: 'Publish', detail: 'index.json 갱신 + 블로그 발행' },
   ],
 }
 
@@ -30,7 +30,7 @@ const BUSINESS_ITEM_SCHEMA = {
   },
   required: ['items'],
 }
-// root-cause: T1 — (c) promote adversarial to true refutation (research-verification-protocol.md #4)
+// root-cause: T1 — (c) promote adversarial to true refutation
 const EVAL_SCHEMA = {
   type: 'object',
   properties: {
@@ -38,7 +38,7 @@ const EVAL_SCHEMA = {
     scores: { type: 'object', properties: { clarity:{type:'number'}, consistency:{type:'number'}, completeness:{type:'number'}, safety:{type:'number'} } },
     overall: { type: 'number' },
     issues: { type: 'array', items: { type:'string' } },
-    // (c) 반증 탐색 결과 — research-verification-protocol.md #4 반증탐색
+    // (c) 반증 탐색 결과
     claim_verdicts: { type: 'array', items: { type: 'object', properties: {
       claim: { type: 'string' },
       verdict: { type: 'string', enum: ['CONFIRMED','CONTESTED','UNVERIFIED'] },
@@ -80,7 +80,9 @@ const CARRY = `forge-outputs/01-research/weekly/${date0}/carryover-items.md`
 phase('Collect')
 const date = date0
 
-const [techNews, bizNews, bizItems, stockBrief] = await parallel([
+// 주식 브리핑(Wave D, stock-research-analyst)은 뺐다 — 사람이 그 에이전트를 지정 삭제했다(#1374). 원본 삭제는
+//   되돌리지 않는다(사람 원칙 2026-09-28) · 다시 필요하면 새로 설계한다(#1513).
+const [techNews, bizNews, bizItems] = await parallel([
   () => agent(
     `기술 뉴스 수집 (${date}): Anthropic 블로그, GitHub Trending, arXiv AI/ML, HN 상위 10건. forge 관련 우선. ` +
     `지난주 이관항목(${CARRY} 있으면 Read)을 우선 반영하라.`,
@@ -96,33 +98,28 @@ const [techNews, bizNews, bizItems, stockBrief] = await parallel([
     `지난주 이관항목(${CARRY} 있으면 Read)을 우선 반영하라.`,
     { label: 'biz-items', phase: 'Collect', schema: BUSINESS_ITEM_SCHEMA, model: 'sonnet' }
   ),
-  // root-cause: 주식 리서치 배선 — mode: weekly(심층 3~5줄 + 섹터 분석). fail-open(watchlist 없으면 stock-research-analyst가 자체 skip 반환).
-  () => agent(
-    `관심종목 리서치 (${date}, mode: weekly): stock-watchlist.json 기반 종목별 3~5줄 심층 브리핑 + 섹터 시황 한 단락. 워치리스트 없으면 skip 사유만 반환.`,
-    { label: 'stock-brief', phase: 'Collect', model: 'sonnet', agentType: 'stock-research-analyst' }
-  ),
 ])
-log(`Collect: tech=${techNews?.items?.length||0} biz=${bizNews?.items?.length||0} items=${bizItems?.items?.length||0} stock=${stockBrief ? 'ok' : 'skip'}`)
+log(`Collect: tech=${techNews?.items?.length||0} biz=${bizNews?.items?.length||0} items=${bizItems?.items?.length||0}`)
 
 // ── Phase 2: Evaluate (adversarial 2x parallel — 계획서 P0-2) ────────────────
 // root-cause: 단일 evaluator → 편향 공유. 2x parallel로 tech/biz 독립 검증
 phase('Evaluate')
-// root-cause: T1 — (c) 반증 탐색 의무화. 단순 품질채점 종료 금지 (research-verification-protocol.md #4)
+// root-cause: T1 — (c) 반증 탐색 의무화. 단순 품질채점 종료 금지
 const [techEval, bizEval] = await parallel([
   () => agent(
     `tech-news 교차검증 (${date}). 출처 신뢰도·날짜 정확성·중복 제거. ` +
     `tech_items=${techNews?.items?.length||0}건. clarity/consistency/completeness/safety 0-2점. ` +
-    `[반증 탐색 의무 — research-verification-protocol.md #4] 각 top 주장(P0/P1)에 대해 반대·기각 증거를 능동 검색(WebSearch)하라. 단순 일관성·중복 확인으로 종료 금지. ` +
+    `[반증 탐색 의무] 각 top 주장(P0/P1)에 대해 반대·기각 증거를 능동 검색(WebSearch)하라. 단순 일관성·중복 확인으로 종료 금지. ` +
     `claim_verdicts 배열에 주장별 verdict(CONFIRMED|CONTESTED|UNVERIFIED)와 반박 소스 URL(counter_source_url)을 반환하라.`,
-    { label: 'tech-adversarial', phase: 'Evaluate', schema: EVAL_SCHEMA }
+    { model: 'opus', label: 'tech-adversarial', phase: 'Evaluate', schema: EVAL_SCHEMA }
   ),
   () => agent(
     // root-cause: SME 조직 규모 가정 정정 (1인 고정 → SME 가변)
     `biz-items adversarial 검증 (${date}). TAM/JTBD 반론·시장 신호 근거·SME 환경 적합성. ` +
     `biz_items=${bizItems?.items?.length||0}건. clarity/consistency/completeness/safety 0-2점. ` +
-    `[반증 탐색 의무 — research-verification-protocol.md #4] 각 top 주장(P0/P1)에 대해 반대·기각 증거를 능동 검색(WebSearch)하라. 단순 일관성·중복 확인으로 종료 금지. ` +
+    `[반증 탐색 의무] 각 top 주장(P0/P1)에 대해 반대·기각 증거를 능동 검색(WebSearch)하라. 단순 일관성·중복 확인으로 종료 금지. ` +
     `claim_verdicts 배열에 주장별 verdict(CONFIRMED|CONTESTED|UNVERIFIED)와 반박 소스 URL(counter_source_url)을 반환하라.`,
-    { label: 'biz-adversarial', phase: 'Evaluate', schema: EVAL_SCHEMA }
+    { model: 'opus', label: 'biz-adversarial', phase: 'Evaluate', schema: EVAL_SCHEMA }
   ),
 ])
 const overallScore = ((techEval?.overall||0) + (bizEval?.overall||0)) / 2
@@ -137,9 +134,8 @@ const WEEKLY_DIR = `forge-outputs/01-research/weekly/${date}`
 await agent(
   `weekly-research 취합 보고서 작성 (${date}). ` +
   `tech-news.md + biz-news.md + business-items.md 3종 생성. ` +
-  `stock-brief 결과(있으면)를 stock-trends.md로 별도 저장(투자자문 아님 배너 유지, skip이면 파일 생성 생략). ` +
   `저장: ${WEEKLY_DIR}/ 하위. eval: ${evalResult?.verdict}.`,
-  { label: 'synthesize', phase: 'Synthesize' }
+  { model: 'opus', label: 'synthesize', phase: 'Synthesize' }
 )
 log('Synthesize 완료')
 
@@ -157,7 +153,7 @@ log('Synthesize 완료')
 //   어긋나 늘 0건을 읽었다 — 두 이름을 모두 넘긴다(없는 파일은 grep 이 2>/dev/null 로 조용히 건너뛴다).
 // ⚠️ [CMD] 는 평평한 한 줄로 유지한다 — `{ }`·`if`·중첩 치환을 넣으면 워크트리 격리 가드가 통째로 거부한다(PR #578).
 try {
-  const reportFiles = ['tech-trends.md', 'biz-trends.md', 'tech-news.md', 'biz-news.md', 'business-items.md', 'stock-trends.md']
+  const reportFiles = ['tech-trends.md', 'biz-trends.md', 'tech-news.md', 'biz-news.md', 'business-items.md']
   const weeklyAbs = `${'${FORGE_OUTPUTS:-$HOME/forge-outputs}'}/01-research/weekly/${date}`
   const fileArgs = reportFiles.map((f) => `"${weeklyAbs}/${f}"`).join(' ')
   const grepOut = await agent(
@@ -175,33 +171,24 @@ try {
   log(`[WARN] 단일출처 신뢰도 사전필터 skip(fail-open): ${e?.message || e}`)
 }
 
-// root-cause: 학습노트 배선 — 그주 리포트 md 경로들을 concept-notes-writer에 전달, study-notes.md 생성.
-// fail-open: 실패/빈결과여도 기존 weekly 산출(3종 리포트)에는 영향 없음, 로그만 남김.
-let studyNotes
-try {
-  studyNotes = await agent(
-    `그주 weekly-research 리포트에서 핵심 개념 노트 생성. 입력 경로(존재하는 것만 전량 Read): ` +
-    `${WEEKLY_DIR}/tech-trends.md, ${WEEKLY_DIR}/biz-trends.md, ${WEEKLY_DIR}/stock-trends.md(있으면). ` +
-    `개념 후보 0개면 파일 생성 생략. 저장 경로: ${WEEKLY_DIR}/study-notes.md.`,
-    { label: 'study-notes', phase: 'Synthesize', model: 'sonnet', agentType: 'concept-notes-writer' }
-  )
-} catch (e) {
-  log(`[WARN] study-notes 생성 실패(fail-open, 기존 산출 불변): ${e?.message || e}`)
-}
-log(`Study notes: ${studyNotes ? 'ok' : 'skip'}`)
+// 학습노트 생성은 2026-09-03 폐지(Human 지시) — concept-notes-writer 를 스폰하지 않는다.
+// 2026-09-24: SKILL.md 의 폐지 문구와 실제 배선이 어긋나 있어(폐지 표기 4곳 vs 스폰 3곳) 스폰 쪽을 지웠다.
+// 근거: harness-gaps/2026-09-24-study-notes-abolished-but-still-spawned.md · 사람 결정 2026-09-24(스폰 중단).
+// 되돌리려면 이 주석을 지우고 SKILL.md 의 폐지 문구도 함께 지운다(한쪽만 고치면 같은 불일치가 재발한다).
 
 // ── Phase 4: Publish ──────────────────────────────────────────────────────────
 phase('Publish')
 await agent(
-  `weekly-research 발행 (${date}). Notion 업로드 시도 (실패 시 로컬 index.json만 갱신). ` +
-  `forge-outputs/01-research/weekly/index.json 갱신 의무.`,
-  { label: 'publish', phase: 'Publish' }
+  `weekly-research 발행 (${date}). forge-outputs/01-research/weekly/index.json 갱신 의무. ` +
+  `블로그 발행은 실패해도 경고 후 스킵. ` +
+  `근거: 2026-09-25 사람 결정(#1104) — Notion 연동 해제. 인덱스·블로그·리포트 사이트는 유지.`,
+  { model: 'sonnet', label: 'publish', phase: 'Publish' }
 )
 log('Publish 완료')
 
 return {
   date,
-  collect: { tech: techNews?.items?.length||0, biz: bizNews?.items?.length||0, items: bizItems?.items?.length||0, stock: stockBrief ? 'ok' : 'skip' },
+  collect: { tech: techNews?.items?.length||0, biz: bizNews?.items?.length||0, items: bizItems?.items?.length||0 },
   evaluate: { verdict: evalResult?.verdict, score: evalResult?.overall },
   studyNotes: studyNotes ? 'ok' : 'skip',
 }

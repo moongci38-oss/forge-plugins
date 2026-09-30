@@ -186,6 +186,12 @@ node "${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs"
 ```
 - 정적 페이지 로드만으로 재현되지 않는 버그(클릭·입력·선택·스크롤·hover 이후 발생)는 §Phase B 재현 스텝을 인터랙션 시퀀스 JSON으로 변환해 `--actions`로 전달 — 스텝별 스냅샷 + `actions-trace.json`이 함께 남는다.
 - 헬퍼가 기본으로 mobile/tablet/desktop 3-viewport를 모두 캡처하므로 발견 단계에서 별도 viewport 순회 코드는 불필요 — multi-viewport 강제는 헬퍼 기본 동작으로 충족된다.
+- **축1·2·3(console error · network 4xx/5xx · JS 예외)은 파일을 세서 판정한다 — 눈으로 훑고 `console_clean` 을 적지 않는다**(G1-48):
+  `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/devtools-evidence-gate.py" --prefix docs/qa/artifacts/bug-{N}-<red|green>`
+  rc 0 = CLEAN(세 축 0건) · 1 = DIRTY(`samples` 에 원문) · 2 = 판정 불가(번들 파일 부재·형식 오류 — **통과 아님**, 캡처부터 다시).
+  GREEN 판정·fop.json 의 `green.console_clean` 은 **이 rc 0 일 때만** true 로 적는다. 게이트에서 빼야 할 URL(예: favicon)이 있으면
+  `--allow-url-re '<정규식>'` 로 넘기고, 뺀 건수는 출력 `allowed[]` 그대로 보고에 싣는다(숨기지 않는다).
+  축5(pixel)·축6(a11y)은 각각 `pixel-diff-gate.sh`·forge-check-ui 가 판정한다 — 여기서 다시 세지 않는다.
 - 출력 파일(기존 산출물 규약과 동일, 변경 없음): `bug-{N}-red-console.json`(전 레벨) / `bug-{N}-red-network.json`(전 요청, req/res 헤더·바디·타이밍 포함) / `bug-{N}-red-js-errors.log` / `bug-{N}-red-failed-resources.log` / `bug-{N}-red-{vp}-shot.png` / best-effort `-network.har` / `-trace.zip` / `-aria.json` / (인터랙션 시) `-actions-trace.json` + `-step{NN}-{action}-desktop.png`.
 - 서버 로그(`bug-${N}-server.log`)는 헬퍼 범위 밖 — 위 "백엔드 3종 로그 자동 수집"(T1) 절 그대로 유지. 프론트 앱 자체 로거(front.log)도 헬퍼 미캡처 항목 — 프로젝트별 best-effort로 있으면 별도 수집, 없으면 스킵(기존 로직 유지).
 - exit code 3(playwright 미설치) 시 GUIDE-STOP — `forge-fix.md §DevTools 증거 번들`의 `playwright_unavailable` carve-out과 동일 규약 적용.
@@ -503,13 +509,13 @@ Agent(
     """
 )
 ```
-이 게이트의 advisor 모델은 `advisor-model-resolve.sh` 출력을 따른다(기본 **Fable 5.1** · 대체 `gpt-5.6-sol`). 2026-08-12 이전 "Opus(비-Fable)" 고정은 폐기.
+이 게이트의 advisor 모델은 `advisor-spawn-guard.sh resolve` 출력을 따른다(기본 **Fable 5.1** · 대체 `gpt-5.6-sol`). 2026-08-12 이전 "Opus(비-Fable)" 고정은 폐기.
 
 ---
 
 ## §qa advisor 자문 지점 (Q1/Q2) 상세
 
-버그 수정(Lane A `/forge-fix`)의 advisor T1~T4·위 Phase C.5 Reconciliation 게이트와 별개로, qa 자신의 **discovery 국면**(Phase B/C)에도 2개 저빈도 고위험 자문 지점이 있다. 공통 규약은 Phase C.5 절의 것과 동일 — 모델은 `advisor-model-resolve.sh` 출력(기본 Fable 5.1), advisory only, non-blocking, `[→Lead 위임]`(중첩 시).
+버그 수정(Lane A `/forge-fix`)의 advisor T1~T4·위 Phase C.5 Reconciliation 게이트와 별개로, qa 자신의 **discovery 국면**(Phase B/C)에도 2개 저빈도 고위험 자문 지점이 있다. 공통 규약은 Phase C.5 절의 것과 동일 — 모델은 `advisor-spawn-guard.sh resolve` 출력(기본 Fable 5.1), advisory only, non-blocking, `[→Lead 위임]`(중첩 시).
 
 ### Q1 — Phase B 테스트 커버리지 3건+ 동시 면제
 
@@ -545,7 +551,7 @@ Agent(
 
 ### 공통 규약 (Q1/Q2)
 
-- 모델 = `advisor-model-resolve.sh` 출력을 따른다(기본 Fable 5.1 · 대체 `gpt-5.6-sol`). 2026-08-12 이전 문구는 "Opus 고정(리졸버 호출 불필요)"이었으나 `advisor-strategist` 기본이 Fable 로 바뀌어 폐기했다. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
+- 모델 = `advisor-spawn-guard.sh resolve` 출력을 따른다(기본 Fable 5.1 · 대체 `gpt-5.6-sol`). 2026-08-12 이전 문구는 "Opus 고정(리졸버 호출 불필요)"이었으나 `advisor-strategist` 기본이 Fable 로 바뀌어 폐기했다. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
 - advisory only: `[STOP]` 해제·자동재시도·최종판정 불가.
 - 저빈도 고위험 지점에만 스폰 — 매 시나리오·매 버그마다 스폰 금지(비용 방지).
 - non-blocking: advisor 스폰 실패/미가용 시에도 해당 [STOP]·판단은 그대로 Human에게 진행(advisor는 augmentation, 하드 의존 아님).
