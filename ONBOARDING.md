@@ -398,6 +398,15 @@ done
 
 4) Claude Code 를 **완전히 껐다 켭니다** → 5) `claude plugin list` 로 버전이 올라갔는지 확인합니다.
 
+한 줄 버전(1~3을 한 번에):
+```bash
+cd ${FORGE_ROOT:-$HOME/forge} && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design forge-game; do claude plugin update $p@forge-plugins; done
+```
+
+> **플러그인 훅은 업데이트에 포함됩니다.** 훅이 있는 플러그인은 `forge-core` 하나(5개 — `plugin.json` 의 `hooks` 블록)이고
+> Claude Code 가 플러그인에서 직접 등록합니다. 그래서 위 업데이트 + 재시작이면 끝이고, `settings.json` 에 따로 등록하는 단계가 없습니다.
+> (forge 본체의 전역 훅 36개는 플러그인에 들어 있지 않습니다 — 그것은 `~/forge` + `forge-update.sh` 를 쓰는 팀원 PC 몫입니다.)
+
 ---
 
 ## 7. forge-workspace.json 설정 (코어 팀원만)

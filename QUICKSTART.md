@@ -128,6 +128,16 @@ Claude Code에서 아래를 그대로 말하면 됩니다. **순서가 중요합
 
 > 💡 "이미 최신입니다"라고 나오면 정말 최신인 게 맞습니다 — 버전 번호가 바뀌어야만 새로 받아옵니다.
 
+**한 줄 버전** (터미널에 그대로 붙여 넣기 — 설치 안 한 플러그인은 "설치되지 않음"이 떠도 괜찮습니다):
+```
+cd ~/forge && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design forge-game; do claude plugin update $p@forge-plugins; done
+```
+→ Claude Code 완전히 껐다 켜기 → `claude plugin list | grep forge` 로 버전 확인.
+
+> **플러그인 훅은 따로 받을 필요가 없습니다.** 훅이 있는 플러그인은 `forge-core` 하나(5개)이고, 훅은 `plugin.json` 에
+> 선언돼 Claude Code 가 직접 등록합니다 — 위 업데이트 + 재시작이면 훅도 새 판으로 바뀝니다(`settings.json` 단계 없음).
+> 재현: `grep -oE 'hooks/[a-z0-9_.-]+' forge-core/.claude-plugin/plugin.json | sort -u` → 5개.
+
 ---
 
 ## 안 될 때
