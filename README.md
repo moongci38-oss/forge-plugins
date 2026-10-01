@@ -199,6 +199,15 @@ claude plugin update forge-game@forge-plugins
 claude plugin list
 ```
 
+한 줄 버전(1~3을 한 번에 · 설치 안 한 플러그인은 "설치되지 않음"이 떠도 괜찮다):
+```bash
+cd ~/forge && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design forge-game; do claude plugin update $p@forge-plugins; done
+```
+
+> **플러그인 훅은 업데이트에 포함된다.** 훅이 있는 플러그인은 `forge-core` 하나(5개 — `plugin.json` `hooks` 블록)이고 Claude Code 가
+> 플러그인에서 직접 등록한다 — 위 업데이트 + 재시작이면 훅도 새 판이다(`settings.json` 단계 없음). forge 본체 전역 훅(36개)은
+> 플러그인에 없다 — `~/forge` + `forge-update.sh` 를 쓰는 팀원 PC 몫.
+
 > ⚠️ 구 표기 "`claude plugin update forge-core` … → 재시작" 은 2026-09-30 폐기 — 마켓플레이스 갱신(2번)과
 > `~/forge` 받기(1번)가 빠져 있어, 새 판이 나와도 "이미 최신"으로 넘어가거나 옛 스크립트가 그대로 돌았습니다.
 
