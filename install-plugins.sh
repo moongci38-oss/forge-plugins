@@ -4,7 +4,7 @@
 set -uo pipefail
 
 MARKET="moongci38-oss/forge-plugins"
-PLUGINS=(forge-core forge-knowledge forge-build forge-design forge-game)
+PLUGINS=(forge-core forge-knowledge forge-build forge-design)
 
 say() { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; }
 ok()  { printf '  \033[1;32m✓\033[0m %s\n' "$*"; }
