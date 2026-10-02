@@ -12,21 +12,21 @@
       "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(legacy-scan/diet/sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
       "source": "./forge-core",
       "category": "productivity",
-      "version": "0.7.24"
+      "version": "0.7.25"
     },
     {
       "name": "forge-knowledge",
       "description": "Forge 지식·리서치 — learn/memory-manage/wiki-sync/rag-search + article/yt/site-deep-analyze. forge-tools MCP(ADR-174 unified_search).",
       "source": "./forge-knowledge",
       "category": "productivity",
-      "version": "0.2.24"
+      "version": "0.2.25"
     },
     {
       "name": "forge-build",
       "description": "Forge 제품 생성 파이프라인 — 기획(spec-write/writing-plans/autoplan) + 구현·검증(qa/healer/investigate/api-e2e/forge-fix/보안·성능·UI). SDD 본류.",
       "source": "./forge-build",
       "category": "development",
-      "version": "0.4.27"
+      "version": "0.4.28"
     },
     {
       "name": "forge-design",

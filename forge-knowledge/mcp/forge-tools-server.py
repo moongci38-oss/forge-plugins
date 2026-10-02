@@ -18,6 +18,7 @@ Managed Agents(Anthropic 클라우드)가 로컬 Forge 리소스에 접근하는
 """
 
 import hmac
+import json
 import os
 import re
 import sys
@@ -41,7 +42,59 @@ FORGE_ROOT = Path(os.environ.get("FORGE_ROOT", HOME / "forge"))
 #   ⚠️ **기본값을 두지 않는다.** 어떤 값을 적어도 그것은 누군가의 실제 경로이고, 이 파일은
 #   공개 번들로 복사된다(실측: 기본값을 넣자 스캐너가 곧바로 그것을 유출로 잡았다).
 #   미설정이면 그 프로젝트를 매핑에서 뺀다 — 요청되면 "알 수 없는 프로젝트" 로 떨어진다.
-GODBLADE_ROOT = os.environ.get("GODBLADE_ROOT", "")
+# 이름(#1811): 환경변수 `FORGE_GAME_PROJECT_ROOT` · 조회 키 "game" — 회사 프로젝트 이름을 공개 번들에 싣지 않는다.
+#   옛 이름도 한동안 받되 **이 파일에는 적지 않는다** — 별칭 표(JSON)에서 읽는다:
+#     ${FORGE_OUTPUTS}/11-platform/mcp-project-aliases.json (회사 저장소 — 비공개) · ~/.forge/mcp-project-aliases.json (개인)
+#     형식: {"env": {"FORGE_GAME_PROJECT_ROOT": ["<옛 환경변수>"]}, "project": {"<옛 조회 키>": "game"}}
+#   표가 없으면 옛 이름은 통하지 않는다. 폐기조건: 옛 이름을 쓰는 PC·호출이 없어지면 별칭 읽기를 지운다.
+GAME_ROOT_ENV = "FORGE_GAME_PROJECT_ROOT"
+_ALIAS_NOTICED: set = set()
+
+
+def _aliases() -> dict:
+    """별칭 표 2곳을 합쳐 {"env": {새: [옛…]}, "project": {옛: 새}} 로 돌려준다. 없거나 깨졌으면 빈 표."""
+    merged: dict = {"env": {}, "project": {}}
+    for f in (FORGE_OUTPUTS / "11-platform" / "mcp-project-aliases.json", HOME / ".forge" / "mcp-project-aliases.json"):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+            for new, olds in (d.get("env") or {}).items():
+                merged["env"].setdefault(new, []).extend(o for o in olds if isinstance(o, str))
+            merged["project"].update({k: v for k, v in (d.get("project") or {}).items() if isinstance(v, str)})
+        except (OSError, ValueError, AttributeError, TypeError):
+            continue
+    return merged
+
+
+def _alias_notice(old: str, new: str) -> None:
+    if old not in _ALIAS_NOTICED:   # 한 프로세스에 1회
+        _ALIAS_NOTICED.add(old)
+        sys.stderr.write(f"[forge-tools] 이름이 바뀌었다 — '{old}' 대신 '{new}' 를 쓴다(옛 이름은 당분간만 받는다)\n")
+
+
+def _game_root() -> str:
+    """게임 프로젝트 루트. 새 환경변수가 우선이고, 없으면 별칭 표에 적힌 옛 환경변수를 읽는다(안내 1줄)."""
+    val = os.environ.get(GAME_ROOT_ENV, "")
+    if val:
+        return val
+    for old in _aliases()["env"].get(GAME_ROOT_ENV, []):
+        if os.environ.get(old):
+            _alias_notice(old, GAME_ROOT_ENV)
+            return os.environ[old]
+    return ""
+
+
+def _project_key(project: str) -> str:
+    """조회 키의 옛 이름을 새 이름으로 옮긴다(별칭 표 · 안내 1줄). 표에 없으면 그대로."""
+    new = _aliases()["project"].get(project)
+    if new:
+        _alias_notice(project, new)
+        return new
+    return project
+
+
+def _game_paths(as_str: bool = False) -> dict:
+    root = _game_root()
+    return {"game": root if as_str else Path(root)} if root else {}
 FORGE_MCP_TOKEN = os.environ.get("FORGE_MCP_TOKEN", "")
 # 기본 바인딩을 0.0.0.0 → 127.0.0.1 로 좁힌다. cloudflared 는 localhost 로 붙으므로
 # 터널 레인은 그대로 살고, LAN 에 열려 있던 문(門)만 닫힌다.
@@ -56,7 +109,6 @@ ALLOWED_SCRIPTS = {
     "md-to-docx.py": FORGE_ROOT / "shared/scripts/md-to-docx.py",
     "rag-search.py": FORGE_ROOT / "shared/scripts/rag/search.py",
     "workspace-build.sh": FORGE_ROOT / "shared/scripts/rag/workspace-build.sh",
-    "lightrag-pilot.py": FORGE_ROOT / "shared/scripts/lightrag-pilot.py",
     "wiki-sync.sh": FORGE_ROOT / "shared/scripts/wiki-sync.sh",
 }
 
@@ -349,14 +401,14 @@ def git_status(project: str = "forge") -> str:
     """프로젝트 git 상태 확인.
 
     Args:
-        project: 프로젝트명 ("forge", "portfolio", "godblade") 또는 절대 경로
+        project: 프로젝트명 ("forge", "portfolio", "game") 또는 절대 경로
     """
     project_paths = {
         "forge": FORGE_ROOT,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        **({"godblade": Path(GODBLADE_ROOT)} if GODBLADE_ROOT else {}),
+        **_game_paths(),
     }
-    cwd = project_paths.get(project, Path(project))
+    cwd = project_paths.get(_project_key(project), Path(project))
     if not cwd.exists():
         raise FileNotFoundError(f"프로젝트 경로 없음: {cwd}")
     result = subprocess.run(
@@ -379,9 +431,9 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
         "forge": FORGE_ROOT,
         "forge-outputs": FORGE_OUTPUTS,
         "portfolio": HOME / "mywsl_workspace/portfolio-project",
-        **({"godblade": Path(GODBLADE_ROOT)} if GODBLADE_ROOT else {}),
+        **_game_paths(),
     }
-    cwd = project_paths.get(project, Path(project))
+    cwd = project_paths.get(_project_key(project), Path(project))
     if not cwd.exists():
         raise FileNotFoundError(f"프로젝트 경로 없음: {cwd}")
 
@@ -465,6 +517,19 @@ def run_script(script_name: str, args: list[str] = []) -> str:
     return output or "(출력 없음)"
 
 
+def _knowledge_closed() -> str:
+    """대상 PC 가 아니면 닫힘 안내 문자열, 대상이면 빈 문자열 (#1770). 판정 모듈을 못 부르면 닫힌 쪽이다."""
+    rag_dir = str(FORGE_ROOT / "shared/scripts/rag")
+    if rag_dir not in sys.path:
+        sys.path.insert(0, rag_dir)
+    try:
+        from t3_url import knowledge_closed
+        why = knowledge_closed()
+    except Exception as e:
+        why = f"대상 PC 판정 불가(판정 모듈을 못 불렀다: {type(e).__name__}) — 대상 아님으로 취급"
+    return f"(회사 지식 닫힘 — {why} · 결과 0건)" if why else ""
+
+
 @mcp.tool()
 def rag_search(query: str, top_k: int = 5) -> str:
     """[ALIAS → unified_search] forge-outputs RAG 하이브리드 검색 (워크스페이스 RAG, 벡터+BM25).
@@ -477,34 +542,40 @@ def rag_search(query: str, top_k: int = 5) -> str:
         top_k: 반환할 결과 수 (기본 5)
     """
     # root-cause: backward-compat alias — 기존 호출 보존 (ADR-174 §KD5 만료정책)
+    if _knowledge_closed():
+        return _knowledge_closed()
     return run_script("rag-search.py", [query, "--top-k", str(top_k)])
 
 
 @mcp.tool()
 def wiki_search(query: str, mode: str = "hybrid") -> str:
-    """[ALIAS → unified_search] Karpathy 3-layer 개인 지식 위키 검색 (LightRAG, 그래프 기반).
+    """위키 노트만 검색한다 — 위키 `.md` 파일을 직접 훑는다(낱말 일치 + 제목·파일명 가산).
 
-    ADR-174 Phase 2 이후: unified_search(context_filter='wiki') 사용 권장.
-    이 alias는 30일 무호출 경과 시 deprecated.
-
-    개념 간 관계, "왜/어떻게" 류 심층 질문에 강함. forge-outputs/20-wiki의
-    Wiki Layer만 검색하며, 엔티티+관계 그래프를 활용해 추론한다.
-
-    rag_search와 차이:
-    - rag_search: 광범위(6K 문서), 빠른 단순 검색
-    - wiki_search: 좁은 셋(수백 노트), 그래프 기반 깊은 추론
+    공용 DB 를 거치지 않으므로 DB 가 없어도 돈다. 넓게 찾을 때는 unified_search.
+    (종전의 그래프 기반 검색 엔진은 걷었다 #1763 — 이름·인자는 호출부 호환을 위해 그대로다.)
 
     Args:
         query: 검색 쿼리 (한국어 권장)
-        mode: 'local' | 'global' | 'hybrid' (기본 hybrid)
+        mode: 'local' | 'global' | 'hybrid' — 옛 인자. 검증만 하고 결과에는 영향이 없다.
     """
-    # root-cause: backward-compat alias — ADR-174 §KD5 만료정책 (unified_search(context_filter='wiki') 권장)
     if mode not in ("local", "global", "hybrid"):
         return f"ERROR: mode must be local/global/hybrid, got '{mode}'"
-    return run_script(
-        "lightrag-pilot.py",
-        ["query", query, mode, "--context", "wiki"],
-    )
+    if _knowledge_closed():
+        return _knowledge_closed()
+    sys.path.insert(0, str(FORGE_ROOT / "shared/scripts/rag"))
+    try:
+        import search as _search
+    except ImportError as e:
+        return f"ERROR: search 로드 실패 — {e}"
+    wiki = _search._wiki_dir()
+    if wiki is None:
+        return "(위키 폴더 없음 — 결과 0건)"
+    lines = []
+    for i, r in enumerate(_search._wiki_search(query, 5, wiki), 1):
+        lines.append(f"[{i}] {r['file_path']}")
+        lines.append(f"    {r['text'][:200]}")
+        lines.append(f"    score={r['score']:.4f}")
+    return "\n".join(lines) if lines else "(결과 없음)"
 
 
 def _rrf_merge(results_lists: list[list[dict]], k: int = 60) -> list[dict]:
@@ -542,10 +613,10 @@ def unified_search(
     context_filter: Optional[str] = None,
     include_code: bool = False,
 ) -> str:
-    """통합 지식 검색 — pgvector(T3)+FAISS(T2) RRF 병합 + AllowListGuard 필터.
+    """통합 지식 검색 — 공용 DB(pgvector) 검색 + AllowListGuard 필터.
 
     ADR-174 Phase 2: 파편화된 검색(rag_search/wiki_search)을 단일 라우터로 통합.
-    FORGE_DB_URL 미설정 시 T2(FAISS)만 사용.
+    공용 DB 주소가 없으면 위키 파일 직접 검색 결과를 낸다(로컬 FAISS 섞기는 걷었다 #1763).
 
     Args:
         query: 검색 쿼리
@@ -554,6 +625,8 @@ def unified_search(
         include_code: True 시 GitNexus 코드 심볼 검색 포함 (별도 라우팅, RRF 제외)
     """
     # root-cause: ADR-174 Phase 2 unified_search 라우터 진입점
+    if _knowledge_closed():
+        return _knowledge_closed()
     sys.path.insert(0, str(FORGE_ROOT / "shared/scripts/rag"))
     try:
         from knowledge_store import KnowledgeStore
@@ -562,58 +635,16 @@ def unified_search(
 
     results_lists: list[list[dict]] = []
 
-    # T3 또는 T2 통합 검색 (index_dir=None → KnowledgeStore 기본값 사용)
-    # root-cause: idx_dir 변수 미사용 제거
+    # 공용 DB 검색(없으면 KnowledgeStore 가 위키 직접 검색으로 내려간다)
     try:
         ks = KnowledgeStore.from_config()
-        t3_or_t2 = ks.search(
+        found = ks.search(
             query, top_k=top_k * 2, context_filter=context_filter
         )
-        results_lists.append(t3_or_t2)
+        results_lists.append(found)
     except Exception as e:
         results_lists.append([])
         sys.stderr.write(f"[unified_search] KnowledgeStore 오류: {e}\n")
-
-    # T3 활성 시 FAISS T2도 추가 (RRF 블렌드)
-    # root-cause(2026-08-14 cr-triple 지적): search.py 가 T3 URL 을 3개 변수에서 해석하도록
-    #   바뀌었는데(FORGE_T3_DB_URL > FORGE_DB_URL_SHARED > FORGE_DB_URL) 이 블록은 여전히
-    #   `FORGE_DB_URL` 하나만 보고 하나만 지웠다. 그러면 나머지 두 변수가 프로세스 env 에 실리는
-    #   순간 "진짜 T2 를 받으려던" 재호출이 **또 T3** 를 타고, RRF 블렌드가 T3+T2 가 아니라
-    #   T3+T3 가 되어 다양성 확보라는 설계 의도가 조용히 무너진다. 세 변수를 한 곳에서 다룬다.
-    #   ⚠️ 더 깊은 문제: env 에서 변수를 **지워도 소용이 없다.** search.py main() 은 `~/forge/.env` 를
-    #   읽어 `os.environ.setdefault()` 로 되채운다 — 지운 변수가 그대로 되살아나므로 "진짜 T2" 재호출은
-    #   애초에 성립한 적이 없다. 그래서 변수를 지우는 대신 search.py 가 **문서화한 스위치**
-    #   `FORGE_RAG_ENGINE=t2`("T3 시도 자체 생략")를 쓴다. 이건 .env 재로드에 영향받지 않는다.
-    # 변수 목록은 t3_url 모듈이 소유한다(SSoT). 여기 하드코딩하면 또 갈린다.
-    sys.path.insert(0, str(FORGE_ROOT / "shared/scripts/rag"))
-    try:
-        from t3_url import T3_URL_VARS as _T3_URL_VARS
-    except ImportError:
-        _T3_URL_VARS = ("FORGE_T3_DB_URL", "FORGE_DB_URL_SHARED", "FORGE_DB_URL")
-    if any(os.environ.get(v) for v in _T3_URL_VARS):
-        try:
-            # root-cause: C2 — ① --format json→--json(search.py:133 시그니처 정합)
-            #                  ② FORGE_RAG_ENGINE=t2 로 진짜 T2 FAISS 결과 획득(.env 재로드 무관)
-            #                  ③ startswith 의존→try JSON parse 견고화
-            faiss_args = [query, "--top-k", str(top_k * 2), "--json"]
-            _validate_run_script_args(faiss_args)
-            faiss_env = {k: v for k, v in os.environ.items() if k not in _T3_URL_VARS}
-            faiss_env["FORGE_RAG_ENGINE"] = "t2"
-            faiss_proc = subprocess.run(
-                ["python3", str(ALLOWED_SCRIPTS["rag-search.py"])] + faiss_args,
-                capture_output=True, text=True, timeout=120,
-                cwd=FORGE_ROOT, env=faiss_env
-            )
-            import json as _json
-            try:
-                faiss_results = _json.loads(faiss_proc.stdout)
-                if not isinstance(faiss_results, list):
-                    faiss_results = []
-            except (_json.JSONDecodeError, ValueError):
-                faiss_results = []
-            results_lists.append(faiss_results)
-        except Exception:
-            pass  # FAISS 실패 시 T3 결과만 사용
 
     # RRF 병합 → retrieval guard → dedup → top_k
     merged = _rrf_merge(results_lists)
@@ -667,9 +698,9 @@ def run_health_check(project: str = "forge", months: int = 12) -> str:
     project_paths = {
         "forge": str(FORGE_ROOT),
         "portfolio": str(HOME / "mywsl_workspace/portfolio-project"),
-        **({"godblade": GODBLADE_ROOT} if GODBLADE_ROOT else {}),
+        **_game_paths(as_str=True),
     }
-    project_path = project_paths.get(project, project)
+    project_path = project_paths.get(_project_key(project), project)
     return run_script("forge-codebase-health.sh", [project_path, str(months)])
 
 
@@ -682,7 +713,7 @@ def run_health_check(project: str = "forge", months: int = 12) -> str:
 #   DB URL·호스트·자격증명·비밀번호는 어떤 형태로도 출력하지 않는다.
 @mcp.tool()
 def harness_probe() -> str:
-    """로컬 Forge 하네스의 **실측** 상태 — 검색 계층(T3/T2)·터널·인덱스 신선도·설정 키 존재.
+    """로컬 Forge 하네스의 **실측** 상태 — 검색 계층(공용 DB)·터널·설정 키 존재.
 
     daily/weekly 리포트에서 하네스 상태를 언급하려면 **반드시 이 도구를 먼저 호출하고
     그 출력을 인용**한다. 이 도구가 답하지 못하는 항목은 "측정 불가(도구 없음)"로 적는다 —
@@ -715,24 +746,7 @@ def harness_probe() -> str:
     rc, out = sh(["pgrep", "-cf", rf"[s]sh.*-L {re.escape(_tunnel_port)}"], timeout=10)
     lines.append(f"- SSH터널 프로세스: {out if out.isdigit() else '0'}개")
 
-    # 3) 로컬 T2 인덱스 신선도 — 강등 시 이 날짜의 지식만 보인다
-    idx = Path(os.environ.get("FORGE_RAG_INDEX_DIR", str(FORGE_OUTPUTS / ".rag-index")))
-    if idx.exists():
-        import datetime as _dt
-        # t3-check.sh local_index_build()과 **같은 파일·같은 순서**를 본다.
-        # 다른 기준을 쓰면 한 리포트 안에서 날짜가 갈리고(예: 07-07 vs 07-23), 읽는 사람은
-        # 어느 쪽이 맞는지 알 수 없다 — 숫자가 어긋나는 순간 리포트 전체 신뢰가 깎인다.
-        stamp = "unknown"
-        for cand in ("meta.json", "file_hashes.json", "docstore.json"):
-            f = idx / cand
-            if f.exists():
-                stamp = _dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d")
-                break
-        lines.append(f"- 로컬T2 인덱스: {idx} · 빌드 {stamp} (기준 = t3-check.sh와 동일)")
-    else:
-        lines.append(f"- 로컬T2 인덱스: 없음 ({idx})")
-
-    # 4) .env 설정 키 — **이름의 존재 여부만**. 값·호스트·비밀번호는 반환하지 않는다.
+    # 3) .env 설정 키 — **이름의 존재 여부만**. 값·호스트·비밀번호는 반환하지 않는다.
     env_file = FORGE_ROOT / ".env"
     watched = [
         "FORGE_T3_DB_URL", "FORGE_DB_URL_SHARED", "FORGE_DB_URL", "RAG_DB_HOST", "RAG_DB_PORT",
@@ -753,7 +767,7 @@ def harness_probe() -> str:
     else:
         lines.append("- .env: 파일 없음")
 
-    # 5) 최근 재색인 결과 — 공유 DB 쓰기가 실제로 돌고 있는지
+    # 4) 최근 재색인 결과 — 공유 DB 쓰기가 실제로 돌고 있는지
     audit = FORGE_OUTPUTS / ".claude/audit/index-refresh.jsonl"
     if audit.exists():
         try:

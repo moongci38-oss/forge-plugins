@@ -30,7 +30,7 @@ advisor 스폰 모델은 항상 `advisor-spawn-guard.sh resolve` 출력: `claude
   ```bash
   RAG_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; case "$RAG_ROOT" in */.claude/worktrees/*) RAG_ROOT="${RAG_ROOT%%/.claude/worktrees/*}";; esac
   bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh" search.py "{scope} 버그 회귀" --top-k 5 --json \
-    --project "$(basename "$RAG_ROOT")" --index-dir "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index"
+    --project "$(basename "$RAG_ROOT")"
   ```
   히트(`file_path`/`score`/`project_match`)를 이 프로젝트/타 프로젝트로 나눠 출력 → scenarios.md "과거 회귀 참고".
 - **B 시나리오**: qa-setup → gitnexus route_map → `scenarios.md` → scope 필터 → `scenarios-filtered.md`. 8 카테고리 강제 + Bug-ID Allocator.
