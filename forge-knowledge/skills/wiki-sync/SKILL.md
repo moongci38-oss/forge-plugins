@@ -86,4 +86,4 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/wiki-sync-track.py" <처리�
   ```
   ⛔ 직접 `git add`·`git add -A` 금지(forge-outputs-autosync.sh 의 화이트리스트·민감경로 제외·시크릿 스캔 우회). ⛔ `20-wiki/` 는 ignore된 별도 vault — `git add -f` 금지, vault 커밋은 `wiki-sync.sh` 담당.
 
-관련: `~/forge/shared/scripts/wiki-sync.sh`(vault 동기화 + LightRAG 재인덱싱, 백그라운드) · `~/forge/shared/scripts/lightrag-pilot.py index --context wiki`(Apply 후 자동 재구축)
+관련: `~/forge/shared/scripts/wiki-sync.sh`(vault 동기화 + git push, 백그라운드) · 색인은 워크스페이스 증분 빌드(`rag/workspace-build-safe.sh`)가 공용 DB 에 넣는다

@@ -31,6 +31,6 @@ group: deploy
 
 - 스킬 SKILL.md: `~/forge/.claude/skills/wiki-sync/SKILL.md`
 - 백그라운드 동기화: `~/forge/shared/scripts/wiki-sync.sh` (Obsidian vault ↔ forge-outputs/20-wiki)
-- LightRAG wiki 인덱스: `python3 ~/forge/shared/scripts/lightrag-pilot.py index --context wiki`
+- 검색 확인: `bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "<질문>"` (공용 DB 가 없으면 위키 파일을 직접 검색한다)
 
 > 이 커맨드는 wiki-sync.sh(파일 동기화)와 별개입니다. 같은 이름이지만 역할이 다릅니다 — 이쪽은 **지식 추출 워크플로우**, 저쪽은 **파일 동기화**.

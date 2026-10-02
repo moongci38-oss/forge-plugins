@@ -23,7 +23,7 @@ model: sonnet
 
 출력 첫 줄: `**분석 모드**: [기본/Task Doc/시안 분석/구현 검증/컴포넌트 추출]` + `**플랫폼**: [Game (Unity)/Web (HTML/CSS)/App (Mobile Native)]`
 - 모드: `--extract`·"분리/추출/컴포넌트 뽑아줘" → 컴포넌트 추출 · `--mockup`·`_assets/` 우리 시안 → 시안 분석(확정값) · Element Task Doc 작성 중 → Task Doc(추정값) · 레퍼런스 vs 구현 → 구현 검증 · 그 외 → 기본(추정값)
-- 플랫폼: GodBlade → Game · Portfolio·웹 URL → Web · 앱스토어/모바일 → App · 불명 → 이미지로 추정
+- 플랫폼: 게임 프로젝트 → Game · Portfolio·웹 URL → Web · 앱스토어/모바일 → App · 불명 → 이미지로 추정
 - 입력 변수: `IMAGE_PATH`(공백 구분) · `ANALYSIS_TYPE`(기본 UI 레이아웃) · `REF_NAME` · `PLATFORM` · `EXTRACT_MODE`
 
 ## Step 2: 프롬프트 조립
