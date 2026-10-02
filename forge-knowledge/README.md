@@ -25,17 +25,20 @@ export FORGE_DB_URL="postgresql://user:pass@localhost:5432/forge"
 
 설정하지 않으면 로컬 FAISS + BM25 폴백으로 동작합니다.
 
-### 선택 — `GODBLADE_ROOT` (forge-tools MCP를 게임 프로젝트에 쓸 때)
+### 선택 — `FORGE_GAME_PROJECT_ROOT` (forge-tools MCP를 게임 프로젝트에 쓸 때)
 
-`forge-tools` MCP의 `git_status`·`run_health_check`가 `project="godblade"`를 받으면 이 변수를 읽습니다.
+`forge-tools` MCP의 `git_status`·`run_health_check`가 `project="game"`를 받으면 이 변수를 읽습니다.
 이 저장소는 공개라 특정 개발 환경의 절대경로를 기본값으로 넣지 않았습니다.
 
 ```bash
 # ~/.bashrc 또는 ~/.zshrc
-export GODBLADE_ROOT="/path/to/your/unity-project/src"
+export FORGE_GAME_PROJECT_ROOT="/path/to/your/unity-project/src"
 ```
 
-미설정 시 `프로젝트 경로 없음: <set GODBLADE_ROOT>`로 **무엇을 설정해야 하는지가 그대로 뜹니다**.
+> 이 변수와 조회 키는 예전에 다른 이름이었습니다. 옛 이름은 별칭 표(`~/.forge/mcp-project-aliases.json`)에 적어 둔 경우에만 당분간 받습니다 — 새 이름으로 바꿔 주십시오.
+
+
+미설정 시 `프로젝트 경로 없음: game`로 **무엇을 설정해야 하는지가 그대로 뜹니다**.
 `project="forge"`·`project="portfolio"`나 절대경로 직접 전달은 이 변수 없이도 동작합니다.
 
 ### ⚠️ `${NOTION_DB_ID}`는 환경변수가 아닙니다 — 직접 채워야 합니다
@@ -56,7 +59,7 @@ DB 식별자는 Notion에서 해당 데이터베이스를 열었을 때 주소�
 
 | 이름 | 정체 | 미설정/미교체 시 |
 |------|------|------------------|
-| `GODBLADE_ROOT` | **실제 환경변수**(`forge-tools-server.py`가 읽음) | `project="godblade"` 조회만 경로 없음 에러 |
+| `FORGE_GAME_PROJECT_ROOT` | **실제 환경변수**(`forge-tools-server.py`가 읽음) | `project="game"` 조회만 경로 없음 에러 |
 | `${NOTION_DB_ID}` | **문서 플레이스홀더**(읽는 코드 없음) | 업로드 대상이 비어 있음 — 위 1·2 중 하나로 채울 것 |
 
 ---
