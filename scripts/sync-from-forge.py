@@ -46,7 +46,7 @@ def default_plugin_root():
 
 PLUGIN_ROOT = default_plugin_root()
 
-PLUGINS = ["forge-core", "forge-build", "forge-knowledge", "forge-design", "forge-game"]
+PLUGINS = ["forge-core", "forge-build", "forge-knowledge", "forge-design"]
 
 # ⚠️ hooks/ 는 의도적으로 여기 없다 — **플러그인 훅의 SSoT 는 이 repo 다**(forge SSoT 가 아님).
 #   forge 에 훅을 만들고 여기로 전파되길 기대하면 영원히 안 온다.

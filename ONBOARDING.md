@@ -37,7 +37,7 @@ bash setup.sh
 - API 키 입력 안내 (브라우저 자동 열기)
 - Forge 본체 `~/forge` 받기 (없을 때만 · 비공개 저장소 — `gh auth login` 으로 로그인돼 있어야 함, SSH 키는 불필요 — §1)
 - MCP 서버 5종 `~/.claude.json` 등록 (notion · tavily · gitnexus · codex · brave-search — Figma 는 사용 중단이라 등록하지 않습니다)
-- 플러그인 5종 설치·활성화 (forge-core + forge-knowledge + forge-build + forge-design + forge-game)
+- 플러그인 4종 설치·활성화 (forge-core + forge-knowledge + forge-build + forge-design)
 - Codex 로그인 브라우저 열기
 
 역할별 추가 설치 (setup.sh 이후 필요 시):
@@ -358,8 +358,7 @@ claude plugin marketplace add moongci38-oss/forge-plugins
 | 기획자 / PM | forge-core + forge-knowledge + forge-build |
 | 리서처 | forge-core + forge-knowledge |
 | 디자이너 | forge-core + forge-design |
-| 게임 개발자 | forge-core + forge-design + forge-game |
-| 전체 | 5개 모두 |
+| 전체 | 4개 모두 |
 
 ```bash
 # 공통 필수
@@ -369,13 +368,12 @@ claude plugin install forge-knowledge@forge-plugins   # 지식·리서치·메�
 # 역할에 맞게 선택
 claude plugin install forge-build@forge-plugins       # 개발·기획 파이프라인 (구 forge-dev+forge-plan+forge-research 통합)
 claude plugin install forge-design@forge-plugins      # 디자인·에셋
-claude plugin install forge-game@forge-plugins        # 게임(Unity) — forge-design도 함께
 ```
 
 ### 6-3. 활성화 및 재시작
 
 ```bash
-for p in forge-core forge-knowledge forge-build forge-design forge-game; do
+for p in forge-core forge-knowledge forge-build forge-design; do
   claude plugin enable ${p}
 done
 # Claude Code 재시작 필요
@@ -391,7 +389,7 @@ cd ${FORGE_ROOT:-$HOME/forge} && git pull
 # 2) 마켓플레이스 목록 새로 받기
 claude plugin marketplace update forge-plugins
 # 3) 플러그인마다 하나씩 업데이트 (한 줄에 여러 이름을 몰아 쓰면 오류)
-for p in forge-core forge-knowledge forge-build forge-design forge-game; do
+for p in forge-core forge-knowledge forge-build forge-design; do
   claude plugin update ${p}@forge-plugins
 done
 ```
@@ -400,7 +398,7 @@ done
 
 한 줄 버전(1~3을 한 번에):
 ```bash
-cd ${FORGE_ROOT:-$HOME/forge} && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design forge-game; do claude plugin update $p@forge-plugins; done
+cd ${FORGE_ROOT:-$HOME/forge} && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design; do claude plugin update $p@forge-plugins; done
 ```
 
 > **플러그인 훅은 업데이트에 포함됩니다.** 훅이 있는 플러그인은 `forge-core` 하나(5개 — `plugin.json` 의 `hooks` 블록)이고

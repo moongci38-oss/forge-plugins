@@ -59,14 +59,12 @@ Claude Code를 열고, 아래 회색 상자 안 내용을 **통째로 복사해�
    claude plugin install forge-knowledge@forge-plugins
    claude plugin install forge-build@forge-plugins
    claude plugin install forge-design@forge-plugins
-   claude plugin install forge-game@forge-plugins
 
-3. 5개 모두 활성화해줘 (한 번에 하나씩 — 이름을 몰아 쓰면 오류가 납니다):
+3. 4개 모두 활성화해줘 (한 번에 하나씩 — 이름을 몰아 쓰면 오류가 납니다):
    claude plugin enable forge-core
    claude plugin enable forge-knowledge
    claude plugin enable forge-build
    claude plugin enable forge-design
-   claude plugin enable forge-game
 
 4. 설치가 끝나면, "Claude Code를 껐다 켜라"고 한국어로 안내해줘.
 ```
@@ -111,7 +109,7 @@ Claude Code에서 아래를 그대로 말하면 됩니다. **순서가 중요합
    claude plugin marketplace update forge-plugins
 
 3. 플러그인을 하나씩 업데이트해줘:
-   for p in forge-core forge-knowledge forge-build forge-design forge-game; do
+   for p in forge-core forge-knowledge forge-build forge-design; do
      claude plugin update ${p}@forge-plugins
    done
 
@@ -130,7 +128,7 @@ Claude Code에서 아래를 그대로 말하면 됩니다. **순서가 중요합
 
 **한 줄 버전** (터미널에 그대로 붙여 넣기 — 설치 안 한 플러그인은 "설치되지 않음"이 떠도 괜찮습니다):
 ```
-cd ~/forge && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design forge-game; do claude plugin update $p@forge-plugins; done
+cd ~/forge && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design; do claude plugin update $p@forge-plugins; done
 ```
 → Claude Code 완전히 껐다 켜기 → `claude plugin list | grep forge` 로 버전 확인.
 
