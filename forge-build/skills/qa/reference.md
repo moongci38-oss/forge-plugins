@@ -228,7 +228,7 @@ node "${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs"
 > **파일 위치**: 워크스페이스(멀티레포) 또는 프로젝트(단일레포) 루트 `.claude/qa-config.json`. **부재 시 graceful fallback** — `--app`/`--domains`/`--accounts`/`--exhaustive` 미지정 시 이 파일은 전혀 읽히지 않고(신규 agent 호출 0건, 회귀 0), 4축 중 하나라도 지정되면 workflow.js Phase A0가 이 파일을 참조하도록 위임 에이전트에 안내한다 — 실 파싱은 그 에이전트가 Read 도구로 수행한다(workflow.js 자체는 fs를 import하지 않는 이 파일의 기존 아키텍처를 따름).
 > **크레덴셜은 반드시 `ref:.env#KEY` 형식만** — 평문 절대 금지(secret guard).
 
-**멀티레포(예: starbeginz) 예시** — app 레지스트리 포함:
+**멀티레포 예시** — app 레지스트리 포함:
 ```json
 {
   "apps": {
@@ -868,7 +868,7 @@ for (bug_id, branch) in completed_parallel_results_in_order:
 - 하드코딩된 시크릿/API키 → 즉시 불합격
 - Spec 의도와 다른 구현 방향 → 불합격
 
-**게임 (GodBlade) 작업**
+**게임(Unity) 작업**
 - Unity 빌드 에러 잔존 → 불합격
 - 테스트 환경에서 60fps 미달 → 불합격
 

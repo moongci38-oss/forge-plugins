@@ -43,7 +43,7 @@ model: sonnet
 
 - 활성 프로젝트 목록은 `~/forge/forge-workspace.json` 의 `projects` 필드를 Read 해 동적 확인
 - Forge: 기획(S1~S5) + 개발(P4–P7 + platform) + 정부과제(GR-1~6) 파이프라인 · Claude Code Skills/Agents/Hooks/MCP · Git worktree
-- 스택: Next.js + Framer Motion + Lenis · Playwright E2E · NestJS + TypeORM + PostgreSQL · Unity 모바일 RPG(GodBlade, C#)
+- 스택: Next.js + Framer Motion + Lenis · Playwright E2E · NestJS + TypeORM + PostgreSQL · Unity 모바일 RPG(C#)
 - 자동화: cron(daily-system-review, weekly-research, /article) · 지식: Raw → Wiki → Meta (forge-outputs/20-wiki)
 
 ## 출력 형식

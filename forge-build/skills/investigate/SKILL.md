@@ -83,7 +83,7 @@ bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
   exit 0 → `📌 learnings 신규: <id>` · 2(secret) → `⚠️ bug-fix-pattern learning 억제 — <패턴명>, 내용 비노출` · 3 → 1줄 압축 재시도 · 4 → 보고에 1줄 노출. 각 필드 1줄.
 ```bash
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)
-[ -d "${FORGE_OUTPUTS:-$HOME/forge-outputs}/.rag-index" ] && [ "$REPO" != unknown ] && \
+[ "$REPO" != unknown ] && \
   OPENAI_API_KEY="" timeout 180 bash ~/forge/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" >/dev/null 2>&1 || true
 ```
 

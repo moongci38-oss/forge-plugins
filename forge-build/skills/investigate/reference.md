@@ -38,7 +38,7 @@ Stage 2(분석) 및 Stage 3(가설 검증) 진행 시, 상황에 맞는 모델�
 - 상태 복잡·간헐적 → **invariant-check**
 - 여러 조건 복합 → 두 모델 병행 허용
 
-## §Stage 1 다층 시스템 boundary 진단 예시 (starbeginz 3 repo)
+## §Stage 1 다층 시스템 boundary 진단 예시 (멀티레포 3 repo)
 
 avatarplay-frontend → .NET API → MySQL:
 
@@ -72,7 +72,7 @@ _logger.LogInformation("[API exit] resultCode={Code}, dataKeys={Keys}", result.R
 
 저장 경로: `forge-outputs/01-research/bugs/{project}/{YYYY-MM-DD}-{slug}.md`
 
-- `{project}`: 현재 작업 디렉토리에서 추론 (godblade, portfolio, pingame-server 등)
+- `{project}`: 현재 작업 디렉토리에서 추론 (게임 프로젝트명, portfolio, 서버 프로젝트명 등)
 - `{slug}`: 증상 요약 kebab-case (예: `session-not-persisted-after-login`)
 
 ```markdown

@@ -56,7 +56,7 @@
 | ... | 이미 적용됨 / 영향도 낮음 / 리소스 대비 효과 낮음 |
 
 ## 실행 체크리스트
-- [ ] P0 항목 (담당: Business/Portfolio/GodBlade)
+- [ ] P0 항목 (담당: Business/Portfolio/게임 프로젝트)
 - [ ] P1 항목
 
 ## 참고 영상
@@ -135,11 +135,11 @@
 - ...
 
 ## 실행 가능 항목
-- [ ] 항목 (적용 대상: Portfolio/GodBlade/Business 명시)
+- [ ] 항목 (적용 대상: Portfolio/게임 프로젝트/Business 명시)
 
 ## 관련성
 - **Portfolio**: N/5 — 이유
-- **GodBlade**: N/5 — 이유
+- **게임 프로젝트**: N/5 — 이유
 - **비즈니스**: N/5 — 이유
 
 ## 핵심 인용

@@ -154,7 +154,7 @@ for src, should_flag, why in [
     ("/home/${USER}/x", False, "변수 플레이스홀더"),
     ("/mnt/c/Program Files/Unity/Hub/Editor/Unity.exe", False, "표준 윈도우 설치 경로"),
     ("/mnt/e/* 또는 E:/* → windows", False, "WSL 드라이브 판별 glob"),
-    ("${GODBLADE_ROOT}/loops/x", False, "치환 완료본"),
+    ("${FORGE_GAME_PROJECT_ROOT}/loops/x", False, "치환 완료본"),
 ]:
     flagged = bool(mod.find_leaks(src))
     if flagged == should_flag:

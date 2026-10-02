@@ -349,34 +349,36 @@ export OPENAI_API_KEY="sk-..."       # Codex MCP (cr-triple 2차 검수)
 일부 스킬은 **여러분의 프로젝트 경로**를 참조합니다. 이 저장소는 **공개**라 특정 개발 환경의
 절대경로·식별자를 기본값으로 넣지 않았습니다. 그래서 해당 스킬을 쓰려면 직접 설정해야 합니다.
 
-### 설정하는 것 — `GODBLADE_ROOT` 하나뿐입니다
+### 설정하는 것 — `FORGE_GAME_PROJECT_ROOT` 하나뿐입니다
 
 ```bash
 # ~/.bashrc 또는 ~/.zshrc — 아래 스킬을 쓸 때만
-export GODBLADE_ROOT="/path/to/your/unity-project/src"
+export FORGE_GAME_PROJECT_ROOT="/path/to/your/unity-project/src"
 ```
+
+> 이 변수와 조회 키는 예전에 다른 이름이었습니다. 옛 이름은 별칭 표(`~/.forge/mcp-project-aliases.json`)에 적어 둔 경우에만 당분간 받습니다 — 새 이름으로 바꿔 주십시오.
+
 
 | 쓰는 곳 | 플러그인 | 미설정 시 |
 |---------|----------|-----------|
-| `forge-tools` MCP — `project="godblade"` 조회 | forge-knowledge | 해당 조회만 `프로젝트 경로 없음: <set GODBLADE_ROOT>` |
+| `forge-tools` MCP — `project="game"` 조회 | forge-knowledge | 해당 조회만 `프로젝트 경로 없음: game` |
 | `image-orchestrate` — 게임 에셋 출력 경로 | forge-design | 일반 출력은 정상, 게임 에셋 경로만 미해석 |
 
 ```bash
 # 확인
-echo "GODBLADE_ROOT=$GODBLADE_ROOT" && ls "$GODBLADE_ROOT" 2>/dev/null || echo "미설정 또는 경로 없음"
+echo "FORGE_GAME_PROJECT_ROOT=$FORGE_GAME_PROJECT_ROOT" && ls "$FORGE_GAME_PROJECT_ROOT" 2>/dev/null || echo "미설정 또는 경로 없음"
 ```
 
 ### ⚠️ 설정해도 소용없는 것 — 문서 플레이스홀더 2종
 
-아래 둘은 **환경변수처럼 생겼지만 읽는 코드가 없습니다.** 공개 저장소라 원래 있던 실제 값을
+아래는 **환경변수처럼 생겼지만 읽는 코드가 없습니다.** 공개 저장소라 원래 있던 실제 값을
 지운 자리이며, `export`해도 아무 일도 일어나지 않습니다.
 
 | 이름 | 나오는 곳 | 본인 값으로 쓰려면 |
 |------|-----------|-------------------|
 | `${NOTION_DB_ID}` | `daily-analyze`·`daily-system-review` SKILL.md의 `DB URL:` 줄 (2건) | 그 줄을 직접 교체(업데이트 시 덮어써짐) 또는 **Notion MCP에서 대상 DB 지정**(권장) |
-| `${BOARDGAMES_ROOT}` | `game-qa/references/project-stacks.md` 참조표 | 그 문서를 본인 환경에 맞춰 읽고 판단 — 자동 해석 안 됨 |
 
-직접 확인: `grep -rn 'NOTION_DB_ID\|BOARDGAMES_ROOT' <플러그인>/` — 문서 줄에만 나옵니다.
+직접 확인: `grep -rn 'NOTION_DB_ID' <플러그인>/` — 문서 줄에만 나옵니다.
 
 > ⚠️ 구 표기 "`weekly-research` SKILL.md 의 `DB URL:` 줄" 은 2026-09-08 폐기했습니다 — 그 파일엔 없습니다.
 > 재현: `grep -c NOTION_DB_ID forge-knowledge/skills/weekly-research/SKILL.md` → **0** ·
@@ -384,7 +386,7 @@ echo "GODBLADE_ROOT=$GODBLADE_ROOT" && ls "$GODBLADE_ROOT" 2>/dev/null || echo "
 
 **왜 기본값을 안 넣었나**: 기본값에 실제 경로를 넣으면 공개 저장소에 개발 환경 구조가 그대로 실립니다.
 또 잘못된 기본 경로로 조용히 동작하는 것보다, 없으면 없다고 말하고 멈추는 편이 낫습니다 —
-그래서 `프로젝트 경로 없음: <set GODBLADE_ROOT>`처럼 **무엇을 설정해야 하는지가 그대로 노출**됩니다.
+그래서 `프로젝트 경로 없음: game`처럼 **무엇을 설정해야 하는지가 그대로 노출**됩니다.
 
 > 위 스킬을 설치하지 않았다면 아무것도 설정할 필요가 없습니다.
 > 플러그인별 상세는 `forge-design/README.md`·`forge-knowledge/README.md`.
