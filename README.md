@@ -2,7 +2,9 @@
 
 > 🚀 **처음이신가요? / 비개발자이신가요?** → [**QUICKSTART.md**](./QUICKSTART.md) 문서 하나로 5분 만에 설치됩니다.
 
-Forge Claude Code Plugin Marketplace — 5개 플러그인 패키지(통합 4 + forge-game).
+Forge Claude Code Plugin Marketplace — 4개 플러그인 패키지.
+
+> `forge-game`(게임팩)은 2026-10-02 에 이 마켓플레이스에서 내렸습니다 — 원본에서 유지가 멈춘 묶음입니다. 이미 설치한 사본은 그대로 남지만 더는 업데이트되지 않습니다.
 
 > **레포**: `github.com/moongci38-oss/forge-plugins` (public)
 
@@ -46,9 +48,8 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 | 기획자 / PM | forge-core + forge-build + forge-knowledge |
 | 리서처 | forge-core + forge-knowledge |
 | 디자이너 | forge-core + forge-design |
-| 게임 개발자 | forge-core + forge-design + forge-game |
 | 시스템 감사자 | forge-core (감사·하네스 내장) |
-| 전체 설치 | forge-core + forge-knowledge + forge-build + forge-design (+ forge-game) |
+| 전체 설치 | forge-core + forge-knowledge + forge-build + forge-design |
 
 ---
 
@@ -60,18 +61,17 @@ git checkout 906648e -- <plugin>/skills/<스킬명>
 | **forge-build** | v0.4.27 | 19 / 12 / 6 | 제품 생성 파이프라인 — 구현·검증(qa/healer/investigate/forge-pge/codex-review/forge-check-security·-exec/forge-check-ui/spec-compliance-checker/canary/playwright-cli) + GitNexus 코드 인텔리전스 6종 + frontend-design | forge-core |
 | **forge-knowledge** | v0.2.24 | 12 / 4 / 5 | 지식·리서치 — learn/wiki-sync + article/yt/site-deep-analyze/weekly-research/daily-system-review(+daily·weekly-analyze)/video-reference-guide + 문서 변환(pdf/docx), forge-tools MCP(ADR-174 unified_search) | forge-core |
 | **forge-design** | v0.2.20 | 2 / 4 / 0 | 디자인·에셋 — visual-loop/style-forge (+ 커맨드 forge-design/forge-design-review/generate-image/clip) | forge-core |
-| **forge-game** | v0.1.17 | 10 / 1 / 1 | 게임팩 — game-qa/game-asset-pipeline/game-asset-generate/asset-extract/dungeon 루프 2종 등 (Unity 전용) | forge-core, forge-design |
 
 > **이 표의 숫자를 어떻게 셌나** (2026-09-30 재측정 · 처음 2026-09-08). 버전은 각 번들의 `plugin.json` 이 정본이고,
 > 개수는 폴더를 센 것입니다. 숫자가 의심스러우면 표를 믿지 말고 아래를 직접 돌려 보십시오.
 >
 > ```bash
 > # 버전
-> for p in forge-core forge-build forge-knowledge forge-design forge-game; do
+> for p in forge-core forge-build forge-knowledge forge-design; do
 >   echo -n "$p: "; python3 -c "import json;print(json.load(open('$p/.claude-plugin/plugin.json'))['version'])"
 > done
 > # 개수 (스킬 = 폴더 수, 커맨드·에이전트 = .md 파일 수)
-> for p in forge-core forge-build forge-knowledge forge-design forge-game; do
+> for p in forge-core forge-build forge-knowledge forge-design; do
 >   echo "$p: skills=$(ls -1 $p/skills 2>/dev/null|wc -l) commands=$(ls -1 $p/commands/*.md 2>/dev/null|wc -l) agents=$(ls -1 $p/agents/*.md 2>/dev/null|wc -l)"
 > done
 > ```
@@ -116,7 +116,6 @@ claude plugin install forge-knowledge     # 지식·리서치 (권장 — 모든
 
 claude plugin install forge-build         # 개발자/기획자 (구현+기획 파이프라인)
 claude plugin install forge-design        # 디자이너
-claude plugin install forge-game          # 게임 개발자 (forge-design도 함께)
 ```
 
 ### Step 3 — Claude Code 재시작
@@ -192,7 +191,6 @@ claude plugin update forge-core@forge-plugins
 claude plugin update forge-knowledge@forge-plugins
 claude plugin update forge-build@forge-plugins
 claude plugin update forge-design@forge-plugins
-claude plugin update forge-game@forge-plugins
 
 # 4. Claude Code 완전히 종료 후 재시작
 # 5. 버전 확인
@@ -201,7 +199,7 @@ claude plugin list
 
 한 줄 버전(1~3을 한 번에 · 설치 안 한 플러그인은 "설치되지 않음"이 떠도 괜찮다):
 ```bash
-cd ~/forge && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design forge-game; do claude plugin update $p@forge-plugins; done
+cd ~/forge && git pull && claude plugin marketplace update forge-plugins && for p in forge-core forge-build forge-knowledge forge-design; do claude plugin update $p@forge-plugins; done
 ```
 
 > **플러그인 훅은 업데이트에 포함된다.** 훅이 있는 플러그인은 `forge-core` 하나(5개 — `plugin.json` `hooks` 블록)이고 Claude Code 가
@@ -314,7 +312,7 @@ npm install -g @openai/codex
 
 MCP 등록 후 재시작해야 적용됩니다.
 
-> MCP 없이도 forge-core 나머지 스킬과 forge-build/forge-knowledge/forge-design/forge-game 정상 동작.
+> MCP 없이도 forge-core 나머지 스킬과 forge-build/forge-knowledge/forge-design 정상 동작.
 >
 > ⚠️ **단, `cr-*` 계열과 `/forge-pr` 은 예외입니다.** `/forge-pr` 은 기본값이 `--cr on` 이라 PR 을 열기 전에
 > `cr-final`(3레그 적대적 검수)을 **먼저 통과**시킵니다 — MCP 가 없으면 그 게이트에서 막힙니다.
@@ -360,7 +358,6 @@ export GODBLADE_ROOT="/path/to/your/unity-project/src"
 
 | 쓰는 곳 | 플러그인 | 미설정 시 |
 |---------|----------|-----------|
-| `dungeon-play-loop`·`dungeon-uiux-loop` (STATE 경로·`verify.sh`) | forge-game | 경로가 빈 문자열로 확장돼 **동작 실패** |
 | `forge-tools` MCP — `project="godblade"` 조회 | forge-knowledge | 해당 조회만 `프로젝트 경로 없음: <set GODBLADE_ROOT>` |
 | `image-orchestrate` — 게임 에셋 출력 경로 | forge-design | 일반 출력은 정상, 게임 에셋 경로만 미해석 |
 
@@ -390,7 +387,7 @@ echo "GODBLADE_ROOT=$GODBLADE_ROOT" && ls "$GODBLADE_ROOT" 2>/dev/null || echo "
 그래서 `프로젝트 경로 없음: <set GODBLADE_ROOT>`처럼 **무엇을 설정해야 하는지가 그대로 노출**됩니다.
 
 > 위 스킬을 설치하지 않았다면 아무것도 설정할 필요가 없습니다.
-> 플러그인별 상세는 `forge-game/README.md`·`forge-design/README.md`·`forge-knowledge/README.md`.
+> 플러그인별 상세는 `forge-design/README.md`·`forge-knowledge/README.md`.
 
 ---
 
@@ -433,7 +430,7 @@ cd ~/forge-plugins-repo && git pull
 > 절반뿐이었습니다. **채팅창의 `/` 자동완성이 항상 정답**이고, 파일로 세고 싶으면:
 >
 > ```bash
-> ls -1 forge-core/skills forge-build/skills forge-knowledge/skills forge-design/skills forge-game/skills
+> ls -1 forge-core/skills forge-build/skills forge-knowledge/skills forge-design/skills
 > ls -1 forge-core/commands/*.md forge-build/commands/*.md   # 커맨드
 > ```
 
@@ -589,24 +586,8 @@ cd ~/forge-plugins-repo && git pull
 | `/forge-design` | `/forge-design [--track web\|game] <설명>` | PRD(web) / GDD(game) 기획서 작성 디스패처 |
 | `/clip` | `/clip` | 클립보드/경로 이미지를 대화에 붙이기 |
 
-### forge-game (게임 개발자)
-
-| 스킬/커맨드 | 사용법 | 설명 |
-|------------|--------|------|
-| `/gdd` | `/gdd` | 게임 기획서(GDD) 작성 |
-| `/game-qa` | `/game-qa` | 게임 QA 파이프라인 |
-| `/game-asset-pipeline` | `/game-asset-pipeline` | 게임 에셋 파이프라인 |
-| `/game-asset-generate` | `/game-asset-generate` | 게임 에셋 생성 |
-| `/asset-extract` | `/asset-extract` | Unity 에셋 추출 |
-| `/game-logic-visualize` | `/game-logic-visualize` | FSM·확률표·전투공식을 Mermaid/Draw.io 로 그리기 |
-| `/gamedesign-analyze` | `/gamedesign-analyze` | 게임 디자인 분석 |
-| `/game-reference-collect` | `/game-reference-collect` | 경쟁작 레퍼런스(영상·스크린샷) 수집 |
-| `/dungeon-play-loop`·`/dungeon-uiux-loop` | — | Unity 던전 반복 검증 루프 (`GODBLADE_ROOT` 필요) |
-| `/game-bug-runtime-loop` | — | 런타임 버그 반복 수정 루프 |
-
-> ⚠️ 구 표기에서 forge-design 은 스킬 1개, forge-game 은 4개만 적혀 있었습니다 — 2026-09-08 폐기.
-> 2026-09-30 재측정은 각각 **2개·10개**입니다(재현: `ls -1 forge-design/skills | wc -l` → 2 ·
-> `ls -1 forge-game/skills | wc -l` → 10). forge-design 은 스킬 정리로 7→2 로 줄었습니다
+> ⚠️ 구 표기에서 forge-design 은 스킬 1개만 적혀 있었습니다 — 2026-09-08 폐기.
+> 2026-09-30 재측정은 **2개**입니다(재현: `ls -1 forge-design/skills | wc -l` → 2). forge-design 은 스킬 정리로 7→2 로 줄었습니다
 > (남은 것: style-forge · visual-loop — 위 표의 나머지 forge-design 스킬은 `/` 자동완성에 없을 수 있습니다).
 
 ### 빠른 시작 예시
@@ -752,18 +733,14 @@ forge-plugins-repo/
 │   ├── commands/                      — 4개 (article/site-deep-analyze/forge-find-item/wiki-sync)
 │   ├── agents/                        — 5개 (academic-researcher/article-analyst/fact-checker/yt-research-followup/yt-video-analyst)
 │   └── mcp/                           — forge-tools-server.py (ADR-174 unified_search)
-├── forge-design/                      — (v0.2.20)
-│   ├── skills/                        — 2개 (style-forge/visual-loop)
-│   └── commands/                      — 4개 (forge-design/forge-design-review/generate-image/clip)
-│                                        (agents/ 폴더 없음 — 구 표기 "1개 등록 (doc-writer) · agents/gemini.md 파일 잔존" 은 2026-09-30 폐기)
-└── forge-game/                        — (v0.1.17)
-    ├── skills/                        — 10개 (game-qa/game-asset-pipeline/game-asset-generate/asset-extract/game-logic-visualize/gamedesign-analyze/game-reference-collect/game-bug-runtime-loop/dungeon 루프 2종)
-    ├── commands/                      — 1개 (gdd)
-    └── agents/                        — 1개 (gdd-writer)
+└── forge-design/                      — (v0.2.20)
+    ├── skills/                        — 2개 (style-forge/visual-loop)
+    └── commands/                      — 4개 (forge-design/forge-design-review/generate-image/clip)
+                                         (agents/ 폴더 없음 — 구 표기 "1개 등록 (doc-writer) · agents/gemini.md 파일 잔존" 은 2026-09-30 폐기)
 ```
 
 > **세는 명령** (2026-09-30 재측정 · 처음 2026-09-08):
-> `for p in forge-core forge-build forge-knowledge forge-design forge-game; do echo "$p: skills=$(ls -1 $p/skills 2>/dev/null|wc -l) commands=$(ls -1 $p/commands/*.md 2>/dev/null|wc -l) agents=$(ls -1 $p/agents/*.md 2>/dev/null|wc -l)"; done`
+> `for p in forge-core forge-build forge-knowledge forge-design; do echo "$p: skills=$(ls -1 $p/skills 2>/dev/null|wc -l) commands=$(ls -1 $p/commands/*.md 2>/dev/null|wc -l) agents=$(ls -1 $p/agents/*.md 2>/dev/null|wc -l)"; done`
 >
 > ⚠️ **폐기한 서술 3건** (2026-09-08):
 > ① `handover-manager.sh` — **번들에 없습니다.** v0.7.0(2026-07-26)에 설치 블록을 지웠습니다.

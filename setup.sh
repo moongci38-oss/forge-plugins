@@ -367,7 +367,7 @@ else
   info "플러그인 마켓플레이스 등록 중..."
   claude plugin marketplace add moongci38-oss/forge-plugins 2>/dev/null || true  # 인자는 source 1개뿐
 
-  for p in forge-core forge-build forge-knowledge forge-design forge-game; do
+  for p in forge-core forge-build forge-knowledge forge-design; do
     # root-cause: grep 패턴 대신 이름만 매칭 — 출력 형식(❯/공백) 무관
     if claude plugin list 2>/dev/null | grep -q "${p}"; then
       info "${p} 업데이트 중..."
