@@ -1,19 +1,19 @@
 ---
 name: healer
-description: "버그리포트(docs/bug_report/BUG-NNN-*.md) 기반 자동수정. TDD red-green(재현→원인→수정→검증→회귀테스트화) 후 Fixed 갱신. 트리거: '/healer BUG-001', '버그 고쳐줘', /bug-report 작성 후."
+description: "버그리포트(docs/bug_report/BUG-NNN-*.md) 기반 자동수정. TDD red-green(재현→원인→수정→검증→회귀테스트화) 후 Fixed 갱신. 트리거: '/healer BUG-001', '버그 고쳐줘', /forge-fix ② 리포트 작성 후."
 ---
 
 # Healer
 **역할**: 버그 리포트를 받아 TDD red-green(재현→근본원인→외과적 수정→리뷰→검증→회귀테스트화)을 실행한다. logic-guard 버그는 자동수정 금지 → Human [STOP].
 
-- **컨텍스트**(입력): `BUG-NNN` ID 또는 `docs/bug_report/BUG-NNN-slug.md` 경로 — `/bug-report` 작성 후 착수하고, 6하원칙이 미완성이면 즉시 STOP 한다
+- **컨텍스트**(입력): `BUG-NNN` ID 또는 `docs/bug_report/BUG-NNN-slug.md` 경로 — `/forge-fix` ② 리포트 작성 후 착수하고, 6하원칙이 미완성이면 즉시 STOP 한다
 - **출력**: 수정 코드 + 리포트 상태 `Fixed` 갱신 + 영구 회귀테스트 등록
 
 ## Step 1: 리포트 찾기
 ```bash
 find docs/bug_report/ -name "{BUG-ID}-*.md" | head -1
 ```
-없으면 STOP — "리포트 미존재. `/bug-report`로 먼저 작성하세요."
+없으면 STOP — "리포트 미존재. `/forge-fix`로 먼저 작성하세요."
 
 ## Step 2: 6하원칙 확인
 
