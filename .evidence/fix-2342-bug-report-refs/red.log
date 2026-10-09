@@ -1,0 +1,8 @@
+## bash refs2342.sh <base> — 수정 전(origin/main a1dc6d2 실제 체크아웃)
+./README.md:515:/bug-report`
+./README.md:515:/bug-report`
+./forge-build/commands/forge-fix.md:103:`bug-report` 스킬
+./forge-build/skills/healer/SKILL.md:16:/bug-report`
+./forge-build/skills/healer/SKILL.md:3:/bug-report 
+./forge-build/skills/healer/SKILL.md:9:/bug-report`
+REFS=6
