@@ -512,7 +512,6 @@ cd ~/forge-plugins-repo && git pull
 | `/api-e2e` | `/api-e2e` | API E2E 테스트 |
 | `/playwright-cli` | `/playwright-cli` | Playwright 브라우저 테스트 |
 | `/playwright-parallel-test` | `/playwright-parallel-test` | Playwright 병렬 테스트 |
-| `/bug-report` | `/bug-report` | 버그 리포트 생성 |
 | `/benchmark` | `/benchmark` | 성능 벤치마크 |
 | `/canary` | `/canary` | 카나리 배포 모니터링 |
 | `/forge-check-security` | `/forge-check-security` | 보안 체크 |

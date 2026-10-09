@@ -100,7 +100,7 @@ node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
 | cross-repo | **[STOP]** 사용자 확인 후 Lane A 다중 healer (PGE 금지) |
 | ①/④ 오라클 생성 불가 | carve-out 결정론화(접속실패 로그 필수) — 자유텍스트 사유로 통과 불가 |
 
-- **--scan**: `bug-report` 스킬로 URL 순회 → bug-N 등록 → 버그별 ①~④(SIMPLE/MODERATE 병렬, HIGH = Agent Teams 5-specialist).
+- **--scan**: `qa` 스킬 C 발견으로 URL 순회 → bug-N 등록 → 버그별 ①~④(SIMPLE/MODERATE 병렬, HIGH = Agent Teams 5-specialist).
 - **--loop**: 종료조건 파싱 → 버그 큐 → 충족까지 반복. 6사이클 초과 / same-issue 3회(`sha256({file}:{symbol}:{error_class})`) / 회귀 → 즉시 [STOP]. 종료조건 충족 ≠ 품질 보장.
 ## 리뷰-수정 루프 (③→④, cap 3)
 code-reviewer FAIL 또는 게이트 G 미충족 → 재수정·재검수, 3회째 FAIL → [STOP] Human(plateau). PASS/WARN → `/forge-pr` · 동일 이슈 재발 → 즉시 [STOP] · 3회 초과 → [STOP] + forge-multi plateau 4옵션(A추가R/B override/C폐기/D단순화). advisor T3 조언을 입력으로 쓰되 선택은 Human/오케스트레이터.
