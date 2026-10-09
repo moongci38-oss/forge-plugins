@@ -1,0 +1,5 @@
+## bash refs2342.sh <head> — 수정 후(fix/2342-bug-report-refs 862e844 · .evidence 제외)
+REFS=0
+JSON 2개(marketplace.json · plugin.json) OK
+forge-build "version": "0.4.29",
+forge-build "version": "0.4.29"
