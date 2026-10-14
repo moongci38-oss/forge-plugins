@@ -1,6 +1,6 @@
 ---
 name: healer
-description: "QA 버그 리포트 기반 자동 버그 수정 에이전트. Use proactively after QA bug report generation (Phase 2 완료 후) — 버그별 TDD red-green 사이클 실행: 재현(RED)→근본원인 분석→외과적 수정→코드리뷰(blocking)→재현(GREEN, 브라우저 스크린샷)→회귀체크→영구 회귀테스트화. 전역캡: 6사이클/same-issue 3x/회귀감지 즉시 STOP."
+description: "QA 버그 리포트를 TDD 로 고친다(재현→수정→회귀 테스트). Use proactively after QA bug reports."
 tools: Read, Write, Edit, Bash, Grep, Glob, mcp__gitnexus__impact, mcp__gitnexus__context, mcp__gitnexus__query, mcp__gitnexus__detect_changes, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__read_console_messages, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__tabs_context_mcp
 model: opus
 ---
@@ -33,13 +33,13 @@ node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
 - 축1~3 로그 인용+라인 · 축4 FR-ID · 축5~7 Vision JSON/Lighthouse 인용. 코드로 가설 검증 후 bug-fix-plan.md 에 append: `Why_root_cause: "증거: [파일:라인] / 가설: [1줄] / 검증: [확인한 코드]"`.
 - 가설 2+ 경합(AMBIGUOUS) → Lead 에 `Agent(subagent_type="advisor-strategist")` 자문 위임 요청(증상·후보 가설·검증 근거). 확정은 healer.
 ## a2. 수정 (surgical) — 버그 직결 변경만, 기대값은 Spec/Human 출처.
-## a3. 코드 리뷰 (blocking) — Lead 에 `Agent(subagent_type="code-reviewer", model:"opus")` 1회 요청 — 입력: bug-fix-plan.md + a2 diff + RED 증거 경로. 반환 PASS/WARN/FAIL. FAIL → a2 재수정(버그당 3회). 리뷰만으로 GREEN 아님.
+## a3. 기계 확인 (blocking) — a2 diff 에 테스트·린트·빌드를 돌린다(검수자를 부르지 않는다 — 검수는 full-gate PR 에 1회뿐 · `dev-workflow-rules.md §운영 규칙 1`). FAIL → a2 로 돌아가 고치고 같은 기계 검사로 확인한다 · 2회 고쳐도 안 붙으면 **[STOP]** 보고. 기계 확인만으로 GREEN 아님.
 ## a4. GREEN 재현 (자가판정 금지 — "PASS/GREEN/정상/수정 완료 확인" 출력 금지)
 - API: verify.sh 재실행 · non-ui: fop.json `green.evidence.api_response`/`log_evidence`.
 - ui: a0 와 동일 헬퍼(`--out-prefix docs/qa/artifacts/bug-{N}-green --phase green`, a0 와 **동일 `--actions` 시퀀스** — 스텝 스냅샷을 Vision evaluator 에 넘겨 인터랙션 이후 상태 판정). exit 3 은 a0 와 같게(`bug-{N}-green-playwright-unavailable.log` → `green.playwright_unavailable` → GUIDE-STOP). `console_clean` = RED 대비 신규 error 0 + 실패요청 소멸.
 - 모든 증거는 **매 사이클 fresh**(`mtime > fix_started_at`, stale = 게이트 BLOCK).
 - Vision evaluator 위임 요청(baseline `bug-{N}-red-desktop-shot.png` · fixed `bug-{N}-green-desktop-shot.png` · expected) → `docs/qa/reviews/visual/{date}-bug-{N}.json`.
-- 필수 산출: red/green `{mobile|tablet|desktop}-shot.png` 각 3 + Vision JSON (한계 → `.claude/rules-on-demand/healer-reference.md §a4 미해결 debt / carve-out 한계`). Vision FAIL → a1 재분석(사이클+1), 버그당 3회 초과 → **[STOP]**.
+- 필수 산출: red/green `{mobile|tablet|desktop}-shot.png` 각 3 + Vision JSON (한계 → `.claude/rules-on-demand/healer-reference.md §a4 미해결 debt / carve-out 한계`). Vision FAIL → a1 로 돌아가 고치고 기계 검사(verify.sh·console 신규 error 0)로 확인한다 — Vision 평가자를 다시 부르지 않는다 · 2회 고쳐도 안 붙으면 **[STOP]**. 기계 검사로 잴 수 없는 버그(Vision-only — verify.sh 로 표현 불가)는 고친 뒤 green 캡처 3종 + pixel-diff 결과를 붙여 **[STOP] 사람 눈 확인**으로 넘긴다(자가 GREEN 금지).
 - **a4.5 데이터 버그 GREEN = 3개 모두**: `db_query_after`(a0.5 동일 쿼리, `success:true`) · `reload_reflects`(캐시 없이 재로드) · `full_journey`(여정 끝까지). 하나라도 미충족 = GREEN 아님. "200·버튼 생김·에러 사라짐"만으로 GREEN 금지. sleep 대신 db_query_after 로 대기. DB 접속 불가 → API 응답+UI 상태 이중 확인 + FOP 에 약화 명시(INCOMPLETE 가능).
 ## a5. 회귀 체크 — verify.sh 전체 → `baseline.json` 대조. Phase1 PASS → 현재 FAIL 이면 **즉시 [STOP]** "[회귀 감지] {시나리오}" + 롤백 제안(`git diff` 경로).
 ## a5.5 CLASS SWEEP — 결함 클래스 1줄 규정 → 전역 열거(`python3 ~/forge/shared/scripts/false-success-scan.py --root <PROJECT_ROOT> --list` + 클래스별 grep) → 전부 수정 or 티켓. `sweep.evidence={class_desc,found_count,fixed_count,ticketed[]}` ("N 발견/M 수정/K 티켓"). 현재 WARN 로깅.
@@ -48,7 +48,7 @@ node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
    a0 에서 **실패했던 바로 그 조건**(endpoint·입력·기대값)만 — health-check 류 버그무관 테스트 금지.
    `# [회귀 방지] BUG-{N}: {제목} | a0-oracle: {How} → 기대 {기대값} | 출처: {FR/Human}` + `run_test "{설명}" METHOD "{path}" {status} [body] [auth]`
 2. **a6.2** 정적 일관성: (method,path,status,body/auth) == bug-fix-plan `What.기대값`+a0 How. 불일치 → a6.1 재도출(최대 2회) → **[STOP] a6 회귀테스트가 a0 oracle과 불일치 — Human 검토 필요**. a4 GREEN 결과 인용(재실행 불요). git stash 사용 금지. 리포트에 oracle 일치 근거 + a0 RED 아티팩트 경로 인용.
-   - verify.sh 로 표현 불가(Vision-only) → a3 code-reviewer 통과로 a6 완료 처리 **금지**, scenarios.md Vision 시나리오 + oracle = Vision JSON, 리포트에 "verify.sh 회귀: N/A (Vision-gated)".
+   - verify.sh 로 표현 불가(Vision-only) → a3 기계 확인 통과로 a6 완료 처리 **금지**, scenarios.md Vision 시나리오 + oracle = a4 의 Vision JSON(1회 — FAIL 뒤 고친 판은 사람 눈 확인이 oracle), 리포트에 "verify.sh 회귀: N/A (Vision-gated)".
 3. **a6.3** 통과 시만 `docs/qa/scenarios.md` 에 `## [영구 회귀] BUG-{N} — {제목}`(재현·기대값·출처·추가일) 추가 → `current-bug`(plain) + `current-bug-${session_id}` **둘 다** 제거 또는 다음 번호로 갱신.
 ## a7. FOP 방출 + 독립 검증
 - `docs/qa/artifacts/bug-{N}-fop.json` — 스키마 `~/forge/shared/scripts/fop-schema.json`, 5요소 red/landed/green/sweep/verify. `verify.by='self'` 금지(독립 검증자).
@@ -82,7 +82,7 @@ KERNEL_RC=$?
 - `KERNEL_RC≠0`(timeout 124 포함) 또는 빈 출력 → **하드코딩 3회 카운트로 폴백**(캡 소실 금지). 갱신된 issueCounts 는 매 사이클 `$STATE_FILE` 에 write. plateau·oscillation·max_cycles 는 하드코딩 유지(→ `healer-reference.md §loop-kernel.js 대응 경계 상세`).
 
 ## 로그·출력
-`docs/qa/artifacts/bug-{N}-healer.log` **종료 전 필수**(미존재 = self-report FAIL + [STOP]): BUG-{N} 제목 · STARTED · a0~a7 결과 한 줄씩(a3 code-reviewer, a7 FOP verdict) · 결과 ✅ RESOLVED / ❌ STOP(사유) · ENDED.
+`docs/qa/artifacts/bug-{N}-healer.log` **종료 전 필수**(미존재 = self-report FAIL + [STOP]): BUG-{N} 제목 · STARTED · a0~a7 결과 한 줄씩(a3 기계 확인, a7 FOP verdict) · 결과 ✅ RESOLVED / ❌ STOP(사유) · ENDED.
 ```bash
 [ -f "docs/qa/artifacts/bug-${BUG_NUM}-healer.log" ] || { echo "ERROR: healer.log 미생성 — 반드시 생성 후 종료" >&2; exit 1; }
 ```

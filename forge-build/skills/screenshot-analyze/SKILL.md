@@ -1,6 +1,6 @@
 ---
 name: screenshot-analyze
-description: "스크린샷(UI·HUD·이펙트·경쟁작)을 Vision 모델로 분석해 구조·컬러팔레트·구현가이드 생성. 화면이미지 첨부 또는 경쟁작 분석 요청 시 사용."
+description: "스크린샷 Vision 분석 → 구조·팔레트·구현 가이드 — 화면 이미지 분석을 요청할 때."
 context: fork
 model: sonnet
 ---
@@ -28,10 +28,10 @@ model: sonnet
 
 ## Step 2: 프롬프트 조립
 
-MUST 출력 형식을 프롬프트에 직접 포함한다. 모델 = `ASTRA_MODEL=gpt-6-sol`, `ASTRA_EFFORT=high`.
+MUST 출력 형식을 프롬프트에 직접 포함한다. 모델 = 스크립트 기본값(`codex-transport.sh sol` → gpt-6.1-sol · CLI ≥0.160.0 · 구 CLI 는 `gpt-6-sol` — #1971) · 바꿀 때만 `ASTRA_MODEL=`, `ASTRA_EFFORT=high`.
 공통 분해 규칙·필수 출력 형식·유형별 프롬프트 전문·`--extract` bbox JSON 스키마 → `references/output-format.md`
 
-`--extract` 구조: Pass 1 Analyzer×N(gpt-6-sol, 이미지별 초안 bbox) + 형제 IoU 사전검사 → Pass 2 Verifier×M(크롭 재전송, 잘림 시 확장 방향·px 반환 → bbox 보정) → Extractor(Sonnet, `extract-components.py`) ∥ Evaluator(루브릭 5항목).
+`--extract` 구조: Pass 1 Analyzer×N(gpt-6.1-sol, 이미지별 초안 bbox) + 형제 IoU 사전검사 → Pass 2 Verifier×M(크롭 재전송, 잘림 시 확장 방향·px 반환 → bbox 보정) → Extractor(Sonnet, `extract-components.py`) ∥ Evaluator(루브릭 5항목).
 
 ## Step 3: 분석 실행 — `analyze-screenshot.sh` (Codex CLI `-i` 첨부, 캐시: output-file 있으면 호출 안 함)
 
@@ -45,12 +45,12 @@ bash ~/.claude/scripts/analyze-screenshot.sh "{IMAGE_PATH}" \
 
 Verifier(컴포넌트별 병렬): bbox 로 `/tmp/verify_{comp_id}.png` 크롭(PIL, 정규화 x/y/w/h × 이미지 크기) 후
 ```bash
-ASTRA_MODEL=gpt-6-sol bash ~/.claude/scripts/analyze-screenshot.sh "/tmp/verify_{comp_id}.png" "" \
+bash ~/.claude/scripts/analyze-screenshot.sh "/tmp/verify_{comp_id}.png" "" \
   "'{comp_name}'({comp_type}) 가 완전히 포함됐나? 잘렸으면 {\"clipped\": true, \"expand\": {\"top\":0,\"bottom\":0,\"left\":0,\"right\":0}}, 아니면 {\"clipped\": false}"
 ```
 잘림 시 expand 만큼 원본 기준 보정 후 재크롭. 이어서 Extractor:
 ```bash
-ASTRA_MODEL=gpt-6-sol python3 ~/.claude/scripts/extract-components.py --image "{IMAGE_PATH}" \
+python3 ~/.claude/scripts/extract-components.py --image "{IMAGE_PATH}" \
   --analysis "{ANALYSIS_MD_PATH}" --output "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components"
 ```
 Kill: bbox JSON 없음 → 재프롬프트 1회 → 실패 시 텍스트 분석만 · Codex 오류 → 즉시 폴백+오류 출력 · 이미지 20MB 초과 → 추출 차단 · 크롭 0개 → 오류+안내.
@@ -75,7 +75,7 @@ echo "lint rc=$?"
 ## Step 5: 저장 + 후속
 
 1. 결과 출력 + `docs/assets/screenshot-refs/` 에 저장. GDD/Spec 작성 중이면 삽입 위치 안내.
-2. `--extract`: `{YYYY-MM-DD}-{REF_NAME}-components/` 아래 `_manifest.json`(메타+픽셀 bbox) · `_overlap-report.json` · `backgrounds/ buttons/ icons/ overlays/ text/ images/ containers/ etc/`. `_manifest.json` 은 `game-asset-generate` 레퍼런스로 전달 가능.
+2. `--extract`: `{YYYY-MM-DD}-{REF_NAME}-components/` 아래 `_manifest.json`(메타+픽셀 bbox) · `_overlap-report.json` · `backgrounds/ buttons/ icons/ overlays/ text/ images/ containers/ etc/`. `_manifest.json` 은 에셋 이미지 생성(GPT Image) 레퍼런스로 전달 가능.
 
 ## 파이프라인 연동
 S3 GDD(경쟁작 UI 비교) · S4 UI/UX 기획서 · Spec Section 9.5 · Element Task Doc(Task Doc 모드 → Section 7+10+16) · 구현 시 재참조 · 구현 후 역비교(구현 검증 모드).
@@ -90,6 +90,5 @@ S3 GDD(경쟁작 UI 비교) · S4 UI/UX 기획서 · Spec Section 9.5 · Element
 - 전송 전 확인: 미공개 기능·NDA 베타·PII 화면은 보내지 않는다(공개 스토어/공식 사이트 스크린샷만, PII 는 마스킹).
 
 ## Workflow 실행
-`Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode } })` — Codex Vision → Claude 자체 분석 fallback. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 위 Step 직접 실행.
+`Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode, codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") } })` — codexModel = 보낼 길(MCP)의 codex 가 부를 수 있는 sol(#2026) — Codex Vision → Claude 자체 분석 fallback. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 위 Step 직접 실행.
 `crMode`: caller 가 `~/forge/shared/scripts/cr-mode.sh` 조회 후 전달 — `on`(기본, Codex Vision) · `degrade`/`off`(Codex 제외, Claude 자체 Vision). 로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Claude 자체 분석`
-⚠️ 전제: Vision 용 codex-critic approve-worker 토큰 외부 선발행 필수(Workflow 는 셸 직접 호출 불가).

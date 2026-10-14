@@ -1,6 +1,6 @@
 ---
 name: playwright-cli
-description: Automates browser interactions — web testing, form filling, screenshots, data extraction. Use for navigating sites, page interaction, form fill, screenshots, app testing, info extraction.
+description: "Browser automation (navigate, fill forms, screenshots, extract data). Use when driving a web page."
 context: fork
 model: sonnet
 ---

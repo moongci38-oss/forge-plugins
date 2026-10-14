@@ -1,6 +1,6 @@
 ---
 name: frontend-design
-description: Create distinctive, production-grade frontend interfaces. Use when building, styling, or beautifying web components, pages, artifacts, posters, apps (websites, landing pages, dashboards, React components, HTML/CSS). Generates polished code avoiding generic AI aesthetics.
+description: "Production-grade frontend UI (pages, components, dashboards, HTML/CSS). Use when building or styling web UI."
 license: Complete terms in LICENSE.txt
 context: fork
 model: sonnet

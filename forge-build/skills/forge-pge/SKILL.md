@@ -1,6 +1,6 @@
 ---
 name: forge-pge
-description: "Planner-Generator-Evaluator 하네스. Evaluator만 subagent로 격리해 독립 검수한다. spec 없이 개발할 때 사용한다. 버그 수정은 /forge-fix."
+description: "Planner-Generator-Evaluator — spec 없이 개발할 때 사용한다."
 ---
 
 **역할**: PGE 하네스를 **직접 실행**한다 — Planner·Generator 는 메인 컨텍스트, Evaluator 만 독립 실행체(자기평가 금지, Generator 컨텍스트 미상속).
@@ -31,9 +31,10 @@ PASS = 70+ & 즉시 FAIL 없음. Evaluator 는 score-blind(점수 최적화 금�
 1. `{project_root}/.claude/reference/` 에서 유형별 파일 Read(`references/pge-phase-details.md §프로젝트 Reference 로딩 표`). 과거 실패 로드: `LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load pge-failure 2>/dev/null` · `LEARN_BY=pge bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null` → 실패 접근 회피.
 2. 요구 분석 · GitNexus 인덱스 있으면 `§Planner 2b — GitNexus 구조 탐색`(list_repos→query→context→impact).
 3. Unity .cs 포함 시 `§Planner 3 — Unity 클라이언트 .cs 수정 절차` 7단계 필수(`current-analysis.md` Step 0~4 + 대상 파일 없으면 Hook 이 .cs 수정 차단). 이전 시도 실패 → `current-analysis.md` `## 이전 시도 실패 이력` append. 산출물 구조 설계 + Rubric 포함.
+4. 설계 원칙(#2052): PGE_SPEC 에 도메인 용어·불변식·모듈 책임(한 책임·주입)를 적고, Rubric 에 리뷰 질문을 넣는다 — 정본 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`.
 **출력**: `{project_root}/.claude/state/PGE_SPEC.md`(상단 `## 참조 컨텍스트`) + (Unity) `current-analysis.md`.
-## Phase 1.5: Codex Plan Review (blocking)
-`/codex-review --stage plan --target {project_root}/.claude/state/PGE_SPEC.md --blocking` → PASS/WARN = Phase 2 · FAIL = issues[] 를 실패 이력에 추가 후 Planner 재실행.
+## Phase 1.5: Codex Plan Review (권고 · 1회)
+`/codex-review --stage plan --target {project_root}/.claude/state/PGE_SPEC.md` → 어느 판정이든 Phase 2 · FAIL = issues[] 를 PGE_SPEC 에 반영한다 — 다시 부르지 않는다.
 ## Phase 2: Generator (메인 — subagent X)
 ```bash
 WORKTREE="${WORKTREE:-$(git rev-parse --show-toplevel)}"   # 별도 워크트리 Generator 면 앞에서 WORKTREE 지정
@@ -42,7 +43,7 @@ MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$COD
 GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_SPEC")      # skip=advisor 생략 · advise=조언 주입
 ```
 - Evaluator FAIL 같은 실패 2회 → `ESCALATE=2` 재판정(상한 max). 판정표 정본 `forge-implement.md §3.6`.
-- **codex:*** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=$WORKTREE, model=$MODEL) + PGE_SPEC·Contract·Rubric·Planner 분석 주입, 산출물은 `secret-content-scan.sh` 경유. **Unity**(`ProjectSettings/ProjectVersion.txt` 또는 .cs) → Claude 폴백. `FORGE_DUAL_CODE=off`·Codex 미가용 → Claude(경고).
+- **codex:*** → `mcp__codex__codex`(sandbox=workspace-write, approval-policy=on-request, cwd=$WORKTREE, model=$MODEL) + PGE_SPEC·Contract·Rubric·Planner 분석 주입, 산출물은 `secret-content-scan.sh` 경유. **Unity**(`"${FORGE_ROOT:-$HOME/forge}/shared/scripts/unity-root-detect.sh" <FR 이 건드리는 경로…>` → `UNITY_ROOT=` 비어 있지 않음 · 모노레포 하위 폴더 포함 #2329 · 또는 .cs) → Claude 폴백. `FORGE_DUAL_CODE=off`·Codex 미가용 → Claude(경고).
 - `--advisor`: `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → gpt 면 `mcp__codex__codex`(read-only), claude 면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`. 권고: advisor 벤더 ≠ 구현 벤더.
 - **attribution(필수)**: 폴백 시 `$MODEL` 을 실제 모델로 갱신 후 `coder-attribution.sh write "$WORKTREE" "$MODEL"`. 후속 cr-* 는 `MODE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" review-mode "$WORKTREE")` → `--cr $MODE`(codex Generator=`cross`, `author-vendor` → `authorVendor`).
 - 절차: PGE_SPEC(·current-analysis) 재확인 → reference 패턴 준수 구현("museum quality") → 자기검토(Rubric 불합격 조건·key-file-map 쌍 수정·code-snippets 방식·실패 접근 반복 여부) → Unity 면 current-analysis Step 4 갱신.
@@ -53,9 +54,9 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
 |---|---|---|
 | A 기능 | 서버/로직(.cs service·.ts service·.py) | 선행 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/assert-db-isolation.sh"`(WARN 시 격리 DB 지정, `FORGE_DB_ISOLATION_ENFORCE=1` 시 BLOCK) → 빌드 Error 0 → `verify.sh code` + 데이터 흐름 트레이싱 |
 | B 웹/앱 UI | .tsx/.jsx/.css/.html | `/visual-loop` + `/playwright-parallel-test` |
-| C 게임 | Unity .cs+.prefab+.anim | `/game-qa`(3계층 → `§트랙 C — 검증 3계층`) |
+| C 게임 | Unity .cs+.prefab+.anim | `§트랙 C — 검증 3계층`(`/game-qa` 는 없다 — #2131 · 화면 대조는 `/screenshot-analyze`) |
 - 중복 가능. 도구 부재(fail-open): verify.sh 없음 → npm test/build·pytest 등 대체, 그것도 없으면 빌드만 + `verify.sh: SKIPPED (not found, no fallback)` · UI 도구 둘 다 없음 → `SKIPPED (no UI test tool available)` 를 Evaluator 에 전달(침묵 PASS 금지).
-- 결과 `PGE_QA_RESULT.md`. FAIL → Generator 로 되돌려 Phase 2 재실행.
+- 결과 `PGE_QA_RESULT.md`. FAIL → Generator 가 고치고 이 Phase(테스트·기계 검사)로 확인한다.
 ## Phase 4: Evaluator (독립 실행체 — Generator 반대 벤더·같은 등급)
 ```bash
 IMPL_MODEL="$(cat "$WORKTREE/.coder-attribution" 2>/dev/null)"   # 실제 구현 모델(요청 레인 아님)
@@ -70,22 +71,19 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/evaluator-lane.sh" --verify "$IM
 - 수행: Rubric 채점 → QA 잔존 이슈 감점 → 항목별 `PASS [{req}:{check}]` / `FAIL [{req}:{check}] — {위치} / {이유} / {방법}` / `SECURITY_CRIT [{req}:{check}] — {내용}`(별도 섹션) → SELF_CHECK 불신 → 레코드 append:
   `{"cycle": N, "score": S, "items": [{"id": "<req>:<check>", "verdict": "PASS|FAIL"}], "security_crit": [<id>]}`
 **출력**: `PGE_QA_REPORT.md`(덮어쓰기) + `PGE_EVAL_HISTORY.jsonl`(append 전용).
-## Phase 4.5: Codex 2차 리뷰 — `/codex-review --stage code --target <PGE diff>`
+## Phase 4.5: Codex 2차 리뷰 (첫 사이클에만 · 1회) — `/codex-review --stage code --target <PGE diff>`
 80+ = `--effort medium` · 60~79 = `--effort high` · <60 = 생략, 단 보안 민감 surface(auth/session/token/password/crypt/payment/secret/credential · api/routes/controllers/handlers/middleware · .env/.pem/.key) 면 "보안 관점 우선" 1회.
 - SECURITY_CRIT → 점수 무관 Phase 5 순위1. Codex CRITICAL → JSONL 에 별도 `security_event` 라인 append(in-memory 보유 금지). 보안 STOP 은 best-effort.
 - `agreement` → 점수 확정 · `disagreement` → 4.6 · `extension` → 이슈를 QA_REPORT 에 추가, 사용자 컨펌 후 진행. 링크 `forge-outputs/docs/reviews/code/{date}-forge-pge-{slug}.md`.
 ## Phase 4.6: Advisor (60~79 또는 disagreement 일 때만, `FORGE_ADVISOR_AUTO=off` 면 끔) → `references/call-budget-guards.md §Phase 4.6` Read.
-## Phase 5: 결정표 (`maxCycles`=`--cycles`, 위에서부터 첫 매칭 1회, 구조화 id 만 — `rollback_trigger` 만 prose)
-- **게이트 G**: 사이클 N(regression 시 N-1) 레코드 누락·파싱불가 또는 `shared/scripts/pge-eval-raw-check.sh` 원문 대조 불일치 → **[STOP] DATA_INTEGRITY**.
+## Phase 5: 결정표 (평가는 1회 — 위에서부터 첫 매칭, 구조화 id 만 — `rollback_trigger` 만 prose · `--cycles` 는 고치기 횟수 상한으로만 읽고 2 를 넘지 않는다)
+- **게이트 G**: 평가 레코드 누락·파싱불가 또는 `shared/scripts/pge-eval-raw-check.sh` 원문 대조 불일치 → **[STOP] DATA_INTEGRITY**.
 | 순위 | 조건 | 트리거 | 행동 |
 |:-:|---|---|---|
 | 1 | security_crit / rollback | `security_crit[]`≠∅ 또는 `security_event` 라인 또는 rollback_trigger 충족 | **[STOP]** `[SECURITY_CRIT]`/`[ROLLBACK]` |
-| 2 | rubric_all_pass | eval_ids ∪ 이전 PASS id 커버 AND items[] 전부 PASS | SUCCESS (아니면 N≥2 → 순위3, N=1 → continue) |
-| 3 | regression (N≥2) | (N-1 PASS) ∩ (N FAIL 또는 사라진 id, 1회 re-emit 재확인) ≠ ∅ | **[STOP]** 이전 통과 깨짐 |
-| 4 | same_issue (N≥3, kernel) | 동일 id 3사이클 연속 FAIL | **[STOP]** + 구현 방식 전환 권고 |
-| 5 | max_cycles | N≥maxCycles 또는 PGE_CALL_CAP 초과 | **[STOP]** 현상태+잔존 이슈 |
-| — | 그 외 FAIL | N<maxCycles | continue → Phase 2 (FAIL = 접근 전환 입력) |
-- STOP 메시지 형식 → `references/pge-phase-details.md §Phase 5 STOP 메시지 형식`. 사이클 진입 전 call-budget·stop-condition 확인(`loop-budget.sh`·`loop-call-accum.sh`) → `references/call-budget-guards.md`(1회 PASS 면 불필요). 3사이클 후 FAIL → 핸드오버에 `pge-failure 후보:` 1줄.
+| 2 | rubric_all_pass | items[] 전부 PASS | **SUCCESS** |
+| 3 | 그 외 FAIL | FAIL 항목 1개 이상 | Generator 가 FAIL 항목을 고치고 **Phase 3(테스트·기계 검사)** 로 확인한다 — Evaluator·Codex 를 다시 부르지 않는다(`dev-workflow-rules.md §운영 규칙 1`). Phase 3 통과 = **SUCCESS**(고친 FAIL 항목 id 를 보고서에 적는다) · 2회 고쳐도 테스트가 안 붙거나 PGE_CALL_CAP 초과 → **[STOP]** 현상태+잔존 이슈 |
+- STOP 메시지 형식 → `references/pge-phase-details.md §Phase 5 STOP 메시지 형식`. 고치기 전에 call-budget·stop-condition 확인(`loop-budget.sh`·`loop-call-accum.sh`) → `references/call-budget-guards.md`(1회 PASS 면 불필요). [STOP] 으로 끝나면 핸드오버에 `pge-failure 후보:` 1줄.
 ## Phase 6: 사후 Spec (SUCCESS 직후, WARN-first)
 ① `test -d "{project_root}/.specify"` ② `grep -rl 'spec-validation\|specify/specs' {project_root}/.github/` ≥1 — 둘 다일 때만 `.specify/specs/$(git rev-parse --abbrev-ref HEAD).md` 발행(있으면 append): `## 구현된 FR` · `## 변경 범위` · `## 검증 결과` · `## 산출 근거`. 아니면 스킵 사유 1줄. 실패해도 PGE FAIL 아님.
 ## 파일 (`{project_root}/.claude/state/`)

@@ -2,7 +2,6 @@
 //   구독이 Gemini API 를 안 덮어 유일한 종량 벤더였고, 키가 막혀 이 경로가 통째로 죽어 있었다.
 //   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
 //   ⚠️ Astra 는 로컬 파일을 직접 읽는다 — 이미지 내용을 인라인할 필요 없이 **절대경로**만 주면 된다.
-// ⚠️ Phase 0 전제: Vision 용 codex-critic approve-worker 토큰 외부 선발행 필수.
 // crMode gate: args.crMode ∈ {'on','degrade','off'}, 기본 'on' (2026-09-07 flip — 구 기본값 'degrade').
 //   'on'      → Codex(sol) Vision (default)
 //   'degrade' → Codex 레그 제외, Claude 자체 Vision 분석으로 축소
@@ -39,7 +38,8 @@ const prompt = `${intent}. 이미지: ${imagePath}. description + elements + iss
 //   codex:high 의 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high). 사다리가 바뀌면 여기도 함께 고친다.
 // 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 codex:max(gpt-6-astra) 기본값 폐기 → sol · effort high(분석 레인, 게이트 아님).
 //   ⚠️ 무력화되는 입력: 호출자가 args.codexModel 로 최고급 id 를 넘기면 그대로 쓴다(사람 override).
-const codexModel = _a?.codexModel || 'gpt-6-sol'
+//   (#1971 2026-10-04) gpt-6-sol → gpt-6.1-sol. 짝 테스트 = forge-multi/tests/vision-codex-default.test.mjs (registry codex:high 대조).
+const codexModel = _a?.codexModel || 'gpt-6.1-sol'
 
 // ── Phase 1: Analyze (Codex(sol) Vision → Claude 자체 분석 fallback) ────────
 phase('Analyze')

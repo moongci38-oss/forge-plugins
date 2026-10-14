@@ -1,5 +1,5 @@
 ---
-description: Forge Dev 보안 검수 (P6 QA Phase 1 T6 연계) — 독립 실행
+description: 보안 검수 — `forge-check-security` 스킬 진입점.
 allowed-tools: Bash, Read, Grep, Glob
 model: sonnet
 disable-model-invocation: true
@@ -18,7 +18,7 @@ forge-check-security 스킬의 절차를 그대로 실행한다.
 
 보안 발견의 심각도·악용 가능성 판정이 경계일 때 `advisor-strategist` 조언을 구한다(모델 = `advisor-spawn-guard.sh resolve` 출력, **기본 `gpt-6-astra`**). **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
 
-> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-spawn-guard.sh resolve`(리졸버 래퍼) 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5-5`→`model:"opus"`, **`gpt-6-astra`(기본)·`gpt-6-sol` 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회되고, 리졸버만 직접 부르면 래퍼의 예산 초과 하향(R3)도 빠진다.
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-spawn-guard.sh resolve`(리졸버 래퍼) 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5-5`→`model:"opus"`, **`gpt-6-astra`(기본)·`gpt-6.1-sol`(구 CLI 는 `gpt-6-sol`) 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회되고, 리졸버만 직접 부르면 래퍼의 예산 초과 하향(R3)도 빠진다.
 ```
 Agent(subagent_type="advisor-strategist", prompt="발견 내용·영향 범위·기존 방어 맥락 3-5줄. 질문: 이 보안 발견의 실제 악용 가능성과 심각도 상향/하향 근거 2-3개는?")
 ```

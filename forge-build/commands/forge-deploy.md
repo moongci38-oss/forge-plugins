@@ -55,7 +55,7 @@ group: deploy
   (B) NO  — forge-qa 스킵, 직행 (P6 QA 미통과 상태 명기, prod 전 반드시 통과 필요)
 선택: A 또는 B
 ```
-- 동일 스코프 forge-qa/game-qa PASS 증거(리포트 경로·커밋) 제시 시 (A) 충족 간주 — 근거 없는 스킵 금지.
+- 동일 스코프 forge-qa PASS 증거(리포트 경로·커밋) 제시 시 (A) 충족 간주 — 근거 없는 스킵 금지.
 - 승격: `gh pr create --base staging --head develop --title "chore(release): develop → staging" --body "develop→staging 승격. 델타: <요약>."` → `gh pr checks <PR#> --watch --interval 20` → `gh pr merge <PR#> --merge`(squash 아님 · `--delete-branch` 금지)
 - CI FAIL → [STOP]. `gh` 부재 + FF 면 `git push origin origin/develop:staging`(프로젝트 룰 허용 시), 비FF → [STOP].
 

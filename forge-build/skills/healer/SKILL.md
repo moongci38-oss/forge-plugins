@@ -1,6 +1,6 @@
 ---
 name: healer
-description: "버그리포트(docs/bug_report/BUG-NNN-*.md) 기반 자동수정. TDD red-green(재현→원인→수정→검증→회귀테스트화) 후 Fixed 갱신. 트리거: '/healer BUG-001', '버그 고쳐줘', /forge-fix ② 리포트 작성 후."
+description: "BUG-NNN 리포트 기반 TDD 자동수정. 트리거: '/healer BUG-001'·'버그 고쳐줘'."
 ---
 
 # Healer

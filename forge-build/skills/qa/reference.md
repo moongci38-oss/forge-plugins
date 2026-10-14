@@ -141,7 +141,7 @@ for s in serial_cats:
 
 | # | 축 | 도구 | 판정 기준 |
 |---|---|------|---------|
-| 1 | HTTP status | api-e2e + verify.sh | expected status 일치 |
+| 1 | HTTP status | T1 테스트 명령(`run-tests-proof.sh` 경유 · TEST_PROOF) + verify.sh | expected status 일치 |
 | 2 | Response schema | OpenAPI 스키마 대조 | drift 0건 |
 | 3 | Server log ERROR/FATAL | tail -f server.log + grep | ERROR/FATAL 0건 |
 | 4 | 데이터 무결성 (5 하위) | (아래 참조) | 5개 모두 PASS |
