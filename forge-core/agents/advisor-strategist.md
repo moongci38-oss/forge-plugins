@@ -1,11 +1,6 @@
 ---
 name: advisor-strategist
-description: >
-  전용 조언자 — 모델은 리졸버(advisor-spawn-guard.sh resolve)가 판단 무게로 고른다(기본 중간 등급 ·
-  최상위는 full-gate·비가역·사람 지정 때만, #1337). 실행자(Opus·Sonnet·Haiku 워커)의
-  판단 지점에서 호출되며, 400~700 토큰 분량의 핵심 전략 조언만 제공한다. 도구를 직접 호출하거나
-  최종 결과물을 생성하지 않는다. 설계 분기, 경계 판정, 비가역 변경, 검수 결론 확정,
-  grants 전략, 보안 리스크 등 판단이 갈리는 지점 지원.
+description: "판단 갈림길 조언자 — 설계·경계·비가역·보안 판단이 갈릴 때 짧은 조언만(도구 안 씀)."
 model: opus
 effort: xhigh
 tools: Read, Grep, Glob
@@ -74,7 +69,7 @@ Agent(
   | `claude-fable-5-1` | `Agent(subagent_type="advisor-strategist", model:"fable")` |
   | `claude-opus-5-5` | `Agent(subagent_type="advisor-strategist", model:"opus")` |
   | `gpt-6-astra` | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only) |
-  | `gpt-6-sol` | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only) |
+  | `gpt-6.1-sol`(CLI ≥0.160.0 · 구 CLI 는 `gpt-6-sol`) | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only) |
   | 빈 출력·실행 실패 | `model:"opus"` 로 진행(non-blocking) |
 
 - 리졸버를 거치지 않고 직접 부르면 frontmatter 기본값으로 뜨고 `FORGE_FABLE_AVAILABLE=0`·캡 초과 가드가 **적용되지 않는다** — 가드를 태우려면 리졸버 먼저.

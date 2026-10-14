@@ -1,6 +1,6 @@
 ---
 name: forge-loop-maker
-description: "반복 자동화 루프를 인터뷰→패턴→안전장치→승인([STOP])→scaffold 로 만들고, 루프 멈춤 조건 커널(scripts/loop-kernel.js)을 소유한다. 쓸 때: '자동으로 돌게 해줘'·'반복 작업 에이전트 만들어줘'·'루프 짜줘'. SKIP: 1회성 검사, DB 마이그레이션 감사."
+description: "반복 자동화 루프 제작 — '자동으로 돌게 해줘'·'루프 짜줘'를 요청할 때."
 ---
 
 # /forge-loop-maker — 루프 설계 + scaffold

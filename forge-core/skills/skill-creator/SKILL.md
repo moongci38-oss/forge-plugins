@@ -1,7 +1,7 @@
 ---
 model: sonnet
 name: skill-creator
-description: "새 스킬 생성/기존 스킬 수정. 스킬 생성·수정 요청 시 반드시 사용 — SKILL.md 직접작성 금지."
+description: "스킬 생성·수정 — 스킬 작업 요청 시 반드시 사용(SKILL.md 직접작성 금지)."
 license: Complete terms in LICENSE.txt
 ---
 

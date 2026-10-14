@@ -1,5 +1,5 @@
 ---
-description: Multi-worker 검수 — Claude(Fable 5.1) + Codex(GPT-6 Astra) 2벤더 교차 병렬 리뷰 + Triage 합산
+description: 멀티 검수 — `forge-multi` 스킬 진입점.
 group: review
 ---
 
@@ -16,13 +16,13 @@ group: review
 | 플래그 | 의미 |
 |---|---|
 | `--mode` | 하위호환 no-op(레그 구성 1개: Claude Fable 5.1 + Codex Astra, 가중 0.5/0.5). 호출자가 넘기므로 인자는 유지 |
-| `--round-args <f>` | `shared/scripts/cr-review-round.py prepare` 가 만든 JSON 을 **그대로** args 에 펼친다(`reviewRound`·`reviewMode`·`priorRound`·`deltaFiles`·`deltaDiff`). r2 델타 = 직전 지적 해소 + 변경분 신규 결함만, 범위 밖 MEDIUM/LOW → `backlog_issues`. 결정(머지/재검수/[STOP]/재시도)은 `cr-review-round.py record`(`/forge-pr §3.0`). 파일 못 읽으면 전수(fail-closed) |
+| `--round-args <f>` | `shared/scripts/cr-review-round.py prepare` 가 만든 JSON 을 **그대로** args 에 펼친다(`reviewRound`·`reviewMode`·`priorRound`·`deltaFiles`·`deltaDiff`). 라운드 상한은 1 이다(r2 닫힘 · #2594 — r1 의 rc 10 은 "고치고 테스트·기계 검사로 확인"). 사람이 `FORGE_CR_HARD_MAX_ROUNDS_HUMAN_OVERRIDE` 로 올렸을 때만 r2 델타 = 직전 지적 해소 + 변경분 신규 결함만, 범위 밖 MEDIUM/LOW → `backlog_issues`. 결정(머지/수정 뒤 기계 검사/[STOP]/재시도)은 `cr-review-round.py record`(`/forge-pr §3.0`). 파일 못 읽으면 전수(fail-closed) |
 | `--repo-root <p>` | args `repoRoot`(검수 대상 레포/워크트리 절대경로). 미지정 = `git rev-parse --show-toplevel`. **대상이 CWD 밖이면 반드시 명시** |
 | `--sol`/`--terra`/`--luna` | Codex 레그 하향(`codex:high`/`codex:default`/`codex:low`). 기본 `codex:max`=astra. 해석은 `model-registry-resolve.sh` 소유 |
 | `--no-frontier` | 비상 브레이크: Claude=Sonnet · Codex 한 단계↓ · effort final:high/그 외 medium. `FORGE_CR_FRONTIER=off` 와 동치. 명시 `--sol/--terra/--luna`·`--codex-model` 이 우선 |
 | `--cr on\|degrade\|off` · `--no-codex` | on(기본)=2레그. degrade/off/`--no-codex` = Claude 단독 → `quorumFail` → **verdict=FAIL**·`degraded=true`(통과 경로 아님) |
 | `--claude-model <id>` | Claude 레그 지정(기본 Fable 5.1, `--fable` 옵션 없음 — 옛 `fable` 인자는 엔진이 무시·`[RetiredArg][WARN]`) |
-| `--cr-tier`·`--legs`·`--codex-effort`·`--machine-checks` | `cr-risk-tier.sh` 등급 산출값 릴레이(`/forge-pr §3.0 (0)·(b)·(c)`). tier 의 claude/codex_model 이 엔진 기본을 이긴다 |
+| `--cr-tier`·`--legs`·`--codex-effort`·`--machine-checks` | `cr-risk-tier.sh` 등급 산출값 릴레이(`/forge-pr §3.0 (0)·(b)·(c)`). tier 의 claude/codex_model 이 엔진 기본을 이긴다. `--legs 1` 은 full-gate(**Claude 1레그** — 검수자 1명 #2243)에서만 뜻이 있다(light·full-general 은 레그 0 — #2594) |
 | `--allow-unbound-final` | PR 없는 final 검수(/article·/yt). 없으면 엔진이 `unbound_final` 거부 |
 
 - 지적 수정 워커 = 반대 벤더·같은 등급, 항상 새 에이전트(`/forge-pr §3.0b`).
@@ -60,14 +60,14 @@ Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-mul
 
 ## Step 2~3: 산출물 경로 · Secret 사전 스캔
 ```bash
-bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-multi-prepare.sh" "$TARGET_FILE" [v<N>]   # 재검수면 v2·v3… (기본 v1)
+bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-multi-prepare.sh" "$TARGET_FILE" [v<N>]   # 같은 대상을 다시 낼 때만 v2·v3…(기본 v1 · 검수는 1회뿐 — #2594)
 ```
 - 출력 `DATE`·`SLUG`·`REVIEWS_DIR`·`VERSION`·`CODEX_OUT`·`OPUS_OUT`·`REPORT_OUT` 을 이후 단계에 그대로 쓴다.
 - **rc 1 = `SECRET=blocked` → `[BLOCKED] Secret detected — external transmission aborted`. 레그를 부르지 않는다(외부 전송 금지, fail-closed).**
 - rc 2 = 판정 불가(대상 파일 없음·못 읽음) → 진행하지 않고 경로를 확인한다.
 
 ## Step 4~5: 레그 병렬 호출 (계약 — 절차는 workflow.js)
-- **Codex 레그**(`--cr on` 시에만, degrade/off 면 skip·`[cr] codex-critic worker skipped` 로그): `mcp__codex__codex(prompt=<~/forge/.claude/prompts/cr-multi-codex.md, TARGET_FILE 치환>, cwd=<target dir>, sandbox="read-only", approval_policy="never", model="gpt-6-astra", config={"model_reasoning_effort": frontierOn ? "xhigh" : (final ? "high" : "medium")})` → `$CODEX_OUT`. 서버가 거부하면 검수 미수행 → PASS 집계 금지, degrade.
+- **Codex 레그**(`--cr on` 시에만, degrade/off 면 skip·`[cr] codex-critic worker skipped` 로그): `mcp__codex__codex(prompt=<~/forge/.claude/prompts/cr-multi-codex.md, TARGET_FILE 치환>, cwd=<target dir>, sandbox="read-only", approval_policy="never", model="gpt-6-astra", config={"model_reasoning_effort": frontierOn ? "high" : (final ? "high" : "medium")})` → `$CODEX_OUT`. 서버가 거부하면 검수 미수행 → PASS 집계 금지, degrade.
 - **Claude 레그**(항상): `Agent(subagent_type="advisor-strategist", model="fable", prompt=<~/forge/.claude/prompts/cr-multi-opus.md, TARGET 치환>)` → `$OPUS_OUT`.
 
 ## Step 6~7: Triage 합산 · Plateau

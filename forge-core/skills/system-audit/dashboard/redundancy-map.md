@@ -1,6 +1,6 @@
 # Redundancy Map
 
-> 자동 갱신: `/system-audit` 실행 시 Redundancy 6축 결과 반영.
+> 자동 갱신: `/system-audit` 실행 시 중복 축(축 6) 결과 반영.
 
 ## 스킬 중복 그룹
 

@@ -34,7 +34,11 @@ fi
 | `CARRY_OTHER_SCOPE_COUNT`·`CARRY_SCOPE_UNKNOWN_COUNT`·`HANDOVER_SCOPE_OTHER_COUNT`·`HANDOVER_SCOPE_UNKNOWN_COUNT` | 다른 프로젝트·판정 불가는 **개수만**(합산 금지). `CARRY_SCOPE_HOLD`·`HANDOVER_SCOPE_HOLD` = 보류(0건 아님) |
 | `LEDGER_DUE_N`·`LEDGER_OPEN_N` (`<ID>\|<날짜>\|<항목>[\|오래됨]`) | 장부(`carry-ledger.md`) — **§6 에 전부**(도래 맨 위). `LEDGER_SNOOZED_COUNT`·`LEDGER_NEXT_DATE` 는 수·날짜만. `LEDGER_SCAN≠ok` = 판정 불가 · `LEDGER_MISSING=N>0` 이면 수를 적는다 |
 | `LEDGER_OTHER_SCOPE_COUNT`·`LEDGER_SCOPE_UNKNOWN_COUNT`·`LEDGER_SCOPE_UNKNOWN_ROUTE` | 개수만 + ROUTE 1줄(판정 = `carry-ledger.py project_verdict`) |
+| `LEDGER_NO_ISSUE_N=<n>` | 이 범위 장부 열린 항목 중 이슈 없는 수(#1927 · 옵트아웃 제외). n>0 이면 §6 맨 위에 경고 + 명령 1줄 |
+| `LEDGER_ISSUE_CLOSED_N`·`LEDGER_ISSUE_DUP_N`·`LEDGER_ISSUE_UNCHECKED_N` | 이슈는 닫혔는데 장부는 열린 줄 수 · 같은 이슈를 가리키는 중복 줄 수 · 이번에 못 물어본 이슈 수(#2604 · gh 호출 상한 안에서 센다 — UNCHECKED>0 이면 앞의 수는 '최소'). 앞 둘 중 하나라도 >0 이면 §6 에 1줄 — **닫지는 않는다**(닫기는 사람·`/forge-end`) |
+| `BUS_DEAD_N=<방>\|<이슈>\|<보낸 시각>\|<사유>\|<brief>` · `BUS_INFLIGHT_N` · `BUS_RESENT_N` · `BUS_IDLE_ERR_N` · `BUS_OTHER_SCOPE_COUNT` · `BUS_UNLISTED_COUNT` · `BUS_CUT_7D` · `BUS_CUT_SCOPE` | 끊긴 전달(이 세션 프로젝트 방만 — 마지막 send 가 timeout·limited·lost 로 끝났거나 turn 없이 죽음 · 생존 확인 뒤 · #1955·#1964) — **§6 에 DEAD 만 전부** `끊긴 전달 N건 — 재전송: forge-session-bus.sh send --detach <방> - < <brief>`(brief 가 `-` 면 옛 기록 — 이슈를 보고 다시 쓴다). `BUS_RESENT_N` 은 방이 이미 이어서 처리했다 — **재전송 명령을 내지 않고** "재전송 완료" 로 표시만 · `BUS_INFLIGHT_N` 은 살아 도는 중(세기만) · `BUS_IDLE_ERR_N` 은 실패(error·nocwd)로 쉬는 방 — 재전송 대신 사람 판단 · `BUS_OTHER_SCOPE_COUNT` 는 다른 프로젝트 방 · `BUS_UNLISTED_COUNT` 는 목록에 없는 닫힌 방(둘 다 세기만) · `BUS_CUT_7D` 는 7일 끊긴 턴 수·재전송 중앙값(분) · `BUS_CUT_SCOPE=hold <사유>` 면 범위를 못 갈랐다 — `BUS_*_N` 줄이 없다(개수만 싣고 재전송 명령을 내지 않는다) |
 | `OPEN_PR_N=#<번호>\|<브랜치>\|<제목>` · `DECISION_N=<날짜>\|<제목>` | 내 열린 PR(체크포인트·handover `## 열린 PR·브랜치` 와 대조) · 살아 있는 사람 결정(14일, 오늘 계획에 **적용**) — §6 에 전부. `OPEN_PR_COUNT`·`DECISION_COUNT=판정 불가` ≠ 0건 |
+| `CHECKOUT_LAG` | `<뒤처진 수>/<스테이징된 수> del=<삭제 적중 수>` 또는 `unknown <사유>` — 수집기가 이 줄 아래에 낸 ⚠️ 줄(1~2줄)을 §3 에 그대로: 수정 적중이 있으면 커밋 금지 경고 2줄 · 적중이 삭제뿐이면 낮춘 1줄(직접 한 정리일 수 있다) · `unknown` 이면 못 쟀다는 1줄. ⛔ 자동 복구 금지 — 사람 승인 뒤(#2617 · #2645) |
 | `FO_BEHIND`·`FO_AHEAD`·`FO_UNTRACKED_HANDOVER` | `FO_BEHIND>0` 이면 ⚠️ 2줄을 §3 에 그대로. ⛔ 자동 pull 금지 |
 | 집계(`ITEMS_OPEN`·`P0_*`·`STOP_DUE_*`·`BUS_ROSTER`) | **세기만** — 판정 금지 |
 ## 1b. 장부 재확인 — 하루 1회, **닫지 않는다**
@@ -53,19 +57,23 @@ fi
 - `FO_BEHIND≠0` → ⚠️ 2줄(뒤처짐 + `git -C ~/forge-outputs pull --rebase`) 그대로. ⛔ 자동 pull 금지(`git stash` 금지).
 - 소유 라벨: `OTHER` 는 읽되 내 상태로 요약 금지(`(타 세션 소유: {LATEST_WORKTREE})` 라벨). `UNKNOWN` 다수는 정상. ⛔ 공유 체크아웃 동시 세션끼리는 판별력이 없다(서로 전부 `MINE`).
 ## 4. VITALS·작업 범위 (read-only, 비차단)
-- 루트 `CLAUDE.md` `## 핵심정보` + `.claude/MEMORY.md` 로드(부재 시 "`## 핵심정보` 미설정 — `/forge-onboard` 권고" 1줄).
+- 루트 `CLAUDE.md` `## 핵심정보` 로드(자동 메모리 정본은 `~/.claude/projects/*/memory/` — 레포에 `.claude/MEMORY.md` 는 없다 · #1984)(부재 시 "`## 핵심정보` 미설정" 1줄).
 - `SHARED_CHECKOUT=yes` 면 브랜치명·dirty 수를 내 상태로 요약 금지(`(공유 체크아웃 — 소유 불명, 타 세션 작업 포함)` 라벨). `DIRTY_COUNT=unknown` 은 설계. `gitStatus` 블록도 옮겨 적지 않는다.
+- `INDEX_LINE` 을 §6 에 그대로 1줄 싣는다 — 이 레포 색인(gitnexus·graphify ✓/✗ · gitnexus 색인이 기본 가지보다 몇 커밋 뒤인지)과 쓸 도구(선택표 `tool-rules.md` 찾기 도구 · #1949 · #2621).
 - 코드를 고칠 예정이면 `EnterWorktree` 로 자기 폴더 확보. 로스터 0개는 직접 처리할 근거가 아니다(`team-routing.md §1`).
 ## 4b. 부팅 자동 기동 점검 — `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/boot-check.sh" --quiet` — rc 0 = 이 PC 몫 전부 떠 있음(요약에 안 싣는다) · 1 = DOWN·EXTRA 있음 → 출력의 `DOWN`/`EXTRA` 줄을 그대로 싣고 (각 줄에 기동 경로가 있다) 마지막 `boot-check:` 요약 1줄 · 2 = 판정 불가(넘어간다). 목록 정본 = `shared/config/boot-services.tsv`(orch 데몬 4개·autosync 타이머·터널·pm2 등 — #1455). `DOWN user-bus` 는 systemd --user 소켓이 없다는 뜻이다(이미 걸린 자동 기동은 다음 부팅에 뜬다). ⛔ 자동으로 띄우지 않는다.
 ## 4c. 내 이슈만 (read-only)
+`MYISSUE_LINE` 의 `🛑 결정 요청 N건` 이 1 이상이면 **일을 집기 전에** 열린 결정 요청 카드를 읽는다(규약 `rules-on-demand/issue-board-standard.md §9-2`): `gh issue list --label human-decision --state open` · `gh issue list --label human-approval --state open`(`[승인 요청]` 카드 — 그 수에 합쳐 센다 · #2615) 과 `gh issue list --label needs-decision --state open`(옛 이름 — 아직 이름을 안 바꾼 레포 · #2354 가 2026-10-16 에 걷는다) → 카드마다 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/decision-card-read.sh" <#N>` — **`DECISION=A~D` 이고 rc 0 일 때만** 반영하고 `결정 반영:` 코멘트·`status:blocked` 떼기·닫기 · 그 밖(`none`·`conflict`·`unclear`·`untrusted`(rc 3)·판정 불가(rc 2))은 그 일을 멈춘다(`conflict`·`unclear` 는 되묻는다).
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-start-my-issues.sh"` — `MYISSUE_OWNER=ok`(rc 0) → `MYISSUE_LINE` 1줄 그대로 · `unknown`(rc 2, 판정 불가) → `MYISSUE_LINE`(이번 세션은 이슈를 집지 않는다) 그대로 · `no_origin` → 침묵. 다른 사람·다른 PC 일감은 착수 금지(읽기·코멘트만).
 출력은 개수 1줄. 목록이 필요하면 `issue-owner.sh filter <owner/repo> [라벨]`.
 ## 4d. 자기학습 루프 건강도 — `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/recall-context.sh" --health` 출력 1줄(`RECALL_HEALTH=…`)을 §6 에 그대로 싣는다. `⚠️ 읽기 0` 이면 기억을 쌓기만 하고 안 쓰는 상태다.
 ## 5. 역할 선언 (세션 모델명으로 판정)
-- **Opus → 오케스트레이터**: 분해·위임·검증·종합, 직접 구현 안 함. worker 기본 Opus(검색=haiku|sonnet · 기계적 단일파일=sonnet). 조언 = `advisor-spawn-guard.sh resolve` 출력(직접 스폰 금지). 도메인 작업은 `forge-session-bus.sh send <팀slug>`. 위임 결과는 diff·테스트 실측 후 채택.
+- **Opus → 오케스트레이터**: 분해·위임·검증·종합, 직접 구현 안 함. worker 기본 Opus(검색=haiku|sonnet · 기계적 단일파일=sonnet). 조언 = `advisor-spawn-guard.sh resolve` 출력(직접 스폰 금지). 도메인 작업은 `forge-session-bus.sh send <팀slug>`. 위임 결과는 diff·테스트 실측 후 채택. 방에 보낸 뒤 `bash ~/forge/shared/scripts/orch-watchdog.sh` 를 백그라운드로 띄우고(그 레포 안), `WAKE` 1줄로 깨면 처리 후 다시 띄운다(#2540).
 - **Sonnet → 구현 실행**: 설계 판단은 사용자 보고. 종료 전 `/forge-end` 필수. 감지 실패 → Opus 기본값 + "모델 감지 실패 — 오케스트레이터 기본값 적용" 1줄.
 ## 6. 요약 출력 (≤150 단어 — 단 아래 목록은 상한 밖, **전부** 싣는다)
 ```
+⚠️ 장부↔이슈 불일치 N건 — python3 ~/forge/shared/scripts/carry-ledger.py backfill-issues (미리보기 → --apply)   ← LEDGER_NO_ISSUE_N>0 일 때만
+⚠️ 이슈는 닫혔는데 장부는 열린 줄 A건 · 같은 이슈 중복 줄 B건(못 물어본 이슈 C) — python3 ~/forge/shared/scripts/carry-ledger.py issue-gaps (건별 목록 · 닫기는 close <ID> --evidence)   ← LEDGER_ISSUE_CLOSED_N 또는 LEDGER_ISSUE_DUP_N >0 일 때만
 📋 이어받을 것 (장부 carry-ledger.md)
   ⏰ 날짜 도래 N건 — C-0123 [9/28] …        ← LEDGER_DUE_N 전부, 맨 위
   ▶ 대기 N건 (오래됨 K) — C-0130 …          ← LEDGER_OPEN_N 전부
