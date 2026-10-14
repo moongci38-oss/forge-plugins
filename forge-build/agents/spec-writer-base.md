@@ -1,6 +1,6 @@
 ---
 name: spec-writer
-description: Spec 문서 작성 전문가. 새로운 기능의 Specification 문서를 작성하거나 기존 Spec을 업데이트할 때 사용. Constitution 기반으로 정확한 형식의 Spec 문서를 생성.
+description: "Spec 문서 작성·갱신(Constitution 형식)."
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: opus
 permissionMode: plan
@@ -54,6 +54,7 @@ permissionMode: plan
 - 템플릿: `.specify/templates/spec-template.md` 우선 → 없으면 `projectType: game` 은 `~/.claude/forge/templates/spec-template-game.md`, 그 외 `~/.claude/forge/templates/spec-template-base.md`. 모든 섹션 포함.
 - 태스크 포맷(Tasks 문서로 갈 때): `### Task N: {명} (예상: 2-5분)` · 파일 · 실패 테스트 코드(RED) · 구현 코드 · `터미널: {명령} → {예상 출력}` · 커밋 메시지. 플레이스홀더("에러 핸들링 추가"·"테스트 작성"·"Task N과 유사하게") 금지, 5분 초과는 분할.
 - 필수 섹션: **기능 요구사항 · 사용자 플로우 · 수용 기준** (API 섹션 요구 없음 — 게이트가 FAIL 시킨다)
+- 설계 원칙 절(#2052): `## 도메인 모델`(유비쿼터스 언어 표·애그리거트·불변식·도메인 이벤트) + `## 모듈·책임`(책임 단위 이름·도메인 언어만) — 해당 없으면 `해당 없음 — <이유 1줄>`(빈 절 금지). 정본 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`.
 
 **제출 전 실행 (필수)**:
 ```bash

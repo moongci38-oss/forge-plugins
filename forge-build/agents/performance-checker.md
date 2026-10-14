@@ -1,6 +1,6 @@
 ---
 name: performance-checker
-description: 백엔드 API 성능 품질을 정적 분석으로 검증하는 에이전트. Check 8.7과 병렬 실행.
+description: "백엔드 API 성능 정적 검증(Check 8.7 병렬)."
 tools: Read, Grep, Glob
 disallowedTools: Write, Edit, NotebookEdit, Bash
 model: sonnet
@@ -33,7 +33,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/perf-mechanical.py" --root <�
 
 ## 검증 규칙
 > 4번 전체·6번 파일 단위 검사는 `shared/scripts/perf-mechanical.py` 가 그대로 구현 — 감지 패턴을 바꾸면 스크립트도 같이 바꾼다.
-> 규칙 정의: `~/.claude/forge/rules/forge-performance.md` (여기는 위반 감지 방법만).
+> 규칙 정의: `~/forge/dev/rules-on-demand/forge-performance.md` (여기는 위반 감지 방법만).
 
 | # | 규칙(rule) | 등급 | 감지 패턴 | 검증 방법 |
 |---|---|---|---|---|

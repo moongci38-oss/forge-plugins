@@ -1,6 +1,6 @@
 ---
 name: qa
-description: "QA 전 사이클 오케스트레이터 — spec FR 기반 시나리오 전수 → 버그 발견 → 수정 → 재검증. 구현 완료 후 E2E 검증이 필요할 때 사용한다."
+description: "QA 전 사이클(시나리오→버그→수정→재검증) — 구현 후 E2E 에 사용한다."
 model: sonnet
 ---
 
@@ -39,12 +39,12 @@ advisor 스폰 모델은 항상 `advisor-spawn-guard.sh resolve` 출력: `claude
 - **C.5 Spec↔Code 판별**(FR 불일치 FAIL 마다): 먼저 `${spec_file%.md}.impl-notes.md` 있으면 읽기(글롭 금지), 그다음
   `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-code-discriminate.sh" <spec_file> <impl_files>`
   - `IMPL_GAP` → D~F 위임 · `SPEC_STALE_CANDIDATE`/`AMBIGUOUS`/판별 실패 → Reconciliation: advisor 자문 → **[STOP]** Human 2택("스펙 노후 확정" → .spec.md FR 갱신·시나리오 재생성·재검증 / "코드 버그 확정" → D~F). AI 자동 B 확정 금지.
-- **D~F 수정·검수 = `/forge-fix` Lane A 위임**: 버그마다 `docs/qa/{date}-bug-fix-plan.md` 와 함께 ①조사·재현(RED, 게이트 R) ②리포트 ③수정(healer a1~a3, a3 = `code-reviewer`(opus) 1회 blocking) ④검수(GREEN, 게이트 G, 실브라우저·실DB). UI 버그 = Vision evaluator + pixel-diff-gate + forge-check-ui. 복잡도·개수 라우팅(2~9 Teams, 10+ Workflow, 충돌 순차)은 `agents/healer.md §개수 자동 라우팅`. PGE 로 보내지 않는다. UAT 모드는 Lane A 수정 비활성. **전 버그 게이트 G PASS 시에만 G 진입.**
+- **D~F 수정·검수 = `/forge-fix` Lane A 위임**: 버그마다 `docs/qa/{date}-bug-fix-plan.md` 와 함께 ①조사·재현(RED, 게이트 R) ②리포트 ③수정(healer a1~a3, a3 = 테스트·린트·빌드 기계 확인 — FAIL 이면 고치고 테스트로 확인하며 검수자를 다시 부르지 않는다) ④검수(GREEN, 게이트 G, 실브라우저·실DB). UI 버그 = Vision evaluator + pixel-diff-gate + forge-check-ui. 복잡도·개수 라우팅(2~9 Teams, 10+ Workflow, 충돌 순차)은 `agents/healer.md §개수 자동 라우팅`. PGE 로 보내지 않는다. UAT 모드는 Lane A 수정 비활성. **전 버그 게이트 G PASS 시에만 G 진입.**
 - **G 머지 = `/forge-pr` 경유**(base=develop, head=fix/qa-{scope}-{date}) — `gh pr create`/`gh pr merge` 직접 호출 금지. 보조: `bash scripts/ci-wait.sh {branch}`(15분). 후 `git checkout develop && git pull && git worktree prune`.
 - **H 정리**: learnings.jsonl append · wiki-sync(background, Human 승인) · `docs/qa/intervention-log.jsonl`(override 시) · `docs/qa/metrics.jsonl` {date, scope, bugs_found, bugs_fixed, cycles, mttr_min, regression_count} · final-qa-report · `git worktree prune` · `~/.claude/worktrees/qa-*` 7일+ 삭제.
 
 ### 자동 머지 전제 (7개 전부 → `/forge-pr` 원장 rc=0)
-버그별 `code-reviewer` PASS/WARN · 버그별 RED→GREEN TEST_PROOF + 게이트 G · `/forge-pr` cr-final rc=0 · 보안 CRITICAL 0 · 회귀 0(baseline) · CI PASS · 전 시나리오 PASS.
+버그별 a3 기계 확인 통과 · 버그별 RED→GREEN TEST_PROOF + 게이트 G · `/forge-pr` cr-final rc=0 · 보안 CRITICAL 0 · 회귀 0(baseline) · CI PASS · 전 시나리오 PASS.
 
 ### Iron Laws
 - main 직접 머지 X(develop 만 자동) · test PASS 주장 = TEST_PROOF hash + `TYPE=unit|integration|e2e` + `UNCOVERED=<미검증 1줄|없음>`(WARN if absent).

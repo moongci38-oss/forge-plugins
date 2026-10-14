@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: "원인을 모르는 버그의 근본원인을 증상→분석→가설→검증 4단계로 찾는다(수정은 안 한다). 쓸 때: 버그 원인이 불명확해 고치기 전에 원인부터 확정해야 할 때. SKIP: 원인이 이미 확정된 수정(→ /forge-fix), 기능 추가."
+description: "원인 모르는 버그의 근본원인 확정(수정 안 함) — 고치기 전에 원인부터 찾을 때."
 context: fork
 model: sonnet
 ---
@@ -82,9 +82,9 @@ bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
 ```
   exit 0 → `📌 learnings 신규: <id>` · 2(secret) → `⚠️ bug-fix-pattern learning 억제 — <패턴명>, 내용 비노출` · 3 → 1줄 압축 재시도 · 4 → 보고에 1줄 노출. 각 필드 1줄.
 ```bash
-REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo unknown)
+REPO=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)")" 2>/dev/null || echo unknown)   # 워크트리에서도 본 저장소 이름
 [ "$REPO" != unknown ] && \
-  OPENAI_API_KEY="" timeout 180 bash ~/forge/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" >/dev/null 2>&1 || true
+  OPENAI_API_KEY="" timeout 180 bash ~/forge/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" 2>&1 | grep '^PROJECT_KNOWLEDGE_SYNC=' || echo "PROJECT_KNOWLEDGE_SYNC=no-result"
 ```
 
 **Stage 7 — Codex bugfix 리뷰** (권고, 자동은 `CODEX_REVIEW_AUTO_STAGES` 에 `bugfix`|`all` 일 때만): `/codex-review --stage bugfix --target <patch file or PR-N>` — 우회 패치·회귀·재현 적정성·부작용. blocking 아님(WARN/FAIL → 사용자 컨펌). 결과 `forge-outputs/docs/reviews/bugfix/{date}-{slug}.{md,json}`. 실패 시 [[pev-self-correction]].

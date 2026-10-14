@@ -1,17 +1,19 @@
 ---
 name: forge-check-ui
-description: UI 품질 게이트 — 5축(static/lighthouse/responsive/screen-mapping/source-quality) 자동검증 + AI-Slop 패턴·WCAG AA 판정. UI 코드를 고친 뒤 품질 게이트를 돌릴 때 쓴다.
+description: "UI 품질 게이트(5축·WCAG AA) — UI 코드를 고친 뒤 사용한다."
 model: sonnet
 arguments:
   url: "검증 대상 URL (기본: http://localhost:3000)"
   projectRoot: "프로젝트 루트 경로 (기본: .)"
 ---
 
-**역할**: UI 품질 자동 검증 게이트 — 5축(static·lighthouse·responsive·screen-mapping·source-quality)으로 PASS/WARN/FAIL 을 판정한다. **컨텍스트**: UI 코드를 고친 뒤 품질 게이트를 돌릴 때 부른다(`/forge-check-ui url=… projectRoot=…` · QA 품질 축에서도 실행). **출력**: 축별 findings + 종합 판정(5축 ≠ PASS 면 L3 축을 자동 스폰하고 L3 6.0 미만은 FAIL 격상).
+**역할**: UI 품질 자동 검증 게이트 — 5축(static·a11y-llm-review(LLM 추정 — 측정값 아님)·responsive·screen-mapping·source-quality)으로 PASS/WARN/FAIL 을 판정한다. **컨텍스트**: UI 코드를 고친 뒤 품질 게이트를 돌릴 때 부른다(`/forge-check-ui url=… projectRoot=…` · QA 품질 축에서도 실행). **출력**: 축별 findings + 종합 판정(5축 ≠ PASS 면 L3 축을 자동 스폰하고 L3 6.0 미만은 FAIL 격상).
 
 ## 실행
-- 엔진 = `workflow.js`: 5축 static / lighthouse / responsive / screen-mapping / source-quality(`ui-quality-checker`, U-1~U-7) 병렬. 5축 verdict ≠ PASS → `l3-pillars` 축(L3) 자동 스폰, L3 6.0 미만이면 FAIL 격상.
+- Codex Vision 모델: Workflow 를 부를 때 `args.codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null")` 를 싣는다(MCP 핀 0.153.4 PC 에서 기본 gpt-6.1-sol 은 400 · #2026).
+- 엔진 = `workflow.js`: 5축 static / a11y-llm-review(LLM 추정 — 측정값 아님 · Lighthouse 를 돌리지 않는다 · 구 이름 lighthouse, #2375) / responsive / screen-mapping / source-quality(`ui-quality-checker`, U-1~U-7) 병렬. 5축 verdict ≠ PASS → `l3-pillars` 축(L3) 자동 스폰, L3 6.0 미만이면 FAIL 격상.
 - 호출: `/forge-check-ui url=http://localhost:3000 projectRoot=.` · 수치축 15개·한글 조판 = `shared/design-tokens/design-axes.json`(static 축) · L1.5 메트릭 = `playwright-devtools-capture.mjs` 단일 chokepoint.
+- static 축 기계 판정(#2387): `shared/scripts/ui-static-check.mjs` 가 기준표의 기계로 재는 항목(AI-Slop #1·#3·#6~#8·#12·#14·#15·#19 `transition: all` · 후보 없을 때 #2·#11·#16 · 수치축 9·11·13·14)을 먼저 PASS/WARN/FAIL 로 확정하고, LLM 은 UNDECIDED 만 판정한다(스크립트 실패 시 전 항목 LLM 폴백). 단독 실행: `node shared/scripts/ui-static-check.mjs --root <프로젝트> -- <변경 파일…>`.
 - 아래 4절(`## WCAG AA 임계값` · `## 디자이너 관점 QA (10 카테고리)` · `## AI-Slop 블랙리스트 (19 패턴)` · `## 3-Layer UI 품질 게이트`)은 `workflow.js` `<design-rubric:start>` 블록으로 추출·주입된다. 헤딩을 바꾸면 `shared/scripts/design-rubric.mjs` `SECTIONS` 도 함께. 본문을 고치면 재생성·검증:
 ```bash
 node shared/scripts/build-design-rubric.mjs --write   # 생성 블록 재생성
@@ -30,7 +32,7 @@ node --test shared/scripts/design-rubric.test.mjs
 
 - 포커스(§2.4.7): 인디케이터 시각 구별 필수. 대체 스타일 없는 `outline: none` / `outline: 0` = **즉시 FAIL**. 링 ≥2px·배경 대비 3:1 권장(WCAG 2.2 §2.4.11).
 - 대체 텍스트: `<img>` `alt` 필수(장식 `alt=""`) · `<svg>` `aria-label`/`<title>`(장식 제외) · `<input type="image">` `alt`. 누락 = **FAIL**.
-- Lighthouse a11y 점수(lighthouse 축): 90 이상 PASS / 70–89 WARN / 70 미만 FAIL. 세부 위반은 findings.
+- a11y 점수(a11y-llm-review 축 — LLM 추정 — 측정값 아님): 90 이상 PASS / 70–89 WARN / 70 미만 FAIL. 세부 위반은 findings.
 
 ## 디자이너 관점 QA (10 카테고리)
 **Design Classifier(필수 선행)**: MARKETING/LANDING(CTA 명확성·스크롤 내러티브·소셜 증거) / APP UI(탐색 일관성·상태 표·피드백) / HYBRID(교집합). 분류를 findings 첫 줄에 명시.
@@ -80,7 +82,7 @@ node --test shared/scripts/design-rubric.test.mjs
 3. `docs/qa/design-check.jsonl` append(`ts/url/viewport/source/m1_typo_scale/m1_unique_sizes/m2_grid_align/m3a_alignment/m3_verdict/m3d_grid/m3d_verdict/verdict/capture_ok/skipped`).
 - warn: M1<0.8 또는 고유사이즈>8 · M2<0.85 · M3a<0.7(요소<2 = pass) · M3d<0.45(populated 컬럼<2 = pass). M3a = left/top 앵커가 공유 축(`Math.round(coord/2)`)에 2개+ 모이면 aligned. M3d = left-edge(TOL 2px) 컬럼(요소≥3)별 width 4px 토큰 ≤2종이면 일관(가변 span 3종+ 은 false-low).
 - kill-switch `FORGE_DESIGN_METRICS=off`(jsonl 에 `skipped` 사유). findings 1줄: "L1.5 advisory: M1={score} M2={score} M3a={score} M3d={score} (verdict={verdict}, 종합판정 미반영)".
-**L2 렌더 비주얼(URL 접근 시, Lighthouse MCP / Playwright)**: a11y 게이트 90↑/70-89/70↓ · contrast audit · 반응형 375/768/1280 깨짐 · 모든 FAIL 에 스크린샷 경로 첨부 의무.
+**L2 렌더 비주얼(URL 접근 시, Lighthouse MCP / Playwright)**: a11y 게이트 90↑/70-89/70↓(LLM 추정 — 측정값 아님) · contrast audit · 반응형 375/768/1280 깨짐 · 모든 FAIL 에 스크린샷 경로 첨부 의무.
 **L3 Adversarial 6-Pillar(L1/L2 WARN 이상 시 자동, 또는 `layer=3`)** — `ui-quality-checker` adversarial stance, 각 0-10점: **P1 Visual Hierarchy**(1차/2차/3차 액션 구별) · **P2 Design System Integrity**(색 토큰 일관·컴포넌트 변형 규칙·브랜드 의도성 — 타입스케일·8pt 는 L1.5) · **P3 Accessibility**(포커스·대비·alt·ARIA) · **P4 Content Authenticity**(실제 콘텐츠·기능 설명 copy) · **P5 Interaction Coverage**(로딩·에러·빈 상태) · **P6 Anti-Slop Compliance**(19패턴, #18·#19 포함). 평균 8.0↑ PASS / 6.0-7.9 WARN / 6.0↓ FAIL. Retroactive Contract Audit: oracle-manifest.json 화면 ID ↔ 실제 라우트 1:1 누락 = FAIL.
 
 ## 판정 기준 (종합)
@@ -93,4 +95,4 @@ node --test shared/scripts/design-rubric.test.mjs
 
 ## 운영 참고
 - oracle-manifest.json 없음 → screen-mapping 축 WARN("oracle-manifest 없음 — 스킵"). URL 미접근 → L2 스킵, L1·L3 만("URL 미접근 — L2 스킵" 명시).
-- Lighthouse 축은 `codex-critic`(GPT-5.6 Sol) 경유 — approve-worker 토큰 선발행 필수.
+- a11y-llm-review 축(구 lighthouse)은 `codex-critic`(GPT-5.6 Sol) 경유 — LLM 추정 — 측정값 아님.

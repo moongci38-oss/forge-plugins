@@ -1,5 +1,5 @@
 ---
-description: "Forge Dev P5 Check P5.6 UI/UX 품질 게이트 — 독립 실행 진입점. 실행은 `forge-check-ui` 스킬(workflow.js 5축 + 조건부 L3)이 한다. Lighthouse/Vision 축 = codex-critic(모델은 workflow.js `codexUiModel` 이 정한다)."
+description: "UI 품질 게이트 — `forge-check-ui` 스킬 진입점."
 allowed-tools: Bash, Read, Grep, Glob, Skill, Agent, ToolSearch
 model: sonnet
 group: verify
