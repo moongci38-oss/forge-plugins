@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+_HDL_D="${BASH_SOURCE[0]%/*}"; [ "$_HDL_D" = "${BASH_SOURCE[0]}" ] && _HDL_D=.; [ -f "$_HDL_D/lib/hook-deadline.sh" ] && . "$_HDL_D/lib/hook-deadline.sh" && hook_deadline_guard main-write-guard 60 "$@"   # #2483 판정 상한(fail-closed) — lib/hook-deadline.sh
 # main-write-guard.sh — PreToolUse: Bash
 #
 # 정책(2026-08-02 사용자 명시, 전 프로젝트 공통):

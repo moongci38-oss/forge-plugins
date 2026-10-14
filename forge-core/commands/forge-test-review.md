@@ -6,10 +6,7 @@ group: verify
 
 # /forge-test-review
 
-> ⚠️ 구 이름 **"/cr-test"** 는 2026-09-07 개명했다. 헬퍼 스크립트 파일명·감사로그·증거
-> 경로(`cr-evidence/`)는 **그대로 둔다** — 쌓인 증거가 그 이름으로 묶여 있어서다.
-> 근거: 간판만 바꾸고 배달 주소를 바꾸면 옛 증거가 통째로 안 보이게 된다.
-> 폐기조건: 옛 증거를 더 안 읽어도 되면 헬퍼 파일명까지 후속 개명한다.
+> 구 이름 **"/cr-test"** — 2026-09-07 개명 · 헬퍼·증거 경로는 그대로(사유 정본 `codex-review.md §단축 래퍼 공통`).
 
 `/codex-review --stage test` 단축 래퍼.
 
@@ -29,8 +26,8 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 /codex-review --stage test --target "$TARGET" ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: **`codex:high`** 티어(xhigh effort) — 이 단일 리뷰 레인은 astra 를 쓰지 않는다. id·하향 스위치(`--terra`/`--luna`)·구 CLI 동작(#745 — 이 레인은 자동 폴백 없음)·구 표기 이력의 정본 = `commands/codex-review.md §Step 2` (6개 래퍼에 복사하지 않는다 — #1139 C034).
-- Blocking: severity별 강제 — **단일 Codex 레인**(gpt-6-sol 1레그)이다.
+- 모델·하향 스위치: `codex-review.md §단축 래퍼 공통` → §Step 2.
+- Blocking: severity별 강제 — **단일 Codex 레인**(gpt-6.1-sol 1레그 — CLI ≥0.160.0 · 구 CLI 는 gpt-6-sol)이다.
   ⚠️ **구 표기 "Claude(Opus 5) + Codex(...) 2벤더 교차, 가중 0.5/0.5" 는 2026-09-17 폐기 — 이 래퍼는 교차 검수를 주지 않는다.**
   `/codex-review` 본명령이 스스로 못 박아 둔 그대로다: *"이 커맨드는 단일 Codex 레인이다 — '2벤더 교차' 를 준다고 적지 마라"*(`codex-review.md §⛔ 직접 호출 금지`, 2026-09-13 cr-final HIGH 로 정정된 문장).
   2벤더 교차(Claude Opus 5.5 + Codex GPT-6 Astra)는 `/forge-multi`이고 `/forge-pr §Step 3` 이 부르는 것도 그쪽이다. **두 레인은 증거를 다른 곳에 쓴다** — 여기는 `docs/reviews/`, 저기는 `.claude/audit/cr-evidence/`.
@@ -39,7 +36,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
   폐기조건: 이 래퍼가 `forge-multi` 로 릴레이하게 바뀌면 그때 2벤더 교차로 다시 적는다.
   <!-- 2026-09-09: 구 표기 "Opus+Codex 2-leg; Gemini leg=advisory 0.2 가중" 폐기 — PR #511(Gemini 전면
        철수)이 이 두 파일을 놓쳤다. 번들 쪽에서 고치면 forge-sync 가 되돌리므로 상류(여기)가 정본이다. -->
-  - Critical: hard block → 자동수정 루프(최대 3회) → 3회 초과 → [STOP] Human 에스컬레이션
+  - Critical: hard block → 고치고 테스트·기계 검사로 확인(검수자를 다시 부르지 않는다) → 2회 고쳐도 테스트가 안 붙으면 [STOP] Human 에스컬레이션
   - High: [STOP] 1회 override 허용 (Human 사유 명시 시 통과, 사유를 `{domain}/_STATUS.md`에 `cr_override_rate`/High-override 사유 멱등 로깅)
   - Medium/Low: advisory (통과 가능)
   - Phase/PR 경계 1회 트리거 (파일 단위 호출 금지). typo/1-line/non-logic 변경 = skip
@@ -54,7 +51,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 비용
 
-$0.00 (ChatGPT 구독, gpt-6-sol — OAuth 호출 가능) / 비상 폴백(apikey 시): xhigh effort 는 종량
+`codex-review.md §단축 래퍼 공통` 정본.
 
 ## 관련
 

@@ -1,5 +1,5 @@
 ---
-description: Codex 적대적 최종 리뷰 — PR 머지 직전 (blocking, xhigh effort)
+description: Codex 적대적 최종 리뷰 — PR 머지 직전 (blocking, high effort)
 argument-hint: "<PR-N or branch> [--cr <on|degrade|off>]"
 group: verify
 ---
@@ -8,7 +8,7 @@ group: verify
 
 > 구 이름 `/cr-final`. 헬퍼 스크립트 파일명·감사로그·증거 경로(`cr-evidence/`)는 옛 이름 그대로 둔다.
 
-`/codex-review --stage final --effort xhigh` 단축 래퍼.
+`/codex-review --stage final --effort high` 단축 래퍼(#2058).
 
 ## 사용
 
@@ -23,10 +23,10 @@ group: verify
 # --cr 파싱: $ARGUMENTS에서 --cr <mode> 추출 후 전달
 CR_ARG=$(echo "$ARGUMENTS" | grep -oP '(?<=--cr )\S+' || true)
 TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
-/codex-review --stage final --target "$TARGET" --effort xhigh --blocking ${CR_ARG:+--cr "$CR_ARG"}
+/codex-review --stage final --target "$TARGET" --effort high --blocking ${CR_ARG:+--cr "$CR_ARG"}
 ```
 
-- 모델: **`codex:high`** 티어(xhigh effort, 적대적) — astra 미사용. id·하향 스위치(`--terra`/`--luna`) 정본 = `commands/codex-review.md §Step 2`.
+- 모델: **`codex:high`** 티어(high effort, 적대적 · #2058) — astra 미사용. id·하향 스위치(`--terra`/`--luna`) 정본 = `commands/codex-review.md §Step 2`.
 - Blocking: YES — 단 **차단선은 `verdict` 가 아니라 `severity` 다**.
   `verdict=FAIL` 이어도 **critical/high 0건이면 WARN 으로 강등**하고 진행한다(medium/low 는 권고).
   ⛔ 강등에는 **자격 조건**이 있다 — `.issues` 가 배열이고, severity 가 전부 규격 4값이고,
@@ -65,7 +65,7 @@ OUT=/tmp/cr-bundle.txt
 
 ## 비용
 
-$0.00 (ChatGPT 구독 3계정, gpt-6-sol — OAuth 호출 가능) / 비상 폴백(apikey 시): xhigh effort 는 종량. 단순 변경은 자동 스킵.
+$0.00 (ChatGPT 구독 3계정, gpt-6.1-sol(CLI ≥0.160.0 · 구 CLI 는 gpt-6-sol) — OAuth 호출 가능) / 비상 폴백(apikey 시): high effort 는 종량. 단순 변경은 자동 스킵.
 
 ## Completeness Critic (P-6)
 
@@ -73,7 +73,7 @@ $0.00 (ChatGPT 구독 3계정, gpt-6-sol — OAuth 호출 가능) / 비상 폴�
 
 ## 관련
 
-- 본명령: `/codex-review --stage final --effort xhigh --blocking`
+- 본명령: `/codex-review --stage final --effort high --blocking`
 - Forge Dev P7 Check 7-X 통합 지점이지만 **자동 호출 기본 off** — `CODEX_REVIEW_AUTO_STAGES` 에 `final` 을 넣거나 `all` 이어야 게이트가 돈다(`.claude/hooks/codex-gate-enforce.sh`). 평소엔 **수동 호출 전용**. 자동 트리거 훅은 없다.
 - `/forge-pr §Step 3` 의 cr-final(= `/forge-multi`)은 **다른 레인** — 이 스위치와 무관하게 돈다.
 - 정책: `~/forge/dev/rules-on-demand/codex-review-policy.md`

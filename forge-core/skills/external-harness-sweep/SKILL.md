@@ -1,6 +1,6 @@
 ---
 name: external-harness-sweep
-description: "외부 하네스·스킬 레포를 Forge 와 1:1 전수 대조해 채택 매트릭스를 만든다. 트리거: '외부 레포 전수 대조', '하네스 sweep', 'external sweep <url>'."
+description: "외부 하네스 레포 전수 대조. 트리거: '하네스 sweep'·'external sweep <url>'."
 disable-model-invocation: true
 ---
 

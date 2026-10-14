@@ -1,6 +1,6 @@
 ---
 name: rag-search
-description: "forge-outputs 문서를 의미검색(벡터+BM25)해 근거를 찾는다. 쓸 때: 프로젝트 자료·과거 결정·리서치·위키에 대한 질문 — 허락 없이 먼저 부른다. SKIP: 코드 심볼·호출 관계(→ GitNexus), 규칙 문서 위치(→ brain-route.sh), 웹 최신 정보."
+description: "forge-outputs 문서 의미검색 — 프로젝트 자료·과거 결정·리서치 질문에 먼저 사용한다(코드는 GitNexus)."
 context: fork
 model: haiku
 allowed-tools: Read, Bash, Glob, Grep
@@ -33,14 +33,7 @@ bash ~/forge/shared/scripts/t3-check.sh    # T3_OK | T3_DOWN reason=… | T3_SKI
 
 ## Step 2: 검색 실행
 
-KnowledgeStore 경유(권장 · **WSL 세션 전용** — Windows 는 아래 CLI):
-```python
-import sys; sys.path.insert(0, os.path.expanduser('~/forge/shared/scripts/rag'))
-from knowledge_store import KnowledgeStore
-results = KnowledgeStore.from_config().search("{검색어}", top_k=5, mode="hybrid")
-```
-
-CLI:
+검색(입구는 이것 하나 — 위키 결과에는 관련 엔티티가 붙는다):
 ```bash
 bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --top-k {N} --mode {hybrid|vector|bm25}
 ```

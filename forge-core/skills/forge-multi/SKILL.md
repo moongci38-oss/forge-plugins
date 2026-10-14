@@ -1,6 +1,6 @@
 ---
 name: forge-multi
-description: "Multi-worker 검수 — Claude(Fable 5.1) + Codex(GPT-6 Astra) 2벤더 교차, 가중 0.5/0.5. 트리거: /forge-multi, plan/spec 저장 후 자동, plateau 3회 자동승격."
+description: "멀티 레그 검수(Claude+Codex). 트리거: /forge-multi, plan/spec 저장 후."
 ---
 
 > 헬퍼·로그·증거 경로는 옛 이름 `cr-multi` 를 그대로 쓴다(`cr-multi-triage.py`·`cr-multi-calls.jsonl`·`docs/reviews/cr-multi/`) — 개명 금지.
@@ -11,7 +11,8 @@ Quick Start: `/forge-multi ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pip
 |---|---|
 | Claude | `advisor-strategist` 틀, Fable 5.1 (`claudeModel` 인자가 오면 그 값 · `frontier:false` → Sonnet) |
 | Codex | `mcp__codex__codex` GPT-6 Astra (`--sol`/`--terra`/`--luna`·`frontier:false` → 하향) |
-- 등급 인자(`cr-risk-tier.sh`)가 엔진 기본을 이긴다: full-gate = Fable+Astra xhigh · full-general = Opus 5.5+gpt-6-sol high · light = 중간 등급 1레그. 지적 수정 워커 = Opus 5.5 + gpt-6-sol. `--mode double|triple` = no-op.
+- 등급 인자(`cr-risk-tier.sh`)가 엔진 기본을 이긴다: full-gate = **검수자 1명 Fable**(`legs=1` · #2243 — 사람이 2벤더를 지정하면 `legs=2` Fable+Astra high) · full-general·light = 검수자 0(레그 0 · #2594 — 이 등급으로는 엔진을 부르지 않는다). 지적 수정 워커 = Opus 5.5 + gpt-6.1-sol(codex-cli 0.160.0 미만이면 `codex-transport.sh` 가 한 칸씩 착지 — 0.156.1 = gpt-6-sol · MCP 핀 0.153.4 = gpt-5.6-sol). `--mode double|triple` = no-op.
+- Codex 레그 사본 실행 범위(#2058) — 정본 `.claude/prompts/cr-multi-codex.md §사본 실행 범위`(규약 문장은 거기 한 곳 · 엔진 wCodex 프롬프트에 같은 한 줄).
 - Codex 빠짐(`--cr degrade`/`--no-codex`) → `quorumFail` → **verdict=FAIL**, `degraded=true`.
 - 판정 로직 수정 시: `cr-verdict.mjs` 만 고치고 ①`node shared/scripts/cr-verdict-inline.mjs --write` ②`--check`(바이트 동일) ③`workflow.js` `ENGINE_VERSION` patch +1(develop 대비 1회). 인라인 판정 본문 = `cr-verdict-inline.mjs --check` 로 바이트 동일 유지.
 ## Phase 0.5 — 과거 리뷰 회상 (fail-open)
@@ -30,9 +31,9 @@ codex-critic(`mcp__codex__`) = read-only sandbox 로 approve-token 불필요.
 // 매 호출 SSoT 를 cat (세션 사본·~/.claude 미러 금지 — stale_engine 거부)
 // stage=final: prNumber·repo 필수(/forge-pr §3.0 prepare → --round-args), 없으면 unbound_final. PR 없는 수동 검수만 allowUnboundFinal: true
 // machineChecks: {ran:[syntax|md-dup|rule-meta|claude-lines|pr-fields|self-count|mutation|mutation-marker|tests|lint|wiring|secrets|repro], summary} — /forge-pr §3 (b) 가 실제 돌린 축만
-// crTier(/forge-pr §3 (c) cr-risk-tier.sh): skip → INVALID_INPUT code=tier_skip · light(legs:1) → 작성 반대편 1레그
-//   full-general|full-gate → 2레그 순차 단락(Claude CRITICAL/HIGH 면 Codex 생략, short_circuited:true) · 원장 r>=2 는 단락 안 함
-// claudeModel: fable|opus|sonnet · Claude effort = full-gate xhigh / 그 밖 high · legs: 1|2 · legVendor?: claude|codex(없으면 authorVendor=gpt→claude, 그 밖→codex) · crShortCircuit:false = 단락 끔
+// crTier(/forge-pr §3 (c) cr-risk-tier.sh): skip → INVALID_INPUT code=tier_skip · light·full-general(legs:0 · #2594) → 검수자 0 — `cr-risk-tier.sh` 가 레그를 내지 않는다(이 등급으로 엔진을 부르지 않는다)
+//   full-gate(legs:1) → Claude 1레그(검수자 1명 · #2243) · full-gate(legs:2·미지정 — 사람이 2벤더를 지정했을 때) → 2레그 순차 단락(Claude CRITICAL/HIGH 면 Codex 생략, short_circuited:true) · 원장 r>=2 는 단락 안 함
+// claudeModel: fable|opus|sonnet · Claude effort = 전 등급 high(#2058) · legs: 1|2 · legVendor?: claude|codex(없으면 authorVendor=gpt→claude, 그 밖→codex) · crShortCircuit:false = 단락 끔
 // target 없음(targetPath·deltaDiffPath·델타 diff 모두 부재)이고 `target:'staged'` 명시도 없으면 레그 전 `empty_target` 거부
 Workflow({
   script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js"),
@@ -52,7 +53,7 @@ jq -r 'select(.status != "superseded")
 ## 산출물 = Workflow 반환값
 `verdict`/`combined`/`issues[]`/`degraded`/`evidence_tier`/`reviewedSha`/`reviewedTargetHash`/`single_executor_cap`/`distinct_executors`/`verdict_body_sha`. 문을 잠그는 것은 `verdict` 뿐. `distinct_executors` = 서로 다른 실행체 수(대체 레그는 Claude 로 귀속) · `single_executor_cap` = 실제로 PASS→WARN 을 꺾었는가.
 - **`INVALID_INPUT`**(`score:null`, `inputRejected:true`) = PASS/WARN/FAIL 아님 → 입력 고쳐 재호출(점수 인용 금지, `combined` 등 없음 — null-safe). code: `too_large` = 논리 단위(줄 수)로 나눠 호출 · `not_found` = 존재·경로 확인("정규 파일이 아니다" 계열이면 `<target-file>` 하나 지정해 재호출) · `content_mismatch` = 나눠서 재호출 · `rate_limited` = **나누지 말고** 한도 해제 후 같은 인자로 재호출.
-- **라운드 수렴**: `--round-args` → `review_round`·`review_mode`(full/delta)·`backlog_issues`·`prior_status_summary`·`scope_drift_capped`. 결정은 `shared/scripts/cr-review-round.py record`(정본 `/forge-pr §3.0`).
+- **라운드 수렴**: `--round-args` → `review_round`·`review_mode`(full/delta)·`backlog_issues`·`prior_status_summary`·`scope_drift_capped`. 결정은 `shared/scripts/cr-review-round.py record`(정본 `/forge-pr §3.0`). 라운드 상한 1(r2 닫힘 · #2594) — rc 10 은 "고치고 테스트·기계 검사로 확인" 이고 다음 라운드를 열지 않는다.
 - **degraded** → `degradedBanner` 를 인용 시 함께 표기. **`evidence_tier`** `full`/`degraded`/`unverified` — full 아니면 WARN+고지([STOP] 게이트 아님).
 - **`content_integrity`** (`evidence_tier` 상한):
 
@@ -83,7 +84,7 @@ jq -r 'select(.status != "superseded")
 **보안**: Secret 사전 스캔 · `CR_MULTI_AUTO=off` 기본 · 감사 로그 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-multi-calls.jsonl`.
 ## 운영 규칙
 - **No-Pause**: 레그를 중간 Human 확인 없이 연속 실행. BLOCKED 판정 때만 [STOP].
-- **Plateau**: 연속 2라운드 진전 <5점 → A 추가 라운드 / B AD-50 override(Human 승인) / C 폐기 / D 단순화(권고). 가드 `shared/scripts/cr-multi-plateau-guard.py`.
+- **Plateau**(사람 끄개로 r2 를 연 흐름에서만 — 평소 라운드 상한은 1 · #2594): 연속 2라운드 진전 <5점 → B AD-50 override(Human 승인) / C 폐기 / D 단순화(권고) · "한 번 더 본다" 는 선택지에 없다. 가드 `shared/scripts/cr-multi-plateau-guard.py`.
 - **레그 금지**: ①점수 조작용 이슈 ②이전 라운드 동일 이슈 재제기 ③Spec 밖 enterprise 기능 요구 ④설계 의도 무시한 전면 재설계 BLOCK ⑤출처 미확인 코드 복사 권고.
 - **요청자 규칙**: ⑥크기 이유로 리뷰 생략 금지 ⑦Critical 미수정 = FAIL(override 는 Human 승인) ⑧WARN 이면 high 목록 검토 ⑨피드백 무비판 동의 금지 ⑩수동 조립 레그도 실행체 1개면 PASS→WARN(`SINGLE_EXECUTOR_WARN_CAP`) — 대체(`executed_by="claude"`)·출처 미선언 레그는 세지 않는다, 보고에 `distinct_executors=N` 필수(WARN 은 자동 머지 안 함).
 - **워커 출력**: ⑪통과 검증이 커버하지 않는 실패 시나리오 최소 1개 명시(없으면 "없음").

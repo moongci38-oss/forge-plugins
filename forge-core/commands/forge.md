@@ -45,11 +45,8 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 
 ## Codex 2차 게이트 통합 (Plan v2-C1)
 
-모든 Phase 자동 호출:
-- P4 끝: `/codex-review --stage plan --blocking`
-- Check P5.7-X: `/codex-review --stage code` (권고)
-- Check 6-TX: `/codex-review --stage test` (권고)
-- Check 7-X: `/codex-review --stage final --effort high --blocking`
+단계 통과는 **테스트·기계 검사**가 정한다 — 단계마다 검수를 걸지 않는다(`dev-workflow-rules.md §운영 규칙 1` · 검수자는 full-gate PR 에 1회뿐).
+- 사람이 시킬 때만 명시 호출(권고 · 막지 않는다 · 1회): `/codex-review --stage plan|code|test|final` — FAIL 이면 고치고 테스트로 확인하며 다시 부르지 않는다.
 
 자동 호출은 **기본 off**(미설정 = off) — 켜기: `export CODEX_REVIEW_AUTO_STAGES=<단계,…>|all`. 위 Check 는 명시 호출로 돈다. 결과: `forge-outputs/docs/reviews/`.
 

@@ -1,6 +1,6 @@
 # Skill Health Dashboard
 
-> 자동 갱신: `/system-audit` 실행 시 Redundancy 6축 결과 반영.
+> 자동 갱신: `/system-audit` 실행 시 중복 축(축 6) 결과 반영.
 > 수동 갱신: `eval_cases.jsonl` 업데이트 후 재실행.
 
 ## 스킬별 건강 지표
@@ -21,4 +21,4 @@
 
 | 스킬 | eval_count | 마지막 수정 | 권고 |
 |------|:----------:|:----------:|------|
-| (system-audit Redundancy 6축 결과 반영) | — | — | — |
+| (system-audit 중복 축(축 6) 결과 반영) | — | — | — |
