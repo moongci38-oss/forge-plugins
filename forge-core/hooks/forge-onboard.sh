@@ -87,30 +87,7 @@ done
 #   dead bundle 유지는 dangling의 역방향 부채(onboard.test가 적발). 신규 의존
 #   (session-recall.sh 등)은 forge 체크아웃이 소유 — 플러그인 번들 안 함(드리프트 방지).
 
-# 6. bundled skill scripts — self-install if missing (plugin self-containment)
-# commands/skills invoke these via $HOME/.claude/skills/... (Bash tool has no
-# CLAUDE_PLUGIN_ROOT access outside hook processes), but marketplace-only installs
-# only bundle them under ${CLAUDE_PLUGIN_ROOT}/skills/... — copy them out so
-# /approve-worker works post-install.
-# (forge #1685: cr-multi/workflow.js 항목 제거 — 스킬이 forge-multi 로 개명돼 번들에 없고,
-#  /forge-multi 는 ${FORGE_ROOT:-$HOME/forge} 쪽 엔진을 읽으므로 ~/.claude 복사본은 아무도 안 읽었다)
-SKILL_SCRIPT_SRCS=(
-  "${CLAUDE_PLUGIN_ROOT}/skills/approve-worker/scripts/approve-worker-sign.py"
-  "${CLAUDE_PLUGIN_ROOT}/skills/approve-worker/scripts/approve-worker-verify.py"
-)
-SKILL_SCRIPT_DSTS=(
-  "$HOME/.claude/skills/approve-worker/scripts/approve-worker-sign.py"
-  "$HOME/.claude/skills/approve-worker/scripts/approve-worker-verify.py"
-)
-for i in "${!SKILL_SCRIPT_SRCS[@]}"; do
-  src="${SKILL_SCRIPT_SRCS[$i]}"
-  dst="${SKILL_SCRIPT_DSTS[$i]}"
-  if [ -f "$src" ] && [ ! -f "$dst" ]; then
-    if mkdir -p "$(dirname "$dst")" 2>/dev/null && cp "$src" "$dst" 2>/dev/null; then
-      echo "[forge-onboard] skill script installed: $dst" >&2
-    fi
-  fi
-done
+# 6. (삭제) bundled skill scripts 자가설치 — 유일한 대상이던 MAS 승인 토큰 스킬이 원본에서 삭제돼(forge#2825 내보내기) 번들할 것이 없다.
 
 # 7. 설치본 ↔ 마켓플레이스 버전 대조 (갭 G4, 2026-08-20)
 # 왜: 전파는 3층이다 — ①repo ②마켓플레이스 클론 ③설치 캐시. ①②는 명령 한 줄로 확인되는데

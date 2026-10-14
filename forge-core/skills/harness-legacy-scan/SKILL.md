@@ -1,6 +1,6 @@
 ---
 name: harness-legacy-scan
-description: "Forge 하네스 읽기전용 레거시 감사: 낡은룰/중복/과대 전역컨텍스트/넓은 Skill/불필요 Hook·MCP/제품중복 분류. 트리거: /harness-legacy-scan"
+description: "하네스 읽기전용 레거시 감사. 트리거: /harness-legacy-scan"
 disable-model-invocation: true
 model: sonnet
 allowed-tools: Read, Bash, Glob, Grep, Write
@@ -17,7 +17,7 @@ argument-hint: [--scope rules|skills|hooks|all]
 
 ## 쓰지 말아야 할 때
 
-- **전체 AI 시스템 능력 감사** → `system-audit` 사용 (ACHCE 5축+중복, 단독 실측).  
+- **전체 AI 시스템 능력 감사** → `system-audit` 사용 (12축 — 점수 10축 + 보안·군살 판정 축 + 중복, 단독 실측).  
   본 스킬은 하네스 슬림화(context tax / redundancy / 불필요 자산)만 대상. system-audit과 목적이 다르며 중복 인식하고 있음.
 - 실제 파일 수정 / hook·MCP 변경 → 본 스킬은 읽기전용. 수정은 `harness-diet` 사용.
 - 긴급 보안 감사 → 보안 훅은 SAFETY-DETERRENT 분류로 보호되나, 별도 보안 리뷰가 더 적합.
@@ -38,7 +38,7 @@ Forge 하네스는 지속적으로 누적된다:
 ```
 Workflow({
   script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-legacy-scan/workflow.js"),
-  args: { outBase: Bash("echo ${FORGE_OUTPUTS:-$HOME/forge-outputs}") }
+  args: { outBase: Bash("echo ${FORGE_OUTPUTS:-$HOME/forge-outputs}"), codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") }   // codexModel = MCP 길 sol(#2026)
 })
 ```
 

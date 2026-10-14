@@ -1,6 +1,6 @@
 ---
 name: slash-command-creator
-description: "Claude Code 슬래시 커맨드(.claude/commands/*.md)를 만들거나 고치고 frontmatter·문법을 안내한다. 쓸 때: 새 커맨드 작성·기존 커맨드 수정·커맨드 문법 질문. SKIP: 스킬 작성(→ skill-creator), 훅·settings 변경."
+description: "슬래시 커맨드(.claude/commands) 작성·수정·문법 — 커맨드를 만들거나 고칠 때."
 context: fork
 model: sonnet
 ---

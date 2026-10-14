@@ -470,3 +470,71 @@ def sens_dir_match(text, sens):
         return False
     return re.search(r'(?:^|[^A-Za-z0-9._-])' + re.escape(base) + r'(?:/|[^A-Za-z0-9._-]|$)',
                      text) is not None
+
+# ── `.env` 파일 판정 (#2275 · 감사 2026-10-09 H-1) ─────────────────────────────
+# 왜: forge-core §보안 은 `.env*` 출력을 금지하는데 집행하는 훅이 없었다 — Read·cat·grep 으로 본문이 그대로 나왔다.
+# 규칙: 이름이 `.env` 이거나 `.env.<무엇>`(`.env.local`·`.env.production` …)이면 비밀 파일이다.
+#   예외 = 끝 꼬리가 example·sample·template(값 없는 틀 — 커밋되는 파일).
+#   `.env*`·`.env.*`·`.env.{a,b}` 같은 글롭·중괄호는 셸이 비밀 파일까지 펼치므로 막는다(검수 r1 H2). `.envrc`·`config.env`·`foo.env` 는 다른 파일이다.
+# ⚠️ 무력화되는 입력: 경로를 변수·조립으로 감추거나(`f=.e; cat ${f}nv`) 다른 이름의 심링크로 가리키면 못 잡는다 ·
+#   **디렉터리 재귀 판독**(`grep -rn KEY .`·`rg KEY`·Grep 도구 path=폴더+glob)은 폴더 이름만 보이므로 Bash 에서는 못 막는다
+#   (Grep 도구는 폴더 바로 아래 `.env*` 가 있고 glob 이 없을 때만 막는다 — 하위 폴더의 `.env` 는 못 본다 · 검수 r1 H6) — 실수 방지선이다.
+ENV_SAFE_TAILS = ('example', 'sample', 'template')
+_ENV_NAME = re.compile(r'\.env((?:\.[A-Za-z0-9_-]+)*)(\.?[*?\[{].*)?')
+_ENV_REF = re.compile(r'(?<![A-Za-z0-9_.-])\.env((?:\.[A-Za-z0-9_-]+)*)(\.?[*?\[{])?(?![A-Za-z0-9_-])')
+
+
+def _env_secret(tail, glob):
+    if glob:
+        return True
+    last = tail.rsplit('.', 1)[-1].lower() if tail else ''
+    return last not in ENV_SAFE_TAILS
+
+
+def env_file_match(text):
+    """경로(또는 인자 토큰) 하나가 비밀 `.env` 파일을 가리키는가."""
+    t = (text or '').strip().strip('\'"').rstrip('/')
+    name = re.split(r'[\\/]', t)[-1]
+    m = _ENV_NAME.fullmatch(name)
+    return bool(m) and _env_secret(m.group(1), m.group(2))
+
+
+def env_refs(cmd):
+    """명령문 어디엔가 비밀 `.env` 이름이 보이는가(인터프리터 판독용 — 코드는 따옴표 안에 있으니 따옴표 안까지 본다)."""
+    return any(_env_secret(m.group(1), m.group(2)) for m in _ENV_REF.finditer(cmd or ''))
+
+
+def env_refs_unquoted(cmd):
+    """따옴표 **밖**에 비밀 `.env` 이름이 보이는가(인자를 못 뽑았을 때의 fail-closed 용 — 검수 r1 H3).
+    `rg '\.env'`·`grep -n '.env'` 처럼 따옴표 안의 검색어는 이름이 아니다(M1 과 같은 이유)."""
+    return env_refs(mask_quotes(cmd or ''))
+
+
+def first_stage_cmds(cmd):
+    """파이프 **첫 단계**만 이어 붙인 명령(` ; ` 구분). 두 번째 단계부터는 stdin 을 읽으므로(`| head`·`| grep x`)
+    인자가 없어도 '놓친 파일 판독' 이 아니다 — 그 miss 를 세면 `cat .gitignore | grep .env` 가 막힌다(검수 r1 H3)."""
+    s = cmd or ''
+    m = mask_quotes(s)
+    out, start, first, i, n = [], 0, True, 0, len(m)
+    while i < n:
+        ch = m[i]
+        two = m[i:i + 2]
+        if two in ('||', '&&'):
+            if first:
+                out.append(s[start:i])
+            start, first, i = i + 2, True, i + 2
+            continue
+        if ch == '|':
+            if first:
+                out.append(s[start:i])
+            start, first, i = i + 1, False, i + 1
+            continue
+        if ch in ';&\n()':
+            if first:
+                out.append(s[start:i])
+            start, first, i = i + 1, True, i + 1
+            continue
+        i += 1
+    if first:
+        out.append(s[start:])
+    return ' ; '.join(x for x in out if x.strip())

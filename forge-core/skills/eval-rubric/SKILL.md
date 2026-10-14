@@ -1,6 +1,6 @@
 ---
 name: eval-rubric
-description: Rubric 기반 LLM-as-judge 다차원 평가. 4축(명확성/일관성/완성도/안전성) 0-2점 채점. 트리거 - "rubric 평가", "다축 채점", "정량 품질 측정", /eval-rubric.
+description: "Rubric LLM-judge 4축 채점. 트리거: 'rubric 평가'·'다축 채점'."
 model: sonnet
 ---
 
