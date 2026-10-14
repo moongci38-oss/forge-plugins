@@ -1,11 +1,6 @@
 ---
 name: cto-advisor
-description: |
-  Forge S4(Phase 4 Step 4-②) 기술 검토 전문 에이전트 — 7축(아키텍처·API·데이터모델·보안·성능·테스트전략·기술부채).
-  S4 산출물(s4-development-plan.md — 개발 계획·아키텍처·ADR·보안 설계)을 기술적 관점에서 검토하고
-  CRITICAL/HIGH/MEDIUM/LOW 등급의 이슈 리포트(wave3-cto-{date}.md)를 생성한다. 부적절한 보안 N/A도 검토.
-
-  Use for: S4 기술 검토, 아키텍처 ADR 검증, 기술 스택 적합성 평가
+description: "S4 개발 계획 기술 검토(7축 등급 리포트) — S4 기술 검토를 요청할 때."
 tools: Read, Grep, Glob, WebSearch, Write
 # ⚠️ 이 값을 내리지 마라 (2026-08-30 `sonnet` → `fable`).
 # 이 에이전트는 **채점자**다 — 메인 AI(Opus)가 쓴 `s4-development-plan.md` 를 7축으로 보고
@@ -34,7 +29,7 @@ tools: Read, Grep, Glob, WebSearch, Write
 # ⚠️ 2026-09-27(#1337 PR-C, 사람 승인) — fable → **opus**. 위 폐기조건("advisor 기본 모델이 Fable 5.1 가 아니게 되면
 #   그때의 기본값으로")이 충족됐다: 리졸버 기본이 중간 등급(Claude 쪽 = Opus 5.5)이 됐고 최상위는 full-gate·비가역·
 #   사람 지정(FORGE_ADVISOR_TIER=max) 때만 리졸버가 낸다. ⚠️ 무력화되는 입력: 리졸버 없이 직접 스폰 — 작성자 Opus ↔
-#   채점자 Opus 동일모델(위 ③)이 된다. 그래서 호출부는 여전히 리졸버를 먼저 부른다(claude 모드 기본은 gpt-6-sol).
+#   채점자 Opus 동일모델(위 ③)이 된다. 그래서 호출부는 여전히 리졸버를 먼저 부른다(claude 모드 기본은 gpt-6.1-sol — CLI ≥0.160.0 · 구 CLI 는 gpt-6-sol).
 model: opus
 ---
 
@@ -57,7 +52,7 @@ MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" 
 |---|---|
 | `claude-fable-5-1` | `Agent(subagent_type="cto-advisor", model:"fable")` |
 | `claude-opus-5-5` | `Agent(subagent_type="cto-advisor", model:"opus")` |
-| `gpt-6-astra` · `gpt-6-sol` | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only)에 아래 7축 프롬프트를 그대로 준다 |
+| `gpt-6-astra` · `gpt-6.1-sol`(CLI ≥0.160.0 · 구 CLI 는 `gpt-6-sol`) | **Agent 아님** — `mcp__codex__codex`(sandbox=read-only)에 아래 7축 프롬프트를 그대로 준다 |
 | 빈 출력·실행 실패 | `Agent(subagent_type="cto-advisor", model:"opus")` (non-blocking) |
 
 - ⛔ 리졸버 출력을 `Agent(model:$MODEL)` 에 그대로 넣지 마라 — Agent 의 model 열거형에 codex 모델이 없다.
@@ -73,6 +68,7 @@ S4 기획 패키지의 기술적 건전성을 검증한다. "구현 시 런타�
 ## 검토 축 (7축)
 
 1. **아키텍처 정합성**: C4 모델 레벨 간 일관성, 의존성 방향
+   - 설계 원칙(#2052): DDD 레이어(domain ← application ← infrastructure 의존 방향)·bounded context·애그리거트 불변식 · OOP 책임(한 책임·주입·합성) — `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`.
    - 판정 어휘: `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/codebase-design.md` — 깊은/얕은 모듈, 이음매(seam) 배치, **삭제 테스트**, **"어댑터 1개=가설 이음매, 2개=진짜 이음매"**. 얕은 모듈·근거 없는 이음매는 MEDIUM 이상.
 2. **API 설계**: 엔드포인트 충돌, 인증 흐름, 에러 처리 표준
 3. **데이터 모델**: 정규화, 인덱스 전략, 마이그레이션 경로

@@ -1,25 +1,16 @@
 ---
-description: OpenAI Codex 경유 2차 리뷰 게이트 (Claude 1차 리뷰 후 추가 검증). 모든 개발 단계 (plan/code/test/final/bugfix) 지원.
+description: Codex 2차 리뷰 — `codex-review` 스킬 진입점(stage 분기).
 argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high|xhigh] [--blocking] [--cr <on|degrade|off>] [--sol|--terra|--luna]"
 group: verify
 ---
 
 # /codex-review
 
-수동 슬래시 인터페이스. 자동 레인은 `skills/codex-review/SKILL.md`(기본 off — `CODEX_REVIEW_AUTO_STAGES`). 로직 변경 시 양쪽 동기.
+수동 슬래시 인터페이스. 자동 레인은 `skills/codex-review/SKILL.md`(기본 off — `CODEX_REVIEW_AUTO_STAGES`). 나눠 맡는다 — 인자·stage 표·포커스 = 스킬 `§인자` · 실제 호출 절차(Step) = 여기(#2470).
 Claude 1차 리뷰에 Codex **단일 레인** 2차 리뷰를 추가한다(2벤더 교차는 `/forge-multi`). ⛔ `mcp__codex__codex` 직접 호출 금지 — 기록(`docs/reviews/`)·cap=1·stage rubric(`prompts/codex-review-*.md`)이 빠진다.
 단축 래퍼: `/forge-plan-review` `/forge-analysis-review` `/forge-code-review` `/forge-test-review` `/forge-final` `/forge-bug-review`. 선결: codex CLI 설치 + `codex` /login(ChatGPT OAuth).
 ## 인자
-| 인자 | 기본 | 의미 |
-|---|---|---|
-| `--stage` | 필수 | `plan\|analysis\|code\|test\|final\|bugfix\|yt-apply-plan\|article-apply-plan\|phase1-validate` |
-| `--target` | 필수 | 파일 경로 또는 `PR-N` |
-| `--effort` | `xhigh` | final 은 xhigh 고정 |
-| `--blocking` | stage별 | FAIL 시 exit 1 — 기본 YES: `final`·`yt-apply-plan`·`article-apply-plan`·`phase1-validate` / 그 외 권고(plan = AD-50) |
-| `--cr` | `FORGE_AUTO_CR`→`on` | `degrade`/`off` = Codex 호출 skip (`cr-mode.sh`) |
-| `--sol/--terra/--luna` | sol | `CODEX_TIER`=high/default/low |
-
-포커스: plan=요구 명확성·누락·모순·YAGNI · analysis=근거·추정 태그·범위·SSoT 주장 · code=로직·보안·성능 · test=커버리지 갭·가짜 통과 · final=통합(추적성·롤백) · bugfix=근본원인 vs 우회.
+인자 표·stage 목록·stage별 포커스 정본 = `skills/codex-review/SKILL.md §인자`(#2470 — 여기 다시 적지 않는다).
 ## 절차
 ### Step 1 — 입력 (code/final 은 merge-base 기준, 실패 시 fail-closed)
 ```bash
@@ -41,18 +32,19 @@ esac
 ### Step 1.5~1.6 — 게이트(auto-stage · --cr · skip 패턴) + 분석 doc auto-route
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-review-gate.sh" --stage "$STAGE" --target "$TARGET" --cr "${CR_ARG:-}"` → `RUN`·`STAGE`·`REASON`.
 `RUN=0` → `[codex-review] <REASON> → 생략` 출력 후 exit 0(`CODEX_REVIEW_AUTO_STAGES` 기본 off · `--cr off|degrade` · `CODEX_REVIEW_SKIP_PATTERNS`, plan 계열은 skip 우회). `RUN=1` → 출력 `STAGE` 로 교체해 진행(plan + frontmatter `stage:` analysis|backlog|runbook → analysis; 끄기 `CODEX_REVIEW_NO_AUTOROUTE=1`). rc 2 = 판정 불가 → 중단·보고.
-### Step 2 — Codex 호출 (모델: `CODEX_REVIEW_MODEL` > registry `codex:$CODEX_TIER` > `gpt-6-sol`)
+### Step 2 — Codex 호출 (모델: `CODEX_REVIEW_MODEL` > registry `codex:$CODEX_TIER` > `gpt-6.1-sol`)
 ```bash
 CODEX_TIER="${CODEX_TIER:-high}"; if [[ -n "${CODEX_REVIEW_MODEL:-}" ]]; then MODEL="$CODEX_REVIEW_MODEL"
-else MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) || MODEL="gpt-6-sol"; fi
-EFFORT_LEVEL="${EFFORT:-xhigh}"
-[[ "$STAGE" == "final" ]] && EFFORT_LEVEL="xhigh"; PROMPT_STAGE="$STAGE"; [[ "$PROMPT_STAGE" == "article-apply-plan" ]] && PROMPT_STAGE="yt-apply-plan"
+else MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh" "codex:$CODEX_TIER" 2>/dev/null) || MODEL="gpt-6.1-sol"; fi
+MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh" gate "$MODEL" exec || echo "$MODEL")"   # 보낼 길(exec)의 codex 가 못 부르면 한 칸 아래로(#1971)
+EFFORT_LEVEL="${EFFORT:-high}"   # #2058 검수 레그 high(사람 결정 2026-10-05)
+[[ "$STAGE" == "final" ]] && case "$EFFORT_LEVEL" in low|medium) EFFORT_LEVEL="high" ;; esac; PROMPT_STAGE="$STAGE"; [[ "$PROMPT_STAGE" == "article-apply-plan" ]] && PROMPT_STAGE="yt-apply-plan"
 PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-${PROMPT_STAGE}.md"
 [[ -f "$PROMPT_FILE" ]] || PROMPT_FILE="${FORGE_ROOT:-$HOME/forge}/.claude/prompts/codex-review-default.md"
 ( cat "$PROMPT_FILE"; echo; echo "---"; [[ -n "${BASE_DRIFT_NOTE:-}" ]] && { echo "## 범위 고지"; echo "$BASE_DRIFT_NOTE"; echo; }
   echo "## TARGET"; echo "$INPUT" ) | codex exec --model "$MODEL" -c model_reasoning_effort="\"$EFFORT_LEVEL\"" --skip-git-repo-check > "$WORK_DIR/codex-raw.txt"
 ```
-구 CLI(<0.156.1)는 gpt-6-* 를 400 거부 — 사람이 `CODEX_REVIEW_MODEL` 로 내린다.
+모델은 `codex-transport.sh gate … exec` 를 한 번 거친다 — PATH 의 codex 가 그 id 를 못 부르면 한 칸 아래로 착지하고 stderr 로 `codex update` 를 권고한다(gpt-6.1-sol → 0.156.1 이면 gpt-6-sol → 0.153.4 이면 gpt-5.6-sol · 버전을 못 읽으면 gpt-6-sol). `CODEX_REVIEW_MODEL` 로 지정한 id 도 같은 게이트를 탄다.
 
 **스키마**: `{stage, target, verdict: PASS|WARN|FAIL, score: 0-100, issues: [{severity: critical|high|medium|low, category: logic|security|performance|spec|test|architecture, file, line, message, fix}], suggestions, delta_vs_claude: agreement|disagreement|extension|null, model, cost_usd, ts}`
 ### Step 3~6 — JSON 정규화 · 저장 · Delta · INDEX
@@ -75,7 +67,15 @@ if [[ "$BLOCKING" == "true" ]]; then
   [[ "$VERDICT" == "FAIL" ]] && { echo "❌ Codex 2차 리뷰 FAIL — critical/high ${BLOCKERS}건 — 진행 차단"; echo "보고: ${OUT_DIR}/${DATE}-${SLUG}.md"; exit 1; }
 fi
 ```
-**FAIL 후 (cap=1)**: 수정 후 동일 명령 1회 재호출 → 또 FAIL 이면 `/forge-multi --target <대상>` 에스컬레이션 의무. 내부 retry 루프 금지. 강등은 이 레인 한정(forge-multi 는 `combined<60` = FAIL → forge-pr `[STOP]`).
+**FAIL 후**: 고치고 **테스트·기계 검사**로 확인한다 — 이 명령을 다시 부르지 않고 `/forge-multi` 로 올리지도 않는다(`dev-workflow-rules.md §운영 규칙 1`). 2회 고쳐도 테스트가 안 붙으면 멈추고 보고. 강등은 이 레인 한정(forge-multi 는 `combined<60` = FAIL → forge-pr `[STOP]`).
 ## 통합 지점 · 산출물
 - Forge Dev: P3·P4 `plan`(권고) · P5.7 `code` · P6 6-TX `test` · P7 7-X `final`(blocking). SDD C-1·PGE 4.5(점수 60+ 시) = `code`. `analysis` 는 수동 전용. `code` WARN/FAIL → 사용자 컨펌 후 진행.
 - plan PASS 기준(AD-50, score 무관): Critical 0 + High ≤2 + 보안·롤백 무결 — Critical/High 만 정정 의무, Medium/Low 는 정보용. OAuth $0 — env `CODEX_REVIEW_DAILY_LIMIT`·`CODEX_REVIEW_MONTHLY_BUDGET_USD`. 정책 `dev/rules-on-demand/codex-review-policy.md`.
+
+## 단축 래퍼 공통 (#2288)
+`/forge-{analysis,bug,code,plan,test}-review` 5개가 똑같이 들고 있던 단락의 정본이다 — 래퍼에는 이 절을 가리키는 1줄만 둔다(감사 2026-10-09 중복 축 C023).
+- **개명**: 구 이름 `/cr-analysis`·`/cr-bug`·`/cr-code`·`/cr-plan`·`/cr-test` 는 2026-09-07 개명했다. 헬퍼 스크립트 파일명·감사로그·증거 경로(`cr-evidence/`)는 **그대로 둔다** — 쌓인 증거가 그 이름으로 묶여 있어서다. 간판만 바꾸고 배달 주소를 바꾸면 옛 증거가 통째로 안 보이게 된다.
+- **모델**: **`codex:high`** 티어(high effort · #2058) — 이 단일 리뷰 레인은 astra 를 쓰지 않는다. id·하향 스위치(`--terra`/`--luna`)·구 CLI 동작(#745 — 이 레인은 자동 폴백 없음)·구 표기 이력의 정본 = 위 §Step 2.
+- **비용**: $0.00 (ChatGPT 구독, gpt-6.1-sol(CLI ≥0.160.0 · 구 CLI 는 gpt-6-sol) — OAuth 호출 가능) / 비상 폴백(apikey 시): high effort 는 종량.
+근거: 감사 2026-10-09 M-8 · #2288 — 같은 단락 5벌이 따로 낡는다(#1139 C034 가 모델 줄만 줄였고 사본은 남았다).
+폐기조건: 옛 증거를 더 안 읽어도 되면 헬퍼 파일명까지 후속 개명하고 개명 줄을 지운다 · 래퍼가 없어지면 이 절도 지운다.

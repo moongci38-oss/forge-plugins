@@ -68,6 +68,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-contract-lint.py" <�
 **Phase 2 — Spec 작성**: `spec-writer` 에이전트(정의 `agents/spec-writer-base.md`). 인자: `--spec <path>` 갱신 / `--plan <dir>` 계획서 / `--bulk <path>` 대량.
 - 저장: `.specify/specs/YYYY-MM-DD-{slug}.md`(SSoT). `--plan` 이 도메인 폴더(`_registry.yaml`/`00-도메인개요.md`)면 `{domain}/spec/YYYY-MM-DD-{slug}.md` 미러.
 - 미러 헤더 + §데이터모델 provenance 태그 필수 → `§Phase 2 미러 헤더·provenance`.
+- `## 도메인 모델`(유비쿼터스 언어 표·애그리거트·불변식·도메인 이벤트) + `## 모듈·책임`(OOP — 책임 단위 이름·도메인 언어만 · 인터페이스·주입은 Plan 1-M4c) 절 **필수** → `§Phase 2 도메인 모델·모듈 책임` · 원칙 정본 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`(#2052).
 - 재-spec 은 항상 Human 승인 게이트를 거친다(AI 자동 Spec 변경 금지).
 - **표면 분할(권고, 차단 아님)**: Spec 단위(PR 이 될 FR 묶음)마다 새 표면 수 선언 후 실행, 결과를 Spec 에 적는다.
   ```bash

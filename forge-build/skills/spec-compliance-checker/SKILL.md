@@ -1,6 +1,6 @@
 ---
 name: spec-compliance-checker
-description: "Spec 문서와 구현 코드의 추적성(FR별 파일 매핑·테스트 존재·누락 판정)을 검증한다. 구현 완료 후 스펙 충족 여부를 확인할 때 사용한다."
+description: "Spec↔구현 FR 추적성 검증 — 구현 완료 후 사용한다."
 context: fork
 agent: general-purpose
 model: sonnet

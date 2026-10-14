@@ -13,8 +13,9 @@ skills:
 
 **Rubric**: 보안 40%(SQL Injection·하드코딩 시크릿 → 즉시 FAIL) · 코드 품질 30%(AI 슬롭 중복·복붙·미사용 → 즉시 감점) · 성능 20%(N+1·메모리 누수) · 설정/빌드 10%(환경별 설정 누락).
 **PASS** = 70점 이상 + 보안 즉시 FAIL 없음.
-- **증거 역질문(PASS 전 필수)**: ①이 변경이 옳다는 증거(실행된 테스트 종류·명령·출력) ②통과 테스트가 **다루지 않는** 실패 시나리오 1건. 하나라도 못 대면 **"검증 부족"** 반려. 증거 인용 시 토큰·키·비밀번호·내부 URL은 `***` 마스킹(LN-03).
+- **증거 역질문(PASS 전 필수)**: ①이 변경이 옳다는 증거 — **브리프의 기계 검사 결과에서 어느 줄**이 그 증거인지(프로그램이 이미 돈 결과를 인용한다 · 레그가 테스트를 직접 돌려 만들지 않는다 · #2227) ②통과 테스트가 **다루지 않는** 실패 시나리오 1건. 하나라도 못 대면 **"검증 부족"** 반려. 증거 인용 시 토큰·키·비밀번호·내부 URL은 `***` 마스킹(LN-03).
 - **관대함 금지**: "나쁘지 않은데"·"이 정도면" → 감점. 한 항목 장점이 다른 문제를 상쇄하지 않는다. Generator 자체검토를 믿지 않는다. **Severity inflation 금지**: 스타일 → Critical 격상 금지, 동일 패턴 중복 지적 금지, 불확실하면 "확인 필요"(High 격상 금지). 기준: Critical = 데이터 손실·보안·기능 중단 / High = 아키텍처·주요 버그 / Medium = 품질·성능 / Low = 스타일·제안.
+- **설계 원칙**(#2052 · 리뷰 질문 = `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`): OOP·DDD 위반(한 책임·캡슐화·레이어 의존 방향·유비쿼터스 언어) = Medium · 도메인 불변식 깨짐 = High.
 - **보고 범위**: 발견한 이슈는 **전부 보고**("중대한 것만" 자기 제약 금지). 거르는 건 소비 측 verdict 게이트 몫. verdict 임계는 아래 매핑 그대로. **금지 행동**: 읽지 않은 코드 지적 · 추측성 지적 · diff 밖 기존 코드 지적 · 미사용 인프라(logging·metrics·관리자 UI) 요구(YAGNI).
 - **피드백 3요소**: 위치 + 이유 + 방법 (예: "`auth.ts` 45줄 중복 토큰 검증 → 3회 반복 슬롭 → `validateToken()` 추출").
 
@@ -46,9 +47,11 @@ git ls-files -z --others --exclude-standard | xargs -0 -r grep -InHoE '\beval[[:
 ```bash
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/code-reviewer-learn.sh" load
 ```
-- 출력 `STATE`(이후 단계 인자)·`REPO`·`PAST_COUNT`(active review-pattern만, 변경 0)·`PROJKB_HITS`/`PROJKB_FILE`(`20-wiki/projects/{REPO}.md` 롤업 — prior context로 참고). `STEP0=skip`(forge-outputs·git repo 둘 다 없음)·실패·부재 = skip(비차단). issues 확정 후 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/code-reviewer-learn.sh" escalate "$STATE" '<issues JSON 배열>'` → `FP=<count> <fingerprint>`·`SUPERSEDE=<id>`. count≥2 인 fingerprint가 이번 issue에 있으면 message에 `[재발 — 이전 N회]` + severity 1단계 상향. 직전 리뷰에서 이미 fixed면 재지적 X. exit 2 = 판정 불가 → "기계 집계 불가" 1줄 + 계속.
+- 출력 `STATE`(이후 단계 인자)·`REPO`·`PAST_COUNT`(active review-pattern만, 변경 0)·`PROJKB_HITS`/`PROJKB_FILE`(`20-wiki/projects/{REPO}-knowledge.md` 롤업 — prior context로 참고). `STEP0=skip`(forge-outputs·git repo 둘 다 없음)·실패·부재 = skip(비차단). issues 확정 후 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/code-reviewer-learn.sh" escalate "$STATE" '<issues JSON 배열>'` → `FP=<count> <fingerprint>`·`SUPERSEDE=<id>`. count≥2 인 fingerprint가 이번 issue에 있으면 message에 `[재발 — 이전 N회]` + severity 1단계 상향. 직전 리뷰에서 이미 fixed면 재지적 X. exit 2 = 판정 불가 → "기계 집계 불가" 1줄 + 계속.
 
 ## 리뷰 절차 / 항목 — `git diff` 또는 `git diff --staged` → 변경 파일만 분석. 프로젝트 CLAUDE.md 규칙 준수 확인.
+- **격리(#2040)**: 테스트·변이는 프로그램이 이미 돌았다 — 레그는 다시 돌리지 않는다(#2227). 가설 확인용 **탐침 1개**를 클론(사본)에서 돌릴 때는 **세션 경로를 지우고 재지정**한다 — `env -u FORGE_ROOT -u FORGE_OUTPUTS FORGE_ROOT=<클론> FORGE_OUTPUTS=$(mktemp -d) HOME=$(mktemp -d) <명령>`. 시작 전 `bash <클론>/shared/scripts/review-env-guard.sh --clone <클론>` 이 rc 0(`ENV_GUARD=isolated`)이 아니면 **돌리지 않는다**(1 = 실제 레포 경로 상속 — `LEAK=` 줄·`HINT=` 명령대로 고친 뒤 다시 · 2 = 판정 불가). 가짜 HOME 만으로는 부족하다 — 스크립트는 `${FORGE_ROOT:-$HOME/forge}` 로 FORGE_ROOT 를 먼저 본다(PR #2038 실제 `.env` 오염 · #2040).
+- **영향 범위**: 코드 파일(.py .ts .js .mjs)이 바뀌면 GitNexus `impact` 로 바뀐 심볼의 영향을 재고 보고에 `영향 범위: gitnexus impact <심볼 n개 → 영향 m개>` 1줄(색인 없으면 `영향 범위: 색인 없음`) — 선택표 `tool-rules.md` 레포 지도 · #1949.
 - **보안(Critical)**: SQL 문자열 조합(DAO 필수) · 하드코딩 비밀번호/API 키/DB 정보 · 입력 검증 누락
 - **품질(Warning)**: 네이밍 · 가독성·중복 · Manager 싱글톤 변경 시도 **성능(Warning)**: N+1 · 불필요 루프·메모리 누수 · 버퍼 풀링 미사용(TCP) **빌드/설정·에러(Suggestion)**: Release `NOX_ENCRYPT_PACKET` · DEBUG 전처리기 의존 · 환경별 설정 · 예외 처리 누락 · null 체크
 - **Spec 정합**: 변경 → FR/AC 역추적, Spec 기능 누락(category `spec`, Critical 가능), scope creep. `.specify/specs/*.md` 또는 `forge-outputs/docs/planning/active/*.md` 대조.
@@ -72,5 +75,5 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/code-reviewer-learn.sh" promote 
 - 누적 3회+ fingerprint → review-pattern append(`PROMOTED=`) · 해소된 패턴 → supersede(`SUPERSEDED=` → "🧹 정리") · `SUPPRESSED=`(secret 감지)·`UNSAVED=` → "learning 미저장. 리뷰 결과 정상." · `RECURRENCE=none`.
 - shell JSON 조합 금지(헬퍼가 처리). 비0 exit 전부 비차단·재시도 안 함. forge-outputs·git repo 부재 → skip(`PROMOTE=skip`).
 ## Step 6 — 프로젝트 롤업 갱신 (비차단)
-`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/code-reviewer-learn.sh" rollup "$STATE"` → `ROLLUP=updated|skip`.
-리뷰 수신(Requester) 규칙은 `behavior-core.md §리뷰 수신 프로토콜` — Critical 수정 전·FAIL 재리뷰 전 다음 Phase 진입 금지, diff 밖 지적은 별도 이슈.
+`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/code-reviewer-learn.sh" rollup "$STATE"` → `ROLLUP=updated|skip` · `ROLLUP_DETAIL=<사유·생성기 끝줄>`(skip 이면 이 줄을 리뷰 끝에 1줄로 옮긴다).
+리뷰 수신(Requester) 규칙은 `behavior-core.md §리뷰 수신 프로토콜` — Critical·FAIL 은 고친 뒤 테스트·기계 검사로 확인하고 다음 Phase 로 간다(다시 리뷰하지 않는다 — `dev-workflow-rules.md §운영 규칙 1`), diff 밖 지적은 별도 이슈.

@@ -9,7 +9,7 @@ group: plan
 
 # /forge-plan — P3 진입 (Planning Package)
 P2 기획서(`s3-prd.md`/`s3-gdd.md` + `s3-mockup/`)로 **P3 상세 기획 패키지**를 만든다. 절차 정본 = `~/forge/pipeline.md` "## P3: Dev Plan+Package". 사용: `/forge-plan <slug | P2 PRD/GDD 경로>`.
-- 모델: 작성 Sonnet · 탐색 `Agent(model:"haiku")` · 기술검토 `cto-advisor` · 전략 `advisor-strategist` — advisor 모델은 항상 `advisor-spawn-guard.sh resolve` 출력(`gpt-*` → `mcp__codex__codex` read-only).
+- 모델: 분담은 `dev/global-rules/model-routing.md` 표 · 탐색 `Agent(model:"haiku")` · 기술검토 `cto-advisor` · 전략 `advisor-strategist` — advisor 모델은 항상 `advisor-spawn-guard.sh resolve` 출력(`gpt-*` → `mcp__codex__codex` read-only).
 - 범위: greenfield + 기존 Forge 산출물 delta 보강(M5). 임의 legacy retrofit은 `migration-audit`.
 - `{project-root}` = `forge-outputs/02-product/{project-slug}/`.
 
@@ -35,21 +35,23 @@ P3_MTIME=$(stat -c %Y "{domain}/_registry.yaml" 2>/dev/null)
 ```
   감지 시 재실행 권고 + 계속 여부 확인(강제 아님).
 - **1-M2 `_registry.yaml`** (직접편집 금지, 기존 있으면 diff-merge — 덮어쓰기 금지): `domain`·`generated`·`features[]`{`id`,`name`,`priority`(Must|Should|Could|Won't),`fr_refs`,`ac_refs`,`pages`,`spec_ref: .specify/specs/YYYY-MM-DD-{slug}.md`, 선택 `state`(design→modeled→spec'd→converted→implemented→verified),`stack`,`mockup_refs`{page-id: `s3-mockup/{page-id}.png`},`api_contract`,`aggregate`}·`pages[]`{`id`,`name`,`purpose`,`feature_refs`}. 전 기능 등록. legacy `status` 보존, 읽기는 `state ‖ map(status)`(planned→design, in_progress→converted, done→verified). fr/ac_refs는 기능명세 §FR·§AC와 1:1.
+  기능마다 선택 `approval`(pending|approved|dropped · 없으면 pending)·`approval_note`(1줄) — **사람이 고친다**, AI 는 approved·dropped 를 대신 적지 않고 새 기능은 비워 둔다(#2804).
 - **1-M2b `_product.yaml`** (도메인 ≥2일 때만, advisory): `generated`·`size_profile`(S=1/M=2-5/L=6+)·`domains[]`{`slug`,`registry`,`must_count`}.
 ```bash
 python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --product {project-root} || echo "WARN: registry_gate 미가용(스크립트 미발견/실행실패) — advisory 스킵"
 ```
-- **1-M3 게이트 B**: ①orphan — feature ↔ `기능명세/{feature_id}-*.md` 누락 = **FAIL** · page ↔ `s4-pages/{화면ID}/` 누락 = WARN · sub-flow FR 미역매핑 = WARN ②발산 — 같은 엔티티(기능 수·화면 수 등)가 문서 간 3개+ 값 = **FAIL**(`발산 탐지: {엔티티} = {값A}(출처A) / ...`) ③충분 바 floor: Must 전수 + 기능마다 ≥1 FR·AC·화면. Should/Could 미완 WARN. 기존 Figma 자산을 HTML/스크린샷으로 대체해도 감점 없음(Figma 신규 생성 금지). FAIL → [STOP] + 보강 지시 · WARN만 → 목록 보고 후 계속.
+- **1-M3 게이트 B**: ①orphan — feature ↔ `기능명세/{feature_id}-*.md` 누락 = **FAIL** · page ↔ `s4-pages/{화면ID}/` 누락 = WARN · sub-flow FR 미역매핑 = WARN ②발산 — 같은 엔티티(기능 수·화면 수 등)가 문서 간 3개+ 값 = **FAIL**(`발산 탐지: {엔티티} = {값A}(출처A) / ...`) ③충분 바 floor: Must 전수 + 기능마다 ≥1 FR·AC·화면. Should/Could 미완 WARN. ④승인 — pending 남음 WARN · approved 0 WARN(막지 않는다). 기존 Figma 자산을 HTML/스크린샷으로 대체해도 감점 없음(Figma 신규 생성 금지). FAIL → [STOP] + 보강 지시 · WARN만 → 목록 보고 후 계속.
 ```bash
 test -f "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" && python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.py" --domain {domain} || echo "WARN: registry_gate 미발견/실행실패 — advisory 스킵(orphan FAIL로 오판 금지)"
 ```
   exit 2 = FAIL([STOP]) · exit 0 = 통과 · 스크립트 부재/실패 = fail-open WARN.
 - **1-M4**: 기능명세마다 `## 조건별 페이지 전환` 표(`| 조건 | 전환 유형 | 목적지/처리 | 비고 |` — 성공·에러(입력/서버/권한)·확인필요·로딩). 전환 유형 ∈ `페이지이동|팝업|토스트|모달|인라인`. Must 누락/미명시 = FAIL, Should/Could = WARN.
-- **1-M4b** (advisory, UI 표와 별도 섹션): `## 도메인 상태전이/이벤트/불변식` — 상태전이 표(현재|이벤트|다음|조건)·도메인 이벤트·불변식·Aggregate. 누락 WARN. 불변식≥2/상태전이≥3/aggregate 참조≥2면 registry `aggregate` 채움.
+- **1-M4b** (**필수** — 누락 = `[STOP]` 1회 확인 · FAIL 게이트 아님 · 사람이 '해당 없음' 답하면 그 사유를 계획서에 적고 진행 · #2052, UI 표와 별도 섹션): `## 도메인 상태전이/이벤트/불변식` — 상태전이 표(현재|이벤트|다음|조건)·도메인 이벤트·불변식·Aggregate. 원칙 정본 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`. 불변식≥2/상태전이≥3/aggregate 참조≥2면 registry `aggregate` 채움.
+- **1-M4c** (**필수** — 누락 = `[STOP]` 1회 확인 · FAIL 게이트 아님 · 해당 없음이면 그 사유를 적고 진행 · #2052): `## 모듈 인터페이스` — Spec `## 모듈·책임` 의 책임 단위마다 공개 인터페이스(불변식·순서 제약 포함) · 주입받는 협력자(이음매) · 레이어(domain ← application ← infrastructure · 의존은 안쪽으로만). Spec 은 무엇, 여기는 어떻게다. 원칙 정본 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`.
 - **1-M6 `{domain}/_STATUS.md`** 초기화: `# {domain} 진행 원장` / `## 현재 Phase`(stage: P3_IN_PROGRESS, updated, session) / `## Phase 이력` 표(Phase|시작|완료|산출물) / `## 수렴 상태`(round: 0, last_delta: —, plateau_count: 0, status: OPEN) / `## 미결 항목`. 규약: 각 Phase 진입 시 `stage` 확인(충돌 = [STOP]) · 쓰기 = Step1 `P3_IN_PROGRESS` · Step5 PASS `P3_DONE` · [STOP] 시 `P3_BLOCKED` + 미결 추가.
 
 ## Step 2 — 개발 계획 → `{project-root}/s4-development-plan.md`
-기술 스택 + C4(Mermaid) · ADR(`/cto-advisor` 템플릿 — 스택·데이터스토어·인증인가·배포·비가역 결정별 1개; 모듈/이음매 ADR은 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/codebase-design.md` 어휘, 이음매 신설은 변하는 것 2개+ 근거) · 보안 설계(인증·인가·시크릿 관리·감사 로깅·입력 검증 — 각 항목 설계 또는 `N/A`+사유) · DB 스키마·마이그레이션(역방향·백업/복원·롤백 트리거) · 세션 로드맵 `"Session N — Spec M: [제목] (X SP)"`(X 1-8, 12+ 분리, 번들링 사유) · 테스트 전략(테스트 계층 unit/integration/e2e + 커버리지 목표). `admin_required: true`면 `s4-admin-detailed-plan.md` 추가.
+기술 스택 + C4(Mermaid) · ADR(`/cto-advisor` 템플릿 — 스택·데이터스토어·인증인가·배포·비가역 결정별 1개; 모듈/이음매 ADR은 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/codebase-design.md` 어휘, 이음매 신설은 변하는 것 2개+ 근거) · 보안 설계(인증·인가·시크릿 관리·감사 로깅·입력 검증 — 각 항목 설계 또는 `N/A`+사유) · DB 스키마·마이그레이션(역방향·백업/복원·롤백 트리거) · 세션 로드맵 `"Session N — Spec M: [제목] (X SP)"`(X 1-8, 12+ 분리, 번들링 사유) · 테스트 전략(테스트 계층 unit/integration/e2e + 커버리지 목표(선택 — 기계 강제 없음 · #2136 B)). `admin_required: true`면 `s4-admin-detailed-plan.md` 추가.
 - 표면 분할(권고, 차단 아님): 각 Spec 항목에 새 장치 수를 적고 `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-surface-count.py" declare --count <N> --name "<Spec 제목>"` → rc 1이면 `⚠️ spec 단계에서 분할 예정` 표기(진행 계속).
 
 ## Step 3 — UI 소스 *[Human 직접]*
@@ -73,8 +75,8 @@ test -f "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-registry/registry_gate.p
 
 하나라도 FAIL → [STOP] 에스컬레이션.
 
-## Step 5.5 — 수렴 루프 + plateau guard
-FAIL 재시도마다 `_STATUS.md` 수렴 상태 갱신: `round++`, `delta = (이번 FAIL 수 - 이전)/이전` → `last_delta`, `plateau_count`. `last_delta < 5%` 2회 연속 또는 `round ≥ 4` FAIL 잔존 → `status: PLATEAU` + **[STOP]**: A. 추가 라운드(사용자 수정 후) / B. P3 override(AD-50 human override) / C. 범위 축소.
+## Step 5.5 — FAIL 뒤 확인 + plateau guard
+FAIL 이면 고치고 **기계 검사**(위 Check 스크립트)로 확인한다 — 검수자를 다시 부르지 않는다(`dev-workflow-rules.md §운영 규칙 1`). `_STATUS.md` 에 `round++` 를 남기고, 2회 고쳐도 FAIL 이 남으면 → `status: PLATEAU` + **[STOP]**: A. 사용자 수정 후 재개 / B. P3 override(AD-50 human override) / C. 범위 축소.
 
 ## Step 6 — 전환
 1. M7 EXIT self-check(`/readiness-gate §M7`) → `forge-plan-exit-readiness-{date}.md`. FAIL = [STOP].

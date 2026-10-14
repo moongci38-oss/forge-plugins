@@ -1,6 +1,6 @@
 ---
 name: forge-check-security
-description: "코드베이스 보안 취약점 스캔 — 15-phase OWASP Top10+CI/CD+STRIDE+익스플로잇 감사. 출력: docs/qa/security/{branch-slug}.md. 트리거: QA T6 단계, PR 전 보안게이트, /forge-check-security 수동 호출."
+description: "보안 스캔(OWASP·STRIDE). 트리거: PR 전 보안 게이트·QA T6."
 ---
 
 # forge-check-security — 보안 취약점 스캔

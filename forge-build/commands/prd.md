@@ -14,6 +14,7 @@ $ARGUMENTS
 
 ## 수행 절차
 
+0. **기억 회상**(선행): `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/recall-context.sh" --stage prd --query "<제품·기능 키워드>"` (조회 기록 자동). 적중은 "선행 지식"에 출처(learnings ID·파일 경로), 0건이면 "조회함 + 0건" 1줄.
 1. **기존 문서 확인** (M5 모드 판정): `02-product/` 폴더에서 관련 기존 기획서나 PRD가 있는지 확인
    - **자산 존재 → 검증·보강 모드**: ① Import(기존 문서 SSoT 채택, 신규 화면 ID 금지) ② Verify(coverage·orphan·기능셋 1:1·조건전환 포맷) ③ Augment(normalize 자동 / derive → [STOP] 1회, `ai-inferred` 태그) ④ Output(출처 태깅). 비파괴.
    - **자산 전무 → 신규 생성 모드**: 2단계부터
@@ -28,20 +29,23 @@ $ARGUMENTS
    - Round 3: Lead가 수렴 → 최적안으로 PRD 초안 완성 (명확도 90점 이상). **RICE 평가 + "핵심 화면 목록" + 기능별 4 필수산출(UX 플로우차트·acceptance_predicate·에러UI·테스트시나리오) 포함** (출력 형식 참조)
    - `agent-meeting-template.md` 형식으로 비교표 작성 + PRD 최상단 "에이전트 회의 결과" 섹션. 충돌 해소 불가 → **[STOP]**
    - 산출물: `YYYY-MM-DD-s3-prd.md` (초안 — RICE 포함된 완성본)
-6. **[MANDATORY — 건너뛰기 금지] /autoplan 3관점 리뷰**: PRD 초안 완성 직후 반드시 실행.
-   - 입력: 단계 5 PRD 초안. CEO → Design → Engineering 순서 검토 + 어노테이션(AGREE/WARN/BLOCK). BLOCK 0건 → 반영 후 단계 7
-   - **BLOCK ≥1 → PRD 수정 후 `/autoplan` 재호출** (반복 3회까지). 3회 후에도 BLOCK 잔존 → **[STOP]**
-7. **[BLOCKING] /codex-review --stage plan**:
-   - `/codex-review --stage plan --target <YYYY-MM-DD-s3-prd.md 경로> --blocking` — 최초 1회 + FAIL 시 수정 재호출 최대 2회 (총 3회). 3회 후에도 FAIL → **[STOP]**. 결과: `forge-outputs/docs/reviews/plan/{date}-{slug}.{md,json}`
+   - 화면 흐름 지도 검사(1회): `python3 ~/forge/shared/scripts/prd-screen-flow-check.py <YYYY-MM-DD-s3-prd.md>` — WARN(빠진 화면·목록에 없는 노드·15 노드 초과)은 PRD 를 고치고 진행한다(비차단)
+6. **[MANDATORY — 건너뛰기 금지] /prd-review 5관점 검토**: PRD 초안 완성 직후 반드시 실행.
+   - 입력: 단계 5 PRD 초안. 사업·디자인/UX·개발·QA·보안 5관점 동시 검토 → 지적마다 등급(심각/주의/제안)·해결안 1줄 · 결과 `<PRD 이름>-review.md` + PRD 머리 요약 3줄. 심각 0건 → 단계 7
+   - **심각 ≥1 → PRD 를 고치고 단계 7 로 간다** — `/prd-review` 를 다시 부르지 않는다. 고칠 수 없는 심각 → **[STOP]**
+7. **/codex-review --stage plan (권고 · 1회)**:
+   - `/codex-review --stage plan --target <YYYY-MM-DD-s3-prd.md 경로>` — 1회. FAIL 지적은 PRD 에 반영하고 진행한다(다시 부르지 않는다). 결과: `forge-outputs/docs/reviews/plan/{date}-{slug}.{md,json}`
 8. **디자인 방향 + 시안**:
    - Human이 방향 정의(텍스트 또는 참고 URL·이미지). 참고 자료 제공 시: `/screenshot-analyze` → 스타일 키워드 추출 (URL = https 공개 출처만 / 이미지 ≤10MB, PNG·JPG·WEBP, EXIF 제거, PII·시크릿 금지 → 위반 입력 폐기. 출처·라이선스 = style-guide에 기록)
    - `/style-forge` → `YYYY-MM-DD-s3-style-guide.md`
+   - 저충실도(`--lofi`) 먼저: `/forge-mockup --lofi --screen <화면ID> --project <루트>` → 회색 박스 뼈대 `s3-mockup/lofi/{화면 ID}.{html,png}`(싼 모델) 로 배치를 합의한 뒤 아래 고충실도로 넘어간다(#2801).
    - 시안 생성 1순위: `/forge-mockup --screen <화면ID> --project <루트>` (GPT 코더 코드 목업, 판정기가 luna/terra/sol/astra 선택 — 신규 시안 astra) → 캡처 `s3-mockup/{화면 ID}.png` + 코드 `s3-mockup/{화면 ID}/` 보존(HTML = `s4-pages` 초안, 버리지 않는다). `DESIGN.md` 없으면 경고 — 토큰 먼저.
      2순위 Claude Design(`claude.ai/design`)은 1순위 불가·실패 시만(png/fig export, Human 통보). ⛔ Stitch 사용 금지.
      핵심 화면별 `s3-mockup/{화면 ID}.{png|fig}` 1개 이상, 누락 = [STOP]
-   - 검수: `/forge-check-ui` (**blocking** — CRITICAL ≥1 시 `/visual-loop` 1사이클 후 재검수, 최대 2사이클, 이후 잔존 → [STOP])
+   - 검수: `/forge-check-ui` (1회 — CRITICAL ≥1 이면 고치고 `/visual-loop` 캡처로 확인한다 · 다시 부르지 않는다 · 2회 고쳐도 남으면 [STOP])
 9. **(Human 요청 시만) PPT 변환**: `/pptx` 스킬로 .pptx 생성
 10. **저장**: `forge-outputs/02-product/{project}/YYYY-MM-DD-s3-prd.md` (+ s3-style-guide.md, s3-design-prompt.md, s3-mockup/) 저장
+    - 한 장 보기 만들기: `python3 ~/forge/shared/scripts/plan-onepage.py <프로젝트 산출 폴더>` → `plan-onepage.html`(안 할 것→PRD→기능→흐름→시안 · 빈 칸은 "없음" · 비차단)
 11. **다음 단계 안내(필수 출력)**: `다음 단계: /forge-plan <project-slug> — P3 상세 기획 패키지 3종(spec-kernel·architecture·roadmap)`
     ⚠️ P2 다음은 P4(`/forge-spec`)가 아니라 P3(`/forge-plan`)다.
 
@@ -61,6 +65,18 @@ admin_required: true|false        ← 관리자 기능 포함 여부 (Phase 4 �
 ### 4.1 필수 기능 (Must-have)
 ### 4.2 선호 기능 (Nice-to-have)
 ## 5. 핵심 화면 목록 (Key Screens)   ← Phase 4 s4-detailed-plan·s4-ui-source/ 검증 기준. 표: 화면 ID(kebab-case 영문, 고유) | 화면명 | 1줄 목적
+## 5-1. 화면 흐름 지도 (Screen Flow)   ← 기획자가 "이 버튼을 누르면 어디로 가나"를 한눈에 본다
+> 노드 ID = §5 화면 ID(전수 · 목록 밖 노드 금지) · 화살표 = 이동 버튼·조건(`-->|조건|` 꼴) · 노드마다 `click {화면ID} "s3-mockup/{화면ID}.png"`.
+> 한 장 ≤15 노드 — 넘으면 `### 영역: {이름}` 아래 Mermaid 여러 장으로 나눈다(영역 사이 이동은 양쪽 장에 같은 노드를 둔다).
+```mermaid
+flowchart LR
+  login -->|로그인 성공| home
+  home -->|"상품 탭"| item-detail
+  item-detail -->|뒤로| home
+  click login "s3-mockup/login.png"
+  click home "s3-mockup/home.png"
+  click item-detail "s3-mockup/item-detail.png"
+```
 ## 6. 성공 지표 (Success Metrics)
 ## 7. 기술 제약사항 (Technical Constraints)
 ## 8. 경쟁 분석 (Competitive Analysis)

@@ -1,16 +1,16 @@
 ---
 name: codex-review
-description: "OpenAI Codex 경유 2차 리뷰 게이트 — Claude 1차 리뷰의 동일모델 맹점 보완. Stage 분기: plan/code/test/final/bugfix. P3~P7(spec/plan 작성 후, PR, E2E 시나리오, 머지 직전, 버그수정 patch 후)에서 쓰지만 **자동 호출은 기본 off** — `CODEX_REVIEW_AUTO_STAGES` 를 켜야 게이트가 돈다. 평소에는 명시 호출로 쓴다."
+description: "Codex 2차 리뷰(stage plan/code/test/final/bugfix) — 명시 호출 때 사용한다(자동은 기본 off)."
 ---
 
 # Codex Review
 
-> 이 SKILL = 파이프라인 인터페이스(P3~P7). 수동 슬래시·실제 호출 절차 정본 = `~/forge/.claude/commands/codex-review.md`. 이중 인터페이스 — 한쪽 삭제 금지, stage 분기·`CODEX_REVIEW_AUTO_STAGES` 규약 공유, 로직 변경 시 양쪽 동기.
+> 이 SKILL = 파이프라인 인터페이스(P3~P7). 수동 슬래시·실제 호출 절차 정본 = `~/forge/.claude/commands/codex-review.md`. 이중 인터페이스 — 한쪽 삭제 금지, `CODEX_REVIEW_AUTO_STAGES` 규약 공유. 나눠 맡는다 — **인자·stage 표·포커스 = 이 SKILL `§인자`** · 절차(Step) = 커맨드(#2470).
 
-**역할**: Claude 1차 리뷰의 동일 모델 맹점을 보완하는 OpenAI Codex(gpt-6-sol = registry `codex:high`) 2차 리뷰 게이트(대체 아닌 추가, stage별 차등 blocking).
+**역할**: Claude 1차 리뷰의 동일 모델 맹점을 보완하는 OpenAI Codex(gpt-6.1-sol = registry `codex:high` · CLI ≥0.160.0 · 구 CLI 는 `gpt-6-sol`) 2차 리뷰 게이트(대체 아닌 추가, stage별 차등 blocking).
 **컨텍스트**: P3~P7 어느 단계에서도 호출 가능 — plan·final 은 blocking, code·test 는 권고, bugfix 는 수동. 자동 발동 stage 는 `.env` 의 `CODEX_REVIEW_AUTO_STAGES` 가 정한다(기본 off — 평소엔 명시 호출).
 ## 출력·차단 규칙
-- ⛔ `mcp__codex__codex` 직접 호출로 대신하지 마라 — 산출물·INDEX 기록, 재호출 **cap=1**, stage별 rubric 이 빠진다(`commands/codex-review.md §직접 부르지 마라`).
+- ⛔ `mcp__codex__codex` 직접 호출로 대신하지 마라 — 산출물·INDEX 기록, stage별 rubric 이 빠진다 · FAIL 뒤에는 고치고 테스트·기계 검사로 확인한다(다시 부르지 않는다)(`commands/codex-review.md §직접 부르지 마라`).
 - 이 레인은 단일 Codex. 2벤더 교차는 `/forge-multi`( 증거 `.claude/audit/cr-evidence/`). 한쪽만 보고 "검수 없음" 판정 금지.
 - 차단선 `severity`: `verdict=FAIL` 이어도 critical/high 0건이면 WARN 강등 후 진행(이 레인 한정, forge-multi 는 `combined<60`). 정본 `commands/codex-review.md §Step 7`.
 - 산출물 `docs/reviews/{stage}/{date}-{slug}.{md,json}` 표준 스키마(`delta_vs_claude` 포함) + INDEX 갱신 + blocking stage는 [STOP] 여부.
@@ -26,12 +26,24 @@ description: "OpenAI Codex 경유 2차 리뷰 게이트 — Claude 1차 리뷰�
 ```
 /codex-review --stage plan --target docs/spec/feature-x.md --blocking
 /codex-review --stage code --target src/auth.ts   # test 도 동일 형식
-/codex-review --stage final --target PR-1234 --effort xhigh --blocking
+/codex-review --stage final --target PR-1234 --effort high --blocking
 /codex-review --stage bugfix --target patches/fix-token-leak.diff
 ```
 단축: `/forge-plan-review`, `/forge-code-review`, `/forge-test-review`, `/forge-final`, `/forge-bug-review`.
 
-## Stage 분기 (effort 전부 xhigh)
+## 인자 (정본 · #2470 — 커맨드 `/codex-review` 는 이 절을 가리킨다)
+| 인자 | 기본 | 의미 |
+|---|---|---|
+| `--stage` | 필수 | `plan\|analysis\|code\|test\|final\|bugfix\|yt-apply-plan\|article-apply-plan\|phase1-validate` |
+| `--target` | 필수 | 파일 경로 또는 `PR-N` |
+| `--effort` | `high` | final 은 high 바닥(low·medium → high · 명시 상향은 그대로) · #2058 |
+| `--blocking` | stage별 | FAIL 시 exit 1 — 기본 YES: `final`·`yt-apply-plan`·`article-apply-plan`·`phase1-validate` / 그 외 권고(plan = AD-50) |
+| `--cr` | `FORGE_AUTO_CR`→`on` | `degrade`/`off` = Codex 호출 skip (`cr-mode.sh`) |
+| `--sol/--terra/--luna` | sol | `CODEX_TIER`=high/default/low |
+
+포커스: plan=요구 명확성·누락·모순·YAGNI · analysis=근거·추정 태그·범위·SSoT 주장 · code=로직·보안·성능 · test=커버리지 갭·가짜 통과 · final=통합(추적성·롤백) · bugfix=근본원인 vs 우회.
+
+## Stage 분기 (effort 전부 high · #2058)
 | Stage | 호출 시점 (Forge Dev) | Blocking |
 |---|---|:-:|
 | `plan` | P3 계획서 / P4 Spec 작성 직후 | YES |

@@ -405,7 +405,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   //   그대로 재사용한다(forge-fix.md "① [Phase C 아티팩트 재사용 가능]"). 실행 로직은 불변 — 아래는
   //   명칭·주석만 Lane A 위임 프레이밍으로 정합화(qa Phase E raw parallel()이 아니라 Lane A 엔진 재사용).
   phase('Fix')
-  // root-cause: 개수 자동 라우팅(AD-114, healer.md §개수 자동 라우팅) — 독립 버그 2~9개는 아래 parallel()
+  // root-cause: 개수 자동 라우팅(AD-114, healer.md §개수 자동 라우팅) — 독립 버그 여러 개는(동시 수 = dev-workflow-rules §운영 규칙 2) 아래 parallel()
   //   배리어(Agent Teams 동등)로 병렬, 10개+/대량 스캔은 이 workflow.js 자체가 Workflow pipeline 경로다.
   //   도메인 충돌 버그는 Lane A/healer.md 내부 도메인 분류(worktree 격리 + seed 재주입 직렬 게이트)로 그룹핑된다.
   // root-cause: P-3 — healer 호출을 함수로 추출(parallel 배리어 / pipeline 레인 양쪽 재사용).

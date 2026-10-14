@@ -1,6 +1,6 @@
 ---
 name: forge-check-security-exec
-description: "실행 기반 보안 검증. 정적 STRIDE 스캔이 놓치는 false-negative를 실제 실행 경로로 보완한다. 배포 전 보안 확인이 필요할 때 사용한다."
+description: "실행 기반 보안 검증 — 배포 전 사용한다."
 ---
 
 # forge-check-security-exec — 실행기반 보안 scorer
