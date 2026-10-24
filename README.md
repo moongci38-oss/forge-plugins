@@ -709,11 +709,11 @@ forge-plugins-repo/
 │   │   └── system-audit/              — 6축 통합 감사
 │   ├── agents/                        — 1개 (advisor-strategist)
 │   ├── commands/                      — 13개 슬래시 커맨드
-│   ├── hooks/                         — 실행본 5개 (+ 테스트 2개, lib/)
+│   ├── hooks/                         — 실행본 4개 (+ 테스트 2개, lib/)
 │   │   ├── forge-onboard.sh           — SessionStart 자동 실행 (규칙·디렉터리·스크립트 설치)
 │   │   ├── main-write-guard.sh        — 배포 브랜치 직접 쓰기 차단
-│   │   ├── brain-integrity-check.sh / brain-placement-guard.sh   — 지식 레인 무결성
-│   │   └── session-placement-advisory.sh
+│   │   ├── brain-integrity-check.sh   — 지식 레인 무결성
+│   │   └── doc-routes-inject.sh       — 상황별 지침 길잡이
 │   └── rules/                         — 8개 (세션마다 자동 로드되는 전역 규칙)
 │       ├── forge-core.md              — 경로·보안·병렬 실행·Git
 │       ├── behavior-core.md           — 자율실행·외과적변경·완료선언 게이트·존댓말
