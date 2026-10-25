@@ -19,6 +19,15 @@
 set -uo pipefail
 
 [ "${FORGE_BRAIN_GUARD:-on}" = "off" ] && exit 0
+# 플러그인 사본(forge #3604 · #2825 방식) — plugin.json 이 `--via-plugin` 으로 건다.
+#   전역·프로젝트 설정에 등록이 있으면 그쪽이 돌므로 플러그인 사본은 침묵한다(같은 훅이 두 번 돌지 않게).
+# ⚠️ 무력화되는 입력: 설정 파일에 `hooks/brain-integrity-check.sh` 글자만 있고 실제 훅 등록이 아니면 플러그인 사본도 침묵한다.
+if [ "${1:-}" = --via-plugin ]; then
+  for _bi_s in "$HOME/.claude/settings.json" "$HOME/.claude/settings.local.json" \
+               "${CLAUDE_PROJECT_DIR:-/nonexistent}/.claude/settings.json" "${CLAUDE_PROJECT_DIR:-/nonexistent}/.claude/settings.local.json"; do
+    [ -f "$_bi_s" ] && grep -q 'hooks/brain-integrity-check\.sh' "$_bi_s" 2>/dev/null && exit 0
+  done
+fi
 
 FORGE_ROOT="${FORGE_ROOT:-$HOME/forge}"
 REG="${FORGE_BRAIN_REGISTRY:-$FORGE_ROOT/.claude/brain/registry}"

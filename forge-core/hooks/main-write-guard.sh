@@ -33,6 +33,15 @@ set -uo pipefail
 
 # stdin 배수 후 종료 — 미배수 exit 은 생산자에게 EPIPE 를 던진다(A4, 2026-08-07 재현)
 [ "${FORGE_MAIN_GUARD:-on}" = "off" ] && { cat >/dev/null 2>&1 || true; exit 0; }
+# 플러그인 사본(forge #3604 · #2825 방식) — plugin.json 이 `--via-plugin` 으로 건다.
+#   전역·프로젝트 설정에 등록이 있으면 그쪽이 돌므로 플러그인 사본은 침묵한다(같은 훅이 두 번 돌지 않게 · 설정 쪽 판정은 그대로).
+# ⚠️ 무력화되는 입력: 설정 파일에 `hooks/main-write-guard.sh` 글자만 있고 실제 훅 등록이 아니면 플러그인 사본도 침묵한다.
+if [ "${1:-}" = --via-plugin ]; then
+  for _mw_s in "$HOME/.claude/settings.json" "$HOME/.claude/settings.local.json" \
+               "${CLAUDE_PROJECT_DIR:-/nonexistent}/.claude/settings.json" "${CLAUDE_PROJECT_DIR:-/nonexistent}/.claude/settings.local.json"; do
+    [ -f "$_mw_s" ] && grep -q 'hooks/main-write-guard\.sh' "$_mw_s" 2>/dev/null && { cat >/dev/null 2>&1 || true; exit 0; }
+  done
+fi
 
 INPUT=$(cat 2>/dev/null)
 [ -z "$INPUT" ] && exit 0
