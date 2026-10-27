@@ -1,0 +1,7 @@
+# red — forge-plugins origin/develop e726c0f 판
+version=0.7.26
+hook refs=6 끊김=[]
+옛 스킬 폴더=['harness-legacy-scan', 'external-harness-sweep']
+harness-diet 모드 파일=0/4
+FAIL
+rc=1
