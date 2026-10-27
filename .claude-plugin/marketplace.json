@@ -9,10 +9,10 @@
   "plugins": [
     {
       "name": "forge-core",
-      "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(legacy-scan/diet/sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
+      "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(harness-diet — scan·sweep 모드) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
       "source": "./forge-core",
       "category": "productivity",
-      "version": "0.7.26"
+      "version": "0.7.27"
     },
     {
       "name": "forge-knowledge",
