@@ -2,13 +2,11 @@
 
 > `forge-pge` SKILL.md 의 **Phase 5 피드백 루프를 돌릴 때** Read 한다.
 > 사이클을 한 번도 돌지 않고 1회 통과하면(Evaluator 즉시 PASS) 읽을 필요가 없다.
-> (2026-08-28 분리 — SKILL.md 500줄 규정 준수. 캡 수치·가드 절차는 한 줄도 바꾸지 않고 옮겼다.)
 
 ## call-budget 캡 + stop-condition 가드 (P1 신규 / B2 배선 2026-06-17)
 
-**call-budget 캡**: 각 사이클(Phase 1→2→3→4) 진입 **전** 확인 — **실측 tool-call 횟수**(`loop-call-accum.sh` PostToolUse 훅이 누적한 `.calls`)를 `loop-budget.sh`로 읽어 비교.
-
-> 구 `PGE_TOKEN_CAP`(LLM 자가추정 토큰)은 **theater**였다 — PostToolUse payload에 `output_tokens` 필드가 없어 토큰 실측 불가(799세션 토큰파일 전부 0으로 실증). B2에서 **tool-call 횟수**(`tool_name` 존재로 실측 가능)로 전환. 이것이 line 363 "P4 agent-budget 훅 연동 예정"의 이행분.
+**call-budget 캡**: 각 사이클(Phase 1→2→3→4) 진입 **전** `loop-budget.sh` 로 tool-call 횟수(`.calls`)를 읽어 비교한다.
+> ⚠️ **지금은 막지 않는다** — `.calls` 를 쓰던 PostToolUse 훅 `loop-call-accum.sh` 는 #1358(훅 94→16)에서 지워졌고 다른 생산자가 없다. 그래서 `loop-budget.sh` 는 늘 0 을 읽어 캡에 닿지 않는다. 사이클을 끝내는 것은 **max_cycles(1순위)** 뿐이다.
 
 ```
 PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
@@ -21,7 +19,7 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
     현재까지 산출물 경로 + Evaluator 마지막 판정 반환
 ```
 
-- `loop-budget.sh <cap> [sid]` = `loop-call-accum.sh`가 `${PWD}/.claude/agent-budget/${SID}.calls`에 누적한 실측 tool-call 횟수를 읽어 cap과 비교 (exit 0=under / 1=over). 훅 미등록 또는 `.calls` 부재 시 **0 반환=inert(안전)**.
+- `loop-budget.sh <cap> [sid]` = `${PWD}/.claude/agent-budget/${SID}.calls` 를 읽어 cap과 비교 (exit 0=under / 1=over). `.calls` 부재 시 **0 반환=inert** — 생산자 훅(`loop-call-accum.sh`)이 #1358 에서 지워져 지금은 늘 이 경우다.
 - **SID best-effort**: loop-budget.sh는 `${CLAUDE_SESSION_ID:-unknown}`로 키잉. producer(훅)는 payload `.session_id`(= 세션 UUID)로 키잉하므로, 메인 컨텍스트에 `CLAUDE_SESSION_ID`(동일 UUID)가 set이면 정렬, 미set이면 `unknown` 버킷 → 0=inert(미정렬은 under-STOP=안전방향). 정확 정렬 필요 시 `loop-budget.sh <cap> <session-uuid>` 2번째 인자로 명시.
 - ⚠️ **정직성**: call-count = 실측 mechanical 신호(LLM 자가추정 토큰 theater 대체). 단 **결정론 bound = max_cycles(1순위)**; call-budget은 보조 **2순위 advisory**. 토큰(output_tokens) 아닌 **tool-call 횟수**임(payload에 토큰 부재).
 
@@ -48,11 +46,11 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
      append 도구가 없으면 마지막 줄 1개만 읽어 형식 확인 후 newline+신규객체 추가. 1줄=1 JSON 객체(JSONL) 불변식 유지.
   ※ append 누락·malformed JSONL 발생 시 → 루프가 **당-사이클 N 게이트 G**(append 직후 즉시 읽기)에서 data_integrity로 감지해 [STOP] fail-safe (N+1로 미루지 않음 — 조용한 false-negative 방지).
 
-[루프 지시] 사이클 N 완료 후 게이트 G → 결정표(순위1~5)를 순서대로 1회 평가 (PGE_EVAL_HISTORY.jsonl 참조). 먼저 매칭되는 행에서 즉시 행동·중단, 이후 행 미평가 (상호 배타). 단계 번호 = 결정표(G + 1~5)와 1:1:
+[루프 지시] 사이클 N 완료 후 게이트 G → 결정표를 순서대로 1회 평가 (PGE_EVAL_HISTORY.jsonl 참조). 먼저 매칭되는 행에서 즉시 행동·중단, 이후 행 미평가 (상호 배타):
 
-  G. data_integrity (전제 게이트 — 평가 가능성): Evaluator append 직후 루프(메인)가 **반드시** 사이클 N의 **eval-record**(`type=eval`, cycle=N인 마지막 라인)를 읽어 파싱(N+1로 미루지 않음 — STOP 경로가 N+1을 막을 수 있어 당-사이클 검증 필수). **regression(순위3) 평가하는 N≥2 사이클에서는 N-1 eval-record도 함께 파싱**. eval-record 누락·JSON 파싱불가 → 즉시 [STOP] DATA_INTEGRITY. (security_event 라인은 별개 type — 같은 cycle 공존이 정상이라 '중복'으로 STOP하지 않음. 순위1이 별도로 스캔.)
+  G. data_integrity (전제 게이트 — 평가 가능성): Evaluator append 직후 루프(메인)가 **반드시** 사이클 N의 **eval-record**(`type=eval`, cycle=N인 마지막 라인)를 읽어 파싱(N+1로 미루지 않음 — STOP 경로가 N+1을 막을 수 있어 당-사이클 검증 필수). eval-record 누락·JSON 파싱불가 → 즉시 [STOP] DATA_INTEGRITY. (security_event 라인은 별개 type — 같은 cycle 공존이 정상이라 '중복'으로 STOP하지 않음. 순위1이 별도로 스캔.)
     **Codex Evaluator 사이클이면**(`$EVAL_MODEL` 이 `gpt-*`) 파싱 직후 전사 무결성도 본다(#1170): `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/pge-eval-raw-check.sh" {project_root}/.claude/state N --eval-model "$EVAL_MODEL"` — rc≠0(원문에 없는 줄·RAW 없음·인자 누락) → 즉시 [STOP] DATA_INTEGRITY. Claude Evaluator 면 스크립트가 `SKIP`(rc 0)을 낸다 — 레인을 빼먹으면 rc 2 로 멈춘다(조용한 통과 방지).
-    > **결정론 validator = B2 트랙 (정직성)**: 진짜 mechanical JSONL 검증(파서 exit-code 강제 + per-run 격리 + 동시성 lock)은 **B2 훅(Human 승인)** 영역. inline prose는 LLM이 읽어 STOP하는 **의도**만 규정 — 100% 기계 강제 보장 아님. (이전 인라인 python `-c`/heredoc은 diff base·exit-code·동시성 버그를 양산해 제거.)
+    > **결정론 validator = B2 트랙 (정직성)**: 진짜 mechanical JSONL 검증(파서 exit-code 강제 + per-run 격리 + 동시성 lock)은 **B2 훅(Human 승인)** 영역. inline prose는 LLM이 읽어 STOP하는 **의도**만 규정 — 100% 기계 강제 보장 아님.
 
   1. security_crit / rollback_trigger:
      (a) Phase 4.5에서 Codex CRITICAL 발견 시 → 루프가 **별도 라인을 append**: `{"cycle": N, "security_event": [{"id":"<req:chk>","src":"codex"}]}`. 새 라인 = append-only 유지 + 중단/재개에도 보존(durable). (in-memory 휘발 금지 — fail-open 방지.)
@@ -62,31 +60,10 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
   2. rubric_all_pass:
      전제1 (커버리지) — 사이클 N items의 id 집합이 (Sprint Contract eval_ids 레지스트리 전체 ∪ 직전 사이클 PASS id 합집합)을 **커버**.
      전제2 (전항목 PASS) — 사이클 N **items[] 전체**에 verdict=FAIL이 하나도 없어야 함. 신규 발견(레지스트리 미등록) 결함이 items[]에 FAIL로 있으면 SUCCESS 불가 — all-PASS 집계는 covered 부분집합이 아니라 items[] 전수.
-       전제1·2 중 하나라도 불충족 → SUCCESS 아님. N≥2면 순위3(regression) re-emit 재확인. **N=1이면 regression(N≥2) 미도달 → continue(재시도)** — 이전 PASS 집합 없어 회귀 개념 미성립.
+       전제1·2 중 하나라도 불충족 → SUCCESS 아님.
      커버 충족 + 커버된 전 items verdict=PASS → SUCCESS (산출물 저장 + 보고서).
        합산<70인데 전항목 PASS면 항목판정 authoritative — Evaluator 점수 재산정 1회. 재산정 후 일부 FAIL 전환 시 SUCCESS 취소 → 순위3~ 재평가.
 
-  3. regression (N ≥ 2):
-     (사이클 N-1 PASS id 집합) ∩ (사이클 N FAIL id 집합 ∪ {N items[]에서 사라진 N-1 PASS id, 단 아래 re-emit 후}) ≠ ∅
-     → [STOP] REGRESSION (해당 id 보고). oscillation 첫 flip 포섭 — 별도 oscillation 체크 없음.
-     ※ 전제: 사이클 N-1 레코드 필요. 누락/파싱불가 시 → 게이트 G로 [STOP] DATA_INTEGRITY (false-negative 방지).
-     ※ item-set 축소 (열거 drift false-STOP 방지): N-1 PASS id가 N items[]에서 사라지면 **즉시 hard-STOP 금지** — 먼저 Evaluator에 **해당 id 1회 re-emit 요청**(verdict만 재확인). re-emit 결과: (i) PASS → 단순 열거 drift였음, regression 아님(계속) / (ii) FAIL 또는 재차 누락 → 진짜 regression = [STOP]. 1회 재확인으로 LLM 열거 drift에 의한 false Human-escalation 차단.
-
-  4. same_issue (N ≥ 3, maxCycles≥3; maxCycles<3이면 dead row — 의도됨) — **kernel 실호출 (SSoT 단일화)**:
-     PGE 메인 컨텍스트는 일반 Bash 프로세스이므로 `loop-kernel.js`의 `checkSameIssue`를 실제로 import한다(healer.md·forge-implement.md의 검증된 호출 패턴을 그대로 이식 — 재구현 금지):
-     > 실행 스크립트 본문(node --input-type=module 호출 + KERNEL_OUT/STATE_FILE 처리) → `reference.md §same_issue kernel 실호출 스크립트 본문` (필요 시 Read)
-     - `timeout 10` 래핑 = cr-final H2 수정(2026-07-05, healer.md/forge-implement.md 동일 적용) — kernel import가 hang해도 10초 후 강제종료로 `KERNEL_RC=124`를 돌려받아 폴백이 반드시 발동한다.
-     - **정지 판정**: `KERNEL_OUT`의 `tripped==true`(동일 id가 kernel `SAME_ISSUE_MAX=3`회 누적) → [STOP] SAME_ISSUE.
-     - **폴백(캡 소실 금지, fail-open)**: `KERNEL_RC≠0`(timeout exit 124 포함) 또는 `KERNEL_OUT` 빈 값이면 kernel을 무시하고 기존 로컬 판정(사이클 N-2·N-1·N 레코드 모두에서 동일 id가 FAIL)으로 즉시 폴백 — same_issue 캡이 어느 경로든 사라지지 않는다.
-     → [STOP] SAME_ISSUE + "방식 전환 권고" (재진입 없음). current-analysis.md "## 이전 시도 실패 이력"에 id 기록.
-     - 상세 근거·검증 이력은 `.claude/agents/healer.md §loop-kernel.js SSoT 연동`·`.claude/commands/forge-implement.md` 동 섹션 참조 — 새 script 파일 작성 금지, 동일 kernel 재사용.
-
-  5. max_cycles (N ≥ maxCycles, PGE_CALL_CAP 초과 포함):
-     → [STOP] 현재 상태 + 잔존 이슈 전달
-
-  — 그 외 FAIL 잔존 (N < maxCycles):
-     → continue: current-analysis.md "## 이전 시도 실패 이력"에 FAIL id 기록 후 Phase 2 재진입.
-        Evaluator FAIL 피드백 = 접근방식 전환 입력. 재진입 시 기록된 id의 이전 접근방식 명시적 제외.
 ```
 
 **Evaluator 최종 FAIL 시 — pge-failure 후보 기록 (compounding)**: 3사이클 후에도 FAIL 잔존하면 (= 이 접근 방식이 막혔다는 신호), 그 실패 패턴을 종료 핸드오버에 `pge-failure 후보:` 1줄로 기록 (`current-analysis.md "## 이전 시도 실패 이력"` 섹션 + handover 모두). `/forge-end`가 그 후보를 `learnings.sh append --category pge-failure --summary "<무엇을 하려다> <왜 막혔나>" --apply "<향후 PGE에서 이 접근 회피 — 대안은>" --evidence "<PGE 보고서 경로 or 사이클 요약>"`로 learnings에 반영. (`/forge-end` 가 이미 learnings append 수행하므로 후보 큐만 넘기면 됨.)
@@ -96,8 +73,6 @@ PGE_CALL_CAP = 환경변수 PGE_CALL_CAP (기본: 600 — orchestrator급)
 ## Phase 4.6: Advisor 에스컬레이션 (경계 케이스 + 모순 시)
 
 > Evaluator 가 60~79점이거나 Codex 와 불일치했을 때만 읽는다. PASS(80+ 동의)면 스킵.
-> (2026-08-28 SKILL.md 에서 이동 — 트리거·프롬프트 원문 그대로.)
-
 
 다음 조건 중 하나일 때 실행. PASS(80+ + Codex agreement)는 스킵.
 

@@ -77,36 +77,31 @@ PASS 확인 후 Wave 2.7(HTML 대시보드) → Wave 3.5(인덱스 등록)으로
 
 ---
 
-### Wave 2.55 (적대적 검수 — cr-triple **2벤더 교차 2레그**, 계획서 전용 · 2026-08-27 Human 지시)
+### Wave 2.55 (적대적 검수 — **Codex 단독 1레그**, 계획서 전용 · 2026-08-27 Human 지시 · 2026-10-27 단독으로 · #3897)
 
 **대상**: `01-research/daily/{date}/system-improvement-plan.md`
 **대상 아님**: `ai-system-analysis.md`(분석 리포트)·`stock-brief.md`(종목 브리핑) — 이건 리포트 **본문**이고, 본문 품질은 Wave 2.5 Evaluator 와
-커버리지 게이트가 맡는다. cr-triple 은 코드·계획서용 루브릭이라 본문에 걸면 오탐이 는다.
+커버리지 게이트가 맡는다. plan 검수 루브릭은 코드·계획서용이라 본문에 걸면 오탐이 는다.
 
-왜 벤더를 가르나: 한 벤더만 보면 그 벤더의 맹점을 그대로 통과시킨다.
-Claude(Opus 5.5)와 Codex(**gpt-6-sol**)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
-⚠️ 구 표기 "Claude(Fable 5.1)·Codex(gpt-6-astra)" 는 2026-09-17 폐기 — 사람 지시 "advisor 에서만 최고급 모델 사용해"(레그 모델은 `cr-risk-tier.sh` 등급이 정한다).
-⚠️ 완화 장치이지 무편향 보장이 아니다(`cr-multi/SKILL.md §self-referential bias`).
-⚠️ **구 표기 "3레그 — Claude·Codex(gpt-5.6-sol)·Gemini" 는 2026-09-11 폐기.** 2026-09-07 Gemini
-전면 철수로 3레그 구성 자체가 없고, Codex 레그 기본값은 그 뒤 astra 를 거쳐 2026-09-17 `gpt-5.6-sol` 이 됐다(astra 폐기 — advisor 전용)
-(정본 `model-routing.md §검수 2레그`). 3레그를 기대하고 결과를 읽으면 레그 수를 오독한다.
+왜 한 벤더인가: 사람 결정(2026-10-27 · #3897) "forge-multi 말고 codex 검수만, 적대적 검수를 2개 모델로 돌릴 필요 없다".
+Codex 한 레그가 읽는다(모델은 `codex-review` 엔진 기본값). 두 모델 교차가 꼭 필요한 날은 사람이 `/forge-multi` 를 손으로 부른다(수동 전용).
+⚠️ 구 표기 "cr-triple 2벤더 교차 2레그(Claude + Codex)" 는 2026-10-27 폐기 — 이 Wave 는 forge-multi 엔진을 부르지 않는다.
 
 **호출**
 
 ```
-/forge-multi "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md" --stage plan --cr on
+/forge-review --stage plan --target "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md" --cr on
 ```
 
-⚠️ **`--cr on` 을 빼면 교차 검증이 성립하지 않는다.** 팀 기본값 `FORGE_AUTO_CR=degrade` 가
-Codex 레그를 통째로 빼는데, 레그가 2개뿐이라 하나를 빼면 **Claude 단독**이 되어 자기검토가 된다
-(`forge-multi` 가 `quorumFail` → `verdict=FAIL` 로 받는다). 전역 기본값은 건드리지 않는다
+⚠️ **`--cr on` 을 빼면 검수가 돌지 않는다.** 팀 기본값 `FORGE_AUTO_CR=degrade` 가 Codex 호출을 건너뛴다
+(`cr-mode.sh`) — 레그가 하나뿐이라 건너뛰면 검수 0 이다. 전역 기본값은 건드리지 않는다
 (`model-routing.md:27` 범위 제한).
 
 **판정 소비 — 이 Wave 는 비차단(WARN-first)이다**
 
 | verdict | 행동 |
 |---|---|
-| `PASS` | 계획서 말미에 `검수: cr-triple PASS` 1줄 기록 |
+| `PASS` | 계획서 말미에 `검수: Codex PASS` 1줄 기록 |
 | `WARN` / `FAIL` | 지적 항목(severity·요지)을 계획서 말미 `## 검수 지적` 섹션에 적고 **진행한다** |
 | `INVALID_INPUT` | 판정이 아니다 — 집계 금지. 입력 고쳐 1회 재호출, 실패하면 `검수 미판정` 기록 후 진행 |
 
