@@ -616,6 +616,13 @@ if mod.transform_line(_once, js_mode=True) == _once:
 else:
     ng("⑪-e 재실행마다 이스케이프가 쌓인다", mod.transform_line(_once, js_mode=True))
 
+# ⑪-g 원래 있던 JS 보간 `${x}` 는 그대로 둔다 — 이스케이프는 변환이 **만든** `${…}` 에만(forge#4135)
+_interp = mod.transform_line("log(`차단: ${host} ~/forge/a`)", js_mode=True)
+if "${host}" in _interp and "\\${host}" not in _interp and "\\${FORGE_ROOT:-$HOME/forge}" in _interp:
+    ok("⑪-g 원래 JS 보간은 그대로 · 만든 것만 이스케이프")
+else:
+    ng("⑪-g 원래 JS 보간까지 이스케이프했다", _interp)
+
 # ⑪-f md 등 비-JS 대상은 종전 그대로다(이스케이프 없음) — 회귀 방지
 _md = mod.transform_line("see ~/forge/a", js_mode=False)
 if "\\${" not in _md and "FORGE_ROOT:-$HOME/forge}" in _md:
