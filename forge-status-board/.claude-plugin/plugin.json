@@ -1,0 +1,7 @@
+{
+  "name": "forge-status-board",
+  "version": "0.2.0",
+  "description": "총괄 상황판(읽기 전용) — /forge-board 가 열린 PR · 이 PC 일감 · 관리 가드 상태 · 팀장 방 · 토큰 합계를 읽어 패널에 보여 준다",
+  "author": { "name": "forge" },
+  "types": "./types/index.d.ts"
+}
