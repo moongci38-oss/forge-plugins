@@ -32,7 +32,7 @@ const imagePath = _a?.imagePath || ''
 const intent = _a?.intent || 'UI 스크린샷 분석 — 요소 추출 + 이슈 탐지'
 // root-cause: crMode default flip 'degrade'→'on' (2026-09-07 — fail-safe 대상이던 대체 벤더가 없어졌다)
 const crMode = _a?.crMode || 'on'
-const prompt = `\${intent}. 이미지: \${imagePath}. description + elements + issues + verdict 반환.`
+const prompt = `${intent}. 이미지: ${imagePath}. description + elements + issues + verdict 반환.`
 
 // root-cause: Workflow 샌드박스는 Bash 불가 → model-registry-resolve.sh 를 직접 못 부른다.
 //   codex:high 의 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high). 사다리가 바뀌면 여기도 함께 고친다.
@@ -47,26 +47,26 @@ let result = null
 if (crMode === 'on') {
   try {
     result = await agent(
-      `[Codex Vision] \${prompt}
+      `[Codex Vision] ${prompt}
 **mcp__codex__codex 실제 호출** (ToolSearch 로 스키마 선로드 필요) — Claude 자체 추론으로 결과 생성 금지:
-- prompt = "다음 스크린샷을 분석하라. 이미지 절대경로: \${imagePath}
-\${intent}
+- prompt = "다음 스크린샷을 분석하라. 이미지 절대경로: ${imagePath}
+${intent}
 description(문자열) + elements(문자열 배열) + issues(문자열 배열) + verdict(PASS|WARN|FAIL) 를 JSON 으로 반환."
-- model = "\${codexModel}" (Vision 레그 tier — codex:high)
+- model = "${codexModel}" (Vision 레그 tier — codex:high)
 - sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "high"}
 - 이미지는 **절대경로로 직접 읽는다** — base64 인라인 금지.
 Codex 응답(JSON) 파싱 → StructuredOutput(description/elements/issues/verdict).`,
       { label: 'codex-vision', phase: 'Analyze', schema: VISION_SCHEMA, agentType: 'codex-critic' })
-    log(`Codex(sol) Vision: \${result?.verdict || 'done'}`)
+    log(`Codex(sol) Vision: ${result?.verdict || 'done'}`)
   } catch (e) {
     log(`Codex(sol) Vision 실패 → Claude 자체 분석 fallback`)
   }
 } else {
-  log(`[cr] screenshot Codex Vision skipped (crMode=\${crMode}) → Claude 자체 분석`)
+  log(`[cr] screenshot Codex Vision skipped (crMode=${crMode}) → Claude 자체 분석`)
 }
 if (!result) {
   result = await agent(prompt, { label: 'claude-vision', phase: 'Analyze', schema: VISION_SCHEMA, model: 'sonnet' })
-  log(`Claude 자체 Vision fallback: \${result?.verdict || 'done'}`)
+  log(`Claude 자체 Vision fallback: ${result?.verdict || 'done'}`)
 }
 
 return {

@@ -40,22 +40,22 @@ const QUALITATIVE_HINT =
   ` 숫자와 별개로, 응답 내용이 명백히 신뢰할 수 없으면(DNS 오염으로 엉뚱한 서버 응답 · 배포 전 빌드 해시가 그대로 오는 stale 캐시 응답 등) ` +
   `detail 에 "qualitative:<무엇을 보고 그렇게 판단했는지>" 를 한 줄로 남겨라. 확신이 없으면 남기지 마라(추측 금지).`
 phase('Monitor')
-log(`모니터링 시작: \${env} \${duration}분 (\${healthUrl})`)
+log(`모니터링 시작: ${env} ${duration}분 (${healthUrl})`)
 const [errorRate, latency, memory] = await parallel([
   () => agent(
-    `에러율 모니터링 \${duration}분. endpoint: \${healthUrl}. 1분 간격 폴링. ` +
+    `에러율 모니터링 ${duration}분. endpoint: ${healthUrl}. 1분 간격 폴링. ` +
     `에러율 >1% → status=warn, >5% → status=fail. 평균 에러율(%) value 반환. type="error-rate".` +
     QUALITATIVE_HINT,
     { model: 'sonnet', label: 'error-rate', phase: 'Monitor', schema: METRIC_SCHEMA }
   ),
   () => agent(
-    `응답 시간 모니터링 \${duration}분. endpoint: \${healthUrl}. 1분 간격 폴링. ` +
+    `응답 시간 모니터링 ${duration}분. endpoint: ${healthUrl}. 1분 간격 폴링. ` +
     `p95 >500ms → status=warn. p95 응답 시간(ms) value 반환. type="latency-p95".` +
     QUALITATIVE_HINT,
     { model: 'sonnet', label: 'latency', phase: 'Monitor', schema: METRIC_SCHEMA }
   ),
   () => agent(
-    `메모리 사용량 모니터링 \${duration}분. 1분 간격 프로세스 체크. ` +
+    `메모리 사용량 모니터링 ${duration}분. 1분 간격 프로세스 체크. ` +
     `>80% → status=warn. 평균 메모리 사용률(%) value 반환. type="memory-pct".`,
     { model: 'sonnet', label: 'memory', phase: 'Monitor', schema: METRIC_SCHEMA }
   ),
@@ -70,8 +70,8 @@ const [errorRate, latency, memory] = await parallel([
 // 절대경로 화이트리스트(forge-multi 선례) — 호출층이 forgeRoot 를 주면 그 레포의 스크립트를 실행한다.
 const _forgeRoot = (typeof _a?.forgeRoot === 'string' && /^\/[^\s'"]+$/.test(_a.forgeRoot)) ? _a.forgeRoot.replace(/\/+$/, '') : null
 const JUDGE_SCRIPT_SH = _forgeRoot
-  ? `\${_forgeRoot}/shared/scripts/canary-judge.mjs`
-  : `\${'\${FORGE_ROOT:-$HOME/forge}'}/shared/scripts/canary-judge.mjs`
+  ? `${_forgeRoot}/shared/scripts/canary-judge.mjs`
+  : `${'${FORGE_ROOT:-$HOME/forge}'}/shared/scripts/canary-judge.mjs`
 
 const _shq = (s) => String(s).split("'").join(`'\\''`)   // 셸 single-quote 안전 이스케이프
 
@@ -92,7 +92,7 @@ async function runJudgeScript(payload, selfCheck = false) {
   const proxy = await agent(
     `Bash 도구로 아래 [CMD] 와 [/CMD] 사이 명령을 **문자열 그대로, 한 번** 실행하고 stdout 의 JSON 한 줄을 그대로 반환하라.\n` +
     `⛔ 너는 판정자가 아니다 — 내용을 해석·요약·수정·재판정하지 마라. 실행기일 뿐이다.\n` +
-    `[CMD]\nprintf '%s' '\${_shq(json)}' | node "\${JUDGE_SCRIPT_SH}"\${flag}\n[/CMD]\n` +
+    `[CMD]\nprintf '%s' '${_shq(json)}' | node "${JUDGE_SCRIPT_SH}"${flag}\n[/CMD]\n` +
     `종료코드와 무관하게 stdout 을 그대로 옮겨라(--self-check 는 불일치 시 exit 1 이어도 stdout 에 JSON 을 낸다). ` +
     `반환 스키마: {"stdout": "<그 JSON 줄 전체를 그대로>"}. stdout 이 비었으면 stdout="".`,
     { model: 'haiku', label: selfCheck ? 'judge-selfcheck-exec' : 'judge-exec', phase: selfCheck ? 'Evaluate' : 'Judge',
@@ -128,14 +128,14 @@ if (!verdict || typeof verdict.verdict !== 'string') {
   log('[STOP] 판정 스크립트 실행 불가 — canary-judge.mjs 경로/실행 확인 필요')
   verdict = {
     verdict: 'INCONCLUSIVE',
-    summary: `판정 스크립트(\${JUDGE_SCRIPT_SH}) 실행 불가 — 헬스 미판정`,
+    summary: `판정 스크립트(${JUDGE_SCRIPT_SH}) 실행 불가 — 헬스 미판정`,
     rollbackRecommended: false,
     inconclusiveReasons: ['판정 스크립트 실행 불가'],
   }
 }
-log(`canary \${verdict?.verdict} (\${verdict?.mode ?? 'n/a'}) rollback=\${verdict?.rollbackRecommended}`)
-if (verdict?.specGaps?.length) log(`[WARN] 원본 판정표 미규정 경계값: \${verdict.specGaps.join(' / ')}`)
-if (verdict?.unverified?.length) log(`[WARN] 미검증 항목(수집 안 됨): \${verdict.unverified.join(', ')}`)
+log(`canary ${verdict?.verdict} (${verdict?.mode ?? 'n/a'}) rollback=${verdict?.rollbackRecommended}`)
+if (verdict?.specGaps?.length) log(`[WARN] 원본 판정표 미규정 경계값: ${verdict.specGaps.join(' / ')}`)
+if (verdict?.unverified?.length) log(`[WARN] 미검증 항목(수집 안 됨): ${verdict.unverified.join(', ')}`)
 
 // ── Phase 3: Evaluate (독립 검증 — 재계산 diff) ───────────────────────────────
 // root-cause: 계획서 §2 B2(2026-09-16) — 종전에는 **LLM 판정을 또 LLM(sonnet)으로 재검증**했다.
@@ -161,7 +161,7 @@ if (!evalResult || typeof evalResult.evalVerdict !== 'string') {
   // 자체검증을 못 돌렸다 = 검증 안 된 것이다. 통과로 세지 않는다(fail-closed).
   evalResult = { evalVerdict: 'FAIL', mismatches: ['자체검증(--self-check) 실행 불가'], feedback: '[canary/workflow.js §Evaluate] — 재계산 diff 를 돌리지 못했다 → canary-judge.mjs 경로/실행 확인' }
 }
-log(`evaluator(재계산 diff): \${evalResult.evalVerdict}\${evalResult.mismatches?.length ? ` — \${evalResult.mismatches.join(' / ')}` : ''}`)
+log(`evaluator(재계산 diff): ${evalResult.evalVerdict}${evalResult.mismatches?.length ? ` — ${evalResult.mismatches.join(' / ')}` : ''}`)
 
 // INCONCLUSIVE 는 예외다: 그때의 eval FAIL 은 C1(메트릭 결측)이고 그건 판정이 이미 말한 사실과
 // 같다. 여기서 FAIL 로 승격하면 **측정도 못 한 배포에 롤백을 권고**하게 되고,

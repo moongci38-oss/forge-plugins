@@ -47,9 +47,9 @@ const SCANS = [
 phase('Scan')
 const results = await parallel(SCANS.map(s => () =>
   agent(
-    `보안 스캔 \${s.id}: \${s.name}. 대상 경로: \${target}. ` +
-    `\${s.desc}. 발견 항목(파일:라인 + 설명) 목록과 실제 severity 반환. id="\${s.id}".`,
-    { model: 'opus', label: `scan-\${s.id}`, phase: 'Scan', schema: SCAN_SCHEMA }
+    `보안 스캔 ${s.id}: ${s.name}. 대상 경로: ${target}. ` +
+    `${s.desc}. 발견 항목(파일:라인 + 설명) 목록과 실제 severity 반환. id="${s.id}".`,
+    { model: 'opus', label: `scan-${s.id}`, phase: 'Scan', schema: SCAN_SCHEMA }
   )
 ))
 
@@ -61,17 +61,17 @@ if (valid.length === 0) {
   log('[FAIL] 전 스캔 실패 — 보안 감사 불가')
   return { verdict: 'FAIL', error: 'all_scans_failed' }
 }
-if (valid.length < SCANS.length) log(`[WARN] 스캔 \${valid.length}/\${SCANS.length} — 부분 보안 감사 (S7 pip-audit 미설치 시 정상)`) // root-cause: S7 pip-audit 미설치 환경 graceful 처리
+if (valid.length < SCANS.length) log(`[WARN] 스캔 ${valid.length}/${SCANS.length} — 부분 보안 감사 (S7 pip-audit 미설치 시 정상)`) // root-cause: S7 pip-audit 미설치 환경 graceful 처리
 const report = await agent(
   // G-5(2026-09-15): 브랜치별 파일로 쓴다 — 구 단일 롤링 파일은 병렬 PR 끼리 항상 충돌했다(구 경로는 읽기 전용).
   `보안 스캔 결과 집계 + docs/qa/security/<branch-slug>.md 생성 ` +
   `(경로: FORGE_SEC_SLUG=$(git branch --show-current | sed 's#[^A-Za-z0-9._-]#-#g') → docs/qa/security/\${FORGE_SEC_SLUG}.md · 구 docs/qa/security-report.md 에 쓰지 마라). ` +
-  `스캔 결과: \${JSON.stringify(valid)}. ` +
+  `스캔 결과: ${JSON.stringify(valid)}. ` +
   `판정 기준: CRITICAL≥1 → FAIL, HIGH≥1 → WARN, 없음 → PASS. ` +
   `report = 마크다운 (CRITICAL/HIGH/MEDIUM/LOW 섹션 + 판정 근거).`,
   { model: 'sonnet', label: 'report', phase: 'Report', schema: REPORT_SCHEMA }
 )
-log(`security \${report?.verdict}: critical=\${report?.criticalCount} high=\${report?.highCount}`)
+log(`security ${report?.verdict}: critical=${report?.criticalCount} high=${report?.highCount}`)
 // root-cause: P0-1 — CRITICAL≥1 시 halt:true 반환 (기존 advisory 로그만 = security theater)
 if (report?.verdict === 'FAIL' || (report?.criticalCount ?? 0) >= 1) {
   // root-cause: F8 — 실제 라이브 게이트 = qa/workflow.js의 T6 securityCritical 처리 블록 (T6 verdict FAIL → return security-critical). halt:true는 standalone 실행 시 caller 차단용 — 파이프라인 내에서는 qa/workflow.js가 CRITICAL 처리. (앵커: 라인번호 대신 심볼 참조 — label-rot 방지)
