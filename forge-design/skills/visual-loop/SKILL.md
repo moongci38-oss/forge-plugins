@@ -1,6 +1,6 @@
 ---
 name: visual-loop
-description: "프론트엔드 변경을 실제 브라우저 렌더링으로 캡처해 Vision 분석한다. UI 코드를 수정한 직후 시각 회귀를 확인할 때 사용한다."
+description: "UI 변경 브라우저 캡처 Vision 분석 — UI 수정 직후 사용한다."
 argument-hint: "[url] [--viewport=desktop,tablet,mobile]"
 allowed-tools: "Bash,Read,Write,Edit,Glob,Grep,Skill,Agent"
 context: fork
@@ -13,7 +13,7 @@ model: sonnet
 **호출**: 수동 `/visual-loop <url> [--viewport=desktop,tablet,mobile]`(기본 3개) · Check 8.6 후 · `.tsx/.jsx/.css` 변경 PR. 매 PR 자동 호출 금지(의심 PR만).
 관련: `/screenshot-analyze`, `/playwright-cli`. 브라우저 보안 경계 → `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/agent-browser-security.md`.
 
-**Workflow**: `Workflow({ script: Bash("cat ~/.claude/skills/visual-loop/workflow.js") })` — 3 viewport Vision parallel(). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 이면 아래 직접 실행. 전제: Vision 용 approve-worker 토큰 3개(viewport별) 외부 선발행.
+**Workflow**: `Workflow({ script: Bash("cat $HOME/.claude/skills/visual-loop/workflow.js"), args: { codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") } })` (codexModel = MCP 길 sol · #2026) — 3 viewport Vision parallel(). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 이면 아래 직접 실행.
 
 **토큰 캡**: Step 2·Step 7 시작 전 `VISUAL_LOOP_TOKEN_CAP`(기본 400000) 추정 도달 시 `[STOP] VISUAL_LOOP_TOKEN_CAP={cap} 도달. 현재 단계 시작 취소.` + 완료 스텝 결과·리포트 경로 반환. (추정은 보조, 결정론 bound = max-cycles)
 

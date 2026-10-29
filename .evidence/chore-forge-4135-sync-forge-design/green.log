@@ -1,0 +1,8 @@
+# forge#4135 forge-design 고친 뒤 — forge develop c70d79959 · 0.2.20 → 0.2.21
+$ … --verify | grep -c 'DRIFT: forge-design/'
+DRIFT_forge-design=0
+# 지운 것(forge 에서 지워진 것): forge-design/commands/forge-design.md 
+없음(OK): forge-design/commands/forge-design.md
+$ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-design | tail -2
+=== 결과 ===
+✅ GATE PASS
