@@ -7,3 +7,8 @@ FAIL=2
 # qa BLOCKING H1(#120) — CI 'Guard self-test' 에 새 시험이 배선 안 됨
 $ grep -c sync-from-forge-prune.test.py .github/workflows/leak-scan.yml
 0
+
+# finding-tests 짝(qa H1) — 검수 head 5925c72 에 scripts/tests/leak-scan-wiring.test.sh 만 옮겨 돌림
+  FAIL  CI 미배선: scripts/sync-from-forge-prune.test.py
+  FAIL  scripts 시험 전부 CI 배선
+rc=1

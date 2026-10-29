@@ -16,3 +16,7 @@ $ grep -c sync-from-forge-prune.test.py .github/workflows/leak-scan.yml
 1
 $ python3 scripts/sync-from-forge-prune.test.py | tail -1
 FAIL=0
+
+# finding-tests 짝(qa H1) — PR head
+  PASS  scripts 시험 전부 CI 배선
+rc=0
