@@ -167,11 +167,11 @@ const verifyResult = await agent(
   `4)수정 계획 수립(Stage 5 진행용). ` +
   `5)investigate-report.md 생성. ` +
   `verifiedHypothesis + reproduced + rootCauseConfirmed + fixPlan[] + reportPath 반환.` +
-  `\n\n[STOP] Stage 3 완료 후 Stage 4+5(재현+수정)는 /healer 또는 /forge-pge로 위임.`,
+  `\n\n[STOP] Stage 3 완료 후 Stage 4+5(재현+수정)는 /forge-fix ③ 으로 위임.`,
   { model: 'opus', label: 'verify:hypothesis', phase: 'Verify', schema: VERIFY_SCHEMA }
 )
 log(`[Verify] reproduced=${verifyResult?.reproduced} confirmed="${verifyResult?.rootCauseConfirmed?.slice(0, 60)}"`)
-log(`[STOP] Stage 4+5 = /healer 또는 직접 수정 (Workflow 범위 외)`)
+log(`[STOP] Stage 4+5 = /forge-fix ③ (Workflow 범위 외)`)
 
 return {
   status: verifyResult?.reproduced ? 'ROOT_CAUSE_CONFIRMED' : 'HYPOTHESIS_UNVERIFIED',

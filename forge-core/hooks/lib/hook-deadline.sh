@@ -57,3 +57,32 @@ hook_deadline_guard_input() {   # hook_deadline_guard_input <훅 이름> <등록
   esac
   exit "$_hdl_rc"
 }
+
+# ══ 훅 공통 입구 (#3279) ═══════════════════════════════════════════════════════════════════════
+# 왜: 차단 훅 21개가 머리말(시간 상한)·stdin 읽기·종료 코드를 각자 복사해, "차단 훅 전수에 판정 상한" 같은 정책 하나가 훅 전수 수정으로
+#   번졌다(#2467·#2475·#2487). 입구를 이 파일 한 곳에 둔다 — 이 파일만 복사해 쓰는 시험이 있어(detect-injection-asi05-safe ·
+#   issue-format-lint) 새 파일이 아니라 여기에 더한다.
+# 사용(훅 맨 위 1줄 — 머리말 자리 그대로):
+#   _HDL_D="${BASH_SOURCE[0]%/*}"; [ "$_HDL_D" = "${BASH_SOURCE[0]}" ] && _HDL_D=.; [ -f "$_HDL_D/lib/hook-deadline.sh" ] && . "$_HDL_D/lib/hook-deadline.sh" && hook_entry <훅 이름> <등록 timeout 초> "$@"
+#   hook_entry  = hook_deadline_guard 와 같은 시간 상한(부모는 자기를 상한 아래서 다시 돌리고 그 rc 로 끝 · 자식·끄개는 바로 돌아감)
+#                 + HOOK_NAME(훅 이름) · HOOK_LIB(이 lib 폴더) 설정. 자기 훅 파일은 호출한 파일(BASH_SOURCE[1])로 넘긴다 —
+#                 hook_deadline_guard 를 감싸 부르면 그 안의 BASH_SOURCE[1] 이 이 lib 가 되어 엉뚱한 파일을 다시 돌린다.
+#   hook_read_input → HOOK_INPUT 에 stdin 을 한 번만 읽어 둔다(두 번 불러도 다시 읽지 않는다 · `$( )` 안에서 부르지 않는다)
+# 입력 읽기·종료 약속으로 훅 본문을 옮기는 것은 #3279 다음 조각 — 이 조각은 머리말만 바꾼다(본문 무변경).
+# ⚠️ 무력화되는 입력: hook_deadline_guard 와 같다(위 머리말 ①~③).
+hook_entry() {   # hook_entry <훅 이름> <등록 timeout 초> [훅 인자…]
+  unset HOOK_INPUT _HOOK_INPUT_READ   # 환경에서 들어온 값으로 입력을 바꿔치기 못 하게(#3279-2) — 입력은 stdin 에서만
+  HOOK_NAME="$1"; HOOK_LIB="${BASH_SOURCE[0]%/*}"
+  [ "${FORGE_HOOK_DEADLINE_CHILD:-}" = 1 ] && return 0
+  [ "${FORGE_HOOK_DEADLINE:-on}" = off ] && return 0
+  local _he_n="$1" _he_r="$2" _he_in; shift 2
+  _he_in="$(cat)"
+  _HDL_SELF="${BASH_SOURCE[1]}" hook_deadline_guard_input "$_he_n" "$_he_r" "$_he_in" "$@"
+}
+hook_entry_input() {   # hook_entry_input <훅 이름> <등록 timeout 초> <이미 읽은 stdin JSON> [훅 인자…] (#3279-4)
+  # 빠른 길을 상한 감싸기보다 먼저 도는 훅(stdin 을 먼저 읽음)용 — hook_entry 와 같은 약속에 넘겨받은 입력을 HOOK_INPUT 으로 둔다
+  #   (읽음 표식 1 — hook_read_input 이 다시 읽지 않는다 · 환경에서 들어온 HOOK_INPUT 은 여기서 덮어쓴다).
+  HOOK_NAME="$1"; HOOK_LIB="${BASH_SOURCE[0]%/*}"; HOOK_INPUT="$3"; _HOOK_INPUT_READ=1
+  _HDL_SELF="${BASH_SOURCE[1]}" hook_deadline_guard_input "$@"
+}
+hook_read_input() { [ "${_HOOK_INPUT_READ:-}" = 1 ] || { HOOK_INPUT="$(cat)"; _HOOK_INPUT_READ=1; }; }

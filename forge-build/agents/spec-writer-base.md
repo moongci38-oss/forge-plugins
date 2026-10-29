@@ -10,7 +10,8 @@ permissionMode: plan
 
 - **책임 경계**: Spec 문서만(`.specify/specs/`, `.specify/templates/`). PM 문서(`todo.md`·`development-plan.md`·Gantt) 갱신 금지 → `forge-pm-updater` 호출.
 - **절차 정본**: `~/forge/pipeline.md` Phase 7. 이 파일은 작성 방법론만.
-- **Spec = 무엇/왜만.** 어떻게(기술 스택·버전 핀·ADR·데이터 모델·API 설계·구현 계획·의존성 그래프)는 **Plan**(`.specify/plans/`, `plan-writer` 에이전트 `agents/plan-writer.md`), 실행 단위(2~5분 TDD 스텝·Wave)는 **Tasks**(`.specify/tasks/`). Spec 에 데이터 모델·API·구현 헤딩이나 구현 언어 코드펜스를 넣으면 경계 게이트(`forge-gate-check.sh <repo> SDD`) FAIL.
+- **Spec = 무엇/왜 + 결정, 코드는 금지**(#3736 · E1 B). 결정(기술 스택·버전 핀·ADR·보안·테스트 전략)은 Spec 의 `## 기술 스택`·`## ADR` 절에 쓴다. 코드 블록·API 시그니처·구현 순서는 쓰지 않는다(구현 PR 몫). Spec 에 데이터 모델·API·구현 헤딩이나 구현 언어 코드펜스를 넣으면 경계 게이트(`forge-gate-check.sh <repo> SDD`) FAIL.
+- **새 양식(`양식: 2026-12`)**: Spec 을 새로 쓰거나 고칠 때 맨 윗줄 표식을 넣고, 머리말 `intent:`·`prompt:`·`skills@<커밋>`·`고위험 변경:` 과 `## 우려 사항(정책 충돌 포함)`·`## intent 질문 이월`(intent Open questions 1개 = 1행) 절을 채운다. 표식이 있는 spec 만 게이트가 두 절을 검사한다.
 
 ## 0. 모드 판별
 - 입력에 `mode: bulk` + `forge_context_path` + `group_name` + `group_features` (+ `output_path`) → **Bulk**(§1.B)
@@ -18,9 +19,17 @@ permissionMode: plan
 
 ## 1.A 사전 조사 — Single
 - `.specify/glossary.md` 있으면 **반드시 Read** → 용어·유의어·안티패턴 일관 적용(없으면 생성 권고)
-- `s4-development-plan.md`·`s4-detailed-plan.md` 있으면 Read → 기술 결정은 재결정 금지, 내용은 Plan·Tasks 로 보낸다
+- `s4-development-plan.md`·`s4-detailed-plan.md` 있으면 Read → 기술 결정은 재결정 금지, Spec `## 기술 스택`·`## ADR` 으로 옮긴다
 - (선택) `.claude/reference/codebase-analysis.md`·`.claude/reference/spec-context.md` Read
-- `.specify/constitution.md` Read → 불변 원칙·품질 기준·경계. **기술 스택은 여기 없다**(Plan 을 읽는다. Plan 도 없으면 미정 — Spec 이 대신 정하지 않는다)
+- `.specify/constitution.md` Read → 불변 원칙·품질 기준·경계. **기술 스택은 여기 없다**(기능마다 Spec `## 기술 스택` 이 정한다 · 레포에 이미 쓰는 것은 코드·기존 Spec 에서 읽는다)
+- **정책 묶음 Read (필수 · #3736 T4)** — 원문 "brand, security, compliance, and UX policies". 있는 것만 읽고, 없거나 `담당:` 칸이 비면 `## 우려 사항` 에 1줄로 적는다:
+
+  | 정책 | 문서(대상 레포 기준) | 담당 |
+  |---|---|---|
+  | 보안 | `SECURITY.md` · `.claude/rules/*security*` (없으면 `~/.claude/rules/forge-core.md §보안`) | 문서 머리말 `담당:` |
+  | UX | `DESIGN.md` | 문서 머리말 `담당:` |
+  | 브랜드 | `docs/brand*.md` | 문서 머리말 `담당:` |
+  | 컴플라이언스 | `docs/compliance*.md` | 문서 머리말 `담당:` |
 - `.specify/specs/` 기존 Spec 1-2개로 형식 학습 · `.specify/templates/` 확인 · 관련 코드 Grep/Glob
 
 ## 1.B 사전 조사 — Bulk (`${forge_context_path}` 기준)
@@ -40,7 +49,7 @@ permissionMode: plan
 - **소스 커버리지**: P2 PRD/GDD + P3 상세계획 + dev-spec 의 기능·비즈니스룰 전수 추출 → 각각 ≥1 FR. 미승격 = §2.0 `소스 커버리지` 표에 `uncovered`+유형, out-of-scope 는 사유 필수. 구조적 ID 가 있으면 ID 대조
 - PR 묶음(PR1, PR2…) → §12 매핑 · 그룹 간 의존 Spec ID 명시
 
-## 2. 스킬 참조 (Plan 의 기술 스택 기준 — Plan 없으면 스킵)
+## 2. 스킬 참조 (Spec `## 기술 스택`·레포 코드 기준 — 해당 없으면 스킵)
 
 | 감지 키워드 | 스킬 파일 |
 |---|---|
@@ -53,7 +62,7 @@ permissionMode: plan
 ## 3. 템플릿 · 필수 섹션
 - 템플릿: `.specify/templates/spec-template.md` 우선 → 없으면 `projectType: game` 은 `~/.claude/forge/templates/spec-template-game.md`, 그 외 `~/.claude/forge/templates/spec-template-base.md`. 모든 섹션 포함.
 - 태스크 포맷(Tasks 문서로 갈 때): `### Task N: {명} (예상: 2-5분)` · 파일 · 실패 테스트 코드(RED) · 구현 코드 · `터미널: {명령} → {예상 출력}` · 커밋 메시지. 플레이스홀더("에러 핸들링 추가"·"테스트 작성"·"Task N과 유사하게") 금지, 5분 초과는 분할.
-- 필수 섹션: **기능 요구사항 · 사용자 플로우 · 수용 기준** (API 섹션 요구 없음 — 게이트가 FAIL 시킨다)
+- 필수 섹션: **기능 요구사항 · 사용자 플로우 · 수용 기준** (API 섹션 요구 없음 — 게이트가 FAIL 시킨다) · 새 양식이면 **우려 사항 · intent 질문 이월** 도 필수
 - 설계 원칙 절(#2052): `## 도메인 모델`(유비쿼터스 언어 표·애그리거트·불변식·도메인 이벤트) + `## 모듈·책임`(책임 단위 이름·도메인 언어만) — 해당 없으면 `해당 없음 — <이유 1줄>`(빈 절 금지). 정본 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/design-principles.md`.
 
 **제출 전 실행 (필수)**:

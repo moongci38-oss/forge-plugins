@@ -1,13 +1,9 @@
----
-name: external-harness-sweep
-description: "외부 하네스 레포 전수 대조. 트리거: '하네스 sweep'·'external sweep <url>'."
-disable-model-invocation: true
----
-
-> **저장 경로 앵커**: 보고서 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/` 로 시작한다(cwd 상대 `docs/reviews/...` 금지 — 착지 레포가 갈린다). 근거·실사고 → 형제 스킬 `../system-audit/references/audit-common.md` §저장 경로 앵커.
+> **저장 경로 앵커**: 보고서 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/` 로 시작한다(cwd 상대 `docs/reviews/...` 금지 — 착지 레포가 갈린다). 근거·실사고 → 형제 스킬 `../../system-audit/references/audit-common.md` §저장 경로 앵커.
 
 
-# external-harness-sweep
+# sweep 모드 — 외부 하네스 레포 전수 대조
+
+> `/harness-diet sweep <url>` 으로 불렸을 때만 읽는다 — 옛 `external-harness-sweep` 스킬 본문을 옮겼다(#3573). 호출 블록 정본 = `../SKILL.md` `## 모드`.
 
 외부 AI 하네스 레포를 Forge와 1:1 전수 대조하여 채택 매트릭스를 생성한다. yt/article 1차분석 seed가 있으면 claim 가설로 가속, 없으면 전수 enumerate. 소스 검증은 항상 fresh `git clone --depth 1` (seed 단독 판정 금지).
 
@@ -27,7 +23,7 @@ disable-model-invocation: true
 
 ```
 Workflow({
-  script: Bash("cat ~/.claude/skills/external-harness-sweep/workflow.js"),
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-diet/sweep/workflow.js"),
   args: {
     target_url: "<외부 레포 git URL>",          // 필수
     target_name: "<slug>",                       // 선택 (없으면 URL 마지막 세그먼트)

@@ -1,17 +1,13 @@
----
-name: daily-analyze
-description: "그날 수집해 둔 daily raw-data.json 으로 분석만 다시 돌린다(수집 생략). 쓸 때: daily-system-review 분석 단계가 실패했거나 분석만 새로 받고 싶을 때. SKIP: raw-data.json 이 없을 때(→ /daily-system-review)."
-argument-hint: "<YYYY-MM-DD>"
-context: fork
-model: sonnet
----
+# daily 모드 — Daily Review 재분석 (JSON → 분석)
+
+> `/weekly-analyze daily <날짜>` 로 불렸을 때만 읽는다 — 옛 `daily-analyze` 스킬 본문을 그대로 옮겼다(#3573).
 
 **역할**: Daily Review JSON 을 심층 분석하는 AI 동향 분석가. `raw-data.json` 이 있을 때 수집을 건너뛰고 분석만 재실행한다(실패 후 재시작·다른 관점 재분석).
 **출력**: `forge-outputs/shared/01-research/daily/{date}/` 에 산출물 저장.
 **컨텍스트**: `raw-data.json`이 존재할 때 수집 단계를 스킵하고 재분석이 필요할 때 호출됩니다.
 
 ## 인자
-- `$ARGUMENTS` = 기준 날짜(YYYY-MM-DD). 없으면 전날.
+- `$ARGUMENTS` 에서 앞의 `daily` 를 뺀 나머지 = 기준 날짜(YYYY-MM-DD). 없으면 전날.
 
 ## Step 1: raw-data.json 로드
 - `01-research/daily/{date}/raw-data.json` 읽기 → `stats`(Tier별 건수) · `items` · `claude_search_needed` 확인.
@@ -24,7 +20,7 @@ model: sonnet
 - 도구 순서(정책 = `rules-on-demand/web-search-policy.md`): `mcp__tavily__tavily_search` → `mcp__brave-search__brave_web_search`(fallback) → WebFetch
 
 ## Step 3: 우리 시스템 현황 스냅샷
-- 인프라: `~/.claude/forge/rules/`(최근 수정) · `.claude/skills/` · `.claude/agents/` · `docs/planning/active/plans/`(미처리 액션)
+- 인프라: `~/forge/dev/rules-on-demand/`(최근 수정) · `.claude/skills/` · `.claude/agents/` · `docs/planning/active/plans/`(미처리 액션)
 - Forge 파이프라인(필수): `forge-workspace.json`(활성 프로젝트·folderMap) → 각 `gate-log.md`(S1~S4 위치) · `02-product/todo.md`(있으면)
 - Forge Dev(필수): Glob `**/.claude/state/sessions/*.json`(미완료 세션) · `docs/walkthroughs/`(최근 완료 Spec)
 
