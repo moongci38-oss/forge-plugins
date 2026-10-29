@@ -42,16 +42,16 @@ const codexVisionModel = _a?.codexModel || 'gpt-6.1-sol'
 phase('Compare')
 const results = await parallel(viewports.map(vp => () =>
   agent(
-    `디자인 시안 vs 구현 시각 비교 (Codex Vision). viewport: \${vp.name}(\${vp.w}px).\n` +
+    `디자인 시안 vs 구현 시각 비교 (Codex Vision). viewport: ${vp.name}(${vp.w}px).\n` +
     `**mcp__codex__codex 실제 호출** (ToolSearch 로 스키마 선로드 필요) — Claude 자체 추론으로 점수 생성 금지:\n` +
-    `- prompt = "디자인 시안과 구현 화면을 viewport \${vp.name}(\${vp.w}px) 기준으로 시각 비교하라.\\n` +
-    `시안(절대경로 또는 URL): \${designRef}\\n구현 URL: \${implUrl}\\n` +
+    `- prompt = "디자인 시안과 구현 화면을 viewport ${vp.name}(${vp.w}px) 기준으로 시각 비교하라.\\n` +
+    `시안(절대경로 또는 URL): ${designRef}\\n구현 URL: ${implUrl}\\n` +
     `viewport(문자열) + matchScore(0-100 숫자) + diffs(문자열 배열) + converged(matchScore>=90 이면 true) 를 JSON 으로 반환."\n` +
-    `- model = "\${codexVisionModel}" (Vision 레그 tier — codex:high)\n` +
+    `- model = "${codexVisionModel}" (Vision 레그 tier — codex:high)\n` +
     `- sandbox = "read-only", approval-policy = "never", config = {"model_reasoning_effort": "high"}\n` +
     `- 시안·캡처 이미지는 **절대경로로 직접 읽는다** — base64 인라인 금지.\n` +
     `Codex 응답(JSON) 파싱 → StructuredOutput(viewport/matchScore/diffs/converged).`,
-    { label: `compare-\${vp.name}`, phase: 'Compare', schema: DIFF_SCHEMA, agentType: 'codex-critic' }
+    { label: `compare-${vp.name}`, phase: 'Compare', schema: DIFF_SCHEMA, agentType: 'codex-critic' }
   )
 ))
 
@@ -59,10 +59,10 @@ const results = await parallel(viewports.map(vp => () =>
 phase('Verdict')
 const valid = results.filter(Boolean)
 // root-cause: C-2 sweep — 부분 viewport 실패 시 silent degradation
-if (valid.length < results.length) log(`[WARN] viewport \${valid.length}/\${results.length} — 일부 비교 실패, 결과 신뢰도 저하`)
+if (valid.length < results.length) log(`[WARN] viewport ${valid.length}/${results.length} — 일부 비교 실패, 결과 신뢰도 저하`)
 const avgMatch = valid.reduce((s, r) => s + (r.matchScore || 0), 0) / (valid.length || 1)
 const allConverged = valid.length > 0 && valid.every(r => r.converged)
-log(`Compare: avg match=\${avgMatch.toFixed(1)} converged=\${allConverged}`)
+log(`Compare: avg match=${avgMatch.toFixed(1)} converged=${allConverged}`)
 
 return {
   converged: allConverged,

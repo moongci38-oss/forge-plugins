@@ -6,3 +6,8 @@ DRIFT_forge-design=0
 $ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-design | tail -2
 === 결과 ===
 ✅ GATE PASS
+
+# 다시 동기화 — 고친 sync-from-forge.py(forge-plugins PR #119 · JS 원래 보간 보존) · forge develop c70d79959
+바뀐 파일: forge-design/skills/visual-loop/workflow.js 
+DRIFT_forge-design(고친 스크립트 --verify)=0
+\${소문자변수} 꼴로 깨진 .js: 0건
