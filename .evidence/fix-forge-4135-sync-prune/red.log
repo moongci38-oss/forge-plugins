@@ -3,3 +3,7 @@ $ python3 scripts/sync-from-forge-prune.test.py
   FAIL  ① STALE 목록이 다르다  got=[] out=DRIFT_REMAINING=0
   FAIL  ② --prune 결과가 다르다  rc=2 남은삭제대상=['forge-core/agents/gone-agent.md', 'forge-core/skills/gone', 'forge-core/commands/old.md'] 사라진보존대상=[] usage: sync-from-f
 FAIL=2
+
+# qa BLOCKING H1(#120) — CI 'Guard self-test' 에 새 시험이 배선 안 됨
+$ grep -c sync-from-forge-prune.test.py .github/workflows/leak-scan.yml
+0
