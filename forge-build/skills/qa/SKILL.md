@@ -34,14 +34,14 @@ advisor 스폰 모델은 항상 `advisor-spawn-guard.sh resolve` 출력: `claude
   ```
   히트(`file_path`/`score`/`project_match`)를 이 프로젝트/타 프로젝트로 나눠 출력 → scenarios.md "과거 회귀 참고".
 - **B 시나리오**: qa-setup → gitnexus route_map → `scenarios.md` → scope 필터 → `scenarios-filtered.md`. 8 카테고리 강제 + Bug-ID Allocator.
-- **C 발견**: T1(API)·T2(UI)·T3(DB)·T6(보안)·T7(성능). 각 테스트 `bash ~/forge/shared/scripts/run-tests-proof.sh "<cmd>"` → TEST_PROOF. FAIL → `artifacts/bug-{N}-{shot|http|server|console}.*` + 6하원칙 bug-report.md. UI 증거 = `playwright-devtools-capture.mjs` DevTools 번들(`commands/forge-fix.md §DevTools 증거 번들`). `--accounts` 시 T1/T2 계정별 fan-out(`--accounts <json>`).
+- **C 발견**: T1(API)·T2(UI)·T3(DB)·T6(보안)·T7(성능). 각 테스트 `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/run-tests-proof.sh "<cmd>"` → TEST_PROOF. FAIL → `artifacts/bug-{N}-{shot|http|server|console}.*` + 6하원칙 bug-report.md. UI 증거 = `playwright-devtools-capture.mjs` DevTools 번들(`commands/forge-fix.md §DevTools 증거 번들`). `--accounts` 시 T1/T2 계정별 fan-out(`--accounts <json>`).
   대량 동시 FAIL(같은 도메인 50%+ 또는 5건+) → 개별 파일링 전 advisor(Q2) "구조적 단일결함 vs 개별버그" 자문, 단일결함이면 1건으로 수렴.
 - **C.5 Spec↔Code 판별**(FR 불일치 FAIL 마다): 먼저 `${spec_file%.md}.impl-notes.md` 있으면 읽기(글롭 금지), 그다음
   `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/spec-code-discriminate.sh" <spec_file> <impl_files>`
   - `IMPL_GAP` → D~F 위임 · `SPEC_STALE_CANDIDATE`/`AMBIGUOUS`/판별 실패 → Reconciliation: advisor 자문 → **[STOP]** Human 2택("스펙 노후 확정" → .spec.md FR 갱신·시나리오 재생성·재검증 / "코드 버그 확정" → D~F). AI 자동 B 확정 금지.
 - **D~F 수정·검수 = `/forge-fix` Lane A 위임**: 버그마다 `docs/qa/{date}-bug-fix-plan.md` 와 함께 ①조사·재현(RED, 게이트 R) ②리포트 ③수정(healer a1~a3, a3 = 테스트·린트·빌드 기계 확인 — FAIL 이면 고치고 테스트로 확인하며 검수자를 다시 부르지 않는다) ④검수(GREEN, 게이트 G, 실브라우저·실DB). UI 버그 = Vision evaluator + pixel-diff-gate + forge-check-ui. 복잡도·개수 라우팅(2~9 Teams, 10+ Workflow, 충돌 순차)은 `agents/healer.md` 머리의 "스폰 라우팅" 줄. PGE 로 보내지 않는다. UAT 모드는 Lane A 수정 비활성. **전 버그 게이트 G PASS 시에만 G 진입.**
 - **G 머지 = `/forge-pr` 경유**(base=develop, head=fix/qa-{scope}-{date}) — `gh pr create`/`gh pr merge` 직접 호출 금지. 보조: `bash scripts/ci-wait.sh {branch}`(15분). 후 `git checkout develop && git pull && git worktree prune`.
-- **H 정리**: learnings.jsonl append · wiki-sync(background, Human 승인) · `docs/qa/intervention-log.jsonl`(override 시) · `docs/qa/metrics.jsonl` {date, scope, bugs_found, bugs_fixed, cycles, mttr_min, regression_count} · final-qa-report · `git worktree prune` · `~/.claude/worktrees/qa-*` 7일+ 삭제.
+- **H 정리**: learnings.jsonl append · wiki-sync(background, Human 승인) · `docs/qa/intervention-log.jsonl`(override 시) · `docs/qa/metrics.jsonl` {date, scope, bugs_found, bugs_fixed, cycles, mttr_min, regression_count} · final-qa-report · `git worktree prune` · `$HOME/.claude/worktrees/qa-*` 7일+ 삭제.
 
 ### 자동 머지 전제 (7개 전부 → `/forge-pr` 원장 rc=0)
 버그별 a3 기계 확인 통과 · 버그별 RED→GREEN TEST_PROOF + 게이트 G · `/forge-pr` cr-final rc=0 · 보안 CRITICAL 0 · 회귀 0(baseline) · CI PASS · 전 시나리오 PASS.
@@ -88,6 +88,6 @@ advisor 스폰 모델은 항상 `advisor-spawn-guard.sh resolve` 출력: `claude
 
 ## 산출물·통합
 - `docs/qa/YYYY-MM-DD-{spec-name}-qa-report.md`: 시나리오 수 · PASS/FAIL · Rubric 점수 · 이슈+수정내역 · 사이클 수.
-- Workflow: `Workflow({ script: Bash("cat ~/.claude/skills/qa/workflow.js"), args: { scope, mode } })` (`CLAUDE_CODE_DISABLE_WORKFLOWS=1` → 메인 컨텍스트 fallback).
-- 시나리오 검수는 수동 전용(`/forge-test-review`). 산출물 저장 후 `/eval-rubric --target {산출물}` → `~/.claude/skills/qa/eval_cases.jsonl`(비활성 `EVAL_RUBRIC_AUTO=off`).
-- 상세 → `~/forge/.claude/skills/qa/reference.md`
+- Workflow: `Workflow({ script: Bash("cat $HOME/.claude/skills/qa/workflow.js"), args: { scope, mode } })` (`CLAUDE_CODE_DISABLE_WORKFLOWS=1` → 메인 컨텍스트 fallback).
+- 시나리오 검수는 수동 전용(`/forge-test-review`). 산출물 저장 후 `/eval-rubric --target {산출물}` → `$HOME/.claude/skills/qa/eval_cases.jsonl`(비활성 `EVAL_RUBRIC_AUTO=off`).
+- 상세 → `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md`

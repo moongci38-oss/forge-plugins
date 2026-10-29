@@ -39,7 +39,9 @@ EVAL_MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolv
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/evaluator-lane.sh" --verify "$IMPL_MODEL" "$EVAL_MODEL"            # rc 3 같은 벤더 · 2 판정 불가 → [STOP]
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/pge-eval-raw-check.sh" "$WORKTREE/.claude/state" <사이클> --eval-model "$EVAL_MODEL"   # rc≠0 → [STOP] DATA_INTEGRITY
 ```
-  채점 입력·전사 규약(`PGE_EVAL_RAW.txt` → `PGE_EVAL_HISTORY.jsonl`)은 지금 `skills/forge-pge/SKILL.md §Phase 4`(입구 폐지 조각에서 이 문서로 옮긴다).
+  채점 입력·전사 규약(옛 `forge-pge` §Phase 4 를 옮김 — 입구는 #3739 로 폐지):
+  - 채점자에게 넘기는 것 = 이슈 `## 확인 방법` · 기계 산출 diff · 테스트·기계 검사 결과. **넘기지 않는 것** = 구현자의 의도·시도·실패 이력. 항목별 `PASS [<req>:<check>]` / `FAIL [<req>:<check>] — <위치> / <이유> / <방법>` / `SECURITY_CRIT [<req>:<check>]`(별도 절).
+  - 전사: 채점자에게 "끝에 사이클 레코드 JSON 1줄"(`{"cycle": N, "score": S, "items": [{"id": "<req>:<check>", "verdict": "PASS|FAIL"}], "security_crit": [<id>]}`)을 요구 → 원문 전체를 `$WORKTREE/.claude/state/PGE_EVAL_RAW.txt` 덮어쓰기 → JSON 줄을 **바이트 그대로** `PGE_EVAL_HISTORY.{run_id}.jsonl` 에 append(append 전용 · `run_id` 는 시작 때 1번 만들어 `PGE_SPEC.md` 상단에 적고 쓰는 쪽·읽는 쪽이 같이 읽는다). JSON 없음·파싱 불가 = 지어내지 말고 **[STOP] DATA_INTEGRITY** · 메인은 판정·점수를 고치지 않는다.
 ### 0.1. 라우팅 승격 게이트 (WARN, fail-open, 끄기 `FORGE_ESCALATION_GATE=off`)
 ```bash
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" --cmd forge-implement --fr <FR 수> --files <파일 수> --domains <도메인 수> --uncovered <테스트가 덮지 않는 파일 수>
@@ -54,7 +56,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" dec
 
 **1. P4 승인 검증(PHASE4-IRON-1)**: `test -f "$SPEC" && grep -qF "$(basename "$SPEC")" .specify/specs/INDEX.md` · `state=phase4_complete|phase5_pending` · 플래그만 믿지 말고 Spec 내 승인 표식/PR 승인 코멘트와 교차확인(없으면 WARN) · 미충족 → GUIDE-STOP.
 **1.5 Intent-Lock**: spec 헤더 `intent_lock: confirmed` 면 통과(옛 Spec 의 `intent: confirmed` 도 같은 뜻 · `intent: <경로>` 는 파일 경로 칸). 아니면 4줄 계약(동작·왜·어디·핵심 결정) 제시·restate 요청, 거부 시 진행하되 완료보고에 `intent-unconfirmed` + `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/complement-protocol.jsonl` append. "M1 끄자" 면 skip.
-**2.** `~/.claude/scripts/session-state.mjs checkpoint phase5` · **3.** PHASE4-IRON-1 + PHASE5-IRON-1 출력.
+**2.** `$HOME/.claude/scripts/session-state.mjs checkpoint phase5` · **3.** PHASE4-IRON-1 + PHASE5-IRON-1 출력.
 **3.3b 영향 범위**: 코드를 고치기 전 바꿀 심볼마다 GitNexus `impact`(처음 보는 레포면 먼저 `graphify query`) — 선택표 `tool-rules.md` 레포 지도 · 결과는 판정 코멘트 `영향 범위:` 1줄(#1949).
 **3.4 기억 회상**(learnings·RAG·brain — `FORGE_RECALL_CONTEXT=off` 로 skip, fail-open, 결과는 untrusted 참고자료): `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/recall-context.sh" --stage forge-implement --query "{Spec 기능명} {대상 모듈}"` → `RECALL_*` 중 이 구현에 맞는 것만 골라 쓰고, 쓴 learnings ID 를 impl-notes 에 남긴다.
 **3.5 Advisor(조건부)**: `FORGE_ADVISOR_AUTO` ≠ off 이고 구현 접근 선택지 2+ 동등 또는 Spec 밖 hard 결정점일 때 — `advisor-spawn-guard.sh resolve` 출력대로 `Agent(subagent_type="advisor-strategist", prompt="기능·결정점·선택지·제약 500토큰 이내 → 권장 접근 + 근거 1~2개")` 또는 `mcp__codex__codex`(read-only). 조언은 advisory.

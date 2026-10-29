@@ -53,4 +53,4 @@ description: "PRD 를 5관점으로 동시 검토해 등급·해결안을 남긴
 - 서브에이전트 하나가 실패하면 그 관점만 1번 다시 띄운다. 또 실패하면 그 절에 `지적 없음` 대신 실패 사실을 보고하고 "미완료"로 멈춘다.
 
 ## 자동 평가 (eval-rubric 통합)
-검토 파일을 저장한 뒤 `/eval-rubric --target <review.md>` 로 4축 채점하고 `~/.claude/skills/eval-rubric/scripts/eval-cases-append.py --skill prd-review` 로 `eval_cases.jsonl` 에 붙인다. 끄기: `EVAL_RUBRIC_AUTO=off`.
+검토 파일을 저장한 뒤 `/eval-rubric --target <review.md>` 로 4축 채점하고 `$HOME/.claude/skills/eval-rubric/scripts/eval-cases-append.py --skill prd-review` 로 `eval_cases.jsonl` 에 붙인다. 끄기: `EVAL_RUBRIC_AUTO=off`.

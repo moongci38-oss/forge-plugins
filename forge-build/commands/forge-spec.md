@@ -7,7 +7,7 @@ group: plan
 
 # /forge-spec
 
-Spec 작성 단독 실행(옛 `/sdd` Phase 0~2). 이 파일이 정본. Phase 세부는 해당 Phase 실행 시점에만 `~/.claude/rules-on-demand/forge-spec-phases-detail.md` 의 해당 절을 Read 한다.
+Spec 작성 단독 실행(옛 `/sdd` Phase 0~2). 이 파일이 정본. Phase 세부는 해당 Phase 실행 시점에만 `$HOME/.claude/rules-on-demand/forge-spec-phases-detail.md` 의 해당 절을 Read 한다.
 
 **이슈 먼저**: 시작 전 이 기능의 상위 이슈 번호를 확인한다(없으면 `issue-new.sh` 1장). FR 이슈는 승인 뒤(아래) — 정본 `harness-family-map.md` §이슈 먼저 · 경계 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/harness-family-map.md`.
 
@@ -49,7 +49,7 @@ Spec 은 **무엇**을 적는다. 그 앞의 **왜**는 `intent.md` 가 갖는�
 python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-contract-lint.py" <기획폴더>
 ```
 - 기본 exit 0(차단 안 함, `--strict` 만 exit 1). GAP 이면 린터의 객관식 질문을 그대로 제시 → 답을 `DECISIONS.md` 에. 무응답이면 권장안 + `미응답` 기록.
-- **다이어그램 인용 의무**: 기획 폴더에 `flow.d2` 가 있으면 Spec 본문에 그 흐름을 인용·유지한다(P2 `/prd` 는 Mermaid, P4 Spec 은 D2 — 통일하지 않는다).
+- **다이어그램 인용 의무**: 기획 폴더에 `flow.d2` 가 있으면 Spec 본문에 그 흐름을 인용·유지한다(spec `## 화면` 흐름 지도는 Mermaid, 기능 흐름 인용은 D2 — 통일하지 않는다).
 
 **Phase 0.5 — ADAPT**: ①normalize → 자동 변환(내역 1줄씩) ②derive → 자동 초안 + `vetted_by: ai-inferred` → **[STOP] 1회 일괄 확인** ③Phase 1.
 
@@ -71,7 +71,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-contract-lint.py" <�
 
 **Phase 2-W — 도메인 병렬 작성** (`--waves` **그리고** 도메인 ≥3 일 때만, 아니면 단일 패스)
 ```
-Workflow({ scriptPath: "~/forge/shared/scripts/forge-spec-waves.workflow.js",
+Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-spec-waves.workflow.js",
            args: { specDir: ".specify/specs", domains: [{name, brief}, …], requestId } })
 ```
 - 도메인 이름 `^[a-z0-9][a-z0-9_-]{0,63}$` · 중복 불가(위반 → 스폰 전 stop). Wave 1 은 도메인당 `{domain}.spec.md` 하나만, FR id 는 `FR-{domain}-N`.
@@ -79,9 +79,16 @@ Workflow({ scriptPath: "~/forge/shared/scripts/forge-spec-waves.workflow.js",
 - 스펙당 게이트(M1·기존 spec [STOP]·M7·Phase-hard-gate)는 요청 단위 1회. Wave 2 는 WARN-first, Wave 3 codex-review 는 blocking.
 - 반환 `status`: `ok`(Wave3 PASS) → 진행 · `skip`(도메인 <3) → 단일 패스 · `stop`(이름 위반/`failedDomains`/Wave3 FAIL/Wave3 결과 부재) → **[STOP]**.
 
+**Phase 2.4 — 화면·시안** (UI 가 있을 때 · 옛 `/prd` 5~8단계 · #4084): spec `## 화면`(`### 화면 목록` · `### 화면 흐름 지도` · `### 화면별 명세` — 템플릿 `spec-template-base.md`)을 아래 순서로 채운다. UI 가 없으면 `## 화면` 에 `해당 없음 — <이유 1줄>` 로 끝. 순서 근거(#3142): 빠진 정보는 그림에서 먼저 보이고 비개발자 검토는 그림이 빠르다 · 범위(§2 FR `우선순위: Must | Nice` · §5.1 범위 밖)를 정하기 전에 화면부터 그리면 다시 그린다. 설계 폴더 = `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-dirs.py" --project-root <레포> --kind design`(rc 2 → [STOP]) — 시안·한 장 보기는 거기, spec 은 `.specify/specs/` 하나(설계 폴더에 복제하지 않는다).
+1. 화면 목록(화면 ID kebab-case 영문·고유 | 화면명 | 1줄 목적) + 화면 흐름 지도(Mermaid · 노드 = 화면 ID 전수 · 목록 밖 노드 금지 · 화살표 = 버튼·조건 `-->|조건|` · 노드마다 `click {화면ID} "s3-mockup/{화면ID}.png"` · 한 장 ≤15 노드, 넘으면 `#### 영역: {이름}` 아래 여러 장 · 영역 사이 이동은 양쪽에 같은 노드) → 검사 1회 `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/prd-screen-flow-check.py <spec>` — WARN(빠진 화면·목록 밖 노드·15 노드 초과)은 spec 을 고치고 진행(비차단).
+2. lofi 뼈대 — 배치 합의: 화면 전수 `/forge-mockup --lofi --screen <화면ID> --project <설계 폴더>` → 회색 박스 `s3-mockup/lofi/{화면 ID}.{html,png}`(싼 모델 · 스타일 가이드·`DESIGN.md` 없이 · #2801). 사람과 배치를 합의한다 — 그림에서 빠진 정보·버튼을 찾으면 FR·화면 목록을 먼저 고친다. 합의 전 **[STOP]**.
+3. 화면별 명세(`### 화면별 명세`): 화면마다 lofi 그림 + 상태(기본·빈·로딩·오류·권한 없음 — 상태마다 무엇이 보이나 1줄) + 주석표 `| # | 요소 | 동작(누르면 → 어디로·무엇이) | 오류(조건 → 표시·복구) | 역할 | FR |`(그림 위 번호 ①② = 표 #). 화면 전수 · 빠진 화면 = **[STOP]**. 화면에 보이는 상태·동작·오류·권한은 여기에만 적는다.
+4. 디자인 방향 + hifi 시안(Human 이 방향을 정한 뒤 · 배치는 2번 lofi 합의를 따른다): 참고 자료면 `/screenshot-analyze` → 스타일 키워드(URL = https 공개 출처만 / 이미지 ≤10MB, PNG·JPG·WEBP, EXIF 제거, PII·시크릿 금지 → 위반 입력 폐기 · 출처·라이선스는 style-guide 에) → `/style-forge` → `YYYY-MM-DD-s3-style-guide.md` · 토큰: `shared/design-tokens/DESIGN.template.md` → 설계 폴더 `DESIGN.md` 로 복사해 style-guide·전역 기본값 근거로 채운다(direction 1개, primitive→semantic→component · 이후 Edit-only · 프론트는 권고) · 시안 1순위 `/forge-mockup --screen <화면ID> --project <설계 폴더>`(GPT 코더 코드 목업 · 신규 시안 sol · #3232) → `s3-mockup/{화면 ID}.png` + 코드 `s3-mockup/{화면 ID}/` 보존(HTML = `s4-pages` 초안) · `DESIGN.md` 없으면 경고(토큰 먼저) · 2순위 Claude Design 은 1순위 불가·실패 때만(Human 통보) · ⛔ Stitch · 화면마다 1개 이상, 누락 = [STOP] · 검수: `/forge-review --lens ui` (1회 — CRITICAL ≥1 이면 고치고 `/visual-loop` 캡처로 확인 · 다시 부르지 않는다 · 2회 고쳐도 남으면 [STOP]).
+5. 한 장 보기: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/plan-onepage.py <설계 폴더> --spec <spec 경로>` → `plan-onepage.html`(안 할 것→요약→기능→흐름→시안 · 빈 칸은 "없음" · 비차단). 승인([STOP] M1)은 화면 포함 spec 으로 받는다.
+
 **Phase 2.5 — HTML 시각화**: 복잡도 High(아키텍처·UI 옵션·상태 전이) Spec 만 HTML 병행 제안 → `§Phase 2.5 HTML 시각화`.
 
-**Phase 2.6 — 완결성체인 (WARN)**: PRD→FR→AC(acceptance_predicate)→디자인 체인 — 끊긴 노드=0, predicate 측정가능성, 화면 매핑(oracle-manifest), UI-상태(G5), 시각 바인딩(F3). 갭 → WARN(BLOCK 아님). 상세 `§Phase 2.6 완결성체인 세부`.
+**Phase 2.6 — 완결성체인 (WARN)**: intent→FR→AC(acceptance_predicate)→화면(spec `## 화면`) 체인 — 끊긴 노드=0, predicate 측정가능성, 화면 매핑(oracle-manifest), UI-상태(G5), 시각 바인딩(F3). 갭 → WARN(BLOCK 아님). 상세 `§Phase 2.6 완결성체인 세부`.
 
 **Phase 2.7 — conflict-detection (작성 전)**: 기존 Spec·ADR 충돌 → [STOP] 해소 후 진행 / 없으면 `conflict-detection: PASS`. 상세 `§Phase 2.7 conflict-detection`.
 

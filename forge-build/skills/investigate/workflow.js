@@ -108,42 +108,42 @@ const VERIFY_SCHEMA = {
 // ── Stage 0: RAG ──────────────────────────────────────────────────────────────
 phase('RAG')
 const ragResult = await agent(
-  `investigate Stage 0 RAG 선검색. issue="${issue}" target="${target}". ` +
-  `1)learnings.jsonl grep 키워드(${issue.split(' ').slice(0, 3).join('/')}). ` +
+  `investigate Stage 0 RAG 선검색. issue="\${issue}" target="\${target}". ` +
+  `1)learnings.jsonl grep 키워드(\${issue.split(' ').slice(0, 3).join('/')}). ` +
   `2)git log -- <target> --oneline (최근 10커밋) → 관련 변경 식별. ` +
   `3)bug_report/ 디렉토리 grep 유사 버그. ` +
   `existingCases[] + gitChanges[] + ragStatus 반환.`,
   { label: 'rag:search', phase: 'RAG', schema: RAG_SCHEMA, agentType: 'Explore' }
 )
-log(`[RAG] status=${ragResult?.ragStatus} cases=${ragResult?.existingCases?.length || 0}개 gitChanges=${ragResult?.gitChanges?.length || 0}개`)
+log(`[RAG] status=\${ragResult?.ragStatus} cases=\${ragResult?.existingCases?.length || 0}개 gitChanges=\${ragResult?.gitChanges?.length || 0}개`)
 
 // ── Stage 1: Investigate ──────────────────────────────────────────────────────
 phase('Investigate')
 const investigateResult = await agent(
-  `investigate Stage 1 소스 탐색. issue="${issue}" target="${target}". ` +
-  `RAG 결과: ${JSON.stringify(ragResult)}. ` +
-  `0.gitnexus_query: "${issue.slice(0, 50)}" → 관련 Process + Symbol. ` +
+  `investigate Stage 1 소스 탐색. issue="\${issue}" target="\${target}". ` +
+  `RAG 결과: \${JSON.stringify(ragResult)}. ` +
+  `0.gitnexus_query: "\${issue.slice(0, 50)}" → 관련 Process + Symbol. ` +
   `1.에러 재현: 에러 메시지·스택 추출 (로그/스크린샷/테스트 실행). ` +
   `2.의심 파일 탐색: grep 에러 메시지 + git blame 최근 변경 파일. ` +
   `3.경계 식별: 어떤 컴포넌트 책임 경계에서 버그 발생? ` +
   `suspectFiles[] + graphAnalysis + errorMessages[] 반환.`,
   { model: 'sonnet', label: 'investigate:source', phase: 'Investigate', schema: INVESTIGATE_SCHEMA }
 )
-log(`[Investigate] suspectFiles=${investigateResult?.suspectFiles?.length}개 risk=${investigateResult?.graphAnalysis?.riskLevel}`)
+log(`[Investigate] suspectFiles=\${investigateResult?.suspectFiles?.length}개 risk=\${investigateResult?.graphAnalysis?.riskLevel}`)
 
 // ── Stage 2: Analyze ──────────────────────────────────────────────────────────
 phase('Analyze')
 const analyzeResult = await agent(
-  `investigate Stage 2 가설 수립. issue="${issue}". ` +
-  `RAG: ${JSON.stringify(ragResult?.existingCases)}. ` +
-  `조사 결과: ${JSON.stringify(investigateResult)}. ` +
+  `investigate Stage 2 가설 수립. issue="\${issue}". ` +
+  `RAG: \${JSON.stringify(ragResult?.existingCases)}. ` +
+  `조사 결과: \${JSON.stringify(investigateResult)}. ` +
   `철칙: 가설 최소 2개 이상 수립 (1개뿐이면 의심). ` +
   `각 가설: id + title + rootCause(5W1H) + evidence[] + confidence(HIGH/MEDIUM/LOW) + impactFiles[]. ` +
   `gitnexus_impact({target: 최의심 함수, direction: upstream, maxDepth: 2}) 호출 → 영향 범위. ` +
   `primaryHypothesis(가장 높은 confidence id) + hypotheses[] 반환.`,
   { model: 'opus', label: 'analyze:hypotheses', phase: 'Analyze', schema: ANALYZE_SCHEMA }
 )
-log(`[Analyze] 가설=${analyzeResult?.hypotheses?.length}개 primary=${analyzeResult?.primaryHypothesis}`)
+log(`[Analyze] 가설=\${analyzeResult?.hypotheses?.length}개 primary=\${analyzeResult?.primaryHypothesis}`)
 
 if (skipVerify) {
   log('[STOP] skipVerify=true → Stage 3 skip. 가설 목록 반환.')
@@ -159,8 +159,8 @@ if (skipVerify) {
 phase('Verify')
 const verifyResult = await agent(
   `investigate Stage 3 가설 검증. ` +
-  `primaryHypothesis="${analyzeResult?.primaryHypothesis}". ` +
-  `가설 목록: ${JSON.stringify(analyzeResult?.hypotheses)}. ` +
+  `primaryHypothesis="\${analyzeResult?.primaryHypothesis}". ` +
+  `가설 목록: \${JSON.stringify(analyzeResult?.hypotheses)}. ` +
   `1)재현 테스트 코드 작성 (FAIL 먼저 확인). ` +
   `2)의심 코드 라인 직접 점검. ` +
   `3)gitnexus_detect_changes 호출 → 예상 vs 실제 변경 범위 확인. ` +
@@ -170,7 +170,7 @@ const verifyResult = await agent(
   `\n\n[STOP] Stage 3 완료 후 Stage 4+5(재현+수정)는 /forge-fix ③ 으로 위임.`,
   { model: 'opus', label: 'verify:hypothesis', phase: 'Verify', schema: VERIFY_SCHEMA }
 )
-log(`[Verify] reproduced=${verifyResult?.reproduced} confirmed="${verifyResult?.rootCauseConfirmed?.slice(0, 60)}"`)
+log(`[Verify] reproduced=\${verifyResult?.reproduced} confirmed="\${verifyResult?.rootCauseConfirmed?.slice(0, 60)}"`)
 log(`[STOP] Stage 4+5 = /forge-fix ③ (Workflow 범위 외)`)
 
 return {

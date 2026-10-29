@@ -18,7 +18,7 @@ description: "사용 가이드를 써서 검사한다 — '가이드 써줘'·'�
    L="${FORGE_ROOT:-$HOME/forge}/shared/scripts/guide-lint.py"
    DIR=$(python3 "$L" --guide-dir)
    ```
-   순서: 환경변수 `FORGE_READONLY_GUIDE_DIR` → `<프로젝트 루트>/.claude/readonly-session.json` 의 `guide_dir` → 기본은 세션으로 갈린다(판정은 검사기 한 곳): 쓰기 세션 = forge 레포 `${FORGE_ROOT:-$HOME/forge}/docs/guides`(머지되면 팀원 PC 가 `forge-update` 로 받는다 · 검사기가 stderr 에 PR 안내 1줄) · 읽기 세션이거나 forge 레포를 못 쓰면 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/guides`(세션 종료 때 autosync 가 커밋·공유). 개인·산출물 가이드는 설정 키 `guide_dir`(예: `"~/forge-outputs/docs/guides"`)로 forge-outputs 에 둔다. 읽기 전용 세션이 쓰기를 허용하는 폴더와 같다.
+   순서: 환경변수 `FORGE_READONLY_GUIDE_DIR` → `<프로젝트 루트>/.claude/readonly-session.json` 의 `guide_dir` → 기본은 세션으로 갈린다(판정은 검사기 한 곳): 쓰기 세션 = forge 레포 `${FORGE_ROOT:-$HOME/forge}/docs/guides`(머지되면 팀원 PC 가 `forge-update` 로 받는다 · 검사기가 stderr 에 PR 안내 1줄) · 읽기 세션이거나 forge 레포를 못 쓰면 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/guides`(세션 종료 때 autosync 가 커밋·공유). 개인·산출물 가이드는 설정 키 `guide_dir`(예: `"${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/guides"`)로 forge-outputs 에 둔다. 읽기 전용 세션이 쓰기를 허용하는 폴더와 같다.
 2. **같은 주제 찾기(주제당 한 파일)** — `ls "$DIR"` 와 `grep -ril "<주제 낱말>" "$DIR" --include=*.md` 로 같은 주제 파일을 찾는다. 있으면 **그 파일을 고친다**(이름 유지 · 머리말 `updated:` 를 오늘로) — 새 날짜 파일을 만들지 않는다. 없으면 새 파일 `<topic>.md`(날짜 없는 이름 · topic = 영문 소문자-하이픈 슬러그).
 3. **실측** — 가이드에 적을 명령을 실제로 돌려 본다. `## 되면 보이는 것` 에는 실제 출력을 적는다. 돌릴 수 없으면 그 줄에 "확인 필요"(추측으로 채우지 않는다).
 4. **쓰기** — 틀은 `assets/guide-template.md`(쓸 때 Read). 절 순서·이름을 바꾸지 않는다: 쉽게 말하면 → 누가·언제 → 준비 → 순서 → 되면 보이는 것 → 막히면 → 확인 명령.

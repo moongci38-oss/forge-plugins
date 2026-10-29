@@ -36,7 +36,7 @@ MUST 출력 형식을 프롬프트에 직접 포함한다. 모델 = 스크립트
 ## Step 3: 분석 실행 — `analyze-screenshot.sh` (Codex CLI `-i` 첨부, 캐시: output-file 있으면 호출 안 함)
 
 ```bash
-bash ~/.claude/scripts/analyze-screenshot.sh "{IMAGE_PATH}" \
+bash $HOME/.claude/scripts/analyze-screenshot.sh "{IMAGE_PATH}" \
   "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" "{Step 2 전체 프롬프트}"
 # 비교(2-3장 1회 전송, 4장+는 순차): 결과 파일 -compare.md, 뒤에 "{IMAGE2_PATH}" "{IMAGE3_PATH}"
 ```
@@ -45,12 +45,12 @@ bash ~/.claude/scripts/analyze-screenshot.sh "{IMAGE_PATH}" \
 
 Verifier(컴포넌트별 병렬): bbox 로 `/tmp/verify_{comp_id}.png` 크롭(PIL, 정규화 x/y/w/h × 이미지 크기) 후
 ```bash
-bash ~/.claude/scripts/analyze-screenshot.sh "/tmp/verify_{comp_id}.png" "" \
+bash $HOME/.claude/scripts/analyze-screenshot.sh "/tmp/verify_{comp_id}.png" "" \
   "'{comp_name}'({comp_type}) 가 완전히 포함됐나? 잘렸으면 {\"clipped\": true, \"expand\": {\"top\":0,\"bottom\":0,\"left\":0,\"right\":0}}, 아니면 {\"clipped\": false}"
 ```
 잘림 시 expand 만큼 원본 기준 보정 후 재크롭. 이어서 Extractor:
 ```bash
-python3 ~/.claude/scripts/extract-components.py --image "{IMAGE_PATH}" \
+python3 $HOME/.claude/scripts/extract-components.py --image "{IMAGE_PATH}" \
   --analysis "{ANALYSIS_MD_PATH}" --output "docs/assets/screenshot-refs/{YYYY-MM-DD}-{REF_NAME}-components"
 ```
 Kill: bbox JSON 없음 → 재프롬프트 1회 → 실패 시 텍스트 분석만 · Codex 오류 → 즉시 폴백+오류 출력 · 이미지 20MB 초과 → 추출 차단 · 크롭 0개 → 오류+안내.
@@ -86,9 +86,9 @@ S3 GDD(경쟁작 UI 비교) · S4 UI/UX 기획서 · Spec Section 9.5 · Element
 - **AI 크리틱**: 계층 · `style-guide.md` 일관성 · `ai-anti-patterns.md` 안티패턴 · `art-direction-brief.md` 부합.
 
 ## 환경·보안
-- Codex CLI 0.156.1+ 구독 인증(`auth_mode=chatgpt`) · `~/.claude/scripts/analyze-screenshot.sh` · Python 3 · curl(URL 다운로드). 반복 분석 자제(구독 사용량 소비).
+- Codex CLI 0.156.1+ 구독 인증(`auth_mode=chatgpt`) · `$HOME/.claude/scripts/analyze-screenshot.sh` · Python 3 · curl(URL 다운로드). 반복 분석 자제(구독 사용량 소비).
 - 전송 전 확인: 미공개 기능·NDA 베타·PII 화면은 보내지 않는다(공개 스토어/공식 사이트 스크린샷만, PII 는 마스킹).
 
 ## Workflow 실행
-`Workflow({ script: Bash("cat ~/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode, codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") } })` — codexModel = 보낼 길(MCP)의 codex 가 부를 수 있는 sol(#2026) — Codex Vision → Claude 자체 분석 fallback. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 위 Step 직접 실행.
-`crMode`: caller 가 `~/forge/shared/scripts/cr-mode.sh` 조회 후 전달 — `on`(기본, Codex Vision) · `degrade`/`off`(Codex 제외, Claude 자체 Vision). 로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Claude 자체 분석`
+`Workflow({ script: Bash("cat $HOME/.claude/skills/screenshot-analyze/workflow.js"), args: { imagePath, intent, crMode, codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") } })` — codexModel = 보낼 길(MCP)의 codex 가 부를 수 있는 sol(#2026) — Codex Vision → Claude 자체 분석 fallback. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 위 Step 직접 실행.
+`crMode`: caller 가 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-mode.sh` 조회 후 전달 — `on`(기본, Codex Vision) · `degrade`/`off`(Codex 제외, Claude 자체 Vision). 로그: `[cr] screenshot Codex Vision skipped (crMode=<value>) → Claude 자체 분석`

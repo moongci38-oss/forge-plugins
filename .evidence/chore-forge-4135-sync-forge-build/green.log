@@ -1,0 +1,8 @@
+# forge#4135 forge-build 고친 뒤 — forge develop c70d79959 · 0.4.31 → 0.4.32
+$ … --verify | grep -c 'DRIFT: forge-build/'
+DRIFT_forge-build=0
+# 지운 것(forge 에서 지워진 것): forge-build/skills/forge-pge 
+없음(OK): forge-build/skills/forge-pge
+$ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-build | tail -2
+=== 결과 ===
+✅ GATE PASS

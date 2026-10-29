@@ -13,7 +13,7 @@ model: sonnet
 > 사용: `/investigate "로그인 후 세션이 유지되지 않는 문제"`
 
 **Workflow**: RAG(Explore) → Investigate(소스+gitnexus) → Analyze(가설 2개+) → Verify → [STOP] human gate. Stage 4+5 는 gate 후 healer/forge-pge 위임.
-`Workflow({ script: Bash("cat ~/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })` — skipVerify=true 면 Stage 3 skip(가설 목록만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 이면 직접 실행.
+`Workflow({ script: Bash("cat $HOME/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })` — skipVerify=true 면 Stage 3 skip(가설 목록만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 이면 직접 실행.
 
 ## 참조 (필요 시 Read)
 - 재현 루프 구축법 11종·tight 4기준 → `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/bug-feedback-loop.md` (red-capable 명령 전 가설 금지, 가설 3~5개 랭킹)
@@ -37,7 +37,7 @@ model: sonnet
 - API 응답: body 를 `docs/bug_report/artifacts/{BUG-ID}-api-response.json` 저장("데이터 없음" vs 버그 구분).
 - 과거 버그 검색(필수):
 ```bash
-LEARN_BY=investigate bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
+LEARN_BY=investigate bash $HOME/.claude/scripts/learnings.sh load bug-fix-pattern 2>/dev/null
 ```
   + `rag-search("{project} {증상 키워드}")` → 있으면 "관련 과거 버그" 섹션.
 - 다층 시스템: 각 컴포넌트 경계에 입출력·설정·상태 로깅 → 1회 실행으로 깨진 경계 식별 → 그 레이어만 Stage 2.
@@ -75,7 +75,7 @@ LEARN_BY=investigate bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>
 ## Stage 6: 버그 로그 저장 (Stage 5 넘김 후 필수)
 - `forge-outputs/01-research/bugs/{project}/{YYYY-MM-DD}-{slug}.md` (템플릿 `reference.md §Stage 6`) — rag-search 인덱싱 대상.
 ```bash
-bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
+bash $HOME/.claude/scripts/learnings.sh append --category bug-fix-pattern \
   --summary "<증상 1줄>" --trigger "<재현 조건 1줄>" \
   --apply "<근본 원인 + 수정 패턴 1줄>" \
   --evidence "01-research/bugs/{project}/{YYYY-MM-DD}-{slug}.md"
@@ -84,7 +84,7 @@ bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
 ```bash
 REPO=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)")" 2>/dev/null || echo unknown)   # 워크트리에서도 본 저장소 이름
 [ "$REPO" != unknown ] && \
-  OPENAI_API_KEY="" timeout 180 bash ~/forge/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" 2>&1 | grep '^PROJECT_KNOWLEDGE_SYNC=' || echo "PROJECT_KNOWLEDGE_SYNC=no-result"
+  OPENAI_API_KEY="" timeout 180 bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" 2>&1 | grep '^PROJECT_KNOWLEDGE_SYNC=' || echo "PROJECT_KNOWLEDGE_SYNC=no-result"
 ```
 
 **Stage 7 — Codex bugfix 리뷰** (권고, 자동은 `CODEX_REVIEW_AUTO_STAGES` 에 `bugfix`|`all` 일 때만): `/forge-review --stage bugfix --target <patch file or PR-N>` — 우회 패치·회귀·재현 적정성·부작용. blocking 아님(WARN/FAIL → 사용자 컨펌). 결과 `forge-outputs/docs/reviews/bugfix/{date}-{slug}.{md,json}`. 실패 시 [[pev-self-correction]].

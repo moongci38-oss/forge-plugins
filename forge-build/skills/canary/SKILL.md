@@ -50,7 +50,7 @@ model: haiku
    ```
    - 입력: 에러율 %, p95 ms, 메모리 %, HTTP 상태 + 선택적 `baseline`
    - 출력: `{verdict, mode, failedChecks, warnings, specGaps, unverified, rollbackRecommended, recommendation}`
-   - **FAIL**: "롤백 권고 — dev·stg 는 `python3 ~/forge/shared/scripts/release-engine.py rollback --milestone <묶음> --env <dev 또는 stg>` 한 줄로 직전 배포 sha 로 되돌린다(#3759). prod 롤백은 사람이 한다." · **WARN**: 모니터링 지속 권장
+   - **FAIL**: "롤백 권고 — dev·stg 는 `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/release-engine.py rollback --milestone <묶음> --env <dev 또는 stg>` 한 줄로 직전 배포 sha 로 되돌린다(#3759). prod 롤백은 사람이 한다." · **WARN**: 모니터링 지속 권장
    - **PASS**: "배포 안정. platform층(Release) 진행 가능." · **INCONCLUSIVE**: 헬스 미측정 → 자동 진행 금지
    - 임계값 정본 = `shared/scripts/canary-judge.mjs` 의 `ABSOLUTE_THRESHOLDS`·`RELATIVE_THRESHOLDS` 상수(옛 정본 `agents-archived/canary-judge.md` 와 그 드리프트 가드는 #1370 보관 폴더 삭제 때 함께 빠졌다).
 4. 리포트 생성 → `docs/canary/YYYY-MM-DD-canary-report.md` 저장
@@ -87,7 +87,7 @@ model: haiku
 
 ## Workflow 통합
 패턴: parallel() 3종 메트릭(에러율/응답시간/메모리) → **canary-judge.mjs 결정론 판정** → `--self-check` 재계산 diff.
-실행: `Workflow({ script: Bash("cat ~/.claude/skills/canary/workflow.js"), args: { healthCheckUrl, duration, env, forgeRoot } })`
+실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/canary/workflow.js"), args: { healthCheckUrl, duration, env, forgeRoot } })`
 - 판정은 **Bash 실행기 에이전트 1개**가 `node canary-judge.mjs` 로 돌리고 stdout JSON 을 그대로 옮긴다. `forgeRoot`(절대경로) 미지정 시 `${FORGE_ROOT:-$HOME/forge}`.
 - 워크플로 본체에서 파일·셸 접근은 `agent()` 뿐 — `import()`·`require()` 는 구문 단계에서 거부된다.
 - 선택 인자: `baseline`(있으면 상대 판정 우선) · `httpStatus` · `observedDurationMin`(C3 검증용).

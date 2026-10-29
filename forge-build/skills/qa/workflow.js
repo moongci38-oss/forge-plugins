@@ -181,12 +181,12 @@ let matrixAccounts = []  // 빈 배열 = 계정 미분기(기존 단일 세션 �
 if (useMatrix) {
   phase('Setup')
   const resolveResult = await agent(
-    `Phase A0 — QA 리소스 해석. app="${appArg || ''}" domains="${domainsArg || ''}" accounts="${accountsArg || ''}". ` +
+    `Phase A0 — QA 리소스 해석. app="\${appArg || ''}" domains="\${domainsArg || ''}" accounts="\${accountsArg || ''}". ` +
     `워크스페이스 루트의 qa-config(.claude/qa-config.json 또는 docs/qa/qa-config.json(qa-setup 생성 경로) ` +
     `또는 workspace 루트 동일 파일 — 이 우선순위로 탐색, 스키마: ` +
-    `~/forge/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
+    `\${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
     `없으면 프로젝트 실측으로 도메인 자동열거(dev-spec 디렉토리 목록 또는 App Router 파일트리 apps/web/src/app/ 등)를 ` +
-    `fallback으로 시도하되, 그마저 불가하면 domains=${JSON.stringify(scopeCsv.length ? scopeCsv : ['full'])} ` +
+    `fallback으로 시도하되, 그마저 불가하면 domains=\${JSON.stringify(scopeCsv.length ? scopeCsv : ['full'])} ` +
     `그대로 유지(graceful fallback, guideStop=false)하라. ` +
     `app/domains 입력값 매칭은 kebab-case·공백·대소문자 무시 정규화 + alias 테이블 허용. 'all'은 해당 축 전체 자동 열거. ` +
     `accounts는 qa-config accounts 블록 키만 사용(크레덴셜 평문 절대 금지 — env ref만), 명시 안 하면 accounts=[]. ` +
@@ -198,13 +198,13 @@ if (useMatrix) {
   )
   if (!resolveResult) { log('[STOP] Phase A0 실패 — 리소스 해석 불가'); return { error: 'phase-a0-failed' } }
   if (resolveResult.guideStop) {
-    log(`[GUIDE-STOP] ${resolveResult.message}`)
+    log(`[GUIDE-STOP] \${resolveResult.message}`)
     return { error: 'guide-stop', message: resolveResult.message, available: resolveResult.available }
   }
   matrixApps = resolveResult.apps?.length ? resolveResult.apps : [null]
   matrixDomains = resolveResult.domains?.length ? resolveResult.domains : (scopeCsv.length ? scopeCsv : ['full'])
   matrixAccounts = resolveResult.accounts?.length ? resolveResult.accounts : []
-  log(`[A0] apps=${JSON.stringify(matrixApps)} domains=${JSON.stringify(matrixDomains)} accounts=${JSON.stringify(matrixAccounts)} exhaustive=${exhaustiveMode}`)
+  log(`[A0] apps=\${JSON.stringify(matrixApps)} domains=\${JSON.stringify(matrixDomains)} accounts=\${JSON.stringify(matrixAccounts)} exhaustive=\${exhaustiveMode}`)
 }
 
 // apps × domains = 독립 브랜치/PR 축(구조적 fan-out). accounts는 각 combo의 Phase C 내부에서
@@ -219,34 +219,34 @@ for (const a of matrixApps) {
 
 // ── Phase A~H 본체 — 1 combo(=1 app×domain)당 1회 실행 (기존 로직 그대로, 함수로 추출) ──
 async function runOne({ scope, appId, accounts, exhaustive, tag }) {
-  const tagPrefix = tag ? `${tag}:` : ''
-  const appNote = appId ? ` app="${appId}".` : ''
+  const tagPrefix = tag ? `\${tag}:` : ''
+  const appNote = appId ? ` app="\${appId}".` : ''
 
   // ── Phase A+B: Setup ───────────────────────────────────────────────────────────
   phase('Setup')
   const branchResult = await agent(
-    `Phase A — QA 브랜치 생성. scope="${scope}" mode="${mode}".${appNote} ` +
+    `Phase A — QA 브랜치 생성. scope="\${scope}" mode="\${mode}".\${appNote} ` +
     `qa SKILL.md Phase A 절차: develop 확인, ` +
     // root-cause(D2d, 2026-07-07): forge-implement preflight와 동일한 stale-base 확인(WARN-only, 비차단).
     //   base(develop)가 origin 대비 뒤처졌으면 낡은 base 위 QA 위험을 경고만 한다(fetch 실패=fail-open 무시).
     `stale-base preflight(WARN-only, 비차단): "git fetch origin develop 2>/dev/null && ` +
     `git rev-list --left-right --count origin/develop...HEAD" 실행 → behind(좌측 카운트) ≥ 10이면 ` +
     `"[stale-base WARN] 현재 브랜치가 origin/develop 대비 {behind}커밋 뒤처짐 — git rebase origin/develop 권장(비차단)" 출력 후 그대로 진행(fetch 실패/원격없음=silent skip). ` +
-    `fix/qa-${appId ? appId + '-' : ''}${scope}-* idempotency 검사, ` +
-    `신규 브랜치 생성(fix/qa-${appId ? appId + '-' : ''}${scope}-$(date +%Y-%m-%d)). ` +
+    `fix/qa-\${appId ? appId + '-' : ''}\${scope}-* idempotency 검사, ` +
+    `신규 브랜치 생성(fix/qa-\${appId ? appId + '-' : ''}\${scope}-$(date +%Y-%m-%d)). ` +
     `LOG_HTTP=1 LOG_SOCKET=1 LOG_DB=1 export. ` +
     // root-cause(A6, 2026-07-07): 앱-특정 인프라(라이선스 env 미주입 광역 500 등)를 스킬이 몰라 수동 대처가 필요했다.
     //   qa-config.serverSetup(reference.md §qa-config 스키마)이 있으면 그 startCommand/licenseEnv/healthUrl로
     //   서버를 기동·판정한다 — 앱 특정값 하드코딩 없음, 전부 프로젝트 선언.
     `서버 기동(선택): qa-config에 serverSetup이 있으면 licenseEnv에 나열된 env 키를 .env/secret에서 주입 후 startCommand로 기동, healthUrl 있으면 그 URL이 응답할 때까지 readyTimeoutSec(기본 60초) 대기 후 진행. serverSetup 미선언·기동 실패 시 → 기존 스택 자동감지 fallback(WARN, 비차단). ` +
     `브랜치명 + log 경로 반환.`,
-    { model: 'haiku', label: `${tagPrefix}phase-a:branch`, phase: 'Setup', schema: BRANCH_SCHEMA }
+    { model: 'haiku', label: `\${tagPrefix}phase-a:branch`, phase: 'Setup', schema: BRANCH_SCHEMA }
   )
   if (!branchResult) { log('[STOP] Phase A 실패 — 브랜치 생성 불가'); return { error: 'phase-a-failed' } }
-  log(`[A] 브랜치: ${branchResult.branch}`)
+  log(`[A] 브랜치: \${branchResult.branch}`)
 
   const scenariosResult = mode === 'hotfix' ? null : await agent(
-    `Phase B — QA 시나리오 작성. 브랜치=${branchResult.branch}. ` +
+    `Phase B — QA 시나리오 작성. 브랜치=\${branchResult.branch}. ` +
     `qa-setup → gitnexus route_map → scenarios.md 8 카테고리 강제(모두 1개+). ` +
     // root-cause(C1, 2026-07-07): route-centric(route_map) 커버리지는 "메뉴가 존재하지 않는 화면을
     //   가리키는" 사각지대를 못 잡는다. qa-config가 menuSource(BE 메뉴 테이블 쿼리 또는 메뉴 API
@@ -256,16 +256,16 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     `그 소스로 ACTIVE 메뉴 항목을 열거 → (active_menu 경로 ∖ route_map 구현 라우트) = 미구현 메뉴 목록을 계산해 ` +
     `scenarios.md "미구현 메뉴(unimplemented-menu) 커버리지" 절에 surface(각 항목은 후속 BROKEN_LINK 후보). ` +
     `menuSource 미선언·조회 실패 시 → route_map 단독 fallback + "[WARN] menu-centric 커버리지 off — 존재하지 않는 화면을 가리키는 메뉴는 미탐지(route-centric 사각지대)" 1줄 명시(비차단). ` +
-    `scope="${scope}" 필터 → scenarios-filtered.md. 면제 시 사유 명시. ` +
+    `scope="\${scope}" 필터 → scenarios-filtered.md. 면제 시 사유 명시. ` +
     (exhaustive ? `exhaustive 모드 — Phase C T2에서 수집될 clickable 요소 전수 크롤 결과가 이 시나리오 세트를 보강한다는 점을 scenarios.md에 1줄 명시. ` : '') +
     `scenariosPath + filteredCount 반환.`,
-    { model: 'opus', label: `${tagPrefix}phase-b:scenarios`, phase: 'Setup', schema: SCENARIOS_SCHEMA }
+    { model: 'opus', label: `\${tagPrefix}phase-b:scenarios`, phase: 'Setup', schema: SCENARIOS_SCHEMA }
   )
   if (mode !== 'hotfix' && !scenariosResult) {
     log('[STOP] Phase B 실패 — 시나리오 미작성')
     return { error: 'phase-b-failed' }
   }
-  log(`[B] 시나리오: ${scenariosResult?.filteredCount || 0}개`)
+  log(`[B] 시나리오: \${scenariosResult?.filteredCount || 0}개`)
 
   // ── Phase C: Discover (T1~T7 병렬, accounts 매트릭스 시 T1/T2 계정별 fan-out) ──────
   // root-cause: T4(통합 flow 테스트)/T5(E2E 시나리오 재실행)는 T1·T2와 커버리지 중복
@@ -275,7 +275,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   phase('Discover')
   const seenBugs = new Set()
   const allBugs = []
-  const _bugKey = b => `${(b.file||'').toLowerCase()}|${(b.type||'').toLowerCase()}|${(b.title||'').toLowerCase().slice(0, 80)}`
+  const _bugKey = b => `\${(b.file||'').toLowerCase()}|\${(b.type||'').toLowerCase()}|\${(b.title||'').toLowerCase().slice(0, 80)}`
   let consecEmpty = 0
   // root-cause: P-7 라운드 카운터 — 라운드별 고유 라벨 보장 (캐시 히트 방지).
   let round = 0
@@ -288,29 +288,29 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   do {
     round++
     const perAccountFns = accountBattery.flatMap(acct => {
-      const acctNote = acct ? ` account="${acct}"(qa-config accounts["${acct}"] 크레덴셜 env ref로 선행 로그인, 평문 절대 금지).` : ''
-      const acctSuffix = acct ? `-${acct}` : ''
-      const acctTagInstr = acct ? ` bugs[]에 account="${acct}" 태깅.` : ''
+      const acctNote = acct ? ` account="\${acct}"(qa-config accounts["\${acct}"] 크레덴셜 env ref로 선행 로그인, 평문 절대 금지).` : ''
+      const acctSuffix = acct ? `-\${acct}` : ''
+      const acctTagInstr = acct ? ` bugs[]에 account="\${acct}" 태깅.` : ''
       // root-cause(C2+C3, 2026-07-07): 접근/격리 판정 오탐 방지. 기대-접근 매트릭스는 qa-config에서만
       //   도출한다(앱 특정 역할·라우트 하드코딩 없음) — menuSource.roleField(메뉴별 접근 역할) 또는
-      //   accounts["${acct}"].role/expectedRoutes. reference.md §Coverage & Isolation (C2/C3) 참조.
+      //   accounts["\${acct}"].role/expectedRoutes. reference.md §Coverage & Isolation (C2/C3) 참조.
       const accessInstr = acct
         ? ` [C2 404 역참조] 라우트가 404면 무조건 isolation-OK로 흡수 금지 — 활성 메뉴 목록(C1 menuSource)에서 ` +
           `이 account 역할이 접근 가능해야 하는 메뉴가 그 라우트를 가리키면 BROKEN_LINK 버그로 승격(권한 있는데 404=항상 버그). ` +
           `isolation(정상 미노출) 판정은 이 역할이 실제로 grant가 없는 경우에만 유효. ` +
-          `[C3 최소권한] 이 account가 도달한 라우트가 기대-접근 집합(menuSource roleField 또는 accounts["${acct}"].expectedRoutes)에 없으면(2xx인데 grant 없음) over-exposure/leak 버그로 파일링(403/redirect 기대). ` +
+          `[C3 최소권한] 이 account가 도달한 라우트가 기대-접근 집합(menuSource roleField 또는 accounts["\${acct}"].expectedRoutes)에 없으면(2xx인데 grant 없음) over-exposure/leak 버그로 파일링(403/redirect 기대). ` +
           `기대-접근 매트릭스 부재 시 "[WARN] 최소권한 검증 제한(기대-접근 매트릭스 없음)" 1줄 명시(비차단).`
         : ''
       return [
         () => agent(
-          `Phase C T1 — API 전수 테스트. scenarios=${scenariosResult?.scenariosPath}.${acctNote} ` +
-          `verify.sh 실행. 백엔드 7축(HTTP/스키마/로그/데이터무결성/FR/Latency/트랜잭션).${accessInstr} ` +
-          `FAIL = flaky 2회 재시도. 버그 발견 시 artifacts/ 3종 로그 수집.${acctTagInstr} testType="T1".`,
-          { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T1-api${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
+          `Phase C T1 — API 전수 테스트. scenarios=\${scenariosResult?.scenariosPath}.\${acctNote} ` +
+          `verify.sh 실행. 백엔드 7축(HTTP/스키마/로그/데이터무결성/FR/Latency/트랜잭션).\${accessInstr} ` +
+          `FAIL = flaky 2회 재시도. 버그 발견 시 artifacts/ 3종 로그 수집.\${acctTagInstr} testType="T1".`,
+          { model: 'opus', label: `\${tagPrefix}phase-c-r\${round}:T1-api\${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
         ),
         () => agent(
-          `Phase C T2 — UI 시각 검증. Playwright 3 viewport(mobile/tablet/desktop).${acctNote} ` +
-          `프론트 7축(console/network/js/FR/visual-diff/a11y/interaction).${accessInstr} ` +
+          `Phase C T2 — UI 시각 검증. Playwright 3 viewport(mobile/tablet/desktop).\${acctNote} ` +
+          `프론트 7축(console/network/js/FR/visual-diff/a11y/interaction).\${accessInstr} ` +
           (exhaustive
             ? `exhaustive 모드: playwright-devtools-capture.mjs --crawl 사용(계정 로그인 시 동일 헬퍼 --accounts <로그인시퀀스json>) — ` +
               `페이지 내 clickable 요소(button, a[href], input, select, textarea, [role=button], [onclick], [tabindex]) 전수 열거 후 ` +
@@ -327,8 +327,8 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
               `격리(isolation) 마커 사용 시 반드시 unique 비추측 토큰(예: qa-iso-<uuid>) — 200000 등 둥근/generic 값 금지(isGenericIsolationMarker 기준, C3). ` +
               `[C4 mock-unwired 탐지] 데이터를 표시하는 화면(테이블/목록/카드에 행이 렌더됨)인데 상호작용(클릭/필터제출/탭전환/상세오픈) 후 crawl-trace의 network_delta_since_prev=0(특히 /api·/api/proxy 백엔드 호출 0건)이면 → mock 미배선 의심으로 WARN 버그 파일링(false-green 방지). 근거: 실데이터 화면은 상호작용 시 백엔드를 최소 1회 친다. placeholder('준비중'/빈화면)와 구분 — mock은 그럴듯한 데이터 행을 렌더하지만 상호작용이 서버에 안 닿는다. 신호 부재·판정 모호 시 기존 PASS 유지(fail-open, 비차단). `
             : '') +
-          `FAIL = 4종 로그 수집 + RED before 스크린샷×3.${acctTagInstr} testType="T2".`,
-          { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T2-ui${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
+          `FAIL = 4종 로그 수집 + RED before 스크린샷×3.\${acctTagInstr} testType="T2".`,
+          { model: 'opus', label: `\${tagPrefix}phase-c-r\${round}:T2-ui\${acctSuffix}`, phase: 'Discover', schema: TEST_SCHEMA }
         ),
       ]
     })
@@ -338,7 +338,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
       () => agent(
         `Phase C T3 — DB 데이터 검증. seed 기준 CRUD 결과 + 무결성(FK/nullable/타입). ` +
         `직접 SQL 쿼리로 실제 저장값 확인. testType="T3".`,
-        { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T3-db`, phase: 'Discover', schema: TEST_SCHEMA }
+        { model: 'opus', label: `\${tagPrefix}phase-c-r\${round}:T3-db`, phase: 'Discover', schema: TEST_SCHEMA }
       ),
       () => agent(
         // root-cause: B1 (Wave-4) — forge-check-security 구조화 신호 흡수. verdict/criticalCount/halt 명시 매핑.
@@ -348,12 +348,12 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
         `결과 매핑: verdict=FAIL or criticalCount≥1 → status="FAIL" + haltSignal=true + criticalCount=<N>. ` +
         `HIGH → status="WARN". MEDIUM/LOW → report-only (status 변경 없음). testType="T6". ` +
         `bugs[]에 CRITICAL/HIGH 발견 항목 포함(title+type+complexity="HIGH").`,
-        { model: 'opus', label: `${tagPrefix}phase-c-r${round}:T6-security`, phase: 'Discover', schema: TEST_SCHEMA }
+        { model: 'opus', label: `\${tagPrefix}phase-c-r\${round}:T6-security`, phase: 'Discover', schema: TEST_SCHEMA }
       ),
       () => agent(
         `Phase C T7 — 성능 기준선. scenarios.md GET 엔드포인트 최대 10개 5회 평균. ` +
         `>2000ms → WARN. >5000ms → FAIL. baseline.json 대비 +25% → WARN. testType="T7".`,
-        { model: 'sonnet', label: `${tagPrefix}phase-c-r${round}:T7-perf`, phase: 'Discover', schema: TEST_SCHEMA }
+        { model: 'sonnet', label: `\${tagPrefix}phase-c-r\${round}:T7-perf`, phase: 'Discover', schema: TEST_SCHEMA }
       ),
     ])
 
@@ -370,32 +370,32 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     if (loopUntilDry) {
       if (freshBugs.length === 0) {
         consecEmpty++
-        log(`[C-dry] 신규 없음 (${consecEmpty}/${dryK})`)
+        log(`[C-dry] 신규 없음 (\${consecEmpty}/\${dryK})`)
       } else {
         consecEmpty = 0
-        log(`[C-dry] 신규 버그: ${freshBugs.length}건 (누적 ${allBugs.length}건)`)
+        log(`[C-dry] 신규 버그: \${freshBugs.length}건 (누적 \${allBugs.length}건)`)
       }
     }
   // root-cause: hotfix 모드에서 loopUntilDry 루프 낭비 방지 — hotfix는 단일 패스.
   } while (loopUntilDry && mode !== 'hotfix' && consecEmpty < dryK)
 
-  log(`[C] 발견 버그: ${allBugs.length}건 (${accountBattery.filter(Boolean).length || 0}계정 매트릭스)`)
+  log(`[C] 발견 버그: \${allBugs.length}건 (\${accountBattery.filter(Boolean).length || 0}계정 매트릭스)`)
 
   // ── Phase D: Plan ───────────────────────────────────────────────────────────────
   phase('Plan')
   const planResult = await agent(
-    `Phase D — 버그 수정 계획서. 버그: ${JSON.stringify(allBugs)}. ` +
+    `Phase D — 버그 수정 계획서. 버그: \${JSON.stringify(allBugs)}. ` +
     `docs/qa/$(date +%Y-%m-%d)-bug-fix-plan.md 생성. ` +
     `버그별 필수: 유형/cross_repo/5W1H(Why_hypothesis)/영향파일/복잡도(SIMPLE|MODERATE|HIGH|AMBIGUOUS)/healer분담. ` +
     `버그에 account 필드가 있으면 계획서에도 "발견 계정" 열로 보존(계정별 리포트 분리용, Phase H에서 사용). ` +
     `cross_repo 자동 감지(영향 리포≥2→true). evaluator-contract.json 생성. planPath + bugs[] 반환.`,
-    { model: 'opus', label: `${tagPrefix}phase-d:plan`, phase: 'Plan', schema: PLAN_SCHEMA }
+    { model: 'opus', label: `\${tagPrefix}phase-d:plan`, phase: 'Plan', schema: PLAN_SCHEMA }
   )
   if (!planResult?.bugs?.length) {
     log('[QA] 버그 없음 — PASS')
     return { status: 'PASS', bugsFound: 0, branch: branchResult.branch }
   }
-  log(`[D] 수정 계획: ${planResult.bugs.length}건`)
+  log(`[D] 수정 계획: \${planResult.bugs.length}건`)
 
   // ── Phase E: Fix — Lane A(`/forge-fix`) 위임 (plan v1.1, 2026-07-03) ───────────
   // root-cause(스테일 정리, 2026-07-05): qa 자체 "Phase E"는 plan v1.1로 폐지되었고 수정+검수 로직은
@@ -411,37 +411,37 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   // root-cause: P-3 — healer 호출을 함수로 추출(parallel 배리어 / pipeline 레인 양쪽 재사용).
   //   기존 동작 보존: prLanes off → parallel 배리어(아래 분기). 프롬프트/스키마/worktree 격리 불변.
   const runHealer = (bug) => {
-    const bugLabel = `${tagPrefix}phase-e:healer-bug-${bug.id}`
+    const bugLabel = `\${tagPrefix}phase-e:healer-bug-\${bug.id}`
     const common = { label: bugLabel, phase: 'Fix', schema: HEALER_SCHEMA, agentType: 'healer', isolation: 'worktree' }
     if (bug.complexity === 'HIGH') {
       return agent(
-        `Phase E HIGH — Bug #${bug.id}: ${bug.title}. ` +
-        `cross-repo PGE+5specialist. bug-fix-plan: ${planResult.planPath}. ` +
-        `절대경로 의무(worktree). a0→a1(Why_root_cause)→수정→a4(GREEN×3). bugId=${bug.id}.`,
+        `Phase E HIGH — Bug #\${bug.id}: \${bug.title}. ` +
+        `cross-repo PGE+5specialist. bug-fix-plan: \${planResult.planPath}. ` +
+        `절대경로 의무(worktree). a0→a1(Why_root_cause)→수정→a4(GREEN×3). bugId=\${bug.id}.`,
         common
       )
     }
     if (bug.complexity === 'MODERATE') {
       return agent(
-        `Phase E MODERATE — Bug #${bug.id}: ${bug.title}. ` +
-        `worktree 격리. bug-fix-plan: ${planResult.planPath}. ` +
-        `a0→a1(Why_root_cause)→수정→a4(GREEN×3). bugId=${bug.id}.`,
+        `Phase E MODERATE — Bug #\${bug.id}: \${bug.title}. ` +
+        `worktree 격리. bug-fix-plan: \${planResult.planPath}. ` +
+        `a0→a1(Why_root_cause)→수정→a4(GREEN×3). bugId=\${bug.id}.`,
         common
       )
     }
     if (bug.complexity === 'AMBIGUOUS') {
       // root-cause: Codex HIGH — AMBIGUOUS도 공유 파일 수정 가능. worktree 격리 필수.
       return agent(
-        `Phase E AMBIGUOUS — Bug #${bug.id}: ${bug.title}. ` +
-        `/investigate 4단계 선행 → 재분류 → 수정. bugId=${bug.id}.`,
+        `Phase E AMBIGUOUS — Bug #\${bug.id}: \${bug.title}. ` +
+        `/investigate 4단계 선행 → 재분류 → 수정. bugId=\${bug.id}.`,
         common
       )
     }
     // root-cause: Codex HIGH — SIMPLE 버그도 공유 파일 충돌 가능. worktree 격리 필수.
     return agent(
-      `Phase E SIMPLE — Bug #${bug.id}: ${bug.title}. ` +
-      `단일 파일 수정. bug-fix-plan: ${planResult.planPath}. ` +
-      `a0→a1(Why_root_cause)→수정→a4(GREEN×3). bugId=${bug.id}.`,
+      `Phase E SIMPLE — Bug #\${bug.id}: \${bug.title}. ` +
+      `단일 파일 수정. bug-fix-plan: \${planResult.planPath}. ` +
+      `a0→a1(Why_root_cause)→수정→a4(GREEN×3). bugId=\${bug.id}.`,
       common
     )
   }
@@ -451,18 +451,18 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     // root-cause: P-3 pipeline 레인 — 독립 bug(worktree 격리 = 의존0)을 fix→verify 무배리어 레인으로.
     //   bug A의 검증이 bug B의 수정과 겹침(배리어 제거). 독립성 = worktree 격리 + (선행)P-1 fr-lanes.py.
     //   최종 배치 게이트(Phase F code-reviewer)는 불변 — 레인 검증은 조기 per-bug 신호.
-    log(`[E/P-3] prLanes ON — ${planResult.bugs.length} bug pipeline 레인(fix→verify 겹침). 최종 code-review = Phase F 유지`)
+    log(`[E/P-3] prLanes ON — \${planResult.bugs.length} bug pipeline 레인(fix→verify 겹침). 최종 code-review = Phase F 유지`)
     healerResults = await pipeline(
       planResult.bugs,
       (bug) => runHealer(bug),
       (fixRes, bug) => agent(
-        `Phase E/P-3 레인 검증 — Bug #${bug.id}: ${bug.title}. ` +
+        `Phase E/P-3 레인 검증 — Bug #\${bug.id}: \${bug.title}. ` +
         // 구 표기 "cr-bug 조기 검증"(Codex 래퍼) 은 2026-09-16 폐기(검수 다이어트 §A2) — 레인 검증은 RED→GREEN 증거 확인만 한다.
-        `해당 fix(worktree)의 RED→GREEN 증거(healer.log a0/a4 · TEST_PROOF) 조기 확인. Codex·/cr-* 래퍼 호출 금지. fixed=${fixRes?.fixed}. 한 줄 verdict(PASS/WARN/FAIL) + bugId=${bug.id}.`,
-        { model: 'opus', label: `${tagPrefix}phase-e:lane-verify-${bug.id}`, phase: 'Fix', schema: HEALER_SCHEMA }
+        `해당 fix(worktree)의 RED→GREEN 증거(healer.log a0/a4 · TEST_PROOF) 조기 확인. Codex·/cr-* 래퍼 호출 금지. fixed=\${fixRes?.fixed}. 한 줄 verdict(PASS/WARN/FAIL) + bugId=\${bug.id}.`,
+        { model: 'opus', label: `\${tagPrefix}phase-e:lane-verify-\${bug.id}`, phase: 'Fix', schema: HEALER_SCHEMA }
       ).then(v => ({ ...(fixRes || {}), laneVerify: v })).catch((e) => {
         // root-cause: cr-code HIGH — 레인 검증 실패를 침묵 삼키지 말 것. 로그로 표면화(최종 게이트는 Phase F 불변).
-        log(`[E/P-3 WARN] lane-verify 실패 bug#${bug.id} (${e?.message || e}) — fix 보존, 최종 code-review Phase F가 판정`)
+        log(`[E/P-3 WARN] lane-verify 실패 bug#\${bug.id} (\${e?.message || e}) — fix 보존, 최종 code-review Phase F가 판정`)
         return fixRes
       })
     )
@@ -471,7 +471,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
     healerResults = await parallel(planResult.bugs.map(bug => () => runHealer(bug)))
   }
   const fixedBugs = healerResults.filter(Boolean).filter(r => r.fixed)
-  log(`[E] 수정: ${fixedBugs.length}/${planResult.bugs.length}건`)
+  log(`[E] 수정: \${fixedBugs.length}/\${planResult.bugs.length}건`)
   // root-cause: 각 healer isolation:'worktree' = 독립 fix 브랜치 생성. Phase G ship 에이전트가
   //   branchResult.branch 기준으로 각 fix 브랜치 git merge --no-ff 수행.
   //   충돌 전략: SIMPLE/MODERATE = 자동(--strategy=recursive), HIGH = 수동 검토 요청.
@@ -480,7 +480,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   // ── Phase F: Validate (버그별 Claude code-reviewer 1회 + RED→GREEN 증거) ─────────
   phase('Validate')
   // root-cause: 검수 다이어트 §A1·§A2 (사람 결정 2026-09-16 "A B 다 적용해") —
-  //   계획서 정본 ~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md.
+  //   계획서 정본 \${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md.
   //   같은 변경을 Codex 가 3번 이상 봤다(버그별 cr-code + stage 4종 + Phase F Codex cr-final + /forge-pr cr-final).
   //   → 여기서는 **Codex 를 부르지 않는다.** 버그별 Claude code-reviewer(opus) 1회 + RED→GREEN 증거 확인만,
   //     교차 검수는 Phase G 가 부르는 /forge-pr cr-final 이 한 번 한다.
@@ -490,28 +490,28 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   //     이 변경은 교차 검수를 한 번도 받지 않는다(남는 기계 방어선 없음 — qa-event-router cr-final 증거 게이트는 #2692 에서 삭제).
   //   폐기조건: Codex 한도가 병목이 아니게 되거나 /qa 경유 머지의 사후 결함이 반복되면 사람이 재결정.
   //   crMode 인자는 하위호환으로 받기만 한다(no-op).
-  if (crMode !== 'degrade') log(`[F] crMode=${crMode} 는 2026-09-16 부터 no-op — 교차 검수는 /forge-pr cr-final 한 번`)
+  if (crMode !== 'degrade') log(`[F] crMode=\${crMode} 는 2026-09-16 부터 no-op — 교차 검수는 /forge-pr cr-final 한 번`)
   for (const fix of fixedBugs) {
     const review = await agent(
-      `Phase F 버그 수정 검수 — Bug #${fix.bugId}. fix 브랜치/워크트리: ${fix.branch || '(healer 결과에 branch 없음 — 직접 찾아라)'}. ` +
-      `bug-fix-plan: ${planResult.planPath}. ` +
+      `Phase F 버그 수정 검수 — Bug #\${fix.bugId}. fix 브랜치/워크트리: \${fix.branch || '(healer 결과에 branch 없음 — 직접 찾아라)'}. ` +
+      `bug-fix-plan: \${planResult.planPath}. ` +
       `①해당 fix 의 diff 를 리뷰한다(수정 품질·회귀 위험·over-engineering·근본원인 적중). ` +
-      `②RED→GREEN 증거가 짝으로 있는지 확인한다: docs/qa/artifacts/bug-${fix.bugId}-healer.log 의 a0 RED·a4 GREEN 과 TEST_PROOF, ` +
+      `②RED→GREEN 증거가 짝으로 있는지 확인한다: docs/qa/artifacts/bug-\${fix.bugId}-healer.log 의 a0 RED·a4 GREEN 과 TEST_PROOF, ` +
       `웹 버그면 실브라우저 GREEN 스크린샷/Vision JSON, 데이터 버그면 db_query_after 실DB 행 실측. ` +
       `증거가 없거나 GREEN 이 수정 문자열 grep(self-validating)이면 FAIL. ` +
-      `Codex·/forge-multi·/forge-*-review 래퍼를 부르지 마라. check="code-reviewer-bug-${fix.bugId}". PASS/WARN/FAIL + criticalCount + summary.`,
-      { label: `${tagPrefix}phase-f:code-review-${fix.bugId}`, phase: 'Validate', schema: CR_SCHEMA, agentType: 'code-reviewer', model: 'opus' }
+      `Codex·/forge-multi·/forge-*-review 래퍼를 부르지 마라. check="code-reviewer-bug-\${fix.bugId}". PASS/WARN/FAIL + criticalCount + summary.`,
+      { label: `\${tagPrefix}phase-f:code-review-\${fix.bugId}`, phase: 'Validate', schema: CR_SCHEMA, agentType: 'code-reviewer', model: 'opus' }
     )
     // root-cause: agent() null(사용자 skip·스폰 실패) 을 통과로 읽으면 검수 없는 머지가 된다 — fail-closed 유지.
     if (!review) {
-      log(`[STOP] Bug #${fix.bugId} code-reviewer null(skip 감지) — fail-closed. 재실행 필요.`)
+      log(`[STOP] Bug #\${fix.bugId} code-reviewer null(skip 감지) — fail-closed. 재실행 필요.`)
       return { error: 'code-review-null', bugId: fix.bugId }
     }
     if (review.verdict === 'FAIL') {
-      log(`[STOP] Bug #${fix.bugId} code-reviewer FAIL — ${review.criticalCount || 0}건 CRITICAL`)
+      log(`[STOP] Bug #\${fix.bugId} code-reviewer FAIL — \${review.criticalCount || 0}건 CRITICAL`)
       return { error: 'code-review-fail', bugId: fix.bugId, summary: review.summary }
     }
-    log(`[F] Bug #${fix.bugId} code-reviewer: ${review.verdict}`)
+    log(`[F] Bug #\${fix.bugId} code-reviewer: \${review.verdict}`)
   }
 
   // ── Phase G+H: Ship ─────────────────────────────────────────────────────────────
@@ -519,35 +519,35 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   // A5(2026-07-07): reportOnly=true — PR/CI/머지 전부 생략, 리포트+메트릭만. false(기본) — 기존 동작 +
   //   develop-absent graceful degrade 1줄 추가(회귀 0, 기존 문장 그대로 유지).
   const shipPrompt = reportOnly
-    ? `Phase G+H(report-only) — PR 생성 + CI +머지 전부 생략, 발견+리포트만. 브랜치: ${branchResult.branch}.${appNote} ` +
+    ? `Phase G+H(report-only) — PR 생성 + CI +머지 전부 생략, 발견+리포트만. 브랜치: \${branchResult.branch}.\${appNote} ` +
       `final-qa-report.md 생성. gh pr create/merge 절대 실행 금지. ` +
-      `H: docs/qa/metrics.jsonl append (bugs_found=${allBugs.length}/fixed=${fixedBugs.length}). ` +
+      `H: docs/qa/metrics.jsonl append (bugs_found=\${allBugs.length}/fixed=\${fixedBugs.length}). ` +
       (accountBattery.filter(Boolean).length
-        ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
+        ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(\${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
         : '') +
       `wiki-sync nohup background. prUrl="" + merged=false 반환.`
     // root-cause: 검수 다이어트 §A1 (사람 결정 2026-09-16) — PR 생성·교차 검수·머지는 /forge-pr 한 곳에서 한다.
     //   구 표기 "G: gh pr create 직접 … 9개 조건 충족 시 gh pr merge --squash --delete-branch" 는 2026-09-16 폐기.
     //   ⚠️ 무력화되는 입력: 에이전트가 이 지시를 무시하고 gh pr merge 를 직접 치는 경우(남는 기계 방어선 없음 — PreToolUse cr-final 증거 게이트(qa-event-router)는 #2692 에서 삭제).
     //   폐기조건: /forge-pr 이 머지 판정 단일 진입점이 아니게 되면 재검토.
-    : `Phase G+H — /forge-pr 경유 PR + 교차 검수(cr-final 1회) + CI + develop 머지 + 지식 축적. 브랜치: ${branchResult.branch}.${appNote} ` +
-      `G: /forge-pr 을 실행한다(base=develop, head=${branchResult.branch}). gh pr create·gh pr merge 를 직접 부르지 마라 — ` +
+    : `Phase G+H — /forge-pr 경유 PR + 교차 검수(cr-final 1회) + CI + develop 머지 + 지식 축적. 브랜치: \${branchResult.branch}.\${appNote} ` +
+      `G: /forge-pr 을 실행한다(base=develop, head=\${branchResult.branch}). gh pr create·gh pr merge 를 직접 부르지 마라 — ` +
       `머지 판정은 /forge-pr 원장(rc=0)이 한다. 원장이 merge 가 아니면 merged=false 로 반환하고 사유를 남겨라. ` +
       `(develop 브랜치 부재 감지 시 — git show-ref --verify refs/heads/develop 실패 — PR/머지를 graceful하게 생략하고 ` +
       `report-only로 degrade + "[WARN] develop 없음 → report-only degrade" 로그. admin-api류 dev머지=STG배포 위험도 동일 degrade.) ` +
       `ci-wait.sh 15분 타임아웃(진단 보조). qa 전제(버그별 code-reviewer PASS/WARN · RED→GREEN 증거 · 보안 CRITICAL 0 · 회귀 0 · 시나리오 PASS) 충족 후에만 /forge-pr 호출. ` +
       `git checkout develop && git pull && git worktree prune. ` +
       `worktree prune 직후 누수 gitnexus MCP 정리(harness-gaps G1): bash "\${FORGE_ROOT:-$HOME/forge}/shared/scripts/kill-orphan-gitnexus-mcp.sh". ` +
-      `H: docs/qa/metrics.jsonl append (bugs_found=${allBugs.length}/fixed=${fixedBugs.length}). ` +
+      `H: docs/qa/metrics.jsonl append (bugs_found=\${allBugs.length}/fixed=\${fixedBugs.length}). ` +
       (accountBattery.filter(Boolean).length
-        ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
+        ? `계정별 리포트 분리: final-qa-report.md에 "발견 계정" 열 포함해 계정별 섹션(\${JSON.stringify(accountBattery.filter(Boolean))})으로 버그를 그룹핑. `
         : '') +
       `wiki-sync nohup background. prUrl + merged 반환.`
   const shipResult = await agent(
     shipPrompt,
-    { model: 'opus', label: `${tagPrefix}phase-g-h:ship`, phase: 'Ship', schema: SHIP_SCHEMA }
+    { model: 'opus', label: `\${tagPrefix}phase-g-h:ship`, phase: 'Ship', schema: SHIP_SCHEMA }
   )
-  log(`[G] PR: ${shipResult?.prUrl} merged=${shipResult?.merged}`)
+  log(`[G] PR: \${shipResult?.prUrl} merged=\${shipResult?.merged}`)
   log('[H] 지식 축적 완료')
 
   return {
@@ -566,13 +566,13 @@ if (combos.length <= 1) {
 }
 
 // combos 2개+ — apps×domains 매트릭스 fan-out (기존 parallel() 재사용, 신규 concurrency 로직 없음).
-log(`[Matrix] app×domain ${combos.length}개 조합 병렬 fan-out — ${JSON.stringify(combos)}`)
+log(`[Matrix] app×domain \${combos.length}개 조합 병렬 fan-out — \${JSON.stringify(combos)}`)
 const comboResults = await parallel(combos.map(c => () => runOne({
   scope: c.domain,
   appId: c.app,
   accounts: matrixAccounts,
   exhaustive: exhaustiveMode,
-  tag: `${c.app ? c.app + '-' : ''}${c.domain}`,
+  tag: `\${c.app ? c.app + '-' : ''}\${c.domain}`,
 })))
 
 const allPassOrMerged = comboResults.every(r => r && !r.error)

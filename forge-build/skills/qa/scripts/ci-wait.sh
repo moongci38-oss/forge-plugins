@@ -179,7 +179,7 @@ if [ "$CI_RESULT" = "FAIL" ]; then
 
   while IFS= read -r check_name; do
     SEQUENCE="unknown"
-    # 검수 다이어트 §A2(사람 결정 2026-09-16, 계획서 ~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md):
+    # 검수 다이어트 §A2(사람 결정 2026-09-16, 계획서 ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md):
     #   후속 시퀀스 힌트에서 Codex 래퍼(cr-code)를 뺐다 — 수정 검수는 Claude code-reviewer 1회, 교차 검수는 /forge-pr cr-final 1회.
     #   구 표기 SEQUENCE="cr-code"·"healer+cr-code" 는 2026-09-16 폐기.
     #   ⚠️ 무력화되는 입력: 이 jsonl 을 읽은 메인 컨텍스트가 힌트를 무시하고 /cr-code 를 수동 호출하면 Codex 가 다시 불린다(힌트일 뿐 강제 아님).

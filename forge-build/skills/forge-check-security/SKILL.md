@@ -19,7 +19,7 @@ description: "보안 스캔(OWASP·STRIDE). 트리거: PR 전 보안 게이트·
 대상 기본 CWD · `--target <path>` 지정. 제외: node_modules/ vendor/ .git/ dist/ build/ coverage/
 
 ```bash
-bash ~/forge/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"   # JSON: /tmp/security-scan-results.json
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"   # JSON: /tmp/security-scan-results.json
 ```
 
 | ID | 항목 | 등급 | 패턴 |
@@ -83,7 +83,7 @@ if lint["llm_needed"]:                      # 조건부 — 상시 호출 금지
 판정 토큰·phase 개수·0/0/suppressed=0 일관성은 이미 봤다 — 다시 보지 마라.
 중점: 억제 표식·지문이 진짜 finding 을 숨기는지 / 원시 CRITICAL/HIGH 가 PR 변경분 밖인지 / 빠진 phase 가 diff 범위 밖인지 / 근거·재현경로가 실질적인지.""")
 ```
-결과를 `~/.claude/skills/forge-check-security/eval_cases.jsonl` 에 직접 append: `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL|UNDECIDED", "note":"..."}` (⛔ UNDECIDED 를 PASS·FAIL 로 접지 않는다).
+결과를 `$HOME/.claude/skills/forge-check-security/eval_cases.jsonl` 에 직접 append: `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL|UNDECIDED", "note":"..."}` (⛔ UNDECIDED 를 PASS·FAIL 로 접지 않는다).
 
 ## 5. STRIDE 선언 대비 구현 대조
 
@@ -96,7 +96,7 @@ python3 shared/scripts/stride-defense-check.py --spec-glob "**/*.md" --code "<ta
 - grep 카운트 판정일 뿐 — PASS ≠ 방어 증명. 산문으로만 적힌 STRIDE 는 못 잡는다(표 형식 필수).
 
 ## Workflow 통합
-병렬 실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-check-security/workflow.js"), args: { target } })` — parallel() 보안 스캔 → 집계.
+병렬 실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/forge-check-security/workflow.js"), args: { target } })` — parallel() 보안 스캔 → 집계.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 check-security.sh 방식 fallback.
 
 <!-- #3602: 커맨드 진입점(.claude/commands/forge-check-security.md)을 지우며 그 파일에만 있던 Advisor 절을 옮겼다 -->

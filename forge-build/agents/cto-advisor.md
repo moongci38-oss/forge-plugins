@@ -65,7 +65,7 @@ S4 기획 패키지의 기술적 건전성을 검증한다. "구현 시 런타�
 
 ## 입력
 - S4 상세 개발 계획: `{folderMap.product}/{project}/*-s4-development-plan.md`
-- S3 기획서 (PRD/GDD): 기술 요구사항 섹션 참조 · 프로젝트 기술 스택 정보
+- 기획서 (intent·spec/GDD · 옛 제품은 S3 PRD): 기술 요구사항 섹션 참조 · 프로젝트 기술 스택 정보
 
 ## 검토 축 (7축)
 

@@ -24,7 +24,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
 
 **`--decision workflow` 일 때** — 여기서 정하고, 호출은 `## Phase 0` 통과 **후**다(`qa/workflow.js` 는 healer 수정·PR·머지까지 가므로 Readiness 전 호출 금지). 호출 직전 Phase 0 4요소가 전부 ok 가 아니면 **[STOP]**.
 ```
-Workflow({ script: Bash("cat ~/.claude/skills/qa/workflow.js"),
+Workflow({ script: Bash("cat $HOME/.claude/skills/qa/workflow.js"),
            args: { scope, mode, crMode, app, domains, accounts, exhaustive, loopUntilDry, dryK, prLanes } })
 ```
 - 인자는 전부 optional — `app`·`domains`·`accounts`·`exhaustive` 모두 없으면 기존 단일-scope 순차 경로.
@@ -82,7 +82,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-qa
 - `--app`/`--domains` 는 조합마다 독립 브랜치·PR 로 병렬 fan-out · `--accounts` 는 도메인 안 T1/T2 계정별 추가 실행(별도 PR 없음).
 - `--app`/`--domains` 매칭 0건 → GUIDE-STOP("매칭 없음. 사용 가능: [목록]").
 - 실DB 검증·healer 자동수정은 항상 내장. `--project` 없음 — CWD → forge-workspace.json 매핑.
-- qa-config 스키마 → `~/forge/.claude/skills/qa/reference.md §qa-config 스키마`.
+- qa-config 스키마 → `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마`.
 
 ## 전역 캡 (변경 금지)
 | 캡 | 한도 | 동작 |

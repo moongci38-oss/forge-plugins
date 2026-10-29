@@ -578,7 +578,7 @@ healer 분담: 병렬 | 순차
 
 **evaluator-contract.json 자동 생성**:
 ```bash
-python3 ~/forge/.claude/skills/qa/scripts/contract-gen.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/contract-gen.py \
   --plan docs/qa/{date}-bug-fix-plan.md \
   --scenarios docs/qa/scenarios-filtered.md \
   --scope {scope}
@@ -692,7 +692,7 @@ fi
 
 ### Phase F — 버그별 Claude code-reviewer 1회 + RED→GREEN 증거 (2026-09-16 현행)
 
-> **검수 다이어트 §A1·§A2 (사람 결정 2026-09-16 "A B 다 적용해")** — 계획서 정본 `~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md`.
+> **검수 다이어트 §A1·§A2 (사람 결정 2026-09-16 "A B 다 적용해")** — 계획서 정본 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md`.
 > Phase F 는 **Codex 를 부르지 않는다.** 수정된 버그마다 `Agent(subagent_type="code-reviewer", model:"opus")` 1회 +
 > RED→GREEN 증거(healer.log a0/a4 · TEST_PROOF · 웹=실브라우저 · 데이터=실DB 행) 확인만 한다(`workflow.js §Phase F`).
 > 교차 검수는 Phase G 의 `/forge-pr` cr-final 이 **한 번** 한다.
@@ -711,7 +711,7 @@ fi
 # PR 본문 = final-qa-report. 생성·교차 검수·머지 판정은 /forge-pr 이 한다.
 /forge-pr   # base=develop, head=${QA_BRANCH}, body=docs/qa/${DATE}-final-qa-report.md
 
-bash ~/forge/.claude/skills/qa/scripts/ci-wait.sh "${QA_BRANCH}"   # CI FAIL 패턴 진단 보조
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/ci-wait.sh "${QA_BRANCH}"   # CI FAIL 패턴 진단 보조
 git checkout develop && git pull
 git worktree prune
 ```
