@@ -5,3 +5,8 @@ DRIFT_forge-core=0
 $ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-core | tail -2
 === 결과 ===
 ✅ GATE PASS
+
+# 다시 동기화 — 고친 sync-from-forge.py(forge-plugins PR #119 · JS 원래 보간 보존) · forge develop c70d79959
+바뀐 파일: forge-core/skills/forge-loop-maker/scripts/loop-kernel.js forge-core/skills/forge-multi/workflow.js forge-core/skills/harness-diet/scan/workflow.js forge-core/skills/harness-diet/sweep/workflow.js forge-core/skills/harness-diet/workflow.js 
+DRIFT_forge-core(고친 스크립트 --verify)=0
+\${소문자변수} 꼴로 깨진 .js: 0건

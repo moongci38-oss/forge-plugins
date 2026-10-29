@@ -82,7 +82,7 @@ export const OSCILLATION_MAX = 2
 export function checkSameIssue(findings, issueCounts) {
   for (const f of findings) {
     if (f.passed) continue
-    const key = `\${f.id}:\${f.severity}`
+    const key = `${f.id}:${f.severity}`
     issueCounts[key] = (issueCounts[key] || 0) + 1
     if (issueCounts[key] >= SAME_ISSUE_MAX) {
       return { tripped: true, key, count: issueCounts[key] }
