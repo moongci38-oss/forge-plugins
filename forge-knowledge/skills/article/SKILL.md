@@ -1,8 +1,8 @@
 ---
 name: article
-description: "웹 기사 URL 심층분석→구조화 리포트(TL;DR·핵심포인트·비판적분석·팩트체크). 기사 URL 전송/분석요청 시 사용."
+description: "기사 URL 심층분석 리포트 — 기사 URL 분석을 요청할 때."
 argument-hint: <article-URL> [--deep] [--skip-research] [--skip-cr-plan]
-allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, WebSearch, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search, Agent
+allowed-tools: Read, Write, Bash, Glob, Grep, WebFetch, WebSearch, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search, Agent, mcp__aside__exec
 model: sonnet
 ---
 
@@ -35,6 +35,8 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/analysis-dedup-check.py" "<�
 3. 원본 JSON `01-research/articles/{YYYY-MM-DD}/{filename}-article.json` — 스키마는 `references/extraction-and-research.md §Step 1` Read.
 4. 실패(paywall·차단) → 사유 출력 → `mcp__tavily__tavily_search`(실패 시 `mcp__brave-search__brave_web_search`)로 2차 소스 → 그래도 실패면 보고 후 종료(우회 금지).
 5. Step 1.5: `internal_links` 중 본문 참조 외부 자료(공식문서·논문·GitHub) 상위 3개 → `internal_links_priority`(SNS·네비·푸터·광고 제외).
+### Step 1.9 — 이전 분석 조회 (rag-search · 막지 않음)
+Step 2 전에 같은 사이트·같은 주제의 이전 분석을 찾는다(rag-search 스킬과 같은 입구): `bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "<도메인> <제목 핵심어 2~3개>" --top-k 5` → 결과 중 `01-research/articles/*/*-analysis.md` 상위 3개만 Read. Step 2 에서 **이전 분석과 달라진 점**(새 주장·바뀐 수치·뒤집힌 판정)을 따로 보고, 리포트 첫 절 끝에 `이전 분석: <파일명> — 달라진 점 1~3줄`. 검색 실패·0건·`검색 계층: 없음` 이면 `이전 분석: 없음(<사유>)` 1줄만 적고 그대로 진행한다(막지 않음).
 ### Step 2 — 병렬 분석 (단일 메시지 3-fan-out)
 - (a) `Agent(subagent_type="article-analyst", model="sonnet")` — 입력 JSON → TL;DR·카테고리(머리말)·핵심 포인트 5~10·비판적 분석·관련성 점수. `팩트체크 대상`·`실행 가능 항목`·`핵심 인용` 절 금지, 검증 필요 주장은 비판적 분석 안 `[미검증]` 라벨.
 - (b) `yt-research-followup`(Sonnet) — `internal_links_priority` 각 링크 WebFetch → 제목·유형·핵심 2~3문장·원문과의 관계("일반 웹 기사 본문 내 외부 링크" 명시).
@@ -58,9 +60,9 @@ fact-checker `❓`·2.82 미달·1.5 미개봉 링크·2.87 미개봉·"추가 �
 ### Step 3 — 분석 리포트 저장: `01-research/articles/{YYYY-MM-DD}/{date}-{domain}-{title-slug}-analysis.md` — §출력 형식 구조로.
 ### Step 4.7 — 적대적 검수 (분석 리포트 대상)
 ```
-/forge-multi <analysis.md 절대경로> --stage final --allow-unbound-final
+/forge-review --stage final --target <analysis.md 절대경로> --mode multi -- --allow-unbound-final
 ```
-- `--allow-unbound-final` 빼지 마라 · ~15KB 초과면 나눠 호출 · `PASS|WARN` → 진행 · `FAIL`·`hasCrit` → **[STOP]** 수정·재검수 · `INVALID_INPUT`·`content_integrity=lost` = 판정 아님, 쪼개 재호출("통과" 금지) · `degraded=true` → 보고에 명시.
+- `--allow-unbound-final` 빼지 마라 · ~15KB 초과면 나눠 호출 · `PASS|WARN` → 진행 · `FAIL`·`hasCrit` → **[STOP]** 고치고 보고(다시 검수하지 않는다) · `INVALID_INPUT`·`content_integrity=lost` = 판정 아님, 쪼개 재호출("통과" 금지) · `degraded=true` → 보고에 명시.
 ### Step 4.85 — HTML 대시보드 (없으면 발행기가 기사를 건너뜀)
 ```bash
 ANALYSIS="{outputsRoot}/01-research/articles/{date}/{date}-{domain}-{title-slug}-analysis.md"
@@ -82,7 +84,7 @@ rm -f "$TLDR_FILE"
 process substitution(`<(...)`) 금지 · fail-open · 학습노트·`concept-notes-writer` 안 함.
 ### Step 5 — 인덱스 등록: `01-research/articles/index.json` 을 Read 후 레코드 **추가**해 Write(기존 레코드 보존). 실패 시 보고에 "index.json 미등록: <사유>" 1줄 후 진행.
 ### Step 6 — 복수 URL: 개별 저장 후 기사 간 합의점·분기점 2~4줄을 각 `-analysis.md` 의 `## 시스템 비교 분석` 끝에. 별도 종합 계획서 금지.
-## 출력 형식 (6절, 이 순서, 내용 있는 것만 — `reference.md` 구 템플릿보다 우선)
+## 출력 형식 (6절, 이 순서, 내용 있는 것만)
 | # | 절 | 내용 |
 |:-:|---|---|
 | 1 | `TL;DR` | 1~2문장 + 머리말 줄(매체·필자·날짜·카테고리) |

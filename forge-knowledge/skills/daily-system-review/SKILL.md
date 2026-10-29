@@ -1,11 +1,11 @@
 ---
 name: daily-system-review
-description: "매일 AI·에이전트 업계 변화를 가볍게 훑어 Critical·Breaking·Deprecated·보안만 골라 알린다. 쓸 때: 사용자가 /daily-system-review 를 부르거나 일일 스케줄이 돌 때. SKIP: 심층 분석(→ /weekly-research), 수집만 끝난 날 재분석(→ /daily-analyze)."
+description: "AI 업계 일일 알람(Critical·Breaking·보안). 트리거: /daily-system-review·일일 스케줄."
 argument-hint: "[YYYY-MM-DD]"
 disable-model-invocation: true
 context: fork
 agent: general-purpose
-allowed-tools: Agent, Bash, WebSearch, WebFetch, Write, Read, Glob, Grep, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search
+allowed-tools: Agent, Bash, WebSearch, WebFetch, Write, Read, Glob, Grep, mcp__exa__web_search_exa, mcp__tavily__tavily_search, mcp__brave-search__brave_web_search, mcp__aside__exec
 model: sonnet
 ---
 
@@ -27,8 +27,9 @@ Recent commits: !git log --oneline -5
 
 ## 실행 흐름
 **완결성 게이트(WARN, 진행 안 막음)**: `for d in 01-research/daily/*/; do [ -f "$d/raw-data.json" ] && [ ! -f "$d/ai-system-analysis.md" ] && echo "WARN 미분석: $d"; done`
+**기억 회상(선행)** — `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/recall-context.sh" --stage daily-system-review --query "<오늘 점검 키워드>"` (조회 기록 자동). 적중은 "선행 지식"에 출처(learnings ID·파일 경로), 0건이면 "조회함 + 0건" 1줄.
 **Wave 0** — `Glob("01-research/daily/{date}/raw-data.json")`.
-- 존재(cron 정상 경로) → 수집 스킵, `/daily-analyze {date}` 흐름(raw-data + 검색 보강 → `daily-system-analyst` 스폰, `.claude/skills/daily-analyze/SKILL.md`).
+- 존재(cron 정상 경로) → 수집 스킵, `/weekly-analyze daily {date}` 흐름(raw-data + 검색 보강 → `daily-system-analyst` 스폰, `.claude/skills/weekly-analyze/references/daily.md`).
 - 미존재 → Wave 1부터.
 
 **Workflow 분기** — 기본: `Workflow({ script: Bash("cat ~/.claude/skills/daily-system-review/workflow.js") })`. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 또는 실패 시 아래 Wave 1~4 직접 실행.
@@ -38,20 +39,19 @@ Recent commits: !git log --oneline -5
 - **C (Haiku)** Tier 4 YouTube: 채널별 최신·키워드, 제목·URL·요약·반응, 심층 필요 영상은 "추천 시청".
 - **D (Haiku)** Tier 5(academic-researcher): arXiv 전날(cs.AI·CL·SE·MA) + Papers With Code 트렌딩 → Top 5.
 - **E (Sonnet) 우리 시스템 스냅샷** — 모든 상태 claim은 실측 인용(`ls ~/.claude/hooks/ | grep {name}`·`ls ~/.claude/skills/{name}/SKILL.md`·`grep {hook-name} ~/.claude/settings.json`·`grep {pattern} ~/forge/.claude/rules/`·`find ... | wc -l`), handover 수치 인용 금지, 실측 없으면 `⚠️ [미확인]`.
-  - Read: `~/.claude/forge/rules/`·`~/.claude/rules/`·`.claude/skills/`·`.claude/agents/`·`.claude/rules/`·최근 improvement plan
+  - Read: `~/forge/dev/rules-on-demand/`·`~/.claude/rules/`·`.claude/skills/`·`.claude/agents/`·`.claude/rules/`·최근 improvement plan
   - Forge: `forge-workspace.json`(활성 프로젝트·folderMap) → 각 `gate-log.md`(S1~S4) · `02-product/todo.md`
   - Dev: Glob `**/.claude/state/sessions/*.json` · `docs/walkthroughs/` · `.specify/config.json`
-  - 출력 JSON(게이트·세션·인프라) → Lead의 GTC-3 입력(`daily-system-analyst.md` Step 3.5).
-- ~~F 주식 브리핑~~ — 주식 브리핑 단계는 뺐다 — 사람이 `stock-research-analyst` 를 지정 삭제했다(#1374 · #1513, 원본 삭제는 되돌리지 않는다).
+  - 출력 JSON(게이트·세션·인프라) → Lead의 GTC-3 입력(`daily-system-analyst.md` Step 3 GTC-3).
 
 **Wave 2 (Lead 종합)** — `ai-system-analysis.md` 작성(Executive Summary·업계 변화·우리 시스템 현황·1:1 비교·갭·추천·출처). 구조는 `reference/wave2-templates.md` 그대로.
 - 갭마다 ACHCE 5축(A/C/H/C/E) 분류. `verify_cmd` 없거나 `verify_out` 빈 제안 금지. 갭은 사실만(적용 계획서 작성 안 함).
 - spot-check: Critical/Breaking 판정 주장은 표본 3건+ 원출처 직접 재확인, "Deprecated·지원 중단" 주장은 공식 changelog 직접 확인. 워커 판정 라벨 그대로 옮기지 않음.
 - 이월: `carry_count >= 2` → `~/forge/shared/scripts/dsr-verify-run.sh "<verify_cmd>"` 재실행, 해소됐으면 자동 종결("해소됨"). `carry_count >= 3` 또는 `owner: human` → `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/human-queue.md`에 append + `[STOP]` 표기 후 제외(삭제 금지).
 
-**Wave 2.5~2.55** — `reference/wave25-adversarial.md` Read(Evaluator 프롬프트·배점·cr-triple 규약).
+**Wave 2.5~2.55** — `reference/wave25-adversarial.md` Read(Evaluator 프롬프트·배점·Codex 단독 검수 규약).
 - 2.5(차단): 독립 Evaluator 70점 PASS. FAIL → 보완 후 1회 재실행, **2회 연속 FAIL 시 [STOP] Human 에스컬레이션**. `codex-critic` 미가용 = SKIP(FAIL 아님) → 진행하되 리포트 말미·대시보드 상단·index.json에 `교차 검증 미실시(Evaluator SKIP)` 표기, ⛔ PASS로 기록 금지.
-- 2.55(비차단): `ai-system-analysis.md`에 cr-triple 2벤더 2레그. 지적은 말미 `## 검수 지적`, [STOP] 없음. `content_integrity=lost`·`INVALID_INPUT` = 미수행 → 쪼개 재호출. `concept-notes-writer` 스폰 금지.
+- 2.55(비차단): `ai-system-analysis.md`에 Codex 단독 1레그(`/forge-review --stage plan … --cr on` · #3897). 지적은 말미 `## 검수 지적`, [STOP] 없음. `content_integrity=lost`·`INVALID_INPUT` = 미수행 → 쪼개 재호출. `concept-notes-writer` 스폰 금지.
 
 **Wave 2.7 대시보드** (PASS 또는 SKIP 후)
 ```bash
@@ -65,13 +65,12 @@ python3 ~/forge/shared/scripts/report_to_html.py "${BASE}/01-research/daily/${DA
 ```bash
 python3 ~/forge/shared/scripts/daily-triage-lint.py --analysis "${BASE}/01-research/daily/${DATE}/ai-system-analysis.md" --plan "${BASE}/01-research/daily/${DATE}/system-improvement-plan.md" --contract
 ```
-판정은 출력 JSON `counts`·`contract.violations`로(판정표 정본 `daily-analyze/SKILL.md` Step 4.95). 본문을 고쳤으면 Wave 2.7·2.9 재실행 후 진행.
+판정은 출력 JSON `counts`·`contract.violations`로(판정표 정본 `weekly-analyze/references/daily.md` Step 4.95). 본문을 고쳤으면 Wave 2.7·2.9 재실행 후 진행.
 **Wave 3.5 index.json** (Write 직접 수정 금지, 값 없는 파일 키 생략, fail-open)
 ```bash
-echo '{"date":"{date}","title":"{date} AI 시스템 분석","critical_gaps":<counts.critical_gaps>,"high_gaps":<counts.high_gaps>,"medium_gaps":<counts.medium_gaps>,"p0_actions":<counts.p0_actions>,"p1_actions":<counts.p1_actions>,"files":{"ai_system_analysis":"01-research/daily/{date}/ai-system-analysis.md"},"notion_upload":"{Wave 3 결과}"}' \
+echo '{"date":"{date}","title":"{date} AI 시스템 분석","critical_gaps":<counts.critical_gaps>,"high_gaps":<counts.high_gaps>,"medium_gaps":<counts.medium_gaps>,"p0_actions":<counts.p0_actions>,"p1_actions":<counts.p1_actions>,"files":{"ai_system_analysis":"01-research/daily/{date}/ai-system-analysis.md"}}' \
   | python3 ~/forge/shared/scripts/daily-review/append_index_record.py
 ```
-`notion_upload` 키는 `shared/scripts/weekly-index-register.py` 호환용으로 유지.
 **Wave 3.6 wiki-sync** — `FORGE_WIKI_AUTOSYNC=off`면 스킵, 아니면 `Skill(skill="wiki-sync", args="--auto")`. 항상 `[wiki-sync] N건 wiki화 (신규 M / 업데이트 K, pending-review P건)` 출력. 실패 시 `[wiki-sync] 실패: {사유} — daily 파이프라인은 계속 진행` 후 Wave 4.
 **Wave 4** — `Read("01-research/daily/{date}/ai-system-analysis.md")` → `===== AI 시스템 분석 리포트 ({date}) =====` 머리 뒤 전체 출력.
 
