@@ -30,7 +30,7 @@ Quick Start: `/forge-multi ${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pip
 ## Workflow 실행
 codex-critic(`mcp__codex__`) = read-only sandbox 로 approve-token 불필요.
 ```js
-// 매 호출 SSoT 를 cat (세션 사본·~/.claude 미러 금지 — stale_engine 거부)
+// 매 호출 SSoT 를 cat (세션 사본·$HOME/.claude 미러 금지 — stale_engine 거부)
 // stage=final: prNumber·repo 필수(/forge-pr §3.0 prepare → --round-args), 없으면 unbound_final. PR 없는 수동 검수만 allowUnboundFinal: true
 // machineChecks: {ran:[syntax|md-dup|rule-meta|claude-lines|pr-fields|self-count|mutation|mutation-marker|tests|lint|wiring|secrets|repro], summary} — /forge-pr §3 (b) 가 실제 돌린 축만
 // crTier(/forge-pr §3 (c) cr-risk-tier.sh): skip → INVALID_INPUT code=tier_skip · light·full-general(legs:0 · #2594) → 검수자 0 — `cr-risk-tier.sh` 가 레그를 내지 않는다(이 등급으로 엔진을 부르지 않는다)
@@ -91,4 +91,4 @@ jq -r 'select(.status != "superseded")
 - **요청자 규칙**: ⑥크기 이유로 리뷰 생략 금지 ⑦Critical 미수정 = FAIL(override 는 Human 승인) ⑧WARN 이면 high 목록 검토 ⑨피드백 무비판 동의 금지 ⑩수동 조립 레그도 실행체 1개면 PASS→WARN(`SINGLE_EXECUTOR_WARN_CAP`) — 대체(`executed_by="claude"`)·출처 미선언 레그는 세지 않는다, 보고에 `distinct_executors=N` 필수(WARN 은 자동 머지 안 함).
 - **워커 출력**: ⑪통과 검증이 커버하지 않는 실패 시나리오 최소 1개 명시(없으면 "없음").
 
-참조: 명령 `~/forge/.claude/commands/forge-multi.md` · 룰 `~/.claude/rules-on-demand/multi-gate-review.md` · Triage `~/forge/shared/scripts/cr-multi-triage.py`
+참조: 명령 `${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-multi.md` · 룰 `$HOME/.claude/rules-on-demand/multi-gate-review.md` · Triage `${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-multi-triage.py`

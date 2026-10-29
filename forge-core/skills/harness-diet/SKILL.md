@@ -64,9 +64,9 @@ Workflow({
 
 ## 경로·안전 규칙
 
-- **편집 SSoT** = `~/forge/.claude/`. `~/.claude/` 직접 편집은 block-forge-mirror-edit hook(exit2)이 차단.
+- **편집 SSoT** = `${FORGE_ROOT:-$HOME/forge}/.claude/`. `$HOME/.claude/` 직접 편집은 block-forge-mirror-edit hook(exit2)이 차단.
 - **archive 경로**: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/forge-dev/2026-06-08-v1-harness-diet/plans/archive/harness-diet-2026-06-08/` (`.claude/archive/` 사용 금지 — mirror orphan).
-- **forge-sync 삭제 미전파 (CRITICAL)**: 스킬 archive 시 SSoT 폴더(`~/forge/.claude/skills/{name}/`) 이동 후 **`~/.claude/skills/{name}` mirror 도 python3 shutil.rmtree 로 반드시 제거**. rollback = archive 에서 복원 후 `node ~/.claude/scripts/forge-sync.mjs sync`.
+- **forge-sync 삭제 미전파 (CRITICAL)**: 스킬 archive 시 SSoT 폴더(`${FORGE_ROOT:-$HOME/forge}/.claude/skills/{name}/`) 이동 후 **`$HOME/.claude/skills/{name}` mirror 도 python3 shutil.rmtree 로 반드시 제거**. rollback = archive 에서 복원 후 `node $HOME/.claude/scripts/forge-sync.mjs sync`.
 - **SAFETY carve-out**: effectiveness=SAFETY-DETERRENT 또는 보안키워드(injection/redact/secret/permission/override/block/deny) 자산 → **자동 archive 절대 금지**, Human 승인 필수. 미발동 ≠ 효과 없음.
 
 ## 호출

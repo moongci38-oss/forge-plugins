@@ -16,7 +16,7 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 
 1. 세션 초기화:
    ```bash
-   node ~/.claude/scripts/session-state.mjs init --name <작업명>
+   node $HOME/.claude/scripts/session-state.mjs init --name <작업명>
    ```
 
 2. `forge/pipeline.md`를 기반으로 P4부터 순차 진행 — 크기로 가르지 않는다(#3736 확정 ①). 버그는 `/forge-fix`.
@@ -32,7 +32,7 @@ Forge Dev SDD+DDD+TDD 파이프라인을 시작합니다.
 | P5 | 구현 + 검증 (TDD) | Check P5→P5-INV→P5.5→P5.7→P5.7-X (Codex code)→P5.9 (harness) |
 | P6 | QA (/forge-qa) | Check 6-QA (qa loop)→6-TX (Codex test, on-demand) |
 | P7 | PR 생성 + Merge (feature→develop) | Check 7-BM (benchmark)→7-X (Codex final, blocking)→7 ([STOP]/auto-merge) |
-| platform | Release + Deploy + Rollback (조건부) | `/forge-deploy` (reference only) <!-- root-cause(commands/CMD-04, 2026-08-03): forge-release.md는 DEPRECATED alias(→ /forge-deploy prod) — 정본만 나열 --> |
+| platform | Release + Deploy + Rollback (조건부) | `/forge-deploy` (reference only) · dev·stg 롤백 = `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/release-engine.py rollback --milestone <묶음> --env <dev 또는 stg>`(#3759 · prod 롤백은 사람) <!-- root-cause(commands/CMD-04, 2026-08-03): forge-release.md는 DEPRECATED alias(→ /forge-deploy prod) — 정본만 나열 --> |
 
 ## Codex 2차 게이트 통합 (Plan v2-C1)
 

@@ -46,7 +46,7 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 - 컨벤션 (프로젝트 스타일)
 - **모듈 깊이** — 얕은 모듈이 늘었는가(인터페이스가 구현만큼 복잡), I/O 를 정적 결합해
   테스트가 모듈 모킹을 요구하는가. 어휘·판정도구 → `rules-on-demand/codebase-design.md`,
-  **리팩토링 PR 이면 리뷰 전에 `~/forge/.claude/rules-on-demand/refactoring-slice.md` 를 읽고**, 그 ①의
+  **리팩토링 PR 이면 리뷰 전에 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/refactoring-slice.md` 를 읽고**, 그 ①의
   폭 지표(prop·훅·외부 API 수)가 before/after 로 줄었는지 확인한다(파일 수 증가는 성과가 아니다)
 
 ## 관련

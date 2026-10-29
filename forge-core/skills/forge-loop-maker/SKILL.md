@@ -64,7 +64,7 @@ BUDGET max-iter={MAX_ITER} · call-budget={CALL_BUDGET} · wall-clock={WALL_CLOC
 4b. 승인 후 실행 → 완료 시 파일 트리 출력:
 `scripts/scaffold.py --name {LOOP_NAME} --goal "{GOAL}" --pattern {PATTERN} --state {STATE_PATH} --max-iter {MAX_ITER} --wall-clock "{WALL_CLOCK}" --verify-cmd "{VERIFIER_CMD}"`
 
-- Durable `~/forge/.claude/skills/{LOOP_NAME}/`: `SKILL.md`←`templates/loop-SKILL.md.tmpl` · `HUMAN-GATES.md`←`templates/HUMAN-GATES.md.tmpl` · `TRIGGER.md`←`templates/TRIGGER.md.tmpl`
+- Durable `${FORGE_ROOT:-$HOME/forge}/.claude/skills/{LOOP_NAME}/`: `SKILL.md`←`templates/loop-SKILL.md.tmpl` · `HUMAN-GATES.md`←`templates/HUMAN-GATES.md.tmpl` · `TRIGGER.md`←`templates/TRIGGER.md.tmpl`
 - Durable `scripts/workflow.js`←`templates/workflow.js.tmpl`(골격) + `templates/workflow.body.{PATTERN}.js.tmpl`(본문)
 - Changing `{PROJECT_CWD}/loops/{LOOP_NAME}/STATE.md`←`templates/STATE.md.tmpl`
 
@@ -83,4 +83,4 @@ workflow.js = 골격 1 + 패턴 본문 4 조합(`--pattern` 이 본문 선택 �
 - 8종: `rubric_all_pass / max_cycles / same_issue / plateau / oscillation / regression / security_crit / budget_advisory` — workflow.js 는 `templates/workflow.js.tmpl` 에서 inline 상속.
 - 비-Workflow 소비자(healer 등 Bash 에이전트)는 `node --input-type=module -e "const {...} = await import('<kernel경로>'); ..."` 로 실호출 — 실패 시 호출자 하드코딩 캡으로 fallback 필수. 선례 `agents/healer.md §loop-kernel.js SSoT 연동`.
 
-## forge-sync 필수 — scaffold 후 `node ~/forge/dev/scripts/forge-sync.mjs sync`
+## forge-sync 필수 — scaffold 후 `node ${FORGE_ROOT:-$HOME/forge}/dev/scripts/forge-sync.mjs sync`

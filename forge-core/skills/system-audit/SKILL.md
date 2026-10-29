@@ -9,19 +9,19 @@ model: opus
 > **저장 경로 앵커**: 보고서 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/` 로 시작(cwd 상대 금지) → `references/audit-common.md` §저장 경로 앵커
 
 **역할**: 한 세션(또는 에이전트 1개)이 12축(점수 10축 + 판정 2축: 12 Security · 13 Bloat)+중복을 **직접 실측**하고 채점·보고서까지 쓰는 단독 감사자. 축 에이전트·Workflow 는 없다.
-**컨텍스트**: 대상 레포의 `.claude/` 전체 · `~/.claude` 전체(크기·설정·권한 비트 — 내용은 측정 스크립트가 정한 것만) · 이전 감사 보고서. **출력**: 점수 10축·보안 축·군살 축·필수 점검 13항목·축간 트레이드오프·통합 로드맵 보고서 1개(Step 5 경로).
+**컨텍스트**: 대상 레포의 `.claude/` 전체 · `$HOME/.claude` 전체(크기·설정·권한 비트 — 내용은 측정 스크립트가 정한 것만) · 이전 감사 보고서. **출력**: 점수 10축·보안 축·군살 축·필수 점검 13항목·축간 트레이드오프·통합 로드맵 보고서 1개(Step 5 경로).
 **Evaluator 원칙(관대 금지)** → 실행 전 반드시 Read: `references/audit-common.md` §Evaluator 핵심 원칙
 **방식**: 단독 실측. 측정은 진입점 1개(`measure.sh`)가 전부 돌리고 이 세션은 판정만 한다 — 측정을 끄는 옵션·따로 부르는 명령은 없다. 축 정의서: `shared/docs/2026-03-30-four-engineering-disciplines.md` · `$FORGE_OUTPUTS/docs/tech/2026-03-16-5-axis-ai-analysis-framework.md`
 
 - **감사 유형**(모든 지표에 명시): 실측(스크립트·Grep·wc) · 추정(글자→토큰 등) · 설계 검토(판단) · 미측정(N/A, 런타임 데이터 필요)
 - **강제 수준**: ENFORCED(훅이 exit 2 로 차단, 100%) · GUIDED(규칙만, 70%) · PAPER(감사에만 존재, "미적용" 표기·점수 제외)
   - ⚠️ 차단력은 grep 이 아니라 **실행 시험**으로 판정: `echo '{"tool_input":{...}}' | bash <훅> ; echo "EXIT=$?"` (페이로드는 파일로 넘긴다 — 명령줄에 직접 쓰면 가드가 감사 명령 자체에 반응)
-- **인자**: `$ARGUMENTS` 첫 단어 = target(미입력 `system`). `system` = `~/forge` · `{project-name}` = `forge-workspace.json` 등록 경로(그 레포의 `.claude` 를 같은 표로 잰다)
+- **인자**: `$ARGUMENTS` 첫 단어 = target(미입력 `system`). `system` = `${FORGE_ROOT:-$HOME/forge}` · `{project-name}` = `forge-workspace.json` 등록 경로(그 레포의 `.claude` 를 같은 표로 잰다)
 - **채점자 1명의 한계**: 후광효과를 막으려고 **판정을 뒤집는 주장마다 재현 명령을 붙인다.** 보고서 §0 에 실행 방식(단독 실측)을 적는다.
 
 ## Step 0: 시작 출력 `🔍 12축 통합 감사 시작: {target} (단독 실측)`
 
-## Step 1: 기계 실측 — 스크립트 출력을 1차 근거로 인용 (`S=~/forge/shared/scripts` · `R=`target 경로 — system 이면 `~/forge`)
+## Step 1: 기계 실측 — 스크립트 출력을 1차 근거로 인용 (`S=${FORGE_ROOT:-$HOME/forge}/shared/scripts` · `R=`target 경로 — system 이면 `${FORGE_ROOT:-$HOME/forge}`)
 | 무엇 | 명령 |
 |---|---|
 | 구조 수치 + 군살 `BLOAT_*` + 보안 `SEC_*` — 한 번에 전부 | `bash $S/system-audit/measure.sh --root $R > <audit-dir>/{date}-measure.txt`(잴 수 없으면 `NA(까닭)` — 0 과 구분 · 이 파일이 Step 6 의 대조 원문) |
@@ -50,7 +50,7 @@ model: opus
 | 10 Compound | §7 — learnings 재사용률(`recall-context.sh --health`)·지식그래프(gitnexus·graphify·위키) 색인 신선도·호출률(`FEATURE_USE`)·깨진 링크 수·직전 감사 권장 이행률·같은 지적 반복 횟수·방 qa wisdom 축적 수·하네스 갭 종결률 |
 | 11 Distribution | §8 — 안정판 나이(`team-stable-promote.sh --status`)·PC 별 판 차이(`pc-status.sh`)·자동 업데이트 켜짐(`update:` 줄)·boot-check DOWN 수·미러 drift(`forge-update.sh --check`) |
 | 12 Security(독립·필수) | OWASP Top 10 for Agentic Applications 2026 — ASI01 Agent Goal Hijack · ASI02 Tool Misuse · ASI03 Identity & Privilege Abuse · ASI04 Agentic Supply Chain Vulnerabilities · ASI05 Unexpected Code Execution · ASI06 Memory & Context Poisoning · ASI07 Insecure Inter-Agent Communication · ASI08 Cascading Failures · ASI09 Human-Agent Trust Exploitation · ASI10 Rogue Agents. 근거 = `SEC_*` 줄(가드는 **등록 + 실행 시험** — 문서·설정 존재는 증거가 아니다). `SEC_NOT_MEASURED` 항목은 이 세션이 읽고 항목마다 판정한다. 더해 본다: 설정 변경 감시·권한 모드·우회 예약 작업·샌드박스 · 강제 계층(금지·승인 규칙마다 코드 관문인지 지시문뿐인지 — 지시문뿐이면 보안 통제로 세지 않는다) · 경로 우회 동치성(셸·스크립트·MCP·브라우저) · 영속 주입 채널(규칙·스킬·메모리·wisdom 에 쓰는 길마다 사람 검토·출처) · 주장 검증(문서가 "막는다"고 한 것을 실행 시험으로) · 자격 격리(`SEC_CRED_FILE`) |
-| 13 Bloat(판정) | `.claude` 전체 · `~/.claude` 전체 · `dev/global-rules` 의 `BLOAT_*` 줄 — 폴더별 파일·용량·직전 대비(`BLOAT_ENTRY`) · 큰 지침 · 안 도는 훅 · 훅 주석 비중 · 백업·보관·덤프 · 원본↔사본 고아·이중 로드 · git 밖 누적·워크트리·치우는 장치 · 학습 기록(사용 기록 비중·기한 넘은 줄·등급 미기재·GC 적용일) |
+| 13 Bloat(판정) | `.claude` 전체 · `$HOME/.claude` 전체 · `dev/global-rules` 의 `BLOAT_*` 줄 — 폴더별 파일·용량·직전 대비(`BLOAT_ENTRY`) · 큰 지침 · 안 도는 훅 · 훅 주석 비중 · 백업·보관·덤프 · 원본↔사본 고아·이중 로드 · git 밖 누적·워크트리·치우는 장치 · 학습 기록(사용 기록 비중·기한 넘은 줄·등급 미기재·GC 적용일) |
 - 점수 축(1~5·7~11)마다 점수(0-100)·강점·발견 ≥2(위치+이유+방법, 재현 명령 포함). 주관 판단 금지 — 측정 불가 = "N/A (런타임 데이터 필요)".
 - 12 Security · 13 Bloat 은 점수가 아니라 **판정**(통과 / 통과 아님)이다. 12 = ASI 행마다 판정·등급(CRITICAL~LOW) · 13 = 안 도는 훅 > 0 또는 백업·보관 > 0(또는 `NA`)이면 통과 아님 — 의도적 비활성은 까닭이 적힌 목록에 있는 것만 인정한다.
 - **필수 점검 13항목**(`references/report-template.md` §필수 점검 13항목)을 실측값·직전 대비·판정으로 전부 채운다.
@@ -72,12 +72,12 @@ model: opus
 저장: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit[-{target}].md`(target=system 이면 suffix 생략). 템플릿 → `references/report-template.md` (§0 실행 방식 · Executive Summary 의 **감사 총평** 줄 · §1.1~1.13(1.6 = 중복 · 1.12 Security · 1.13 Bloat) · §필수 점검 13항목 · §3 끝에 **재현 명령 모음** 필수)
 
 ## Step 6: 완료 게이트 (완료 보고 이전 필수 — 둘 다 rc 0 이어야 완료)
-1. `bash ~/forge/shared/scripts/verify-outputs.sh "<보고서 경로>"` — 출력 표를 완료 보고에 포함. exit 2(MISSING/0바이트) → 완료 보고 금지, 재생성 후 exit 0 에서만 진행.
+1. `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "<보고서 경로>"` — 출력 표를 완료 보고에 포함. exit 2(MISSING/0바이트) → 완료 보고 금지, 재생성 후 exit 0 에서만 진행.
 2. 아래 독립 Evaluator 1단계 구조 린트(`--measure` 필수) — rc 1 이면 완료 보고 금지.
 
 ## 독립 Evaluator
 Read 먼저: `references/audit-common.md` §독립 Evaluator 공통. **1단계 구조 린트**:
-`python3 ~/forge/shared/scripts/audit-report-structure-lint.py --skill system-audit --report "<보고서 경로>" --measure "<audit-dir>/{date}-measure.txt" > /tmp/audit-lint-system-audit.json; echo "lint rc=$?"`
+`python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/audit-report-structure-lint.py --skill system-audit --report "<보고서 경로>" --measure "<audit-dir>/{date}-measure.txt" > /tmp/audit-lint-system-audit.json; echo "lint rc=$?"`
 
 **판정 기준 원문**(8항목 모두 충족 = PASS · 피드백 `[파일명+섹션] — [이유] → [방법]`):
 1. **점수 10축 커버** — 축별 요약 1.1~1.5·1.7~1.11/점수표에 10축 각각 점수(0-100)+발견 ≥2, N/A·빈 값 FAIL.

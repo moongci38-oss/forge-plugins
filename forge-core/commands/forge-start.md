@@ -18,7 +18,7 @@ argument-hint: "[--write|--readonly]"
   - 산출물(계획서·가이드·버그 리포트·분석 리포트) 쓰기·테스트 실행·진단 도구는 된다 · 워크트리·커밋·구현 위임·쓰기 방 브리프 안 함(쓰기 차단 훅이 막는다).
   - 읽기↔쓰기 싱크(#3967): 읽기→쓰기 = 이슈(`role:write` · `owner:<쓰기 방>`) · 쓰기→읽기 = 읽기 방 브리프·이슈 코멘트 · 상태는 이슈·handover 에만 · 방 이름 `<역할>-<read|write>-<프로젝트>` — 정본 `rules-on-demand/team-routing.md §2`.
 - **다른 프로젝트 읽기**(#3211): forge 레포에서 연 읽기 세션은 다른 프로젝트 폴더도 읽고 조언한다. 다른 프로젝트 파일 쓰기는 규칙으로 금지한다 — 훅(readonly-session-guard)은 이 레포·하네스 레포 파일과 git·gh 쓰기만 막는다. 민감 경로(재무·법무·키·인증·환경변수 파일)는 forge-core §보안 대로 읽지 않는다 — 훅(block-sensitive)이 거드는 것은 06-finance/·07-legal/·08-admin 두 폴더·.ssh/·.aws/·비밀 .env 뿐이다.
-- **기본 방침(#3745)**: 읽기 세션 기본 모델이 Sonnet 이라 품질이 떨어질 수 있다 — 본인은 전달·사실 확인·허용된 저장·검사기 실행만 하고 나머지는 나눈다.
+- **기본 방침(#3745)**: 읽기 세션 기본 모델 = Opus(#3357) — 본인은 전달·사실 확인·허용된 저장·검사기 실행만 하고 나머지는 나눈다.
   - 판단이 갈리는 곳은 결론 전에 `advisor-strategist`, 기술 계획 평가는 `cto-advisor` — 둘 다 리졸버 경유: `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-spawn-guard.sh" resolve` 출력이 `claude-*` 면 `Agent(subagent_type=…, model:…)`, `gpt-*` 면 `mcp__codex__codex`(read-only) — 호출 규약 정본 `rules-on-demand/model-routing-full.md` 의 '호출 규약' 줄. 리졸버 출력만 신뢰한다.
   - 합성·작성·적대적 검수는 처음부터 Opus 읽기 전용 서브에이전트(`Agent(subagent_type:"Plan"|"Explore", model:"opus")`)가 한다. 사실 주장은 읽기 전용 검수자가 파일:줄로 확인한다.
 - 여는 명령: `claude --model opus "/forge-start --readonly"`(또는 `claude --model opus` 뒤 `/forge-start --readonly`). 가벼운 질의는 `/model sonnet` 으로 내려도 된다.
@@ -32,7 +32,7 @@ argument-hint: "[--write|--readonly]"
 ## 0b. 세션 모드 — 기본 겸용(both) · `--write` 쓰기 역할 (#3026)
 인자에 플래그가 없으면 **묻지 않고** 겸용(both) · `--write` = 쓰기 역할(이슈 진행·배정·판정·머지·배포) · `--readonly` = 위 §0. both·write 는 §1 앞에 이것 1번:
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-start-mode.sh" --mode <both|write> --model "<세션 모델 id>"`
-- **기본 방 쌍(#3967 · both·write)**: 이어서 그 레포 안에서 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-start-room-pair.sh" --mode <both|write>` 1번 — 이 PC 로스터에 없는 `pmo-read-<P>`·`pmo-write-<P>`·`qa-read-<P>`·`qa-write-<P>` 만 개설기(`--detach`)로 연다(있는 방·옛 이름 방은 그대로 · #3614). `ROOM_PAIR_MISSING`·`ROOM_PAIR_OPENED` 줄은 §6 요약에 1줄로 · `ROOM_PAIR=skip …`(하네스·온보딩 안 된 레포)·`다 있음` 은 싣지 않는다 · `판정 불가` 는 1줄. 결과는 `--detach` 영수증 로그(`team-room-open-<방>.detach.log` 의 `result=`)다 — 정본 `rules-on-demand/team-routing.md §2`.
+- **기본 방 쌍(#3967 · both·write)**: 이어서 그 레포 안에서 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-start-room-pair.sh" --mode <both|write>` 1번 — 이 PC 로스터에 없는 `pmo-read-<P>`·`pmo-write-<P>`·`qa-read-<P>`·`qa-write-<P>` 만 개설기(`--detach`)로 연다(있는 방·옛 이름 방은 그대로 · #3614) · forge 레포는 그 넷 대신 하네스 작업 방 `harness`·`harness-2`(#4091). `ROOM_PAIR_MISSING`·`ROOM_PAIR_OPENED` 줄은 §6 요약에 1줄로 · `ROOM_PAIR=skip …`(플랫폼·온보딩 안 된 레포)·`다 있음` 은 싣지 않는다 · `판정 불가` 는 1줄. 결과는 `--detach` 영수증 로그(`team-room-open-<방>.detach.log` 의 `result=`)다 — 정본 `rules-on-demand/team-routing.md §2`.
 - `SESSION_MODEL_LINE`(`세션 모델: <id> · 티어 일반|최상위`)은 요약 둘째 줄에 그대로 · `MODEL_TIER_HINT` 가 있으면 그 1줄도 — 모델은 안내일 뿐 역할 판정에 쓰지 않는다(§5 · #3269).
 - `SESSION_MODE_LINE`(`세션 모드: 겸용|쓰기|읽기 — …`)은 §6 요약 **첫 줄**에 그대로 · `MODE_OVERLAP` 이 `없음` 이 아니면(⚠️·`판정 불가`) 그 1줄을 그대로 · `SESSION_MODE=판정 불가 …` 도 그대로 1줄 싣고 계속한다.
 - **감시기 자동 기동(세 모드 · 사람이 시키지 않아도)**: 모드를 정한 직후 `WATCHDOG_RUNNING=없음` 이면 `WATCHDOG_CMD` 를 **Bash run_in_background(timeout 3600000)** 로 띄운다(그 레포 안에서). pid 가 나오면 이 세션·이 모드 감시기가 이미 떠 있다 — 다시 띄우지 않는다(스크립트가 프로세스 명령줄과 세션 id 로 확인) · `판정 불가` 면 `pgrep -af 'orch-watchdog.sh --mode <모드>'` 로 보고 정한다. `WAKE` 1줄로 끝나면 처리 뒤 같은 명령으로 다시 띄운다. 깨기는 Bash 완료 알림으로 기다린다 — 출력 파일을 포그라운드 `until`·`sleep` 로 훑지 않는다(그동안 사람 입력 `/forge-checkpoint`·`/compact` 가 막힌다 · #3418).
@@ -79,7 +79,7 @@ fi
 ## 1b. 장부 재확인 — 하루 1회, **판단으로는 닫지 않는다**
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-start-ledger-recheck.sh"` — 항상 rc 0. `LEDGER_RECHECK=ran`(+`LEDGER_RECHECK_RC`) · `done_today`(오늘 이미 함 → 1줄 생략) · `no_script`(`carry-ledger.py` 부재 → 넘어간다).
 - 출력(`CANDIDATE_IDS=`·`UNKNOWN_IDS=`·`HUMAN_IDS=`·`SKIPPED_BUDGET_IDS=`)을 §6 에 `🔁 장부 재확인: 후보 N (C-…) · 판정 불가 N · 사람 판단 N` 1줄로. `UNKNOWN_IDS` = 판정 불가.
-- ⛔ 판단 닫기는 사람 또는 `/forge-end`(`close … --evidence`) — 이슈 닫힘이 근거인 줄은 `forge-core` 장부 줄(기계 닫기). rc≠0·타임아웃도 비차단. 캐시(`carry-recheck.date`·`~/.claude/state/carry-ledger-checked.json`)는 변이 금지의 예외.
+- ⛔ 판단 닫기는 사람 또는 `/forge-end`(`close … --evidence`) — 이슈 닫힘이 근거인 줄은 `forge-core` 장부 줄(기계 닫기). rc≠0·타임아웃도 비차단. 캐시(`carry-recheck.date`·`$HOME/.claude/state/carry-ledger-checked.json`)는 변이 금지의 예외.
 - 스코프 backfill 은 **사람이 직접**: `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" backfill-scope --open-only` 확인 후 `--apply`. ⛔ 자동 실행 금지.
 ## 2. 미소비 체크포인트 (`CHECKPOINT_UNCONSUMED=yes`)
 `OWNERSHIP`(`OK`·`OTHER`·`WARN`) 셋 다 복원(1~3)은 하고, 소비 표시(4)는 **`OK` 만** 한다.
@@ -91,7 +91,7 @@ fi
 - 수집기 마지막 `📥 회수:` 블록을 요약 맨 앞에 **그대로**. `없음`·`판정 불가` 줄도 지우지 않는다.
 - 소유 라벨: `OTHER` 는 읽되 내 상태로 요약 금지(`(타 세션 소유: {LATEST_WORKTREE})` 라벨). `UNKNOWN` 다수는 정상. ⛔ 공유 체크아웃 동시 세션끼리는 판별력이 없다(서로 전부 `MINE`).
 ## 4. VITALS·작업 범위 (read-only, 비차단)
-- 루트 `CLAUDE.md` `## 핵심정보` 로드(자동 메모리 정본은 `~/.claude/projects/*/memory/` — 레포에 `.claude/MEMORY.md` 는 없다 · #1984)(부재 시 "`## 핵심정보` 미설정" 1줄).
+- 루트 `CLAUDE.md` `## 핵심정보` 로드(자동 메모리 정본은 `$HOME/.claude/projects/*/memory/` — 레포에 `.claude/MEMORY.md` 는 없다 · #1984)(부재 시 "`## 핵심정보` 미설정" 1줄).
 - `SHARED_CHECKOUT=yes` 면 브랜치명·dirty 수를 내 상태로 요약 금지(`(공유 체크아웃 — 소유 불명, 타 세션 작업 포함)` 라벨). `DIRTY_COUNT=unknown` 은 설계. `gitStatus` 블록도 옮겨 적지 않는다.
 - `INDEX_LINE` 을 §6 에 그대로 1줄 싣는다 — 이 레포 색인(gitnexus·graphify ✓/✗ · gitnexus 색인이 기본 가지보다 몇 커밋 뒤인지)과 쓸 도구(선택표 `tool-rules.md` 찾기 도구 · #1949 · #2621).
 - 코드를 고칠 예정이면 `EnterWorktree` 로 자기 폴더 확보. 로스터 0개는 직접 처리할 근거가 아니다(`team-routing.md §1`).
@@ -105,11 +105,11 @@ fi
 - **총괄(겸용·쓰기 — 세션 모델이 Opus·Fable 어느 쪽이든 같다) → 오케스트레이터**: 분해·위임·검증·종합, 직접 구현 안 함. 조언 = `advisor-spawn-guard.sh resolve` 출력(직접 스폰 금지). 도메인 작업은 `forge-session-bus.sh send <팀slug>`. 위임 결과는 diff·테스트 실측 후 채택. 방에 보낸 뒤 감시기는 §0b 에서 띄운 것(`--mode`)을 쓴다 — 없으면 `WATCHDOG_CMD` 를 백그라운드로 띄우고(그 레포 안), `WAKE` 1줄로 깨면 처리 후 다시 띄운다(#2540) — 깨기는 Bash 완료 알림으로 기다린다 — 출력 파일을 포그라운드 `until`·`sleep` 로 훑지 않는다(그동안 사람 입력 `/forge-checkpoint`·`/compact` 가 막힌다 · #3418).
 - **`--readonly`(질의응답) → 질의응답 총괄**(세션 모델과 무관): 조사는 읽기 전용 에이전트(Explore·Plan) · 쓰기 방엔 읽기 질의만 · 읽기 방(mode=read)엔 브리프(#3726) · 고칠 코드는 `issue-new.sh` 로 등록(#2941 덧붙임 7).
 - **팀장 방(버스가 연 세션 — 세션 교체 안내·`[총괄]` 배정을 받는다) · 사람이 시작 지시에 구현 세션이라고 적은 세션 → 구현 실행**: 설계 판단은 총괄·사용자 보고. 종료 전 `/forge-end` 필수. 모델 이름으로 정하지 않는다 — 둘 다 아니면 총괄.
-- **세션 모델이 최상위(Fable·Astra)** 면 `MODEL_TIER_HINT` 대로 — 서브에이전트는 `model:` 을 꼭 적고 · full-gate PR 은 직접 구현하지 않고 팀장 방으로 넘긴다(되돌리기 스위치면 검수도 Fable 이라 자기 채점 · `model-routing.md`).
+- **세션 모델이 최상위(Fable·Astra)** 면 `MODEL_TIER_HINT` 대로 — 서브에이전트는 `model:` 을 꼭 적고 · full-gate PR 은 직접 구현하지 않고 팀장 방으로 넘긴다(`model-routing.md`).
 ## 6. 요약 출력 (≤150 단어 — 단 아래 목록은 상한 밖, **전부** 싣는다)
 ```
-⚠️ 장부↔이슈 불일치 N건 — python3 ~/forge/shared/scripts/carry-ledger.py backfill-issues (미리보기 → --apply)   ← LEDGER_NO_ISSUE_N>0 일 때만
-⚠️ 이슈는 닫혔는데 장부는 열린 줄 A건 · 같은 이슈 중복 줄 B건(못 물어본 이슈 C) — python3 ~/forge/shared/scripts/carry-ledger.py issue-gaps (건별 목록 · 닫기는 close <ID> --evidence)   ← LEDGER_ISSUE_CLOSED_N 또는 LEDGER_ISSUE_DUP_N >0 일 때만
+⚠️ 장부↔이슈 불일치 N건 — python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py backfill-issues (미리보기 → --apply)   ← LEDGER_NO_ISSUE_N>0 일 때만
+⚠️ 이슈는 닫혔는데 장부는 열린 줄 A건 · 같은 이슈 중복 줄 B건(못 물어본 이슈 C) — python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py issue-gaps (건별 목록 · 닫기는 close <ID> --evidence)   ← LEDGER_ISSUE_CLOSED_N 또는 LEDGER_ISSUE_DUP_N >0 일 때만
 📋 이어받을 것 (장부 carry-ledger.md)
   ⏰ 날짜 도래 N건 — C-0123 [9/28] …        ← LEDGER_DUE_N 전부, 맨 위
   ▶ 대기 N건 (오래됨 K) — C-0130 …          ← LEDGER_OPEN_N 전부

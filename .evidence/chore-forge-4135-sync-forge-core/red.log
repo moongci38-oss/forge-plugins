@@ -1,0 +1,41 @@
+# forge#4135 forge-core 고치기 전 — base 5b9ab8d8d934b09ecfb3f5f42194b1c20dece476 · forge develop c70d79959
+$ FORGE_ROOT=<forge develop> PLUGIN_ROOT=<worktree> python3 scripts/sync-from-forge.py --verify | grep 'DRIFT: forge-core/'
+  DRIFT: forge-core/skills/system-audit/SKILL.md
+  DRIFT: forge-core/skills/system-audit/references/report-template.md
+  DRIFT: forge-core/skills/system-audit/references/audit-common.md
+  DRIFT: forge-core/skills/skill-creator/SKILL.md
+  DRIFT: forge-core/skills/skill-creator/writing-skills/testing-skills-with-subagents.md
+  DRIFT: forge-core/skills/skill-creator/references/review-triggers.md
+  DRIFT: forge-core/skills/skill-creator/references/placement-global-vs-local.md
+  DRIFT: forge-core/skills/skill-creator/references/evals-templates.md
+  DRIFT: forge-core/skills/rag-search/SKILL.md
+  DRIFT: forge-core/skills/harness-diet/workflow.js
+  DRIFT: forge-core/skills/harness-diet/SKILL.md
+  DRIFT: forge-core/skills/harness-diet/sweep/workflow.js
+  DRIFT: forge-core/skills/harness-diet/scan/workflow.js
+  DRIFT: forge-core/skills/harness-diet/references/scan.md
+  DRIFT: forge-core/skills/forge-multi/workflow.js
+  DRIFT: forge-core/skills/forge-multi/SKILL.md
+  DRIFT: forge-core/skills/forge-loop-maker/SKILL.md
+  DRIFT: forge-core/skills/forge-loop-maker/scripts/scaffold.py
+  DRIFT: forge-core/skills/forge-loop-maker/scripts/loop-kernel.js
+  DRIFT: forge-core/skills/eval-rubric/SKILL.md
+  DRIFT: forge-core/skills/eval-rubric/scripts/eval-cases-append.py
+  DRIFT: forge-core/skills/eval-rubric/rubrics/design.yaml
+  DRIFT: forge-core/commands/forge.md
+  DRIFT: forge-core/commands/forge-sync.md
+  DRIFT: forge-core/commands/forge-start.md
+  DRIFT: forge-core/commands/forge-plan-review.md
+  DRIFT: forge-core/commands/forge-multi.md
+  DRIFT: forge-core/commands/forge-final.md
+  DRIFT: forge-core/commands/forge-end.md
+  DRIFT: forge-core/commands/forge-code-review.md
+  DRIFT: forge-core/commands/forge-checkpoint.md
+  DRIFT: forge-core/commands/forge-analysis-review.md
+  DRIFT: forge-core/rules/tool-rules.md
+  DRIFT: forge-core/rules/success-is-silent.md
+  DRIFT: forge-core/rules/model-routing.md
+  DRIFT: forge-core/rules/forge-core.md
+  DRIFT: forge-core/rules/dev-workflow-rules.md
+  DRIFT: forge-core/rules/behavior-core.md
+DRIFT_forge-core=38

@@ -12,7 +12,7 @@
       "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(harness-diet — scan·sweep 모드) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
       "source": "./forge-core",
       "category": "productivity",
-      "version": "0.7.27"
+      "version": "0.7.28"
     },
     {
       "name": "forge-knowledge",

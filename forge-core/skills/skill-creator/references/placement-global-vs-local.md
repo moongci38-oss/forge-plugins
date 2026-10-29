@@ -17,7 +17,7 @@
 
 | 답 | 배치 | 경로 |
 |---|---|---|
-| 예 (2개 이상 프로젝트) | **전역** | `~/forge/.claude/skills/<name>/` (SSoT) → `forge-sync sync` 로 `~/.claude/skills/` 미러 |
+| 예 (2개 이상 프로젝트) | **전역** | `${FORGE_ROOT:-$HOME/forge}/.claude/skills/<name>/` (SSoT) → `forge-sync sync` 로 `$HOME/.claude/skills/` 미러 |
 | 아니오 (한 프로젝트 전용) | **로컬** | `<프로젝트 레포>/.claude/skills/<name>/` |
 | 모르겠다 | **로컬** | 기본값은 로컬이다. 아래 §되돌리는 법 참조 — 로컬→전역 승격이 그 반대보다 싸다 |
 
@@ -63,10 +63,10 @@
 
 ## 잘못 놓았을 때 되돌리는 법
 
-- **로컬 → 전역(승격)**: 디렉터리를 `~/forge/.claude/skills/` 로 옮기고 커밋 → `forge-sync sync`.
+- **로컬 → 전역(승격)**: 디렉터리를 `${FORGE_ROOT:-$HOME/forge}/.claude/skills/` 로 옮기고 커밋 → `forge-sync sync`.
   원래 레포의 참조(있다면)를 새 경로로 고친다. 비교적 싸다.
 - **전역 → 로컬(강등)**: 옮기는 것만으로 끝나지 않는다.
-  `forge-sync sync` 는 **복사만 하고 지우지 않으므로** 미러(`~/.claude/skills/<name>/`)에 잔재가 남는다.
+  `forge-sync sync` 는 **복사만 하고 지우지 않으므로** 미러(`$HOME/.claude/skills/<name>/`)에 잔재가 남는다.
   `forge-sync prune` 대상 여부를 명시적으로 판정해야 하고, 팀원 머신에도 잔재가 남는다.
   → **그래서 애매하면 로컬에서 시작한다.**
 
@@ -74,7 +74,7 @@
 
 - **근거**: 이 판단 기준은 실무로는 이미 지켜지고 있었으나(위 telegram-workspace 사례),
   `skill-creator` 안에 명문화된 문서가 **0건**이었다(재현:
-  `grep -rniE "전역.*로컬|global.*local.*(placement|배치)" ~/.claude/skills/skill-creator/` → 0, 2026-08-28 관측).
+  `grep -rniE "전역.*로컬|global.*local.*(placement|배치)" $HOME/.claude/skills/skill-creator/` → 0, 2026-08-28 관측).
   기준이 사람 머릿속에만 있으면 세션마다 재판정하게 되고, 전역 쪽으로 기울기 쉽다
   (전역이 "그냥 되니까" 편하다 — 비용이 나중에, 다른 세션에서 발생하기 때문이다).
 - **폐기조건**: 전역/로컬 배치 오판으로 인한 재작업이 2분기 연속 0건이면 이 문서를 30초 판정표만 남기고 축약한다.

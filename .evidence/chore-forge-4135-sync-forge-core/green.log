@@ -1,0 +1,7 @@
+# forge#4135 forge-core 고친 뒤 — forge develop c70d79959 · 0.7.27 → 0.7.28
+$ … --verify | grep -c 'DRIFT: forge-core/'
+DRIFT_forge-core=0
+# 지운 것(forge 에서 지워진 것): 
+$ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-core | tail -2
+=== 결과 ===
+✅ GATE PASS

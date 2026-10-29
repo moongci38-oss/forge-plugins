@@ -125,7 +125,7 @@
 
 | # | 점검 항목 | 측정 줄 | 실측값 | 직전 대비 | 판정 |
 |---|---|---|---|---|---|
-| 1 | `.claude`·`~/.claude` 전체 폴더·낱개 파일 수·용량 | `BLOAT_ENTRY` · `BLOAT_PROJECT_KB` · `BLOAT_GLOBAL_KB` | | | |
+| 1 | `.claude`·`$HOME/.claude` 전체 폴더·낱개 파일 수·용량 | `BLOAT_ENTRY` · `BLOAT_PROJECT_KB` · `BLOAT_GLOBAL_KB` | | | |
 | 2 | 지침 문서 크기·같은 규칙 되풀이·뒤집힌 옛 규칙 잔존 | `BLOAT_RULES_BIG_N` · 규칙 중복률 | | | |
 | 3 | 어디서도 읽지 않는 지침·스킬·에이전트·프롬프트·커맨드 | | | | |
 | 4 | 훅 등록·안 도는 훅 | `BLOAT_HOOKS_DEAD_N` | | | |
@@ -206,6 +206,6 @@
 
 ## 참조
 - $FORGE_OUTPUTS/docs/tech/2026-03-16-5-axis-ai-analysis-framework.md
-- 축 정의서: `~/forge/shared/docs/2026-03-30-four-engineering-disciplines.md` §1~§8
+- 축 정의서: `${FORGE_ROOT:-$HOME/forge}/shared/docs/2026-03-30-four-engineering-disciplines.md` §1~§8
 - 보안 축 틀: OWASP Top 10 for Agentic Applications 2026(ASI01~ASI10)
 ```
