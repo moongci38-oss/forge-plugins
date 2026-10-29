@@ -260,7 +260,7 @@ async function main() {
 
   const buf = await Packer.toBuffer(doc);
   fs.writeFileSync(outputPath, buf);
-  console.log(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+  console.log(`✅ \${path.basename(inputPath)} → \${path.basename(outputPath)}`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

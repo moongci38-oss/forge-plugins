@@ -20,7 +20,7 @@
 - 도구 순서(정책 = `rules-on-demand/web-search-policy.md`): `mcp__tavily__tavily_search` → `mcp__brave-search__brave_web_search`(fallback) → WebFetch
 
 ## Step 3: 우리 시스템 현황 스냅샷
-- 인프라: `~/forge/dev/rules-on-demand/`(최근 수정) · `.claude/skills/` · `.claude/agents/` · `docs/planning/active/plans/`(미처리 액션)
+- 인프라: `${FORGE_ROOT:-$HOME/forge}/dev/rules-on-demand/`(최근 수정) · `.claude/skills/` · `.claude/agents/` · `docs/planning/active/plans/`(미처리 액션)
 - Forge 파이프라인(필수): `forge-workspace.json`(활성 프로젝트·folderMap) → 각 `gate-log.md`(S1~S4 위치) · `02-product/todo.md`(있으면)
 - Forge Dev(필수): Glob `**/.claude/state/sessions/*.json`(미완료 세션) · `docs/walkthroughs/`(최근 완료 Spec)
 
@@ -35,7 +35,7 @@
 
 ## Step 4.9: 최종 완료 게이트 (인덱스 등록 전 필수)
 1. 실행(인자는 절대경로):
-   `bash ~/forge/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/ai-system-analysis.md" "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md"`
+   `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/ai-system-analysis.md" "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}/system-improvement-plan.md"`
    - 조건부 산출물은 생성했을 때만 인자에 추가한다 — 빠뜨리면 검증 없이 통과한다.
 2. 스크립트 출력 표를 완료 보고에 그대로 쓴다. 표 밖 "완료" 서술 금지.
 3. exit 2(MISSING/0바이트)면 인덱스 등록 금지 → 재생성 후 exit 0 일 때만 Step 5.5.
@@ -43,7 +43,7 @@
 ## Step 4.95: 갭·액션 개수 = 스크립트가 센다
 ```bash
 D="${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/daily/{date}"
-python3 ~/forge/shared/scripts/daily-triage-lint.py --analysis "$D/ai-system-analysis.md" --plan "$D/system-improvement-plan.md" --contract > /tmp/daily-triage-{date}.json
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/daily-triage-lint.py --analysis "$D/ai-system-analysis.md" --plan "$D/system-improvement-plan.md" --contract > /tmp/daily-triage-{date}.json
 ```
 **rc 가 아니라 출력 JSON 으로 판정한다**(rc 1 인데 `counts` null · rc 2 인데 `counts` 유효 가능).
 
@@ -71,7 +71,7 @@ python3 ~/forge/shared/scripts/daily-triage-lint.py --analysis "$D/ai-system-ana
               "system_improvement_plan": "01-research/daily/{date}/system-improvement-plan.md",
               "study_notes": "01-research/daily/{date}/study-notes.md"}}
    ```
-2. `echo '<레코드 JSON>' | python3 ~/forge/shared/scripts/daily-review/append_index_record.py`
+2. `echo '<레코드 JSON>' | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/daily-review/append_index_record.py`
 3. exit 0 확인. 실패해도 산출물은 유지 — 실패만 로그하고 Step 6 진행(수동 Write 폴백 금지).
 
 ## Step 6: 대화창 전체 출력

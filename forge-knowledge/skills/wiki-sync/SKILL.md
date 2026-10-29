@@ -27,7 +27,7 @@ argument-hint: "[없음 또는 특정 raw 파일 경로]"
 ```bash
 python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/wiki-sync-scan.py"   # [--root DIR ...] [--limit 10] [--days 30]
 ```
-- 스크립트가 vault 를 `forge-path --write FORGE_VAULT` 로 해석하고 `$VAULT/_meta/sync-tracking.json` 을 준비한 뒤, RAW_DIRS(`forge-outputs`·`~/.claude/skills`·`~/forge/.claude/skills`·`~/forge/.claude/agents`)의 `*.md` 중 `ingested` 에 없는 것을 최근 30일 우선·최신순 **최대 10개** 골라 준다.
+- 스크립트가 vault 를 `forge-path --write FORGE_VAULT` 로 해석하고 `$VAULT/_meta/sync-tracking.json` 을 준비한 뒤, RAW_DIRS(`forge-outputs`·`$HOME/.claude/skills`·`${FORGE_ROOT:-$HOME/forge}/.claude/skills`·`${FORGE_ROOT:-$HOME/forge}/.claude/agents`)의 `*.md` 중 `ingested` 에 없는 것을 최근 30일 우선·최신순 **최대 10개** 골라 준다.
 - 출력: `VAULT=` · `TRACKING=` · `CANDIDATES=<n>` · `CANDIDATE=<경로>` 줄들 → 이 경로들로 Step 2. `CANDIDATES=0` → 할 일 없음 보고 후 종료.
 - rc 1 = FORGE_VAULT 미정의 → **중단**(fail-closed, 트래킹 쓰지 않음) · rc 2 = 트래킹 JSON 손상(판정 불가) → 중단하고 사람에게 알린다(덮어쓰기 금지).
 
@@ -97,4 +97,4 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/wiki-sync-track.py" <처리�
   ```
   ⛔ 직접 `git add`·`git add -A` 금지(forge-outputs-autosync.sh 의 화이트리스트·민감경로 제외·시크릿 스캔 우회). ⛔ `20-wiki/` 는 산출물 저장소에서 ignore 된 별도 저장소(위키 clone) — `git add -f` 금지, 위키 commit·push 는 `wiki-git-sync.sh` 담당.
 
-관련: `~/forge/shared/scripts/wiki-git-sync.sh`(위키 사본 git 동기화 · 목차 갱신 포함, 30분 타이머) · 색인은 워크스페이스 증분 빌드(`rag/workspace-build-safe.sh`)가 공용 DB 에 넣는다
+관련: `${FORGE_ROOT:-$HOME/forge}/shared/scripts/wiki-git-sync.sh`(위키 사본 git 동기화 · 목차 갱신 포함, 30분 타이머) · 색인은 워크스페이스 증분 빌드(`rag/workspace-build-safe.sh`)가 공용 DB 에 넣는다

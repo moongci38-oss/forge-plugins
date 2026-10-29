@@ -1,6 +1,6 @@
 // root-cause: AD-121 PoC — Workflow pipeline vs Agent Teams 비교 (daily-system-review Wave 1)
 // STATUS: ARCHIVED (2026-05-30 Opus 결정) — AD-121 기각 + SKILL.md 미배선. dead code 보존 사유: AD-122 weekly-research PoC schema 패턴 참조용.
-// DO NOT call from SKILL.md. 정본 verdict: ~/forge-outputs/11-platform/pipelines/reports/ad121-poc-2026-05-30.md
+// DO NOT call from SKILL.md. 정본 verdict: \${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/reports/ad121-poc-2026-05-30.md
 // supersedes_by: AD-122 (weekly-research Wave 1+2+3 PoC, 별도 baseline 의무)
 export const meta = {
   name: 'dsr-wave1',
@@ -66,7 +66,7 @@ const results = await pipeline(
   (tier) => agent(
     tier.prompt,
     {
-      label: `wave1:${tier.id}`,
+      label: `wave1:\${tier.id}`,
       phase: 'Wave 1 Tier 수집',
       schema: ITEM_SCHEMA,
       ...(tier.opts || {}),
@@ -77,11 +77,11 @@ const results = await pipeline(
 phase('수집 결과 집계')
 
 const valid = results.filter(Boolean)
-log(`Wave 1 완료: ${valid.length}/${TIERS.length} Tier 수집`)
+log(`Wave 1 완료: \${valid.length}/\${TIERS.length} Tier 수집`)
 
 const merged = await agent(
-  `다음 ${valid.length}개 Tier 수집 결과를 병합하여 일일 동향 요약 작성:
-${JSON.stringify(valid, null, 2)}
+  `다음 \${valid.length}개 Tier 수집 결과를 병합하여 일일 동향 요약 작성:
+\${JSON.stringify(valid, null, 2)}
 
 출력: { summary: "전체 동향 1-2문장", top_items: [{tier, title, significance}], tier_coverage: N }`,
   { model: 'sonnet', label: 'merge', phase: '수집 결과 집계' }

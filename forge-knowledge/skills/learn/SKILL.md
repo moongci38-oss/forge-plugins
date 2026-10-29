@@ -17,7 +17,7 @@ argument-hint: save "<내용>" | search "<키워드>" | gc [--apply] | list [--t
 - 사용자 피드백·행동 규칙은 Auto Memory 로 보낸다.
 
 ## 저장 위치
-`{프로젝트 루트}/.claude/learnings.jsonl` (예: `~/forge/.claude/learnings.jsonl`)
+`{프로젝트 루트}/.claude/learnings.jsonl` (예: `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl`)
 
 ## 사용법
 | 명령 | 동작 |
@@ -47,10 +47,10 @@ for line in sys.stdin:
 ---
 
 ## 코드/디버깅/리뷰/분석 교훈 = `learnings.sh` 헬퍼 경유만
-code-reviewer·forge-pge·investigate·forge-fix·codebase-analyzer 의 교훈은 **learnings.jsonl 에만** 저장(forge-vault/Obsidian 금지). **리치 스키마 + `~/.claude/scripts/learnings.sh` 경유만** — inline grep/sed/python·shell JSON 조합 금지.
+code-reviewer·forge-pge·investigate·forge-fix·codebase-analyzer 의 교훈은 **learnings.jsonl 에만** 저장(forge-vault/Obsidian 금지). **리치 스키마 + `$HOME/.claude/scripts/learnings.sh` 경유만** — inline grep/sed/python·shell JSON 조합 금지.
 
 ### 경로
-- `GLOBAL_LEARNINGS` = `~/forge/.claude/learnings.jsonl` (크로스-프로젝트)
+- `GLOBAL_LEARNINGS` = `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl` (크로스-프로젝트)
 - `PROJECT_LEARNINGS` = `$(git rev-parse --show-toplevel)/.claude/learnings.jsonl` (append 기본)
 - `ACCESS_LOG` = `<repo>/.claude/learnings-access.log` (미추적)
 - 테스트 격리: `LEARNINGS_OVERRIDE=<tmp.jsonl>` → 모든 cmd 가 그 파일만 사용
@@ -66,12 +66,12 @@ code-reviewer·forge-pge·investigate·forge-fix·codebase-analyzer 의 교훈�
 
 ### 헬퍼 cmd
 ```bash
-LEARN_BY=<comp> bash ~/.claude/scripts/learnings.sh load <category>     # active만 stdout, 변경 0, access.log 기록
-bash ~/.claude/scripts/learnings.sh append [--global] [--replaces <old-id>] \
+LEARN_BY=<comp> bash $HOME/.claude/scripts/learnings.sh load <category>     # active만 stdout, 변경 0, access.log 기록
+bash $HOME/.claude/scripts/learnings.sh append [--global] [--replaces <old-id>] \
   --category <c> --summary <s> --apply <a> [--trigger <t>] [--evidence <e>] [--fingerprint <fp>] [--retention permanent|ttl|session] [--fluency_dimension D1-4]
 #   exit: 0 성공 / 2 secret 차단 / 3 검증실패 / 4 git repo 아님 / 6 review-pattern 중복
-bash ~/.claude/scripts/learnings.sh supersede-current <old-id> <new-id>  # old-id → status:superseded
-bash ~/.claude/scripts/learnings.sh next-id | sanitize-check | validate <json>
+bash $HOME/.claude/scripts/learnings.sh supersede-current <old-id> <new-id>  # old-id → status:superseded
+bash $HOME/.claude/scripts/learnings.sh next-id | sanitize-check | validate <json>
 ```
 
 ### 컴포넌트 표준 패턴

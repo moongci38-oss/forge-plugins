@@ -53,41 +53,41 @@ phase('Collect')
 //   되돌리지 않는다(사람 원칙 2026-09-28) · 다시 필요하면 새로 설계한다(#1513).
 const [tierAB, tierCD, sysSnap, forge, constraint] = await parallel([
   () => agent(
-    `Tier 1+2 수집 (${date}): Anthropic/OpenAI/Google 공식 발표 + GitHub 릴리즈·Trending. ` +
+    `Tier 1+2 수집 (\${date}): Anthropic/OpenAI/Google 공식 발표 + GitHub 릴리즈·Trending. ` +
     `Critical/Breaking/Deprecated 변경만 추출. severity 분류 필수.`,
     { label: 'tier-AB', phase: 'Collect', schema: TIER_SCHEMA, model: 'haiku' }
   ),
   () => agent(
-    `Tier 3+4 수집 (${date}): arXiv AI/ML 논문 + HN/Reddit/Twitter AI 커뮤니티. ` +
+    `Tier 3+4 수집 (\${date}): arXiv AI/ML 논문 + HN/Reddit/Twitter AI 커뮤니티. ` +
     `실용 적용 가능 내용 우선. severity 분류.`,
     { label: 'tier-CD', phase: 'Collect', schema: TIER_SCHEMA, model: 'haiku' }
   ),
   () => agent(
-    `Tier 5+6 시스템 현황 (${date}): Claude Code 릴리즈 + MCP 생태계 변동. ` +
+    `Tier 5+6 시스템 현황 (\${date}): Claude Code 릴리즈 + MCP 생태계 변동. ` +
     `forge 시스템 영향도 직결 항목만.`,
     { label: 'sys-snap', phase: 'Collect', schema: TIER_SCHEMA, model: 'haiku' }
   ),
   () => agent(
-    `forge 내부 현황 (${date}): git log 최근 5건 + override-rate.log + 활성 WARN 확인. ` +
+    `forge 내부 현황 (\${date}): git log 최근 5건 + override-rate.log + 활성 WARN 확인. ` +
     `실측값 기반 — 추측 금지.`,
     { model: 'sonnet', label: 'forge-internal', phase: 'Collect', schema: TIER_SCHEMA }
   ),
   () => agent(
-    `Constraint Drift 감사 (AD-120): ~/.claude/override-rate.log 읽어 5%+ WARN 감지. ` +
+    `Constraint Drift 감사 (AD-120): $HOME/.claude/override-rate.log 읽어 5%+ WARN 감지. ` +
     `hook bypass 패턴 확인.`,
     { model: 'sonnet', label: 'constraint-drift', phase: 'Collect', schema: TIER_SCHEMA }
   ),
 ])
 const totalItems = [tierAB, tierCD, sysSnap, forge, constraint]
   .reduce((n, t) => n + (t?.items?.length||0), 0)
-log(`Collect: ${totalItems}건 (Tier 1-6 + forge + drift)`)
+log(`Collect: \${totalItems}건 (Tier 1-6 + forge + drift)`)
 
 // ── Phase 2: CrossVerify (adversarial — 계획서 P0-3) ─────────────────────────
 phase('CrossVerify')
 const [techVerify, sysVerify] = await parallel([
   () => agent(
-    `Tier 1~4 주장 교차검증 (${date}). 출처 근거 없는 주장·날짜 불일치·중복 발견. ` +
-    `totalItems=${tierAB?.items?.length||0 + tierCD?.items?.length||0}건.`,
+    `Tier 1~4 주장 교차검증 (\${date}). 출처 근거 없는 주장·날짜 불일치·중복 발견. ` +
+    `totalItems=\${tierAB?.items?.length||0 + tierCD?.items?.length||0}건.`,
     { model: 'opus', label: 'tech-verify', phase: 'CrossVerify', schema: VERIFY_SCHEMA }
   ),
   () => agent(
@@ -100,15 +100,15 @@ const [techVerify, sysVerify] = await parallel([
     { model: 'opus', label: 'sys-verify', phase: 'CrossVerify', schema: VERIFY_SCHEMA }
   ),
 ])
-log(`CrossVerify: tech=${techVerify?.verdict}(${techVerify?.confidence?.toFixed(2)}) sys=${sysVerify?.verdict}(${sysVerify?.confidence?.toFixed(2)})`)
+log(`CrossVerify: tech=\${techVerify?.verdict}(\${techVerify?.confidence?.toFixed(2)}) sys=\${sysVerify?.verdict}(\${sysVerify?.confidence?.toFixed(2)})`)
 
 // ── Phase 3: Synthesize ───────────────────────────────────────────────────────
 phase('Synthesize')
 await agent(
-  `daily-system-review 종합 리포트 (${date}). ` +
+  `daily-system-review 종합 리포트 (\${date}). ` +
   `ai-system-analysis.md + system-improvement-plan.md 2종 생성. ` +
-  `저장: forge-outputs/01-research/daily/${date}/. ` +
-  `tech_verify=${techVerify?.verdict} sys_verify=${sysVerify?.verdict}. ` +
+  `저장: forge-outputs/01-research/daily/\${date}/. ` +
+  `tech_verify=\${techVerify?.verdict} sys_verify=\${sysVerify?.verdict}. ` +
   `Critical/Breaking 항목 최상단 배치. ` +
   // M3 WARN 다이제스트 (2026-07-16): 리포트 §2 '우리 시스템 현황' 앞에 실행 결과 3줄 삽입, 실패 시 1줄 비차단
   `리포트 §2에 Bash(bash \${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.sh) 출력 3줄(+ '팀장 wisdom 정지:'·'위키 승인 대기:' 줄이 있으면 그 줄까지)을 '### 2.0 WARN 다이제스트'로 포함(실패 시 '생성 실패(비차단)' 1줄).`,
@@ -124,7 +124,7 @@ log('Synthesize 완료')
 // ── Phase 4: Publish ──────────────────────────────────────────────────────────
 phase('Publish')
 await agent(
-  `daily-system-review 발행 (${date}). 로컬 인덱스 등록과 리포트 사이트 발행 기준을 따른다. ` +
+  `daily-system-review 발행 (\${date}). 로컬 인덱스 등록과 리포트 사이트 발행 기준을 따른다. ` +
   `forge-outputs/01-research/daily/index.json 갱신 의무. ` +
   // 근거: 2026-09-25 사람 결정(#1104) — Notion 연동 해제, 로컬 인덱스·리포트 사이트가 유일 경로.
   `Notion 연동은 수행하지 않는다.`,
