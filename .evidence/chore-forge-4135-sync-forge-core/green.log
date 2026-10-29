@@ -15,3 +15,7 @@ DRIFT_forge-core(고친 스크립트 --verify)=0
 $ bash forge-core/hooks/plugin-hook-timeout.test.sh
   PASS  main-write-guard.sh — 등록 timeout 60 ≥ 상한 인자 60
 결과: PASS=1 FAIL=0
+
+# finding-tests 짝(qa H1) — PR head
+  PASS  plugin-hook-timeout 시험 실재·통과
+rc=0

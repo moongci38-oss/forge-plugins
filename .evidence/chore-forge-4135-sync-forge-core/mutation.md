@@ -20,3 +20,7 @@
   FAIL  상한을 쓰는 등록 훅 0개 — 이 검사가 헛돈다
 결과: PASS=0 FAIL=1
 ```
+
+## finding-tests 짝 — forge-core/tests/plugin-hook-timeout.test.sh
+- hooks/plugin-hook-timeout.test.sh 를 치우면: `  FAIL  plugin-hook-timeout 시험 실재·통과 — /tmp/h4-fp-forge-core/forge-core/tests/../hooks/plugin-hook-timeout.test.sh 없음(지워졌다)` rc=1
+- 되돌리면 PASS(rc=0)

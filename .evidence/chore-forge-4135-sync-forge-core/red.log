@@ -45,3 +45,7 @@ DRIFT_forge-core=38
 $ bash forge-core/hooks/plugin-hook-timeout.test.sh
   FAIL  상한을 쓰는 등록 훅 0개 — 이 검사가 헛돈다
 결과: PASS=0 FAIL=1
+
+# finding-tests 짝(qa H1) — 검수 head aa6cf67 에 forge-core/tests/plugin-hook-timeout.test.sh 만 옮겨 돌림
+  FAIL  plugin-hook-timeout 시험 실재·통과 — /tmp/h4-ft-review/forge-core/tests/../hooks/plugin-hook-timeout.test.sh 없음(지워졌다)
+rc=1
