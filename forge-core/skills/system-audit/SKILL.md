@@ -53,7 +53,7 @@ model: opus
 | 13 Bloat(판정) | `.claude` 전체 · `~/.claude` 전체 · `dev/global-rules` 의 `BLOAT_*` 줄 — 폴더별 파일·용량·직전 대비(`BLOAT_ENTRY`) · 큰 지침 · 안 도는 훅 · 훅 주석 비중 · 백업·보관·덤프 · 원본↔사본 고아·이중 로드 · git 밖 누적·워크트리·치우는 장치 · 학습 기록(사용 기록 비중·기한 넘은 줄·등급 미기재·GC 적용일) |
 - 점수 축(1~5·7~11)마다 점수(0-100)·강점·발견 ≥2(위치+이유+방법, 재현 명령 포함). 주관 판단 금지 — 측정 불가 = "N/A (런타임 데이터 필요)".
 - 12 Security · 13 Bloat 은 점수가 아니라 **판정**(통과 / 통과 아님)이다. 12 = ASI 행마다 판정·등급(CRITICAL~LOW) · 13 = 안 도는 훅 > 0 또는 백업·보관 > 0(또는 `NA`)이면 통과 아님 — 의도적 비활성은 까닭이 적힌 목록에 있는 것만 인정한다.
-- **필수 점검 13항목**(`references/report-template.md` §필수 점검 13항목)을 실측값·직전 대비·판정으로 전부 채운다. 측정 줄이 없는 항목은 `NA(측정 줄 없음)` + 통과 아님.
+- **필수 점검 13항목**(`references/report-template.md` §필수 점검 13항목)을 실측값·직전 대비·판정으로 전부 채운다.
 
 ## Step 3: 중복 축 (축 6 · 결정론 = 스크립트, 판정 = 이 세션)
 `python3 $S/audit-dup-axis.py prep --root $R --out <audit-dir>/{date}-dup-axis` → `prompt.txt` 를 읽고 이 세션이 판정해 `verdicts.json` 작성 → `python3 $S/audit-dup-axis.py report --out <같은 폴더> --verdicts <verdicts.json>` → `section.md` 를 보고서 §1.6 에 싣는다. 더해 고아 테스트(삭제된 대상을 찾는 테스트)·고아 에이전트·Hook theater·미러 좀비를 적는다.
@@ -63,23 +63,21 @@ model: opus
    가중치(%, 기본/초기/운영/스케일링 — 단계마다 합 100): Agentic 12/15/12/10 · Context 12/15/12/10 · Harness 14/10/15/15 · Cost 10/6/10/14 · Human-AI 10/15/10/10 · Prompt 8/10/8/6 · Loop 8/7/8/8 · Graph 8/7/8/7 · Compound 10/8/9/10 · Distribution 8/7/8/10
    단계 판별: 초기 = 스킬<20 또는 규칙<5 · 운영 = 스킬 20-50+규칙 5-15+프로덕션 배포 · 스케일링 = 멀티 프로젝트+팀 2명+ 또는 월 $500+.
 2. **12 Security 은 가중치가 없고 다른 축 점수와 평균 내지 않는다.** 보안 축에 CRITICAL·HIGH 가 1건이라도 있으면 보안 축 판정과 **감사 총평은 통과가 아니다**(전체 점수가 높아도). 13 Bloat 도 가중치 없이 판정만 한다.
-3. **정량 지표 10개**(`references/report-template.md` §3 표): evals 보유율 >70% · 세션 시작 토큰 <12,000 · MEMORY 항목 <30 · 규칙 중복률 <10% · 프롬프트 구조 포함률 >70% · Hook 커버리지 >70% · OWASP 커버리지 >50% · 모델 계층화율 >60% · 조건부 로딩률 >50% · 게이트 커버리지 100%.
-4. **지표 제외**: 도구 커버리지·게이트 승인/rubber-stamp·override rate(#1416) · 캐시 히트율(#1418). 이 항목들은 감점·FAIL·"미측정" 행으로 적지 않는다.
-5. **트렌드**: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/` 이전 보고서와 축별 Δ·이슈 해소율·신규 이슈 수·방향(↑↓→) 표. **이전 보고서에 없는 축은 이전 `—` · Δ `N/A(신설)` · 방향 `—`** — 축 구성이 바뀌었으면 전체 점수 Δ 옆에 그 사실을 적는다. 필수 13항목의 직전 대비는 `BLOAT_ENTRY` 증감 칸을 쓴다.
-6. **축간 트레이드오프**: Cost↔Harness · Agentic↔Human-AI · Context↔Cost · Harness↔Agentic · Human-AI↔Cost · Loop↔Cost · Distribution↔Harness.
-7. **이슈 통합**: CRITICAL→LOW 정렬 · cross-axis 태그 · 같은 파일 중복 합산 · 영향도 = 심각도(4/3/2/1)×영향 범위.
+3. **정량 지표 10개**(`references/report-template.md` §3 표).
+4. **트렌드**: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/` 이전 보고서와 축별 Δ·이슈 해소율·신규 이슈 수·방향(↑↓→) 표. 필수 13항목의 직전 대비는 `BLOAT_ENTRY` 증감 칸을 쓴다.
+5. **축간 트레이드오프**: Cost↔Harness · Agentic↔Human-AI · Context↔Cost · Harness↔Agentic · Human-AI↔Cost · Loop↔Cost · Distribution↔Harness.
+6. **이슈 통합**: CRITICAL→LOW 정렬 · cross-axis 태그 · 같은 파일 중복 합산 · 영향도 = 심각도(4/3/2/1)×영향 범위.
 
 ## Step 5: 보고서
 저장: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/{date}-system-audit[-{target}].md`(target=system 이면 suffix 생략). 템플릿 → `references/report-template.md` (§0 실행 방식 · Executive Summary 의 **감사 총평** 줄 · §1.1~1.13(1.6 = 중복 · 1.12 Security · 1.13 Bloat) · §필수 점검 13항목 · §3 끝에 **재현 명령 모음** 필수)
 
 ## Step 6: 완료 게이트 (완료 보고 이전 필수 — 둘 다 rc 0 이어야 완료)
 1. `bash ~/forge/shared/scripts/verify-outputs.sh "<보고서 경로>"` — 출력 표를 완료 보고에 포함. exit 2(MISSING/0바이트) → 완료 보고 금지, 재생성 후 exit 0 에서만 진행.
-2. 아래 독립 Evaluator 1단계 구조 린트(`--measure` 필수) — rc 1 이면 완료 보고 금지. 린트가 기계로 막는 것: `BLOAT_*`·`SEC_*` 필수 줄이 측정 원문에 전부 있다 · `*_ERROR` 줄이 없다 · `NA` 줄은 보고서 표에서 판정 `통과 아님`으로 인용된다(`NA` 는 통과가 아니다) · 보안 축 절·ASI01~10 행·판정 줄(CRITICAL·HIGH 수)이 있다 · CRITICAL·HIGH ≥1 이면 보안 축과 감사 총평이 통과가 아니다 · `SEC_NOT_MEASURED` 항목마다 세션 판정 칸이 찼다 · 군살 축 판정이 측정과 맞다 · 필수 13항목 행 1~13 이 빈 칸 없이 있다.
+2. 아래 독립 Evaluator 1단계 구조 린트(`--measure` 필수) — rc 1 이면 완료 보고 금지.
 
 ## 독립 Evaluator
 Read 먼저: `references/audit-common.md` §독립 Evaluator 공통. **1단계 구조 린트**:
 `python3 ~/forge/shared/scripts/audit-report-structure-lint.py --skill system-audit --report "<보고서 경로>" --measure "<audit-dir>/{date}-measure.txt" > /tmp/audit-lint-system-audit.json; echo "lint rc=$?"`
-`rc`: 1 = 구조 FAIL 확정 · 2 = 입력 오류(경로 고쳐 재실행) · 0+`residual` 없음 = PASS · 0+`residual` 있음 = 2단계.
 
 **판정 기준 원문**(8항목 모두 충족 = PASS · 피드백 `[파일명+섹션] — [이유] → [방법]`):
 1. **점수 10축 커버** — 축별 요약 1.1~1.5·1.7~1.11/점수표에 10축 각각 점수(0-100)+발견 ≥2, N/A·빈 값 FAIL.

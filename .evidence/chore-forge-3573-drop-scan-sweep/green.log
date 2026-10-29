@@ -1,0 +1,9 @@
+# green — 가지 chore/forge-3573-drop-scan-sweep dfd0b74
+version=0.7.27
+hook refs=4 끊김=[]
+옛 스킬 폴더=[]
+harness-diet 모드 파일=4/4
+PASS
+rc=0
+✅ GATE PASS
+gate rc=0
