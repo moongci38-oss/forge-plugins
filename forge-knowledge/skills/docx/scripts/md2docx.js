@@ -286,7 +286,7 @@ function buildDoc(md) {
         children.push(new Paragraph({
           spacing: { before: 40, after: 40 },
           indent: { left: 360, hanging: 240 },
-          children: [new TextRun({text:`\${n++}. `,size:18,font:"Arial"}), ...inlineRuns(txt,18)]
+          children: [new TextRun({text:`${n++}. `,size:18,font:"Arial"}), ...inlineRuns(txt,18)]
         }));
         i++;
       }
@@ -334,5 +334,5 @@ const md = fs.readFileSync(inp, 'utf-8');
 const doc = buildDoc(md);
 Packer.toBuffer(doc).then(buf => {
   fs.writeFileSync(out, buf);
-  console.log(`done: \${path.basename(out)} (\${Math.round(buf.length/1024)}KB)`);
+  console.log(`done: ${path.basename(out)} (${Math.round(buf.length/1024)}KB)`);
 });

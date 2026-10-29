@@ -66,7 +66,7 @@ const results = await pipeline(
   (tier) => agent(
     tier.prompt,
     {
-      label: `wave1:\${tier.id}`,
+      label: `wave1:${tier.id}`,
       phase: 'Wave 1 Tier 수집',
       schema: ITEM_SCHEMA,
       ...(tier.opts || {}),
@@ -77,11 +77,11 @@ const results = await pipeline(
 phase('수집 결과 집계')
 
 const valid = results.filter(Boolean)
-log(`Wave 1 완료: \${valid.length}/\${TIERS.length} Tier 수집`)
+log(`Wave 1 완료: ${valid.length}/${TIERS.length} Tier 수집`)
 
 const merged = await agent(
-  `다음 \${valid.length}개 Tier 수집 결과를 병합하여 일일 동향 요약 작성:
-\${JSON.stringify(valid, null, 2)}
+  `다음 ${valid.length}개 Tier 수집 결과를 병합하여 일일 동향 요약 작성:
+${JSON.stringify(valid, null, 2)}
 
 출력: { summary: "전체 동향 1-2문장", top_items: [{tier, title, significance}], tier_coverage: N }`,
   { model: 'sonnet', label: 'merge', phase: '수집 결과 집계' }

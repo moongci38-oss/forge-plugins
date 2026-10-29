@@ -61,7 +61,7 @@ function detectSingleSourceHighConfidence(text) {
     const sourceLine = m[1] || ''
     const linkCount = (sourceLine.match(/\[[^\]]*\]\([^)]*\)|https?:\/\/\S+/g) || []).length
     if (linkCount === 1) {
-      warnings.push(`단일출처 High신뢰도 항목 #\${idx}: 출처 링크 1개뿐 — 재검토 권장 (\${sourceLine.trim().slice(0,80)})`)
+      warnings.push(`단일출처 High신뢰도 항목 #${idx}: 출처 링크 1개뿐 — 재검토 권장 (${sourceLine.trim().slice(0,80)})`)
     }
   }
   return warnings
@@ -74,7 +74,7 @@ const _a = (typeof args === 'string') ? (() => { try { return JSON.parse(args) }
 // 이미 carryover-items.md로 흡수해둔다. 이 상수는 그 경로를 Collect agent 프롬프트에 전달만 한다
 // (여기서 재수집 X — 이중 수집 방지, SKILL.md §Wave 0.5 참조).
 const date0 = _a?.date || new Date().toISOString().split('T')[0]
-const CARRY = `forge-outputs/01-research/weekly/\${date0}/carryover-items.md`
+const CARRY = `forge-outputs/01-research/weekly/${date0}/carryover-items.md`
 
 // ── Phase 1: Collect (parallel — Wave 1 정합) ─────────────────────────────────
 phase('Collect')
@@ -84,22 +84,22 @@ const date = date0
 //   되돌리지 않는다(사람 원칙 2026-09-28) · 다시 필요하면 새로 설계한다(#1513).
 const [techNews, bizNews, bizItems] = await parallel([
   () => agent(
-    `기술 뉴스 수집 (\${date}): Anthropic 블로그, GitHub Trending, arXiv AI/ML, HN 상위 10건. forge 관련 우선. ` +
-    `지난주 이관항목(\${CARRY} 있으면 Read)을 우선 반영하라.`,
+    `기술 뉴스 수집 (${date}): Anthropic 블로그, GitHub Trending, arXiv AI/ML, HN 상위 10건. forge 관련 우선. ` +
+    `지난주 이관항목(${CARRY} 있으면 Read)을 우선 반영하라.`,
     { label: 'tech-news', phase: 'Collect', schema: NEWS_SCHEMA, model: 'haiku' }
   ),
   () => agent(
-    `비즈니스 뉴스 수집 (\${date}): TechCrunch, Product Hunt, indie hacker 트렌드 10건. ` +
-    `지난주 이관항목(\${CARRY} 있으면 Read)을 우선 반영하라.`,
+    `비즈니스 뉴스 수집 (${date}): TechCrunch, Product Hunt, indie hacker 트렌드 10건. ` +
+    `지난주 이관항목(${CARRY} 있으면 Read)을 우선 반영하라.`,
     { label: 'biz-news', phase: 'Collect', schema: NEWS_SCHEMA, model: 'haiku' }
   ),
   () => agent(
-    `사업 아이템 조사 (\${date}): forge로 구현 가능한 사업 아이템 3종. 문제/해결책/시장신호/우선순위 포함. ` +
-    `지난주 이관항목(\${CARRY} 있으면 Read)을 우선 반영하라.`,
+    `사업 아이템 조사 (${date}): forge로 구현 가능한 사업 아이템 3종. 문제/해결책/시장신호/우선순위 포함. ` +
+    `지난주 이관항목(${CARRY} 있으면 Read)을 우선 반영하라.`,
     { label: 'biz-items', phase: 'Collect', schema: BUSINESS_ITEM_SCHEMA, model: 'sonnet' }
   ),
 ])
-log(`Collect: tech=\${techNews?.items?.length||0} biz=\${bizNews?.items?.length||0} items=\${bizItems?.items?.length||0}`)
+log(`Collect: tech=${techNews?.items?.length||0} biz=${bizNews?.items?.length||0} items=${bizItems?.items?.length||0}`)
 
 // ── Phase 2: Evaluate (adversarial 2x parallel — 계획서 P0-2) ────────────────
 // root-cause: 단일 evaluator → 편향 공유. 2x parallel로 tech/biz 독립 검증
@@ -107,16 +107,16 @@ phase('Evaluate')
 // root-cause: T1 — (c) 반증 탐색 의무화. 단순 품질채점 종료 금지
 const [techEval, bizEval] = await parallel([
   () => agent(
-    `tech-news 교차검증 (\${date}). 출처 신뢰도·날짜 정확성·중복 제거. ` +
-    `tech_items=\${techNews?.items?.length||0}건. clarity/consistency/completeness/safety 0-2점. ` +
+    `tech-news 교차검증 (${date}). 출처 신뢰도·날짜 정확성·중복 제거. ` +
+    `tech_items=${techNews?.items?.length||0}건. clarity/consistency/completeness/safety 0-2점. ` +
     `[반증 탐색 의무] 각 top 주장(P0/P1)에 대해 반대·기각 증거를 능동 검색(WebSearch)하라. 단순 일관성·중복 확인으로 종료 금지. ` +
     `claim_verdicts 배열에 주장별 verdict(CONFIRMED|CONTESTED|UNVERIFIED)와 반박 소스 URL(counter_source_url)을 반환하라.`,
     { model: 'opus', label: 'tech-adversarial', phase: 'Evaluate', schema: EVAL_SCHEMA }
   ),
   () => agent(
     // root-cause: SME 조직 규모 가정 정정 (1인 고정 → SME 가변)
-    `biz-items adversarial 검증 (\${date}). TAM/JTBD 반론·시장 신호 근거·SME 환경 적합성. ` +
-    `biz_items=\${bizItems?.items?.length||0}건. clarity/consistency/completeness/safety 0-2점. ` +
+    `biz-items adversarial 검증 (${date}). TAM/JTBD 반론·시장 신호 근거·SME 환경 적합성. ` +
+    `biz_items=${bizItems?.items?.length||0}건. clarity/consistency/completeness/safety 0-2점. ` +
     `[반증 탐색 의무] 각 top 주장(P0/P1)에 대해 반대·기각 증거를 능동 검색(WebSearch)하라. 단순 일관성·중복 확인으로 종료 금지. ` +
     `claim_verdicts 배열에 주장별 verdict(CONFIRMED|CONTESTED|UNVERIFIED)와 반박 소스 URL(counter_source_url)을 반환하라.`,
     { model: 'opus', label: 'biz-adversarial', phase: 'Evaluate', schema: EVAL_SCHEMA }
@@ -125,16 +125,16 @@ const [techEval, bizEval] = await parallel([
 const overallScore = ((techEval?.overall||0) + (bizEval?.overall||0)) / 2
 const verdict = overallScore >= 1.5 ? 'PASS' : overallScore >= 1.0 ? 'WARN' : 'FAIL'
 const evalResult = { verdict, overall: overallScore }
-log(`Evaluate: tech=\${techEval?.verdict}(\${techEval?.overall?.toFixed(1)}) biz=\${bizEval?.verdict}(\${bizEval?.overall?.toFixed(1)}) → \${verdict}`)
+log(`Evaluate: tech=${techEval?.verdict}(${techEval?.overall?.toFixed(1)}) biz=${bizEval?.verdict}(${bizEval?.overall?.toFixed(1)}) → ${verdict}`)
 if (verdict === 'FAIL') log('[WARN] Evaluator FAIL — 품질 미흡. 이슈 명시 후 계속.')
 
 // ── Phase 3: Synthesize ───────────────────────────────────────────────────────
 phase('Synthesize')
-const WEEKLY_DIR = `forge-outputs/01-research/weekly/\${date}`
+const WEEKLY_DIR = `forge-outputs/01-research/weekly/${date}`
 await agent(
-  `weekly-research 취합 보고서 작성 (\${date}). ` +
+  `weekly-research 취합 보고서 작성 (${date}). ` +
   `tech-news.md + biz-news.md + business-items.md 3종 생성. ` +
-  `저장: \${WEEKLY_DIR}/ 하위. eval: \${evalResult?.verdict}.`,
+  `저장: ${WEEKLY_DIR}/ 하위. eval: ${evalResult?.verdict}.`,
   { model: 'opus', label: 'synthesize', phase: 'Synthesize' }
 )
 log('Synthesize 완료')
@@ -154,21 +154,21 @@ log('Synthesize 완료')
 // ⚠️ [CMD] 는 평평한 한 줄로 유지한다 — `{ }`·`if`·중첩 치환을 넣으면 워크트리 격리 가드가 통째로 거부한다(PR #578).
 try {
   const reportFiles = ['tech-trends.md', 'biz-trends.md', 'tech-news.md', 'biz-news.md', 'business-items.md']
-  const weeklyAbs = `\${'\${FORGE_OUTPUTS:-$HOME/forge-outputs}'}/01-research/weekly/\${date}`
-  const fileArgs = reportFiles.map((f) => `"\${weeklyAbs}/\${f}"`).join(' ')
+  const weeklyAbs = `${'${FORGE_OUTPUTS:-$HOME/forge-outputs}'}/01-research/weekly/${date}`
+  const fileArgs = reportFiles.map((f) => `"${weeklyAbs}/${f}"`).join(' ')
   const grepOut = await agent(
     `Bash 도구로 아래 [CMD] 와 [/CMD] 사이 명령을 **문자열 그대로, 한 번** 실행하고 stdout 을 그대로 반환하라.\n` +
     `⛔ 해석·요약·수정·추가 명령 금지 — 실행기일 뿐이다. grep 이 아무것도 못 찾아 비어도 정상이다.\n` +
-    `[CMD]\ngrep -h -E '\\*\\*(신뢰도|출처)\\*\\*:' \${fileArgs} 2>/dev/null | head -c 40000\n[/CMD]\n` +
+    `[CMD]\ngrep -h -E '\\*\\*(신뢰도|출처)\\*\\*:' ${fileArgs} 2>/dev/null | head -c 40000\n[/CMD]\n` +
     `반환 스키마: {"stdout": "<출력 전체 그대로>"}. 출력이 없으면 stdout="".`,
     { label: 'single-source-grep', phase: 'Synthesize', model: 'haiku',
       schema: { type: 'object', properties: { stdout: { type: 'string' } }, required: ['stdout'] } }
   )
   const combinedText = String(grepOut?.stdout || '')
   const singleSourceWarnings = detectSingleSourceHighConfidence(combinedText)
-  for (const w of singleSourceWarnings) log(`[WARN] \${w}`)
+  for (const w of singleSourceWarnings) log(`[WARN] ${w}`)
 } catch (e) {
-  log(`[WARN] 단일출처 신뢰도 사전필터 skip(fail-open): \${e?.message || e}`)
+  log(`[WARN] 단일출처 신뢰도 사전필터 skip(fail-open): ${e?.message || e}`)
 }
 
 // 학습노트 생성은 2026-09-03 폐지(Human 지시) — concept-notes-writer 를 스폰하지 않는다.
@@ -179,7 +179,7 @@ try {
 // ── Phase 4: Publish ──────────────────────────────────────────────────────────
 phase('Publish')
 await agent(
-  `weekly-research 발행 (\${date}). forge-outputs/01-research/weekly/index.json 갱신 의무. ` +
+  `weekly-research 발행 (${date}). forge-outputs/01-research/weekly/index.json 갱신 의무. ` +
   `블로그 발행은 실패해도 경고 후 스킵. ` +
   `근거: 2026-09-25 사람 결정(#1104) — Notion 연동 해제. 인덱스·블로그·리포트 사이트는 유지.`,
   { model: 'sonnet', label: 'publish', phase: 'Publish' }
