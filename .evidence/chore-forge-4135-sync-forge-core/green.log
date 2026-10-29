@@ -10,3 +10,8 @@ $ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-core | tai
 바뀐 파일: forge-core/skills/forge-loop-maker/scripts/loop-kernel.js forge-core/skills/forge-multi/workflow.js forge-core/skills/harness-diet/scan/workflow.js forge-core/skills/harness-diet/sweep/workflow.js forge-core/skills/harness-diet/workflow.js 
 DRIFT_forge-core(고친 스크립트 --verify)=0
 \${소문자변수} 꼴로 깨진 .js: 0건
+
+# qa BLOCKING H1 고친 뒤 — 정규식 hook_(?:deadline_guard|entry)\s+\S+\s+(\d+)
+$ bash forge-core/hooks/plugin-hook-timeout.test.sh
+  PASS  main-write-guard.sh — 등록 timeout 60 ≥ 상한 인자 60
+결과: PASS=1 FAIL=0
