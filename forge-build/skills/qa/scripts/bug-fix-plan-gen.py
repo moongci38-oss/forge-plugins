@@ -170,8 +170,7 @@ def generate_diff_plan(bugs: list, report_path: str, output_dir: str) -> str:
     lines += [
         "## 범위 외 수정 차단",
         "",
-        "phase-gate hook: healer가 위 목록 외 파일 수정 시도 = exit 2 차단.",
-        "BYPASS: `BYPASS_QA_PHASE_GATE=1`",
+        "healer 는 위 목록 밖 파일을 고치지 않는다 — 기계 차단은 없다(옛 phase-gate 훅은 #2692 에서 삭제).",
     ]
 
     out_path = os.path.join(output_dir, f"{date}-bug-fix-plan-diff.md")

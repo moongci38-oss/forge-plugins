@@ -21,9 +21,9 @@ UI/디자인 검수를 **입구 하나**로 실행합니다. 물리적으로 합
 
 ## 절차
 
-### Step 1 — 게이트 (싼 정적+Lighthouse 우선)
+### Step 1 — 게이트 (싼 정적+실측 우선)
 
-`forge-check-ui` 스킬을 호출해 **4축**(static / lighthouse / responsive / screen-mapping) 검증을 실행하고
+`forge-check-ui` 스킬을 호출해 **4축**(static / a11y-measured(`ui-measure.sh` 실측 — 실패 때만 a11y-llm-review = LLM 추정 · 구 lighthouse) / responsive / screen-mapping) 검증을 실행하고
 PASS/WARN/FAIL 판정 + CRITICAL 개수 + 발견 목록을 수집한다.
 
 ```

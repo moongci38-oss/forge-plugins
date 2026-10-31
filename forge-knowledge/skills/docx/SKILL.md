@@ -1,7 +1,7 @@
 ---
 model: haiku
 name: docx
-description: "Use for creating, reading, editing, or manipulating Word documents (.docx): Word doc, tables of contents, headings, page numbers, letterheads, image insert/replace, find-and-replace, tracked changes, comments, report/memo/letter/template as .docx. NOT for PDFs, spreadsheets, Google Docs."
+description: "Word .docx create/read/edit (tables, tracked changes, comments). Use when a .docx is involved; not PDF/Sheets."
 license: Proprietary. LICENSE.txt has complete terms
 paths:
   - "**/*.docx"
