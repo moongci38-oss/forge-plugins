@@ -17,11 +17,17 @@ group: deploy
 - `prod`: staging→main = **Release MR 생성까지만** · **[STOP]** Human 웹 승인(main 머지) + 배포 [STOP] → production-deploy 자동(bypass 불가)
 
 > **IRON**: prod main 머지는 **Human 웹 전용**(AI 는 Release MR 까지), prod 배포 [STOP] 은 어떤 경로·플래그로도 bypass 불가.
+> **기계 집행**(#3756): 훅 `production-gate.sh` 가 AI 세션의 base=main 머지(모든 꼴)·main 으로 가는 push·허용 목록 밖 워크플로 실행·`scripts/deploy-prod*` 를 막고, `pr-merge.sh` 는 AI 세션의 base=main 머지를 거부한다. 허용 목록은 레포 밖 `/etc/forge/production-gate/`(사람만 · `BOUNDARY.md` '운영 반영 승인').
 
 ## deploy-config.json (프로젝트 루트)
 `{ "<dev|staging|prod>": { "method": "script | workflow", "script": "scripts/deploy-<env>.sh", "workflow": "release-<env>.yml", "branches": { "source": "<src>", "target": "<dst>" }, "targets": { "<name>": { "repos": ["...", "server"] } }, "healthcheck": { "url": "https://...", "assert": "..." } } }`
 - `targets` 없으면 env 노드 전체 = 단일 암묵 타깃(기존 `{ "staging": { method, script, repos[], remote } }` 무수정 유효).
 - `remote.envFile` 은 프로젝트 루트 기준 경로(멀티 레포는 루트 공유 `"../.env"` + 프로젝트별 키만 `envPrefix`). 머신 전역 단일 .env 통합 금지 · 시크릿 값 출력 금지.
+
+## 입구 표 — 빌드·배포 스크립트 (#4165)
+- 규칙 정본 = `dev-workflow-rules.md §Git`(배포 스크립트로만 · 손 단계 금지). 찾기: `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/deploy-entry.sh" <레포> <dev|stg|client_build|slack_post>` → 스크립트 경로 1줄(실행은 안 한다).
+- 칸 = 레포 `.github/issue-board.json` `deploy_scripts.{dev,stg,client_build,slack_post}`(레포 기준 상대경로) · dev·stg 는 없으면 위 `<env>.script`(method=script) · live·prod 는 받지 않는다(rc 2).
+- rc 3 = **스크립트 없음** → 손 단계로 대신하지 않는다 · 보고 + 그 프로젝트에 스크립트 만드는 이슈(`issue-new.sh`) · rc 4 = 경로 거부(레포 밖·`..`·링크 탈출) → [STOP]. 클라 빌드·슬랙 게시도 같은 꼴(슬랙은 준비된 MCP 가 있으면 그것).
 
 ## Step 0 — 파싱 + 라우팅 (fail-open)
 1. `stg` → `staging` 정규화 · `--reverse`/`--dry-run` 추출, 나머지 = 프로젝트 목록.
@@ -30,7 +36,7 @@ group: deploy
 
 | 상태 | 행동 |
 |------|------|
-| 파일 부재 / `<env>` 키 부재 | **GUIDE-STOP**(에러 아님) — "`<env>` 배포 미선언. deploy-config.json 에 노드 추가 필요." 단 dev·stg 브랜치 머지/승격은 Step 2 로 계속 가능 |
+| 파일 부재 / `<env>` 키 부재 | §입구 표 `deploy-entry.sh` rc 0 → 그 스크립트 실행(method=script 와 같음) · rc 3 → **GUIDE-STOP**(에러 아님) — "스크립트 없음 — `<env>` 배포 미선언." + 스크립트 만드는 이슈 단 dev·stg 브랜치 머지/승격은 Step 2 로 계속 가능 |
 | `method: "script"` | `<env>.script` 실행(인자 passthrough) |
 | `method: "workflow"` | `gh workflow run <env>.workflow --ref <branches.source>` |
 | 그 외 | GUIDE-STOP — 지원 method(`script`/`workflow`) 안내 |
@@ -61,7 +67,7 @@ group: deploy
 
 **prod — [STOP] Release MR (IRON)**
 1. `gh run list --branch staging --limit 3` — staging CI green.
-2. 대규모/고위험 시 `/codex-review --stage final --target staging --effort high --blocking`(headless → Opus code-reviewer 폴백 · develop 단계 cr-final PASS 면 생략).
+2. 대규모/고위험 시 `/forge-review --stage final --target staging --effort high --blocking`(headless → Opus code-reviewer 폴백 · develop 단계 cr-final PASS 면 생략).
 3. `gh pr create --base main --head staging --title "release: staging → main" --body "staging→main 승격. 배포 대상 델타: <요약>. main push → production-deploy.yml."` → `gh pr checks <PR#> --watch --interval 20`
 4. 출력 후 정지 — AI 는 `gh pr merge` 금지:
    ```
@@ -77,7 +83,7 @@ group: deploy
 stg/prod 직전 정적 검증(WARN, kill-switch `FORGE_DEPLOY_LINT=off`, 규칙 미선언 시 skip):
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/deploy-workflow-lint.sh" .github/workflows [--rules <project-root>/.claude/deploy-lint-rules.json]`
 - ERROR findings 는 Human 에게 명시 후 진행 여부 확인(hard-BLOCK 아님).
-- 실행: `bash <env>.script [--dry-run] [--step=<name>] [--rollback [<ts>]]` 또는 `gh workflow run <env>.workflow --ref <branches.source>`
+- 실행: dev·stg = `bash <§입구 표 deploy-entry.sh 가 준 경로> [--dry-run] [--step=<name>] [--rollback [<ts>]]` · prod = 원래대로 `bash <prod.script>`(deploy-entry.sh 는 prod 를 rc 2 로 거부한다) 또는 `gh workflow run <env>.workflow --ref <branches.source>`
 - exit 0 → 성공 + `healthcheck` 결과 보고. 미선언이면 `헬스 미측정(unmeasured)` 명시(성공 집계 금지, [STOP] 아님).
 - exit ≠ 0 → [STOP] Human 에스컬레이션 — 에러 + 롤백 경로(`--rollback` 지원 시).
 - 자격증명은 프로젝트 `.env` 참조만 — 값 출력 금지.
@@ -95,4 +101,4 @@ git rev-list --count <target>..main   # 0 = 완전 동기화 (main..<target> 방
 git write 0(checkout/merge/push/commit) · `gh pr create` 0 · script/workflow 미실행(`--dry-run` passthrough) · 출력은 판정·라우팅·게이트 도달 지점만.
 
 ## 실패 시 롤백
-`/forge-rollback` — **L1**(<30분) 최근 커밋 revert · **L2**(<2시간) 이전 태그 재배포 · **L3**(>2시간) hotfix 브랜치 수정 후 재배포.
+**L1**(<30분) 최근 커밋 revert · **L2**(<2시간) 이전 태그 재배포 · **L3**(>2시간) hotfix 브랜치 수정 후 재배포.

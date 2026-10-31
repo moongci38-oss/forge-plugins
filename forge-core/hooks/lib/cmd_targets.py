@@ -12,6 +12,7 @@
    못 뽑았을 때(miss>0) fail-closed 하도록 설계돼 있다.
 
 호출부: settings-json-lock.sh(SJL_LIB) · block-sensitive-bash.sh(BSB_LIB)
+명령 조각 해석(split_segments · describe)은 파일 끝 절 — 훅 공통 정본(#3275) · 시험 shared/scripts/tests/cmd-parse-golden.test.sh
 """
 import re  # noqa: F401  (아래 함수들이 쓴다)
 
@@ -506,7 +507,7 @@ def env_refs(cmd):
 
 def env_refs_unquoted(cmd):
     """따옴표 **밖**에 비밀 `.env` 이름이 보이는가(인자를 못 뽑았을 때의 fail-closed 용 — 검수 r1 H3).
-    `rg '\.env'`·`grep -n '.env'` 처럼 따옴표 안의 검색어는 이름이 아니다(M1 과 같은 이유)."""
+    `rg '\\.env'`·`grep -n '.env'` 처럼 따옴표 안의 검색어는 이름이 아니다(M1 과 같은 이유)."""
     return env_refs(mask_quotes(cmd or ''))
 
 
@@ -538,3 +539,309 @@ def first_stage_cmds(cmd):
     if first:
         out.append(s[start:])
     return ' ; '.join(x for x in out if x.strip())
+
+
+# ══ 명령 조각 해석 — 훅 공통 정본 (#3275) ═══════════════════════════════════════════════════════
+# 왜: Bash 명령을 막는 훅 8개 + 읽기 세션 가드가 "이 명령이 무엇을 하려는지" 를 각자 쪼개 왔다 — 같은 우회
+#   (줄이음 #455 · git 전역 옵션 #931·#3014·#3032·#3034 · 따옴표 속 구분자)를 훅마다 따로 막았다. 해석은 여기 한 곳,
+#   훅은 "막을지" 정책만. 이 절은 해석만 하고 판정하지 않는다 — 훅 전환은 #3275 B~F(전/후 종료 코드 대조).
+# 정본 계약 — split_segments(cmd) -> [조각]   조각 = dict:
+#   raw   : 따옴표를 남긴 낱말들 · words : 따옴표를 벗긴 낱말들 · sep : 앞 구분자(";" "&&" "||" "|" "&" "\n" · 첫 조각 "")
+#   head  : 실행 낱말(VAR=값·리다이렉션·래퍼(env·sudo·timeout·xargs …)·예약어를 넘긴 첫 낱말의 basename · 없으면 None)
+#   args  : head 뒤 낱말 · env : 머리 앞 VAR=값 목록 · subst : 0 = 바깥 · 1+ = $( ) · ` ` · <( ) 속(실행된다)
+#   git   : head 가 git 이면 {"cdir": 마지막 -C 값, "globals": 전역 옵션 낱말, "sub": 하위명령, "sub_args": 그 뒤}
+#   writes: 그 조각의 쓰기 대상(targets — 리다이렉트·tee + write_cmd_targets — cp·mv·dd·truncate 인자) · heredoc : 그 조각에 붙은 heredoc 본문(데이터 — 조각으로 보지 않는다)
+#   uncertain : 해석 불확실 사유 목록 — 훅은 지금처럼 보수적으로(막는 쪽) 읽는다(#3275 할 일 5)
+#     "unclosed-quote" 닫히지 않은 따옴표 · "dynamic-head" 머리가 $변수·치환 · "exec-string" 문자열을 실행(eval·sh -c·python -c …)
+#     "git-lib-missing" git 전역 옵션 풀기를 못 읽음
+# bash 와 같게 읽는 것: 백슬래시-줄바꿈은 **지운다**(공백 아님 — `git pu\⏎sh` 는 push · #455) · 홑따옴표 안은 그대로 ·
+#   낱말 머리의 # 부터 줄 끝은 주석 · `\;` `\ ` 처럼 이스케이프한 구분자·공백은 낱말 일부 · `2>&1`·`&>f` 의 & 는 구분자 아님 ·
+#   heredoc(<<TERM · <<-TERM · 따옴표 친 TERM) 본문은 데이터 · `<<<` 는 heredoc 아님.
+# ⚠️ 무력화되는 입력: 변수·별칭·함수로 가린 명령(`$G push`)은 풀지 않고 dynamic-head 로만 표시 · `sh -c '…'` 속은 쪼개지 않고
+#   exec-string 으로만 표시 · 산술 확장 `$(( ))` 은 치환으로 보지 않는다 · 스크립트 파일 안의 명령은 못 본다.
+# 시험: shared/scripts/tests/cmd-parse-golden.test.sh(골든 표)
+import os as _os
+import shlex as _shlex
+
+SEG_SEPS = ";&|\n"
+_RESERVED = {"if", "then", "else", "elif", "fi", "do", "done", "while", "until", "for", "case", "esac", "in",
+             "{", "}", "!", "[[", "]]", "function", "select", "coproc"}
+_WRAP = {"env", "command", "exec", "time", "nohup", "sudo", "nice", "timeout", "builtin", "xargs", "stdbuf", "ionice", "chrt",
+         "setsid"}
+_WRAP_VAL = {"env": {"-u", "--unset", "-C", "--chdir", "-S", "--split-string"},
+             "sudo": {"-u", "-g", "-C", "-U", "-p", "-D", "-r", "-t", "-T", "--user", "--group", "--close-from", "--other-user",
+                      "--prompt", "--chdir", "--role", "--type", "--command-timeout"},
+             "nice": {"-n", "--adjustment"}, "time": {"-f", "--format", "-o", "--output"},
+             "timeout": {"-s", "--signal", "-k", "--kill-after"}, "xargs": {"-n", "-L", "-P", "-I", "-d", "-E", "-s", "-a"},
+             "stdbuf": {"-i", "-o", "-e"}, "ionice": {"-c", "-n", "-p"}, "chrt": {"-p"}}
+_SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "ash", "fish", "csh", "tcsh"}
+# 실행 판정은 no-force-push.sh is_exec 와 같은 폭(#3292 검수 M2) — 인자·표준입력을 명령으로 실행하는 머리
+_INTERP_RE = r"^(python[0-9.]*|node|nodejs|deno|bun|perl|ruby|php|lua|Rscript)$"
+_INTERP_EVAL = {"-c", "-e", "-E", "-p", "-r", "--eval", "--print", "-"}
+_EXEC_ALWAYS = {"eval", "source", ".", "ssh", "su", "doas", "awk", "gawk", "watch", "parallel", "expect", "script", "make", "at",
+                "batch", "crontab", "tmux", "screen", "docker", "podman", "kubectl", "wsl", "wsl.exe", "cmd.exe", "powershell",
+                "powershell.exe", "pwsh", "osascript", "systemd-run", "flock", "strace", "alias", "export", "declare", "local",
+                "readonly", "typeset", "trap", "function"}
+_ESC = {" ": "", "\t": "", ";": "", "&": "", "|": "", "#": "", "\n": ""}
+_UNESC = {v: k for k, v in _ESC.items()}
+_SUBST = ""   # 바깥 글자에서 치환 자리를 메우는 표식
+
+
+def _join_continuations(s):
+    """백슬래시-줄바꿈을 지운다(홑따옴표 안만 그대로) — bash 와 같게 철자를 붙인다(#455).
+    큰따옴표 안의 ' 는 글자다 — 홑따옴표 시작으로 읽으면 뒤 줄이음을 놓친다(#3292 검수 M4) · $'…' 안은 \\' 가 글자."""
+    out, i, q = [], 0, None
+    while i < len(s):
+        c = s[i]
+        if q == "'":
+            if c == "'":
+                q = None
+        elif c == "\\" and i + 1 < len(s):
+            if s[i + 1] == "\n" and q != "$'":
+                i += 2; continue
+            out.append(s[i:i + 2]); i += 2; continue
+        elif q is None and c == "'":
+            q = "$'" if i and s[i - 1] == "$" else "'"
+        elif q is None and c == '"':
+            q = '"'
+        elif (q == '"' and c == '"') or (q == "$'" and c == "'"):
+            q = None
+        out.append(c); i += 1
+    return "".join(out)
+
+
+def _carve_heredocs(s):
+    """heredoc 본문을 떼어 낸다 → (본문 없는 글자, {줄 번호: [본문 줄]})."""
+    import re
+    lines, kept, bodies, term, strip_tabs = s.split("\n"), [], {}, None, False
+    whole, off = mask_quotes(s), 0   # 따옴표는 글자 전체로 본다 — 줄을 넘는 따옴표 안의 << 는 heredoc 이 아니다(#3292 검수 M1)
+    for ln in lines:
+        masked, off = whole[off:off + len(ln)], off + len(ln) + 1
+        if term is not None:
+            if (ln.lstrip("\t") if strip_tabs else ln) == term:
+                term = None
+            else:
+                bodies.setdefault(len(kept) - 1, []).append(ln)
+            continue
+        kept.append(ln)
+        for m in re.finditer(r"(?<!<)<<(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2", ln):
+            k = m.start()
+            if masked[k] != "<" or ln[m.end():m.end() + 1] == "<":
+                continue
+            if re.search(r"(^|[\s;&|(])#", masked[:k]) or masked[:k].count("((") > masked[:k].count("))"):
+                break   # 주석 속 · 산술 (( )) 속 << 는 heredoc 이 아니다(#3292 검수 M1 · block-hook-tamper.sh 같은 함정)
+            term, strip_tabs = m.group(3), m.group(1) == "-"
+            break
+    return "\n".join(kept), bodies
+
+
+def _carve_substs(s):
+    """$( ) · ` ` · <( ) · >( ) 속을 꺼낸다(홑따옴표 안·산술 $(( )) 제외) → (표식으로 메운 글자, [속 글자])."""
+    out, inner, i, n, single = [], [], 0, len(s), False
+    while i < n:
+        c = s[i]
+        if c == "\\" and not single and i + 1 < n:
+            out.append(s[i:i + 2]); i += 2; continue
+        if c == "'" and not single:
+            # 큰따옴표 안의 ' 는 글자다 — 바깥 상태만 대략 본다(큰따옴표 안에서도 $( ) 는 실행되므로 따로 막지 않는다)
+            q = s.find("'", i + 1)
+            if q > 0 and s.count('"', 0, i) % 2 == 0:
+                out.append(s[i:q + 1]); i = q + 1; continue
+        if (s.startswith("$(", i) and not s.startswith("$((", i)) or (s[i] in "<>" and s.startswith("(", i + 1)):
+            j, depth = i + 2, 1
+            while j < n and depth:
+                depth += {"(": 1, ")": -1}.get(s[j], 0); j += 1
+            inner.append(s[i + 2:j - 1]); out.append(_SUBST); i = j; continue
+        if c == "`":
+            j = s.find("`", i + 1)
+            if j > 0:
+                inner.append(s[i + 1:j]); out.append(_SUBST); i = j + 1; continue
+        out.append(c); i += 1
+    return "".join(out), inner
+
+
+def _tokenize(s, comments=True):
+    """bash 처럼 따옴표를 추적해 낱말·구분자 토큰으로 나눈다(#3292 검수 H1 — 낱말 **중간** 따옴표도 따옴표다: `-m"fix #12"`).
+    낱말 머리의 # 부터 줄 끝은 주석(줄바꿈은 남긴다 · comments=False 면 글자) · 붙은 구분자 글자는 한 토큰 · 닫히지 않은 따옴표 = ValueError."""
+    toks, cur, i, n = [], [], 0, len(s)
+    while i < n:
+        c = s[i]
+        if c in " \t\r" or c in SEG_SEPS:
+            if cur:
+                toks.append("".join(cur)); cur = []
+            if c in SEG_SEPS:
+                j = i
+                while j < n and s[j] in SEG_SEPS:
+                    j += 1
+                toks.append(s[i:j]); i = j
+            else:
+                i += 1
+            continue
+        if c == "#" and not cur and comments:
+            while i < n and s[i] != "\n":
+                i += 1
+            continue
+        if c == "\\" and i + 1 < n:
+            cur.append(s[i:i + 2]); i += 2; continue
+        if c in "'\"":
+            ansi = c == "'" and cur and cur[-1] == "$"   # $'…' 안은 백슬래시가 다음 글자를 이스케이프한다
+            j = i + 1
+            while j < n and s[j] != c:
+                j += 2 if s[j] == "\\" and (c == '"' or ansi) else 1
+            if j >= n:
+                raise ValueError("닫히지 않은 따옴표")
+            cur.append(s[i:j + 1]); i = j + 1; continue
+        cur.append(c); i += 1
+    if cur:
+        toks.append("".join(cur))
+    return toks
+
+
+def _uq(t):
+    if t.startswith("$'") and t.endswith("'") and len(t) >= 3:
+        t = t[2:-1]
+    elif len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'":
+        t = t[1:-1]
+    else:   # 낱말 중간의 따옴표(--opt="a b" · pu"sh")도 벗긴다 — bash 와 같은 값
+        import re
+        t = re.sub(r"\"((?:[^\"\\]|\\.)*)\"|'([^']*)'", lambda m: m.group(1) if m.group(1) is not None else m.group(2), t)
+    return "".join(_UNESC.get(ch, ch) for ch in t)
+
+
+def _head(words):
+    """→ (head, head 자리, env 목록) — 래퍼·VAR=·리다이렉션·예약어를 넘긴다."""
+    import re
+    i, env = 0, []
+    while i < len(words):
+        w = words[i].lstrip("({!") if words[i] not in ("(", "{", "!") else ""
+        if not w or w in _RESERVED:
+            i += 1; continue
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*\+?=", w):
+            env.append(w); i += 1; continue
+        if re.match(r"^\d*(<<?<?|>>?|&>>?)", w):
+            i += 1 if re.match(r"^\d*(<<?<?|>>?|&>>?)\S", w) else 2; continue
+        b = _os.path.basename(w.lstrip("\\"))   # \git 은 별칭만 건너뛴 git 이다(#3292 검수 M2)
+        if b in _WRAP:
+            vals = _WRAP_VAL.get(b, set()); at = i; i += 1
+            while i < len(words) and words[i].startswith("-") and words[i] != "-":
+                o = words[i]
+                if b == "env" and (o in ("-S", "--split-string") or o.startswith(("--split-string=", "-S"))):
+                    return b, at, env   # env -S '<명령>' — 문자열을 실행한다(exec-string 으로 표시 · 머리는 env)
+                takes = o in vals
+                if not o.startswith("--") and len(o) > 2:   # 묶인 짧은 옵션: 값 옵션 글자가 끝이면 다음 낱말이 값(-Eu root) ·
+                    k = next((j for j in range(1, len(o)) if "-" + o[j] in vals), None)   # 뒤에 글자가 붙으면 그게 값(-uroot · -Euroot · #3324 검수 H1)
+                    takes = k == len(o) - 1
+                i += 2 if takes else 1
+            if b == "timeout":
+                i += 1   # DURATION
+            while b == "env" and i < len(words) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[i]):
+                env.append(words[i]); i += 1
+            continue
+        return b, i, env
+    return None, len(words), env
+
+
+def _exec_string(head, args):
+    """이 조각이 인자·표준입력(heredoc · <<< · 파이프 포함)을 명령으로 실행하는가 — no-force-push.sh is_exec 와 같은 폭(#3292 검수 M1·M2)."""
+    import re
+    if head in _EXEC_ALWAYS:
+        return True
+    if head == "env":   # _head 가 env 를 머리로 돌려준 것은 -S 뿐이다
+        return True
+    if head in _SHELLS:
+        if any(a == "-s" or (a.startswith("-") and not a.startswith("--") and "c" in a) for a in args):
+            return True
+        k = 0
+        while k < len(args) and args[k].startswith("-") and args[k] != "-":
+            k += 2 if args[k] in ("-o", "-O", "+o", "+O", "--rcfile", "--init-file") or (not args[k].startswith("--") and args[k][-1] in "oO") else 1
+        return k >= len(args) or args[k] == "-" or args[k].startswith("<")   # 스크립트 파일이 없다 = 표준입력을 실행한다
+    if re.match(_INTERP_RE, head):
+        if any(a in _INTERP_EVAL or (a.startswith("-") and not a.startswith("--") and set(a[1:]) & set("ceE")) for a in args):
+            return True
+        k = 0
+        while k < len(args) and args[k].startswith("-"):
+            k += 2 if args[k] in ("-W", "-X") else 1
+        return k >= len(args) or args[k].startswith("<")
+    if head == "find":
+        return any(a in ("-exec", "-execdir", "-ok", "-okdir") for a in args)
+    return False
+
+
+def split_segments(cmd):
+    """명령 1개 → 조각 목록(위 정본 계약). 해석만 한다 — 판정은 훅 몫."""
+    s = _join_continuations(cmd or "")
+    s, bodies = _carve_heredocs(s)
+    import re
+    mq = mask_quotes(s)   # 이스케이프한 구분자·공백은 **따옴표 밖**에서만 낱말 일부(따옴표 안 백슬래시는 글자 그대로 — `echo 'a\⏎b'`)
+    s = re.sub(r"\\([ \t;&|#\n])", lambda m: _ESC[m.group(1)] if mq[m.start()] == "\\" else m.group(0), s)
+    s = re.sub(r"\d*>&(\d+-?|-)", " ", s)                                  # 2>&1 · >&- : 파일 없는 fd 복제
+    s = re.sub(r"&>(>?)|>&", lambda m: " >" + (m.group(1) or ""), s)       # &>f · &>>f · >&f : 파일로 가는 리다이렉트(& 는 구분자 아님)
+    outer, inner = _carve_substs(s)
+    out = _segments_of(outer, 0, bodies)
+    pending = [(x, 1) for x in inner]
+    while pending:
+        text, depth = pending.pop(0)
+        sub_outer, sub_inner = _carve_substs(text)
+        out.extend(_segments_of(sub_outer, depth, {}))
+        pending.extend((x, depth + 1) for x in sub_inner)
+    return out
+
+
+def _segments_of(text, depth, bodies):
+    reasons = []
+    try:
+        toks = _tokenize(text)
+    except ValueError:
+        # 주석을 끈다 — 따옴표를 못 맞춘 채 # 를 주석으로 읽으면 뒤 조각까지 지워 훅이 막을 재료가 사라진다(#3292 H1)
+        toks, reasons = _tokenize(text.replace('"', " ").replace("'", " "), comments=False), ["unclosed-quote"]
+    segs, cur, sep, line = [], [], "", 0
+    for t in toks + [";"]:   # 주석은 _tokenize 가 지웠다
+        if t and set(t) <= set(SEG_SEPS):
+            if cur:
+                segs.append((cur, sep, line))
+            cur, sep = [], t.strip(" ") if t.strip("\n") else "\n"
+            line += t.count("\n")
+        else:
+            cur.append(t)
+    out = []
+    for raw, sp, ln in segs:
+        words = [_uq(t) for t in raw]
+        head, at, env = _head(words)
+        args = words[at + 1:]
+        why = list(reasons)
+        if head is not None and (head.startswith("$") or _SUBST in head):
+            why.append("dynamic-head")
+        if head is not None and _exec_string(head, args):
+            why.append("exec-string")
+        git = None
+        if head == "git":
+            try:
+                from git_global import parse_git_globals
+                cdir, k = parse_git_globals(args, 0)
+                git = {"cdir": cdir, "globals": args[:k], "sub": args[k] if k < len(args) else None, "sub_args": args[k + 1:]}
+            except Exception:
+                why.append("git-lib-missing")
+        text_seg = " ".join("".join("\\" + _UNESC[ch] if ch in _UNESC else ch for ch in t) for t in raw)
+        out.append({"raw": raw, "words": words, "sep": sp, "head": head, "args": args, "env": env, "subst": depth,
+                    "git": git, "writes": targets(text_seg) + write_cmd_targets(text_seg)[0], "heredoc": bodies.get(ln, []),
+                    "uncertain": why})
+    return out
+
+
+def describe(cmd):
+    """골든 표용 한 줄 요약 — 조각마다 `sep head args… [git=sub@cdir] [w=대상] [!사유]` 를 ` ‖ ` 로 잇는다."""
+    parts = []
+    for g in split_segments(cmd):
+        p = [g["sep"].replace("\n", "⏎") or "^", g["head"] or "-"] + [a.replace(_SUBST, "$(…)") for a in g["args"]]
+        if g["subst"]:
+            p[0] = "$" * g["subst"] + p[0]
+        if g["git"]:
+            p.append("git=%s@%s" % (g["git"]["sub"], g["git"]["cdir"] or "."))
+        if g["writes"]:
+            p.append("w=" + ",".join(g["writes"]))
+        if g["heredoc"]:
+            p.append("hd=%d" % len(g["heredoc"]))
+        if g["uncertain"]:
+            p.append("!" + ",".join(g["uncertain"]))
+        parts.append(" ".join(p))
+    return " ‖ ".join(parts)

@@ -1,0 +1,39 @@
+# forge#4135 forge-build 고치기 전 — base 5b9ab8d8d934b09ecfb3f5f42194b1c20dece476 · forge develop c70d79959
+$ FORGE_ROOT=<forge develop> PLUGIN_ROOT=<worktree> python3 scripts/sync-from-forge.py --verify | grep 'DRIFT: forge-build/'
+  DRIFT: forge-build/skills/work-plan/SKILL.md
+  DRIFT: forge-build/skills/spec-compliance-checker/workflow.js
+  DRIFT: forge-build/skills/spec-compliance-checker/SKILL.md
+  DRIFT: forge-build/skills/screenshot-analyze/workflow.js
+  DRIFT: forge-build/skills/screenshot-analyze/SKILL.md
+  DRIFT: forge-build/skills/qa/workflow.js
+  DRIFT: forge-build/skills/qa/reference.md
+  DRIFT: forge-build/skills/qa/SKILL.md
+  DRIFT: forge-build/skills/qa/scripts/goal-pev.py
+  DRIFT: forge-build/skills/qa/scripts/ci-wait.sh
+  DRIFT: forge-build/skills/prd-review/SKILL.md
+  DRIFT: forge-build/skills/playwright-cli/references/security.md
+  DRIFT: forge-build/skills/investigate/workflow.js
+  DRIFT: forge-build/skills/investigate/SKILL.md
+  DRIFT: forge-build/skills/guide/SKILL.md
+  DRIFT: forge-build/skills/gitnexus-cli/SKILL.md
+  DRIFT: forge-build/skills/frontend-design/SKILL.md
+  DRIFT: forge-build/skills/forge-review/SKILL.md
+  DRIFT: forge-build/skills/forge-check-ui/workflow.js
+  DRIFT: forge-build/skills/forge-check-security/workflow.js
+  DRIFT: forge-build/skills/forge-check-security/SKILL.md
+  DRIFT: forge-build/skills/forge-check-security-exec/SKILL.md
+  DRIFT: forge-build/skills/codex-review/SKILL.md
+  DRIFT: forge-build/skills/canary/workflow.js
+  DRIFT: forge-build/skills/canary/SKILL.md
+  DRIFT: forge-build/commands/prd.md
+  DRIFT: forge-build/commands/forge-spec.md
+  DRIFT: forge-build/commands/forge-qa.md
+  DRIFT: forge-build/commands/forge-pr.md
+  DRIFT: forge-build/commands/forge-implement.md
+  DRIFT: forge-build/commands/forge-fix.md
+  DRIFT: forge-build/commands/forge-deploy.md
+  DRIFT: forge-build/agents/spec-writer-base.md
+  DRIFT: forge-build/agents/performance-checker.md
+  DRIFT: forge-build/agents/healer.md
+  DRIFT: forge-build/agents/cto-advisor.md
+DRIFT_forge-build=36

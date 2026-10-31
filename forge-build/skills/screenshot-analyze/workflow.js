@@ -1,6 +1,6 @@
 // root-cause: Gemini 전면 철수(2026-09-07) — Vision 위임을 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-6 Sol)로 단일화.
 //   구독이 Gemini API 를 안 덮어 유일한 종량 벤더였고, 키가 막혀 이 경로가 통째로 죽어 있었다.
-//   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+//   계획서: \${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
 //   ⚠️ Astra 는 로컬 파일을 직접 읽는다 — 이미지 내용을 인라인할 필요 없이 **절대경로**만 주면 된다.
 // crMode gate: args.crMode ∈ {'on','degrade','off'}, 기본 'on' (2026-09-07 flip — 구 기본값 'degrade').
 //   'on'      → Codex(sol) Vision (default)

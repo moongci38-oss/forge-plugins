@@ -5,7 +5,7 @@
 
 ## 목차
 - Wave 2.5 — 독립 Evaluator subagent
-- Wave 2.55 — 적대적 검수 (cr-triple **2벤더 교차 2레그**, 계획서 전용 · **비차단**)
+- Wave 2.55 — 적대적 검수 (cr-triple **2벤더 교차 2레그**, 계획서 전용 · **비차단** · **사람이 지정할 때만**)
 - Wave 3 — 블로그 발행
 
 ---
@@ -76,7 +76,7 @@ L-56·L-61과 같은 narration-not-execution 계열).
 - [파일명] [항목]: [위치] → [이유] → [개선 방법]
 ```
 
-PASS 확인 후 Wave 2.6(학습노트) → Wave 2.7(HTML 대시보드) → Wave 3(블로그 발행)으로 진행한다.
+PASS 확인 후 Wave 2.7(HTML 대시보드) → Wave 3(블로그 발행)으로 진행한다.
 ⚠️ **진입조건 정합(cr-final pr267-chunk4)**: 이 문서에서 "PASS 후/PASS 확인 후"는 전부
 **`PASS` 또는 `FAIL(AUTO-PROCEED)`**(위 §2회 연속 FAIL 무인 실행 원칙의 자동 선택 완료 상태)를 뜻한다.
 순수 `FAIL`(자동 선택 미실행)만 진행 불가다 — 헤드리스 실행이 잔존 "PASS 후" 문구를 문자 그대로 읽고
@@ -86,12 +86,13 @@ PASS 확인 후 Wave 2.6(학습노트) → Wave 2.7(HTML 대시보드) → Wave 
 
 ## Wave 2.55 (적대적 검수 — cr-triple **2벤더 교차 2레그**, 계획서 전용 · 2026-08-27 Human 지시)
 
+**언제**: 사람이 지정할 때만 돈다 — 기본 회차는 건너뛴다. 정본 `model-routing.md`(검수는 full-gate 만 · Codex 검수 레그는 사람 지정 때만)가 아래 2026-08-27 지시를 대신한다(사람 결정 2026-10-18).
 **대상**: `01-research/projects/{project}/{date}-s1-research.md`
 **대상 아님**: `tech-trends.md`·`biz-trends.md`(뉴스 리포트)·`stock-trends.md` — 이건 리포트 **본문**이고, 본문 품질은 Wave 2.5 Evaluator 와
 커버리지 게이트가 맡는다. cr-triple 은 코드·계획서용 루브릭이라 본문에 걸면 오탐이 는다.
 
 왜 벤더를 가르나: 한 벤더만 보면 그 벤더의 맹점을 그대로 통과시킨다.
-Claude(Opus 5.5)와 Codex(**gpt-6-sol**)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
+Claude(Opus 5.5)와 Codex(**gpt-6.1-sol** — CLI ≥0.160.0 · 구 CLI 는 `gpt-6-sol`)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
 ⚠️ 구 표기 "Claude(Fable 5.1)·Codex(gpt-6-astra)" 는 2026-09-17 폐기 — 사람 지시 "advisor 에서만 최고급 모델 사용해"(레그 모델은 `cr-risk-tier.sh` 등급이 정한다).
 ⚠️ 완화 장치이지 무편향 보장이 아니다(`cr-multi/SKILL.md §self-referential bias`).
 ⚠️ **구 표기 "3레그 — Claude·Codex(gpt-5.6-sol)·Gemini" 는 2026-09-12 폐기.** 2026-09-07 Gemini
@@ -101,7 +102,7 @@ Claude(Opus 5.5)와 Codex(**gpt-6-sol**)가 각각 읽고 교차하면 한 모�
 **호출**
 
 ```
-/forge-multi "01-research/projects/{project}/{date}-s1-research.md" --stage plan --cr on
+/forge-review --stage plan --target "01-research/projects/{project}/{date}-s1-research.md" --mode multi -- --cr on
 ```
 
 ⚠️ **`--cr on` 을 빼면 교차 검증이 성립하지 않는다.** 팀 기본값 `FORGE_AUTO_CR=degrade` 가

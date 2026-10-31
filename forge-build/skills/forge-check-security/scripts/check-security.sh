@@ -2,7 +2,7 @@
 # check-security.sh — OWASP 기반 정적 보안 스캔 (AD-92 P1-C)
 # 사용법: bash check-security.sh [--s8-full] [TARGET_DIR]
 #   --s8-full (= FORGE_SECURITY_S8_FULL=1): S8 을 PR 범위가 아니라 base 이력 전체로 감사한다(정기 감사용).
-# 출력: /tmp/security-scan-results.json
+# 출력: /tmp/security-scan-results.json (FORGE_SECURITY_SCAN_JSON 로 바꾼다 — 동시에 도는 시험·PR 검사끼리 덮어쓰지 않게 · #2718)
 #   결과 JSON 을 못 쓰면 요약 줄이 `Scan complete: UNVERIFIED …` 이고 종료코드 2 다(판정 불가 — PASS 로 읽지 말 것).
 
 S8_FULL="${FORGE_SECURITY_S8_FULL:-0}"
@@ -14,7 +14,7 @@ for _a in "$@"; do
   esac
 done
 TARGET="${TARGET:-$(pwd)}"
-OUT_JSON="/tmp/security-scan-results.json"
+OUT_JSON="${FORGE_SECURITY_SCAN_JSON:-/tmp/security-scan-results.json}"
 EXCLUDE_DIRS="node_modules vendor .git dist build coverage .next .nuxt"
 
 CRITICAL=0; HIGH=0; MEDIUM=0; LOW=0

@@ -1,0 +1,19 @@
+# forge#4135 forge-build 고친 뒤 — forge develop c70d79959 · 0.4.31 → 0.4.32
+$ … --verify | grep -c 'DRIFT: forge-build/'
+DRIFT_forge-build=0
+# 지운 것(forge 에서 지워진 것): forge-build/skills/forge-pge 
+없음(OK): forge-build/skills/forge-pge
+$ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-build | tail -2
+=== 결과 ===
+✅ GATE PASS
+
+# 다시 동기화 — 고친 sync-from-forge.py(forge-plugins PR #119 · JS 원래 보간 보존) · forge develop c70d79959
+바뀐 파일: forge-build/skills/canary/workflow.js forge-build/skills/forge-check-security/workflow.js forge-build/skills/forge-check-ui/workflow.js forge-build/skills/investigate/workflow.js forge-build/skills/qa/workflow.js forge-build/skills/screenshot-analyze/workflow.js forge-build/skills/spec-compliance-checker/workflow.js 
+DRIFT_forge-build(고친 스크립트 --verify)=0
+\${소문자변수} 꼴로 깨진 .js: 0건
+
+# 다시 동기화 (2026-10-31 · develop + #113 head 합친 뒤) — forge develop 44614f446
+# develop(97eddab)·#113(226c120) 합침 충돌 없음
+$ env FORGE_ROOT=<forge develop 44614f446> PLUGIN_ROOT=. python3 scripts/sync-from-forge.py (#119 판) → forge-build 폴더만 남김
+$ python3 scripts/sync-from-forge.py --verify | grep -c 'DRIFT: forge-build/'
+forge-build DRIFT=0

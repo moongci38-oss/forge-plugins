@@ -12,14 +12,14 @@ description: "보안 스캔(OWASP·STRIDE). 트리거: PR 전 보안 게이트·
 
 - 경로 계산(그대로): `FORGE_SEC_SLUG=$(git branch --show-current | sed 's#[^A-Za-z0-9._-]#-#g')` → `docs/qa/security/${FORGE_SEC_SLUG}.md`. 브랜치명이 비면(detached HEAD) 스캔 전에 브랜치를 만든다.
 - ⛔ 구 경로 `docs/qa/security-report.md` 에 쓰지 않는다(읽기 전용·하위호환).
-- 소비처(같은 규칙으로 찾음): `/forge-pr` `shared/scripts/security-report-freshness.sh` · 머지 게이트 `qa-event-router.sh`(브랜치별 → 구 경로 순).
+- 소비처(같은 규칙으로 찾음): `/forge-pr` `shared/scripts/security-report-freshness.sh`(브랜치별 → 구 경로 순).
 
 ## 1. 스캔 실행
 
 대상 기본 CWD · `--target <path>` 지정. 제외: node_modules/ vendor/ .git/ dist/ build/ coverage/
 
 ```bash
-bash ~/forge/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"   # JSON: /tmp/security-scan-results.json
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-check-security/scripts/check-security.sh "$TARGET"   # JSON: /tmp/security-scan-results.json
 ```
 
 | ID | 항목 | 등급 | 패턴 |
@@ -83,7 +83,7 @@ if lint["llm_needed"]:                      # 조건부 — 상시 호출 금지
 판정 토큰·phase 개수·0/0/suppressed=0 일관성은 이미 봤다 — 다시 보지 마라.
 중점: 억제 표식·지문이 진짜 finding 을 숨기는지 / 원시 CRITICAL/HIGH 가 PR 변경분 밖인지 / 빠진 phase 가 diff 범위 밖인지 / 근거·재현경로가 실질적인지.""")
 ```
-결과를 `~/.claude/skills/forge-check-security/eval_cases.jsonl` 에 직접 append: `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL|UNDECIDED", "note":"..."}` (⛔ UNDECIDED 를 PASS·FAIL 로 접지 않는다).
+결과를 `$HOME/.claude/skills/forge-check-security/eval_cases.jsonl` 에 직접 append: `{"case_id":"EC-forge-check-security-{N}", "verdict":"PASS|WARN|FAIL|UNDECIDED", "note":"..."}` (⛔ UNDECIDED 를 PASS·FAIL 로 접지 않는다).
 
 ## 5. STRIDE 선언 대비 구현 대조
 
@@ -96,5 +96,25 @@ python3 shared/scripts/stride-defense-check.py --spec-glob "**/*.md" --code "<ta
 - grep 카운트 판정일 뿐 — PASS ≠ 방어 증명. 산문으로만 적힌 STRIDE 는 못 잡는다(표 형식 필수).
 
 ## Workflow 통합
-병렬 실행: `Workflow({ script: Bash("cat ~/.claude/skills/forge-check-security/workflow.js"), args: { target } })` — parallel() 보안 스캔 → 집계.
+병렬 실행: `Workflow({ script: Bash("cat $HOME/.claude/skills/forge-check-security/workflow.js"), args: { target } })` — parallel() 보안 스캔 → 집계.
 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 check-security.sh 방식 fallback.
+
+<!-- #3602: 커맨드 진입점(.claude/commands/forge-check-security.md)을 지우며 그 파일에만 있던 Advisor 절을 옮겼다 -->
+## Advisor 자문 (advisory-only · non-blocking · 리졸버 기본 = **GPT-6 Astra**)
+
+보안 발견의 심각도·악용 가능성 판정이 경계일 때 `advisor-strategist` 조언을 구한다(모델 = `advisor-spawn-guard.sh resolve` 출력, **기본 `gpt-6-astra`**). **advisory-only — 게이트 차단 아님. 미가용·실패 시 기본 흐름 진행(fail-open).**
+
+> ⚠️ **아래 예시는 리졸버가 `claude-*` 를 냈을 때의 형태다.** 스폰 모델은 항상 `advisor-spawn-guard.sh resolve`(리졸버 래퍼) 가 정한다 — `claude-fable-5-1`→`model:"fable"`, `claude-opus-5-5`→`model:"opus"`, **`gpt-6-astra`(기본)·`gpt-6.1-sol`(구 CLI 는 `gpt-6-sol`) 같은 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)**. 분기표 → `agents/advisor-strategist.md §비용 특성`. 리졸버를 건너뛰면 kill-switch·일일캡·미가용 폴백이 전부 우회되고, 리졸버만 직접 부르면 래퍼의 예산 초과 하향(R3)도 빠진다.
+```
+Agent(subagent_type="advisor-strategist", prompt="발견 내용·영향 범위·기존 방어 맥락 3-5줄. 질문: 이 보안 발견의 실제 악용 가능성과 심각도 상향/하향 근거 2-3개는?")
+```
+
+- 트리거: Critical/High 판정 경계 또는 N/A 처리 판단 시
+- 반환 조언은 참고만 — 최종 판단·실행은 이 스킬이 수행.
+- **advisor 모델 = `advisor-spawn-guard.sh resolve` 출력**(**기본 `gpt-6-astra`** · Fable 5.1 은 `FORGE_ADVISOR_MODEL=fable` 또는 `FORGE_ADVISOR_EXECUTOR=codex|gpt`(벤더 교차) 일 때 · Opus 5.5 는 `FORGE_ADVISOR_MODEL=opus` 로 고정하거나 Codex 예산 초과(`cr-budget.sh check` over=1) 날 래퍼가 astra 를 Opus 로 내릴 때(R3, #1274 — WARN 1줄. 구 "astra → Fable" 은 2026-09-27 폐기)). 출력이 `gpt-*` 면 Agent 가 아니라 `mcp__codex__codex`(sandbox=read-only)로 스폰한다.
+  ⚠️ 2026-08-12 이전 문구 **"Fable 5 미배선 — Human 수동 에스컬레이션 전용 · `advisor-model-resolve` 호출 금지"는 폐기**했다 — 이 게이트에 advisor 자문 레그가 실재하는데 리졸버 호출을 금지해 라우팅이 서로 어긋났다(cr-final HIGH). 정본 → `rules/model-routing.md §Advisor 전략 상시 가동`
+- 모델 라우팅: 본 스킬 작업=Sonnet · 탐색=Haiku · advisor=`advisor-spawn-guard.sh resolve` 출력(**기본 `gpt-6-astra`** · CLI<0.156.1 면 `gpt-5.6-sol` 로 하향).
+  ⚠️ **구 표기 "기본 Fable 5.1 · 대체 gpt-6-astra" 는 2026-09-17 폐기** — 2026-09-07 Human 지시(advisor 기본 Fable→Astra)를 이 파일이 따라오지 못했다. 문서는 fable, 리졸버는 astra 를 내고 있었다.
+  실측 재현: `bash shared/scripts/advisor-model-resolve.sh` → `gpt-6-astra` · `bash shared/scripts/advisor-spawn-guard.sh resolve` → `gpt-6-astra` (2026-09-17 관측).
+  근거: 문서가 조언자 벤더를 틀리게 적으면 "실행자와 다른 벤더에게 묻는다" 는 교차 규율을 사람이 손으로 뒤집는다. 정본 → `rules/model-routing.md §세션 운영 모델`.
+  폐기조건: 사람이 기본 조언자를 다시 정하면 이 줄을 갱신한다.

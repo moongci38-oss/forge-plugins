@@ -1,6 +1,6 @@
 # 감사 스킬 공통 원문 (audit-common)
 
-> **소비처 2곳**: `system-audit`(전 절) · `external-harness-sweep`(§저장 경로 앵커만 — #1185 r2 에서 분리해 옮겼다)
+> **소비처 2곳**: `system-audit`(전 절) · `harness-diet` sweep 모드(옛 `external-harness-sweep` · §저장 경로 앵커만 — #1185 r2 에서 분리해 옮겼다)
 > (각 `SKILL.md` 가 이 파일의 절을 가리키며 **실행 전 Read** 를 지시한다).
 > 이력: 원래 개별 감사 스킬 5종(`audit-*`)과 축 에이전트 5종이 함께 쓰던 공통 원문이었다(#1139 C001 — drift 방지).
 > 둘 다 삭제됐고(#1374) system-audit 은 단독 실측으로 바뀌었다(#1415, 2026-09-28) — 개별 스킬 전용이던 §AUDIT_TOKEN_CAP 도 그때 뺐다.

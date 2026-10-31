@@ -21,7 +21,7 @@ model: opus
    - DB 레이어 경로(`**/model{s,}/`·`**/repositor{y,ies}/`·`**/migration{s,}/`·`**/dao/`·`*.repository.*`·`*.entity.*`) 수정이면 **data 강제**.
 3. How 그대로 실행: API = `verify.sh` 단독/curl · non-ui = API 응답 body+서버 로그(`bug-{N}-red-api.json`) · ui =
 ```bash
-node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
+node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
   --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-red --phase red [--actions <json>]
 ```
    - console.json/network.json = hard-gate. 인터랙션 재현은 `--actions`(예 `{"action":"click","selector":"#submit"}`).
@@ -42,7 +42,7 @@ node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
 - 필수 산출: red/green `{mobile|tablet|desktop}-shot.png` 각 3 + Vision JSON (한계 → `.claude/rules-on-demand/healer-reference.md §a4 미해결 debt / carve-out 한계`). Vision FAIL → a1 로 돌아가 고치고 기계 검사(verify.sh·console 신규 error 0)로 확인한다 — Vision 평가자를 다시 부르지 않는다 · 2회 고쳐도 안 붙으면 **[STOP]**. 기계 검사로 잴 수 없는 버그(Vision-only — verify.sh 로 표현 불가)는 고친 뒤 green 캡처 3종 + pixel-diff 결과를 붙여 **[STOP] 사람 눈 확인**으로 넘긴다(자가 GREEN 금지).
 - **a4.5 데이터 버그 GREEN = 3개 모두**: `db_query_after`(a0.5 동일 쿼리, `success:true`) · `reload_reflects`(캐시 없이 재로드) · `full_journey`(여정 끝까지). 하나라도 미충족 = GREEN 아님. "200·버튼 생김·에러 사라짐"만으로 GREEN 금지. sleep 대신 db_query_after 로 대기. DB 접속 불가 → API 응답+UI 상태 이중 확인 + FOP 에 약화 명시(INCOMPLETE 가능).
 ## a5. 회귀 체크 — verify.sh 전체 → `baseline.json` 대조. Phase1 PASS → 현재 FAIL 이면 **즉시 [STOP]** "[회귀 감지] {시나리오}" + 롤백 제안(`git diff` 경로).
-## a5.5 CLASS SWEEP — 결함 클래스 1줄 규정 → 전역 열거(`python3 ~/forge/shared/scripts/false-success-scan.py --root <PROJECT_ROOT> --list` + 클래스별 grep) → 전부 수정 or 티켓. `sweep.evidence={class_desc,found_count,fixed_count,ticketed[]}` ("N 발견/M 수정/K 티켓"). 현재 WARN 로깅.
+## a5.5 CLASS SWEEP — 결함 클래스 1줄 규정 → 전역 열거(`python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/false-success-scan.py --root <PROJECT_ROOT> --list` + 클래스별 grep) → 전부 수정 or 티켓. `sweep.evidence={class_desc,found_count,fixed_count,ticketed[]}` ("N 발견/M 수정/K 티켓"). 현재 WARN 로깅.
 ## a6. 영구 회귀테스트 (a6.1 → a6.2 → a6.3)
 1. **a6.1** verify.sh 초안 — a0 실패 조건 그대로:
    a0 에서 **실패했던 바로 그 조건**(endpoint·입력·기대값)만 — health-check 류 버그무관 테스트 금지.
@@ -51,8 +51,8 @@ node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
    - verify.sh 로 표현 불가(Vision-only) → a3 기계 확인 통과로 a6 완료 처리 **금지**, scenarios.md Vision 시나리오 + oracle = a4 의 Vision JSON(1회 — FAIL 뒤 고친 판은 사람 눈 확인이 oracle), 리포트에 "verify.sh 회귀: N/A (Vision-gated)".
 3. **a6.3** 통과 시만 `docs/qa/scenarios.md` 에 `## [영구 회귀] BUG-{N} — {제목}`(재현·기대값·출처·추가일) 추가 → `current-bug`(plain) + `current-bug-${session_id}` **둘 다** 제거 또는 다음 번호로 갱신.
 ## a7. FOP 방출 + 독립 검증
-- `docs/qa/artifacts/bug-{N}-fop.json` — 스키마 `~/forge/shared/scripts/fop-schema.json`, 5요소 red/landed/green/sweep/verify. `verify.by='self'` 금지(독립 검증자).
-- `python3 ~/forge/shared/scripts/fop-validate.py docs/qa/artifacts/bug-{N}-fop.json` → 0 PASS · 1 FAIL · 3 INCOMPLETE.
+- `docs/qa/artifacts/bug-{N}-fop.json` — 스키마 `${FORGE_ROOT:-$HOME/forge}/shared/scripts/fop-schema.json`, 5요소 red/landed/green/sweep/verify. `verify.by='self'` 금지(독립 검증자).
+- `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/fop-validate.py docs/qa/artifacts/bug-{N}-fop.json` → 0 PASS · 1 FAIL · 3 INCOMPLETE.
 - Tier-E(아티팩트 존재+신선도) = hard-BLOCK · Tier-S(의미 판정) = 현재 WARN(`fop_verdict:` 를 healer.log 에 기록) · 비-런타임 수정 = `scope: "non-runtime"`, LANDED 만.
 
 ## 전역 가드 (즉시 STOP)

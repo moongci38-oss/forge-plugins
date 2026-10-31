@@ -1,0 +1,16 @@
+# green — 가지 chore/forge-3573-drop-scan-sweep dfd0b74
+version=0.7.27
+hook refs=4 끊김=[]
+옛 스킬 폴더=[]
+harness-diet 모드 파일=4/4
+PASS
+rc=0
+✅ GATE PASS
+gate rc=0
+
+## H1 plugin-hook-timeout.test.sh (green: 정규식 확장 뒤)
+```text
+  PASS  main-write-guard.sh — 등록 timeout 60 ≥ 상한 인자 60
+결과: PASS=1 FAIL=0
+```
+```

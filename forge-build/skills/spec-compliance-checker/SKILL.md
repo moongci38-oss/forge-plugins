@@ -46,7 +46,7 @@ Spec 경로: {spec_path} / 브랜치: {branch} / Matrix(있으면): {matrix_path
 - Stub(Level 2 FAIL): `return null/undefined/{}` 단독 · `throw new Error('not implemented')`/`TODO:`만 · 본문 ≤3줄+테스트 0 · `// placeholder`/`// stub`.
 
 ## 실행 절차
-**Step 0 oracle-manifest**: `.specify/oracle-manifest.json` 있으면 로드 → `oracleStatus: "full"`, uiux 화면을 `FR-UI-{screen-id}`로 추가(`frontend_source="extracted"`면 uiux 면제), 매핑 수 < 화면 수 → WARN("uiux 매핑 미완성: {mapped}/{total}") — gitnexus `route_map` 우선, 없으면 grep. 없으면 `spec-only`, 프론트(*.tsx/*.vue/*.svelte) 감지 시 WARN. PRD→FR 파생 불명확 → WARN "완결성체인 갭: FR-NNN PRD 파생 불명확"(LLM 판정).
+**Step 0 oracle-manifest**: `.specify/oracle-manifest.json` 있으면 로드 → `oracleStatus: "full"`, uiux 화면을 `FR-UI-{screen-id}`로 추가(`frontend_source="extracted"`면 uiux 면제), 매핑 수 < 화면 수 → WARN("uiux 매핑 미완성: {mapped}/{total}") — gitnexus `route_map` 우선, 없으면 grep. 없으면 `spec-only`, 프론트(*.tsx/*.vue/*.svelte) 감지 시 WARN. intent(옛 제품은 PRD)→FR 파생 불명확 → WARN "완결성체인 갭: FR-NNN intent 파생 불명확"(LLM 판정).
 **Step 1** 입력 소스 결정(위 우선순위).
 **Step 2 구현**: Matrix `implementationFiles` 존재 확인 / 추출 시 FR 키워드 Grep(*.ts, *.tsx, *.service.ts, *.controller.ts) → `implStatus`.
 **Step 3 테스트**: Matrix `testFiles` + describe/it 키워드 / 추출 시 `*.spec.ts`·`*.test.ts`·`*.e2e-spec.ts` Grep → `testStatus` + describe 블록명.
@@ -86,7 +86,7 @@ rc `0`=PASS/WARN · `1`=FAIL · `2`=판정불가. 반환 `status`·`frTotal`·`f
 Matrix 포맷: `{spec, plan, createdAt, requirements:[{id, description, priority, implementationFiles[], testFiles[], task, owner}]}`. 실패 시 [[pev-self-correction]].
 
 ## Workflow 실행
-`Workflow({ script: Bash("cat ~/.claude/skills/spec-compliance-checker/workflow.js"), args: { specPath, branch, repoRoot: "<감사 대상 레포 절대경로>", estimate: { frs, files } } })`
+`Workflow({ script: Bash("cat $HOME/.claude/skills/spec-compliance-checker/workflow.js"), args: { specPath, branch, repoRoot: "<감사 대상 레포 절대경로>", estimate: { frs, files } } })`
 - `repoRoot` 필수 권장 — 없으면 경로 대조 skip(`pathCheck.skipped`). `repoRoot`·`forgeRoot`는 `[A-Za-z0-9._/+@-]` 절대경로만.
 - 관측표는 판정 필드만 순수 ASCII로 넘기고 `--expect-sha256` 대조(불일치 = 판정불가). `axisStatus` FAIL → 최종 FAIL, 반환값에도 실음. `pathCheck.root` ≠ `repoRoot` → 판정불가.
 - `CLAUDE_CODE_DISABLE_WORKFLOWS=1` → Subagent 격리 방식 fallback.

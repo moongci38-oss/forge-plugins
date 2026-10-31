@@ -24,7 +24,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" \
 
 **`--decision workflow` 일 때** — 여기서 정하고, 호출은 `## Phase 0` 통과 **후**다(`qa/workflow.js` 는 healer 수정·PR·머지까지 가므로 Readiness 전 호출 금지). 호출 직전 Phase 0 4요소가 전부 ok 가 아니면 **[STOP]**.
 ```
-Workflow({ script: Bash("cat ~/.claude/skills/qa/workflow.js"),
+Workflow({ script: Bash("cat $HOME/.claude/skills/qa/workflow.js"),
            args: { scope, mode, crMode, app, domains, accounts, exhaustive, loopUntilDry, dryK, prLanes } })
 ```
 - 인자는 전부 optional — `app`·`domains`·`accounts`·`exhaustive` 모두 없으면 기존 단일-scope 순차 경로.
@@ -51,8 +51,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-qa
 - 판정 근거는 "커맨드 소유"이지 파일 소유가 아니다.
 
 ## Phase 0 — Readiness 판정 (P5 구현 완료 확인)
-→ 공통 헬퍼: `/readiness-gate` (진입 계약 4요소)
-- 4요소: **구현 코드**(P5 소스 존재) · **시나리오 정의**(스펙·FR 기반 기술 가능) · **서버 기동**(앱 실행 가능) · **QA 스코프**(대상 기능·범위 특정 가능)
+- 4요소: **구현 코드**(P5 소스 존재) · **시나리오 정의**(스펙·FR 기반 기술 가능 — spec 없는 일은 이슈 본문 `## 확인 방법`과 intent 영향 칸이 원천 · 결과 경로는 PR `## 검증` 의 AC 증거 줄 · #3739) · **서버 기동**(앱 실행 가능) · **QA 스코프**(대상 기능·범위 특정 가능)
 
 - 전부 ok → **PASS**(qa 스킬 호출 진행)
 - 구현코드·서버기동 absent → **GUIDE-STOP**(`forge-qa-readiness-{date}.md` 출력 후 정지). P5(`forge-implement`) 미완료 → "P5 구현 완료 후 재호출"
@@ -83,7 +82,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-qa
 - `--app`/`--domains` 는 조합마다 독립 브랜치·PR 로 병렬 fan-out · `--accounts` 는 도메인 안 T1/T2 계정별 추가 실행(별도 PR 없음).
 - `--app`/`--domains` 매칭 0건 → GUIDE-STOP("매칭 없음. 사용 가능: [목록]").
 - 실DB 검증·healer 자동수정은 항상 내장. `--project` 없음 — CWD → forge-workspace.json 매핑.
-- qa-config 스키마 → `~/forge/.claude/skills/qa/reference.md §qa-config 스키마`.
+- qa-config 스키마 → `${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마`.
 
 ## 전역 캡 (변경 금지)
 | 캡 | 한도 | 동작 |
