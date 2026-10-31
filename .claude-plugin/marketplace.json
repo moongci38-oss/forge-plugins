@@ -34,6 +34,13 @@
       "source": "./forge-design",
       "category": "design",
       "version": "0.2.21"
+    },
+    {
+      "name": "forge-status-board",
+      "description": "총괄 상황판(읽기 전용 모드) — /forge-board 가 열린 PR · 이 PC 일감 · 관리 가드 상태 · 팀장 방을 패널에 보여 준다. 도구 호출 훅 없음 — 차단 훅을 건드리지 않는다(forge#4191).",
+      "source": "./forge-status-board",
+      "category": "productivity",
+      "version": "0.2.0"
     }
   ]
 }
