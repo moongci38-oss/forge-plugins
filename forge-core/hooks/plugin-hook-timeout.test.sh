@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# plugin-hook-timeout.test.sh — 판정 상한(hook_deadline_guard·hook_entry <이름> <N>)을 쓰는 훅은 plugin.json 등록 timeout 이 N 이상이어야 한다.
+# plugin-hook-timeout.test.sh — 판정 상한(hook_deadline_guard|hook_entry <이름> <N>)을 쓰는 훅은 plugin.json 등록 timeout 이 N 이상이어야 한다.
 #   왜: 상한은 등록 timeout 의 절반을 자기 몫으로 잡는다 — 등록이 더 짧으면 Claude Code 가 먼저 끊어 fail-closed exit 2 가 오지 않는다
 #   (forge-plugins PR #110 검수 HIGH · main-write-guard 등록 10 ↔ 상한 60).
 set -u
@@ -17,7 +17,7 @@ F = n = 0
 for name, outs in sorted(reg.items()):
     path = os.path.join(root, "hooks", name)
     if not os.path.isfile(path): continue
-    m = re.search(r"hook_(?:deadline_guard|entry)\s+\S+\s+(\d+)", open(path, encoding="utf-8", errors="replace").read())
+    m = re.search(r"(?:hook_deadline_guard|hook_entry)(?:_input)?\s+\S+\s+(\d+)", open(path, encoding="utf-8", errors="replace").read())
     if not m: continue
     need = int(m.group(1))
     for t in outs:
