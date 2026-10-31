@@ -7,6 +7,7 @@
 #       판정 불가 = exit 3 — 체크 0개인데 local-ci 증거가 없거나 PR head 와 다르거나 FAIL 을 담음(#1286)
 
 set -euo pipefail
+_GB="${FORGE_ROOT:-$HOME/forge}/shared/scripts/lib/gh-bin.sh"; . "$_GB" 2>/dev/null && _FGH="$(forge_gh_bin)" || _FGH="${FORGE_GH_BIN:-gh}"   # #3319 9/N: WSL 이면 WSL gh·gh.exe 를 재서 빠른 쪽 — FORGE_GH_BIN 이 이긴다
 
 BRANCH="${1:-$(git branch --show-current 2>/dev/null || echo "")}"
 TIMEOUT_SEC="${2:-900}"  # 15분
@@ -27,7 +28,7 @@ mkdir -p docs/qa
 #   진짜 PR 없음 = gh rc 0 + 빈 출력 · 실패 = gh rc ≠ 0 → 판정 불가(rc 3, 이 스크립트의 기존 규약). 통과가 아니다.
 # ⚠️ 무력화되는 입력: gh 가 오류인데 rc 0 을 내는 경우(현 gh 에서 관측 없음) — 그때는 종전처럼 'PR 없음' 으로 간다.
 PR_LOOKUP_ERR="$(mktemp)"; PR_RC=0
-PR_NUMBER=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' 2>"$PR_LOOKUP_ERR") || PR_RC=$?
+PR_NUMBER=$("$_FGH" pr list --head "$BRANCH" --json number -q '.[0].number' 2>"$PR_LOOKUP_ERR") || PR_RC=$?
 if [ -z "$PR_NUMBER" ]; then
   if [ "$PR_RC" -ne 0 ]; then
     if grep -qiE 'rate limit|secondary rate|abuse detection|unknown owner type' "$PR_LOOKUP_ERR" 2>/dev/null; then
@@ -73,7 +74,7 @@ while [ "$ELAPSED" -lt "$TIMEOUT_SEC" ]; do
   #    **15분 타임아웃을 통째로 태웠다**. develop 대상 PR 에서 Actions 를 끈 뒤(#1258)로는 이게 기본 경로다.
   #    그래서 stderr 를 따로 받아 그 문구면 no-checks 로 판정한다.
   #    ⚠️ 무력화되는 입력: gh 가 이 문구를 바꾸거나 현지화하면 다시 ERROR(→타임아웃)로 떨어진다 — 문구는 gh 2.x 기준.
-  GH_OUT=$(gh pr checks "$PR_NUMBER" --json name,state,bucket 2>"$GH_ERR") || true
+  GH_OUT=$("$_FGH" pr checks "$PR_NUMBER" --json name,state,bucket 2>"$GH_ERR") || true
   if [ -z "$GH_OUT" ] && grep -qi 'no checks reported' "$GH_ERR" 2>/dev/null; then
     STATUS="no-checks"
   else
@@ -121,7 +122,7 @@ while [ "$ELAPSED" -lt "$TIMEOUT_SEC" ]; do
           exit 3
         fi
         EVID="${CI_WAIT_EVIDENCE:-$TOP/.claude/state/local-ci-latest.txt}"
-        HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid -q .headRefOid 2>/dev/null || true)
+        HEAD_SHA=$("$_FGH" pr view "$PR_NUMBER" --json headRefOid -q .headRefOid 2>/dev/null || true)
         # 파일이 없으면 sed 가 rc 2 — pipefail·set -e 로 CI FAIL(rc 2)과 같은 번호가 새지 않게 막는다.
         EV_SHA=$(sed -n 's/^full_sha=//p' "$EVID" 2>/dev/null | head -1) || EV_SHA=""
         EV_SUM=$(sed -n 's/^summary=//p' "$EVID" 2>/dev/null | head -1) || EV_SUM=""
@@ -173,7 +174,7 @@ if [ "$CI_RESULT" = "FAIL" ]; then
   # 자체가 도달 불가였으므로 이 경로는 여태 한 번도 실행되지 않았다(ci-trigger.jsonl 이 빈 이유).
   # 실패 체크가 있으면 gh 는 rc=1 이다 — 응답을 먼저 받아 가짜 unknown 기록을 막는다.
   # ⚠️ 무력화되는 입력: JSON 자체가 깨지면 jq 실패로 기존 unknown 폴백이 남는다.
-  GH_OUT=$(gh pr checks "$PR_NUMBER" --json name,state,bucket 2>/dev/null) || true
+  GH_OUT=$("$_FGH" pr checks "$PR_NUMBER" --json name,state,bucket 2>/dev/null) || true
   FAILED_CHECKS=$(printf '%s' "$GH_OUT" | jq -r '.[] | select(.bucket == "fail") | .name' 2>/dev/null || echo "unknown")
 
   while IFS= read -r check_name; do

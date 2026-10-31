@@ -69,7 +69,7 @@ results = await parallel([
 {"skill": "<name>", "scenario": "boundary-valid", "verdict": "WARN", "input": {...}, "warning": "..."}
 ```
 
-`~/.claude/skills/eval-rubric/scripts/eval-cases-append.py`로 jsonl append.
+`$HOME/.claude/skills/eval-rubric/scripts/eval-cases-append.py`로 jsonl append.
 
 ## 규율 강제 스킬 체크리스트
 
@@ -84,6 +84,6 @@ results = await parallel([
 
 ## 참조
 
-- TDD 3-phase 구현체 → `~/forge/.claude/commands/forge-implement.md` §REFACTOR phase
+- TDD 3-phase 구현체 → `${FORGE_ROOT:-$HOME/forge}/.claude/commands/forge-implement.md` §REFACTOR phase
 - eval 2종은 역할이 다르다 — `evals/evals.json`(build-time 정적 fixture, skill-creator 필수) · `eval_cases.jsonl`(runtime 실행 로그, eval-rubric 이 자동 append). 둘을 동기화하지 않는다.
 - 행동 규율 강제 스킬 목록 → skill-creator/SKILL.md §Step 4.7

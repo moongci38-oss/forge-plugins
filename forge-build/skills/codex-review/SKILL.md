@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: "Codex 2차 리뷰(stage plan/code/test/final/bugfix) — 명시 호출 때 사용한다(자동은 기본 off)."
+description: "Codex 2차 리뷰(stage 9종 — §인자) — 명시 호출 때 사용한다(자동은 기본 off)."
 ---
 
 # Codex Review
@@ -8,7 +8,8 @@ description: "Codex 2차 리뷰(stage plan/code/test/final/bugfix) — 명시 �
 > 이 SKILL = 파이프라인 인터페이스(P3~P7). 수동 슬래시·실제 호출 절차 정본 = `~/forge/.claude/commands/codex-review.md`. 이중 인터페이스 — 한쪽 삭제 금지, `CODEX_REVIEW_AUTO_STAGES` 규약 공유. 나눠 맡는다 — **인자·stage 표·포커스 = 이 SKILL `§인자`** · 절차(Step) = 커맨드(#2470).
 
 **역할**: Claude 1차 리뷰의 동일 모델 맹점을 보완하는 OpenAI Codex(gpt-6.1-sol = registry `codex:high` · CLI ≥0.160.0 · 구 CLI 는 `gpt-6-sol`) 2차 리뷰 게이트(대체 아닌 추가, stage별 차등 blocking).
-**컨텍스트**: P3~P7 어느 단계에서도 호출 가능 — plan·final 은 blocking, code·test 는 권고, bugfix 는 수동. 자동 발동 stage 는 `.env` 의 `CODEX_REVIEW_AUTO_STAGES` 가 정한다(기본 off — 평소엔 명시 호출).
+**컨텍스트**: P3~P7 어느 단계에서도 호출 가능 — 막힘(blocking)·권고는 stage 마다 다르고 정본은 `§인자` 의 `--blocking` 줄이다(plan = 권고 · AD-50). 자동 발동 stage 는 `.env` 의 `CODEX_REVIEW_AUTO_STAGES` 가 정한다(기본 off — 평소엔 명시 호출).
+**언제 도나**: 사람이 부를 때와 `CODEX_REVIEW_AUTO_STAGES` 를 켰을 때만. Codex 를 **검수 레그**로 쓰는 것은 사람이 지정할 때만이다(`model-routing.md` — 구현·조언 레그는 그대로 쓴다). 처음 쓰는 사람용 한 장 = `docs/guides/codex-review-usage.html`.
 ## 출력·차단 규칙
 - ⛔ `mcp__codex__codex` 직접 호출로 대신하지 마라 — 산출물·INDEX 기록, stage별 rubric 이 빠진다 · FAIL 뒤에는 고치고 테스트·기계 검사로 확인한다(다시 부르지 않는다)(`commands/codex-review.md §직접 부르지 마라`).
 - 이 레인은 단일 Codex. 2벤더 교차는 `/forge-multi`( 증거 `.claude/audit/cr-evidence/`). 한쪽만 보고 "검수 없음" 판정 금지.
@@ -24,7 +25,7 @@ description: "Codex 2차 리뷰(stage plan/code/test/final/bugfix) — 명시 �
 
 ## Quick Start
 ```
-/codex-review --stage plan --target docs/spec/feature-x.md --blocking
+/codex-review --stage plan --target docs/spec/feature-x.md
 /codex-review --stage code --target src/auth.ts   # test 도 동일 형식
 /codex-review --stage final --target PR-1234 --effort high --blocking
 /codex-review --stage bugfix --target patches/fix-token-leak.diff
@@ -35,24 +36,29 @@ description: "Codex 2차 리뷰(stage plan/code/test/final/bugfix) — 명시 �
 | 인자 | 기본 | 의미 |
 |---|---|---|
 | `--stage` | 필수 | `plan\|analysis\|code\|test\|final\|bugfix\|yt-apply-plan\|article-apply-plan\|phase1-validate` |
-| `--target` | 필수 | 파일 경로 또는 `PR-N` |
+| `--target` | 필수 | 파일 경로 · 폴더 경로(폴더 전체 — 민감 경로·생성물은 빼고 보낸다) · `PR-N` |
+| `--mode` | `single` | `single\|multi` → `$MODE` · `multi` = `/forge-multi` 엔진 위임(stage `plan\|code\|test\|bugfix\|final` 만) |
+| `--lens` | 없음 | `security\|ui\|perf\|tests\|traceability` → `$LENS` · 관점 점검 엔진 위임(`--mode multi` 와 함께 쓰지 않는다) |
+| `--exec` | 없음 | 줄 때 → `$LENS_EXEC`(=1) · `--lens security` 와만 — 실행 기반 점검(`/forge-check-security-exec`) |
+| `--` | 없음 | 뒤의 인자 전부 → `$PASS` · 위임 갈래(`--mode multi`·`--lens`)의 엔진에 **그대로** 넘긴다(예: `-- --cr on` · `-- --allow-unbound-final`) · codex-single 에서는 쓰지 않는다 |
 | `--effort` | `high` | final 은 high 바닥(low·medium → high · 명시 상향은 그대로) · #2058 |
-| `--blocking` | stage별 | FAIL 시 exit 1 — 기본 YES: `final`·`yt-apply-plan`·`article-apply-plan`·`phase1-validate` / 그 외 권고(plan = AD-50) |
+| `--blocking` | 없음 | 줄 때만 FAIL 시 exit 1(Step 7 · stage 로 정해지는 기본값은 없다) — 붙이는 것이 표준: `final`(`/forge-final`)·`yt-apply-plan`·`article-apply-plan`·`phase1-validate` / 그 외 권고(plan = AD-50 · `/forge-plan-review` 도 안 붙인다) |
 | `--cr` | `FORGE_AUTO_CR`→`on` | `degrade`/`off` = Codex 호출 skip (`cr-mode.sh`) |
 | `--sol/--terra/--luna` | sol | `CODEX_TIER`=high/default/low |
 
+옛 이름: `--stage spec` = `plan`(#3638 호환 입구 — 받으면 `plan` 으로 돈다 · 새로 쓸 때는 `plan`).
 포커스: plan=요구 명확성·누락·모순·YAGNI · analysis=근거·추정 태그·범위·SSoT 주장 · code=로직·보안·성능 · test=커버리지 갭·가짜 통과 · final=통합(추적성·롤백) · bugfix=근본원인 vs 우회.
 
 ## Stage 분기 (effort 전부 high · #2058)
-| Stage | 호출 시점 (Forge Dev) | Blocking |
-|---|---|:-:|
-| `plan` | P3 계획서 / P4 Spec 작성 직후 | YES |
-| `code` | P5 Check P5.7-X | NO |
-| `test` | P6 Check 6-TX | NO |
-| `final` | P7 Check 7-X (PR 직전, 통합 검증) | YES |
-| `bugfix` | 버그 patch 후 (수동) | NO |
+| Stage | 호출 시점 (Forge Dev) |
+|---|---|
+| `plan` | P3 계획서 / P4 Spec 작성 직후 |
+| `code` | P5 Check P5.7-X |
+| `test` | P6 Check 6-TX |
+| `final` | P7 Check 7-X (PR 직전, 통합 검증) |
+| `bugfix` | 버그 patch 후 (수동) |
 
-- `code` = 단위 변경 로직·보안·성능 / `final` = Spec 추적·롤백·UX·보안 통합·마이그레이션(동일 영역 재검증 효과 0). 호출 시 stage별 평가 기준 인입 의무. Blocking 은 발동 시 [STOP] 유발 여부일 뿐 — 발동은 AUTO_STAGES 로만.
+- `code` = 단위 변경 로직·보안·성능 / `final` = Spec 추적·롤백·UX·보안 통합·마이그레이션(동일 영역 재검증 효과 0). 호출 시 stage별 평가 기준 인입 의무. Blocking 은 발동 시 [STOP] 유발 여부일 뿐 — 발동은 AUTO_STAGES 또는 그 호출의 `--cr on`(게이트 `codex-review-gate.sh`).
 
 ## AUTO_STAGES (정본 `commands/codex-review.md` Step 1.5)
 ```bash

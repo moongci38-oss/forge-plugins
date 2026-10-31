@@ -1,7 +1,7 @@
 ---
 model: haiku
 name: pdf
-description: "Use for anything with PDF files: read/extract text/tables, merge/split/rotate/watermark, create new PDFs, fill forms, encrypt/decrypt, extract images, OCR scanned PDFs. Trigger: any .pdf file mentioned or requested."
+description: "PDF read/extract/merge/split/fill/OCR. Use when any .pdf file is involved."
 license: Proprietary. LICENSE.txt has complete terms
 ---
 

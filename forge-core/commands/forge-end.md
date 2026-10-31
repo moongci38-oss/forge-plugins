@@ -1,5 +1,5 @@
 ---
-description: "세션 완전 종료 — 서술형 handover 작성(단일 레인) + 기록 무누락 게이트. 트리거: \"세션 종료\", \"end\", /forge-end (구 /end-opus·/end-sonnet 통합)."
+description: "세션 완전 종료 — 서술형 handover 작성(단일 레인) + 기록 무누락 게이트. 트리거: \"세션 종료\", \"end\", /forge-end."
 group: ops
 ---
 # /forge-end
@@ -41,8 +41,8 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/worktree-scope.sh" | grep '^WORK
 - `## 이번 세션에 한 일`(경로·요약·커밋) · `## 결정과 근거`(기각 대안) · `## 실패한 시도와 이유`(`시도 → 실패 → 이유 → 교훈`, 부재 시 WARN) · `## 사용자 제약·지시 (DO / DON'T)` · `## 열린 질문`
 - `## 다음 세션이 이어받을 것` — 맨 앞 `### 바뀐 것`: `- 바뀐 것: \`old\` → \`new\` · 발효: 브랜치만|develop 반영됨|미러 sync 완료 · 재현: <명령>` 또는 `- 없음`. 이어서 우선순위 순 항목 + **이번 세션에 만들어진** apply-plan 의 미완 `P0` 만 `- {요약} (계획: {파일명})` 로(P1·P2·남의 계획 제외; 확인 `bash shared/scripts/apply-plan-closure.sh | grep ^P0_`).
 - `## 팀장 위임 기록` — `| 팀slug | 보낸 브리프 | 수신 응답 | 방 상태(dormant/live) |`, 없으면 `없음`. 상태는 §2 블록으로 판정(`forge-session-bus.sh list` 만으로 추측 금지). 응답은 `bash shared/scripts/forge-session-bus.sh read <방> [n]` 또는 결과물(`gh issue list`·머지 SHA)로 확인 — `미수신`·`미확인` 이면 이어받을 것에도 1줄.
-- `## 사람 확인 카드` — **이미 끝낸 일** 중 사람이 봐야 할 것(사람만 할 수 있는 명령·눈으로 봐야 하는 결과·사람 판단이 필요한 뒤처리)을 **전수 열거** — **별도 이슈(카드)를 만들지 않는다**(#2615 — 묶음 안이든 밖이든) · 그 일의 이슈 본문 `## 사람 확인` 절에 적은 뒤 `- 묶음 <마일스톤 이름> — #<이슈> \`## 사람 확인\` 절` 줄로(항목 머리 `[메인 PC]`·`[서브 PC]`·`[모든 PC]` + 굵은 제목 + 고친 것·해 볼 것·기대 · 꼭 사람만 할 수 있는 것만 · 별도 카드 없이 묶음 허브 본문 `## 테스트 요청` 절에 PC 별로 모인다 · #2307·#2364·#2585) · 묶음에 아직 못 넣은 일은 `- 묶음 미정 — #<이슈> \`## 사람 확인\` 절` 로(총괄 PC 가 묶음에 넣는다 · 규약 `rules-on-demand/issue-board-standard.md §9-1`). 승인 게이트가 아니다 — 적은 뒤 기다리지 않는다. 사람 답이 있어야 진행되는 것은 여기가 아니라 아래 `## 결정 요청 카드`(`[승인 요청]`·`[결정 요청]`). 없으면 `- 없음` + 보고에 `사람 확인: 없음` 1줄. §2 collect 의 `HUMAN_CHECK_OPEN_N`(이 PC 몫 열린 카드 수)과 대조해 채운다 — 이번 세션 몫이 빠졌으면 등록부터.
-- `## 결정 요청 카드` — 사람 답이 없으면 **진행이 막히는 것**만: 해도 되나(예/아니오)는 `[승인 요청]` 카드(라벨 = `decision-label.sh <owner/repo> approval` · 틀 §9-2), 선택지 중 고르기는 `[결정 요청]` 카드(라벨 = `bash ~/forge/shared/scripts/decision-label.sh <owner/repo>` 가 고른 것(human-decision · 옛 needs-decision 만 있는 레포는 그것 · 둘 다 없으면 만든다 #2310) + `status:blocked` · 본문 틀 §9-2)로 올리고 `- #N 제목`. 없으면 `- 없음`. 본문에 "실행해 주세요" 류 사람 몫 문장이 있는데 두 카드 절 어느 쪽에도 번호가 없으면 §4 verify FAIL(`HUMAN_CHECK`).
+- `## 사람 확인 카드` — **이미 끝낸 일** 중 사람이 봐야 할 것(사람만 할 수 있는 명령·눈으로 봐야 하는 결과·사람 판단이 필요한 뒤처리)을 **전수 열거** — **별도 이슈(카드)를 만들지 않는다**(#2615 — 묶음 안이든 밖이든) · 그 일의 이슈 본문 `## 사람 확인` 절에 적은 뒤 `- 묶음 <마일스톤 이름> — #<이슈> \`## 사람 확인\` 절` 줄로(항목 머리 `[메인 PC]`·`[서브 PC]`·`[모든 PC]` + 굵은 제목 + 고친 것·해 볼 것·기대 · 꼭 사람만 할 수 있는 것만 · 별도 카드 없이 묶음 허브 본문 `## 테스트 요청` 절에 PC 별로 모인다 · #2307·#2364·#2585) · 묶음에 아직 못 넣은 일은 `- 묶음 미정 — #<이슈> \`## 사람 확인\` 절` 로(총괄 PC 가 묶음에 넣는다 · 규약 `rules-on-demand/issue-board-standard.md §9-1`). 승인 게이트가 아니다 — 적은 뒤 기다리지 않는다. 사람 답이 있어야 진행되는 것은 여기가 아니라 아래 `## 결정 요청 카드`(`[승인 요청]`·`[결정 요청]`). 없으면 `- 없음` + 보고에 `사람 확인: 없음` 1줄.
+- `## 결정 요청 카드` — 사람 답이 없으면 **진행이 막히는 것**만: 해도 되나(예/아니오)는 `[승인 요청]` 카드(라벨 = `decision-label.sh <owner/repo> approval` · 틀 §9-2), 선택지 중 고르기는 `[결정 요청]` 카드(라벨 = `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/decision-label.sh <owner/repo>` 가 고른 것 + `status:blocked` · 본문 틀 §9-2)로 올리고 `- #N 제목`. 없으면 `- 없음`. 본문에 "실행해 주세요" 류 사람 몫 문장이 있는데 두 카드 절 어느 쪽에도 번호가 없으면 §4 verify FAIL(`HUMAN_CHECK`).
 - 사용자 결정(명령형·의지형)은 `## 사용자 제약·지시` 에 결정문 그대로, AI 이견은 `## 열린 질문` 에 병기(격하 금지). `.claude/checkpoints/` 는 gitignore 개인 자산 — `## 미커밋 변경`·커밋 요청 금지.
 - **소유 격리**: `## 미커밋 변경`·`## 열린 PR·브랜치`·`## 다음 세션이 이어받을 것`·`## 미완료 태스크` 에는 **이 세션이 손댄 것에서 남은 것만**. 남의 것은 `## 타 세션 상태 (참고 — 내 소유 아님)`(폴더 경로 병기). 뒤 두 절은 `carry-ledger.py` `SEC_RE` 가 장부로 옮기므로 **제목 변경 금지**, 없으면 `- 없음` 한 줄(“…없다” 류 메타 문장은 `NONE_RE` 를 통과해 할 일이 된다).
 - `## 보드 열린 이슈`: 이 PC·이 레포의 열린 이슈 번호를 **한 줄로** 나열(예 `#101 #104` · 사람 확인 카드 제외 · `gh api 'repos/<owner>/<repo>/issues?state=open&labels=pc:<PC>' --paginate --jq '.[]|select(.pull_request|not)|"#\(.number)"'`) — verify 의 보드 대조(`board-recount.sh` · #2447)가 이 절만 본다 · 장부로 옮기지 않는 절이라 남의 일도 여기 적는다(`## 미완료 태스크` 는 이 세션 것만) · 0건이면 `없음`.
@@ -55,11 +55,12 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-ind
 ```
 - `VERIFY=PASS` → 보고에 `기록 무누락 게이트 PASS (MISSING_COUNT=0)`. `VERIFY=FAIL` → `SECTION_MISSING`/`SECTION_EMPTY` 보완 후 재실행, **PASS 전 종료 선언 금지**. 스캔 발견은 사람이 처분하고 판단을 handover 에 적는다. `VERIFY=FAIL(LEDGER_NO_ISSUE=N)` → 출력의 `LEDGER_HINT` 명령(미리보기 → `--apply`)으로 이슈를 맞춘 뒤 재실행. `VERIFY=FAIL(HUMAN_CHECK=N)` → `HUMAN_CHECK_HINT` 대로 그 일의 이슈 `## 사람 확인` 절에 적고(답이 필요하면 승인·결정 카드) `## 사람 확인 카드` 에 번호를 적은 뒤 재실행.
 ```bash
-CL="${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py"
 CL_LEDGER="${FORGE_CARRY_LEDGER:-${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/carry-ledger.md}"
-if [ ! -e "$CL_LEDGER" ]; then printf '%s\n' '장부 없음 — 최초 이관(import --all-open) 먼저'; else python3 "$CL" add-from-handover "$H"; python3 "$CL" suggest-close --source "$H" --max-calls 20 --time-budget 30; fi
+if [ ! -e "$CL_LEDGER" ]; then printf '%s\n' '장부 없음 — 최초 이관(import --all-open) 먼저'; else python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" add-from-handover "$H"
+  [ "${FORGE_LEDGER_SYNC:-on}" = off ] || python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" sync-closed || echo "⚠️ 장부 sync-closed 실패(rc $?) — 종료는 계속 · 다음 /forge-start 가 다시 맞춘다"   # #3016 이슈가 전부 닫힌 줄을 닫는다
+  python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" suggest-close --source "$H" --max-calls 20 --time-budget 30; fi
 # 미룬(날짜 걸린) 일마다 1줄 → ID=C-NNNN 을 보고 (등록 없이 handover 에만 쓴 미룬 일 = 미완료)
-python3 "$CL" add "<미룬 일 1줄>" --source "<계획서 경로 또는 handover 파일명>" --until YYYY-MM-DD \
+python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" add "<미룬 일 1줄>" --source "<계획서 경로 또는 handover 파일명>" --until YYYY-MM-DD \
   --project "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/scope-root.sh" project-id "$PWD" | sed -n 's/^PROJECT_ID=//p')"
 # 이슈는 기본으로 만든다(#1927) — 문장의 열린 #N 은 연결 · 같은 장부 ID 이슈는 재사용 · 없으면 생성(미래 날짜면 시작일 이슈 `[시작 MM/DD]`+status:blocked).
 #   레포는 스코프·이 PC 의 그 프로젝트 루트·(같은 프로젝트일 때) 현재 폴더(다르면 `--issue-repo owner/repo`). 못 정하거나 실패하면
@@ -102,4 +103,4 @@ if [ -n "$CP" ] && [ -f "$CP" ]; then CP_SID=$(sid_of "$CP")
 fi
 [ -n "$CP" ] && touch "${CP}.consumed"
 ```
-미러에 `*.retired-*`/`*.premote-*` 로컬 아카이브가 있으면 SSoT(`~/forge`) 반영 여부 확인. 새 작업 전환은 `/forge-end` → `/clear` → `/forge-start`.
+새 작업 전환은 `/forge-end` → `/clear` → `/forge-start`.

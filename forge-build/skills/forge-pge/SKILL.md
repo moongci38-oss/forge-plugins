@@ -4,16 +4,17 @@ description: "Planner-Generator-Evaluator — spec 없이 개발할 때 사용�
 ---
 
 **역할**: PGE 하네스를 **직접 실행**한다 — Planner·Generator 는 메인 컨텍스트, Evaluator 만 독립 실행체(자기평가 금지, Generator 컨텍스트 미상속).
-**출력**: 산출물 + `docs/pge/YYYY-MM-DD-{task-name}-pge-report.md`. **spec 없는 개발 전용** — spec 有 = `/forge-implement`, 버그 = `/forge-fix` (결정표 `.claude/rules-on-demand/harness-family-map.md`).
+**출력**: 산출물 + `docs/pge/YYYY-MM-DD-{task-name}-pge-report.md`. **Spec 없는 단일 동작 전용**(`PGE_SPEC.md` 는 이 작업의 내부 메모 — 정식 Spec 아님) — 경계 `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/harness-family-map.md`.
 **컨텍스트**: 복잡한 구현/생성 작업에서 품질이 결과를 결정할 때 사용합니다.
 ## 사용법
 ```
 /forge-pge <task> [--rubric custom] [--cycles N(기본 3)] [--coder claude:tier|codex:tier|sol|terra|luna|ab] [--advisor sol|terra|opus|fable]
 ```
 ## 진입 트리아지 (먼저 판정)
-- **P0**: harness-family 3분기를 실측 — `ls .specify/specs/` 를 열어 **이 작업을 다루는 spec** 이 있으면 `/forge-implement`, 버그·증상이면 `/forge-fix` 로 재라우팅 제안. **P0b**: 1회성 상태변경(시드·백필)·단순 조회·설정 변경 → PGE 거부, 직접 실행/스크립트 제안.
+- **P0**: 경계 정본 §결정 트리로 실측 판정(`ls .specify/specs/` — **이 작업을 다루는 spec** 기준) — 이 명령이 아니면 그 명령으로 재라우팅 제안. **P0b**: 1회성 상태변경(시드·백필)·단순 조회·설정 변경 → PGE 거부, 직접 실행/스크립트 제안.
 - **P0c**: `.claude/rules-on-demand/pre-work-branch-sweep.md` 실행 — 미머지 완성물 있으면 재작성 금지. **P1**: 1~2파일·수 줄 → "PGE 부적합 — 직접 외과 수정 권고" WARN 후 직접 편집(모호하면 PGE).
 - **P2**: "제안/체크/분석/확인/봐줘"류 → 조사 리포트 + AskUserQuestion 결정 게이트(`rules-on-demand/grilling-protocol.md`). 구현 명시 시에만 PGE. pre-flight(WARN): prettier/eslint 충돌 → `references/pge-phase-details.md §스타일 정합 pre-flight`.
+- **이슈 먼저**(트리아지 통과 직후): 이 일의 이슈가 없으면 `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/issue-new.sh` 로 1장, 있으면 그 번호(PR `Closes #N`) — 정본 `harness-family-map.md` §이슈 먼저.
 ## Phase -1: Design Source (신규 UI 화면 빌드 한정, 아니면 "Phase -1 스킵" 1줄)
 a) Claude Design 산출물/`DESIGN.md`/`05-design/` → b) 레포 자매 화면 패턴 → c) 둘 다 없으면 **[STOP] DESIGN_SOURCE_ABSENT** (GUIDE-STOP): Human 이 산출물 제공·자매 화면 지정·"임의 생성 승인" 중 택1 전까지 Phase 2 보류. 결과를 `PGE_SPEC.md` `## Design Source` 에 기록.
 ## Phase 0: Rubric (Generator 전 확정)
@@ -53,13 +54,14 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
 | 트랙 | 감지 | 실행 |
 |---|---|---|
 | A 기능 | 서버/로직(.cs service·.ts service·.py) | 선행 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/assert-db-isolation.sh"`(WARN 시 격리 DB 지정, `FORGE_DB_ISOLATION_ENFORCE=1` 시 BLOCK) → 빌드 Error 0 → `verify.sh code` + 데이터 흐름 트레이싱 |
-| B 웹/앱 UI | .tsx/.jsx/.css/.html | `/visual-loop` + `/playwright-parallel-test` |
+| B 웹/앱 UI | .tsx/.jsx/.css/.html | `/visual-loop` |
 | C 게임 | Unity .cs+.prefab+.anim | `§트랙 C — 검증 3계층`(`/game-qa` 는 없다 — #2131 · 화면 대조는 `/screenshot-analyze`) |
-- 중복 가능. 도구 부재(fail-open): verify.sh 없음 → npm test/build·pytest 등 대체, 그것도 없으면 빌드만 + `verify.sh: SKIPPED (not found, no fallback)` · UI 도구 둘 다 없음 → `SKIPPED (no UI test tool available)` 를 Evaluator 에 전달(침묵 PASS 금지).
+- 중복 가능. 도구 부재(fail-open): verify.sh 없음 → npm test/build·pytest 등 대체, 그것도 없으면 빌드만 + `verify.sh: SKIPPED (not found, no fallback)` · UI 도구 없음 → `SKIPPED (no UI test tool available)` 를 Evaluator 에 전달(침묵 PASS 금지).
 - 결과 `PGE_QA_RESULT.md`. FAIL → Generator 가 고치고 이 Phase(테스트·기계 검사)로 확인한다.
 ## Phase 4: Evaluator (독립 실행체 — Generator 반대 벤더·같은 등급)
 ```bash
 IMPL_MODEL="$(cat "$WORKTREE/.coder-attribution" 2>/dev/null)"   # 실제 구현 모델(요청 레인 아님)
+[ -n "$IMPL_MODEL" ] || IMPL_MODEL="<세션 모델 id>"   # 기록 없음 = 세션이 직접 썼다 → 자기 모델 id(#3269) · 빈 값이면 아래 --verify 가 rc 2 로 보류
 EVAL_SPEC="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/evaluator-lane.sh" "$IMPL_MODEL")"
 EVAL_MODEL="$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$EVAL_SPEC")"
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/evaluator-lane.sh" --verify "$IMPL_MODEL" "$EVAL_MODEL" || echo "⛔ 교차 불성립 — 판정 보류"  # rc 3 같은 벤더 · 2 판정 불가
@@ -83,7 +85,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/evaluator-lane.sh" --verify "$IM
 | 1 | security_crit / rollback | `security_crit[]`≠∅ 또는 `security_event` 라인 또는 rollback_trigger 충족 | **[STOP]** `[SECURITY_CRIT]`/`[ROLLBACK]` |
 | 2 | rubric_all_pass | items[] 전부 PASS | **SUCCESS** |
 | 3 | 그 외 FAIL | FAIL 항목 1개 이상 | Generator 가 FAIL 항목을 고치고 **Phase 3(테스트·기계 검사)** 로 확인한다 — Evaluator·Codex 를 다시 부르지 않는다(`dev-workflow-rules.md §운영 규칙 1`). Phase 3 통과 = **SUCCESS**(고친 FAIL 항목 id 를 보고서에 적는다) · 2회 고쳐도 테스트가 안 붙거나 PGE_CALL_CAP 초과 → **[STOP]** 현상태+잔존 이슈 |
-- STOP 메시지 형식 → `references/pge-phase-details.md §Phase 5 STOP 메시지 형식`. 고치기 전에 call-budget·stop-condition 확인(`loop-budget.sh`·`loop-call-accum.sh`) → `references/call-budget-guards.md`(1회 PASS 면 불필요). [STOP] 으로 끝나면 핸드오버에 `pge-failure 후보:` 1줄.
+- STOP 메시지 형식 → `references/pge-phase-details.md §Phase 5 STOP 메시지 형식`. 고치기 전에 call-budget·stop-condition 확인(`loop-budget.sh`) → `references/call-budget-guards.md`(1회 PASS 면 불필요). [STOP] 으로 끝나면 핸드오버에 `pge-failure 후보:` 1줄.
 ## Phase 6: 사후 Spec (SUCCESS 직후, WARN-first)
 ① `test -d "{project_root}/.specify"` ② `grep -rl 'spec-validation\|specify/specs' {project_root}/.github/` ≥1 — 둘 다일 때만 `.specify/specs/$(git rev-parse --abbrev-ref HEAD).md` 발행(있으면 append): `## 구현된 FR` · `## 변경 범위` · `## 검증 결과` · `## 산출 근거`. 아니면 스킵 사유 1줄. 실패해도 PGE FAIL 아님.
 ## 파일 (`{project_root}/.claude/state/`)

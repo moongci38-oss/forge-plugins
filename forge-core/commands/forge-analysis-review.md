@@ -48,13 +48,6 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 - 현황 분석 노트 / 백로그 / runbook 초안 = `/forge-analysis-review`
 - `--stage plan`으로 분석 doc(frontmatter `stage: analysis|backlog|runbook`)을 호출하면 `/codex-review` Step 1.6 auto-route가 analysis로 가로챔
 
-## 비용
-
-`codex-review.md §단축 래퍼 공통` 정본.
-
 ## 관련
 
-- 본명령: `/codex-review --stage analysis`
-- 프롬프트: `~/forge/.claude/prompts/codex-review-analysis.md`
-- 정책: `~/forge/dev/rules-on-demand/codex-review-policy.md`
-- 자매: `/forge-plan-review` (Spec/Plan) — ⚠️ **구 표기 "blocking" 은 2026-09-17 폐기.** 그 커맨드도 `Blocking: NO (권고 — AD-50)` 다. 재현: `grep -n '^- Blocking' .claude/commands/forge-plan-review.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules-on-demand/codex-review-policy.md`
