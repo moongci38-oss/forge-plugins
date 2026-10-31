@@ -11,3 +11,9 @@ $ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-design | t
 바뀐 파일: forge-design/skills/visual-loop/workflow.js 
 DRIFT_forge-design(고친 스크립트 --verify)=0
 \${소문자변수} 꼴로 깨진 .js: 0건
+
+# 다시 동기화 (2026-10-31 · develop + #113 head 합친 뒤) — forge develop 44614f446
+# develop(97eddab) 합칠 때 marketplace.json 충돌(forge-status-board 항목 추가 ↔ forge-design 판) → develop 쪽 + forge-design 0.2.21 · #113(226c120) 합침 충돌 없음 · 재동기화 변경 0
+$ env FORGE_ROOT=<forge develop 44614f446> PLUGIN_ROOT=. python3 scripts/sync-from-forge.py (#119 판) → forge-design 폴더만 남김
+$ python3 scripts/sync-from-forge.py --verify | grep -c 'DRIFT: forge-design/'
+forge-design DRIFT=0
