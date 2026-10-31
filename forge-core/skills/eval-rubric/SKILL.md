@@ -44,7 +44,7 @@ model: sonnet
 ```
 
 - `--pass-at-k`: 미션크리티컬 대상(forge-pr cr-final 게이트·마일스톤 산출물)만 opt-in → §3.
-- `--mode binary`: loop-kernel 반복 구간(`/qa`·`/forge-pge`·`/migration-audit` same_issue/plateau)용 경량 트랙. Likert 대체 아님.
+- `--mode binary`: loop-kernel 반복 구간(`/qa`·`/migration-audit` same_issue/plateau)용 경량 트랙. Likert 대체 아님.
   - 4축 각각 yes/no 전부 판정(**safety 생략 금지**). safety FAIL → 전체 FAIL, 그 외 전 축 PASS 여야 PASS. WARN 없음.
   - 출력: `{"checks":{"clarity":"yes|no","consistency":"yes|no","completeness":"yes|no","safety":"yes|no"},"verdict":"PASS|FAIL","reason":"1줄 근거"}`
   - §5 연동 시 `checks` 기록(스크립트 인자 불일치 시 `--rationale` 에 `reason` 1줄).

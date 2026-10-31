@@ -19,3 +19,9 @@ $ bash forge-core/hooks/plugin-hook-timeout.test.sh
 # finding-tests 짝(qa H1) — PR head
   PASS  plugin-hook-timeout 시험 실재·통과
 rc=0
+
+# 다시 동기화 (2026-10-31 · develop + #113 head 합친 뒤) — forge develop 44614f446
+# #113 과 같은 파일 forge-core/hooks/plugin-hook-timeout.test.sh add/add 충돌 → #113 판(정규식 _input 포함 상위집합)으로 · plugin-hook-timeout PASS=1 FAIL=0 · tests/ 짝 PASS
+$ env FORGE_ROOT=<forge develop 44614f446> PLUGIN_ROOT=. python3 scripts/sync-from-forge.py (#119 판) → forge-core 폴더만 남김
+$ python3 scripts/sync-from-forge.py --verify | grep -c 'DRIFT: forge-core/'
+forge-core DRIFT=0

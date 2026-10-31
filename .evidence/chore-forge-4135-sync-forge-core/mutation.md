@@ -24,3 +24,8 @@
 ## finding-tests 짝 — forge-core/tests/plugin-hook-timeout.test.sh
 - hooks/plugin-hook-timeout.test.sh 를 치우면: `  FAIL  plugin-hook-timeout 시험 실재·통과 — /tmp/h4-fp-forge-core/forge-core/tests/../hooks/plugin-hook-timeout.test.sh 없음(지워졌다)` rc=1
 - 되돌리면 PASS(rc=0)
+
+## finding-tests 짝 자리 옮김 (2026-10-31) — forge-core/hooks/plugin-hook-timeout-present.test.sh
+- 왜: plugin-release-gate 2번(개발 전용 자산 `tests/`)이 forge-core/tests/ 를 공개 배포 위반으로 막는다 → hooks/ 로 옮김(내용 같음 · 대상 경로만 같은 폴더).
+- 대상 시험 없이 홀로 돌리면: `  FAIL  plugin-hook-timeout 시험 실재·통과 — /tmp/h4-mut115/plugin-hook-timeout.test.sh 없음(지워졌다)` rc=1
+- 작업대에서: `  PASS  plugin-hook-timeout 시험 실재·통과` rc=0
