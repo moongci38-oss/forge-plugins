@@ -1,8 +1,10 @@
 ---
 name: site-deep-analyze
-description: "사이트 URL 정밀분석(DOM패턴·CSS토큰·API)→재구현가이드. 구조/디자인 분석 요청 시 사용."
+description: "사이트 URL 구조·디자인 분석 → 재구현 가이드 — 분석을 요청할 때."
+argument-hint: "<URL> [--depth=N] [--pages=N] [--task=ui-audit|api-discovery] [--viewport=desktop,mobile] [--cu --scenario '...'] [--dry-run]"
 context: fork
 model: sonnet
+allowed-tools: mcp__aside__exec
 ---
 
 # /site-deep-analyze
@@ -41,7 +43,7 @@ model: sonnet
 ## Workflow 실행
 흐름: Gate(윤리) → Crawl(Playwright) → 5각도 parallel fan-out → Coverage Loop(cap 2) → Phase 2.5 추론검증 → Semantic(Tavily) → Output.
 
-`Workflow({ script: Bash("cat ~/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipVision } })`
+`Workflow({ script: Bash("cat $HOME/.claude/skills/site-deep-analyze/workflow.js"), args: { url, depth, pages, task, skipVision, codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") } })` — codexModel = MCP 길 sol(#2026)
 - `skipVision=true` = Vision 없이 정적 분석만 · `CLAUDE_CODE_DISABLE_WORKFLOWS=1` → 아래 6 Phase 수동 fallback
 
 **Fan-out** (`parallel()` 5 agent): `analyze:static`(DOM 컴포넌트+CSS+HAR API) · `analyze:by-page-type`(auth/list/detail/dashboard/landing/form) · `analyze:by-interaction`(이벤트·폼·내비) · `analyze:by-css-token`(CSS 변수·컬러·스페이싱) · `analyze:vision`(skipVision=false 시, GPT-5.6 Sol Codex 레그 레이아웃·UX)
@@ -84,4 +86,4 @@ model: sonnet
 > **본 분석은 영감 받은 자체 재구현을 위한 가이드입니다. 원본 사이트의 코드·이미지·텍스트를 직접 복제하지 않습니다. 사이트 ToS·저작권·trademark 준수가 사용자 책임입니다.**
 ```
 
-**Phase 6 — 다음 액션**: `/forge-plan --from-site-analysis 05-design/site-analysis/{slug}/` · `/wiki-sync` · 재분석 `/site-deep-analyze <URL> --re-run`
+**Phase 6 — 다음 액션**: `/forge-spec`(화면·시안 — 분석 폴더 `05-design/site-analysis/{slug}/` 를 참고 자료로) · `/wiki-sync` · 재분석 `/site-deep-analyze <URL> --re-run`

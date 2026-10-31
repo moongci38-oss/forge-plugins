@@ -18,7 +18,7 @@
 ## 2. 우리 시스템 현황
 
 ### 2.0 WARN 다이제스트 (M3 소비 배선, 2026-07-16)
-> `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.sh` 실행 결과 3줄(반복/신규/무시)을 그대로 삽입.
+> `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.sh` 실행 결과 3줄(반복/신규/무시)을 그대로 삽입. `팀장 wisdom 정지: <slug,…>` 줄이 있으면 그 줄도 그대로 싣는다(#2399). `위키 승인 대기: N건 …` 줄도 같다(#2566 — 사람이 승인할 위키 초안 건수).
 > 실행 실패 시 "WARN 다이제스트 생성 실패(비차단)" 1줄만 — 리포트 진행 차단 금지(fail-open).
 > 무시 판정 추가는 `audit/warn-ignore.jsonl`에 `{key, judged_by, reason, expires}` — 만료 시 자동 재표면.
 

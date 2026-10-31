@@ -1,0 +1,29 @@
+# forge#4135 forge-knowledge 고치기 전 — base 5b9ab8d8d934b09ecfb3f5f42194b1c20dece476 · forge develop c70d79959
+$ FORGE_ROOT=<forge develop> PLUGIN_ROOT=<worktree> python3 scripts/sync-from-forge.py --verify | grep 'DRIFT: forge-knowledge/'
+  DRIFT: forge-knowledge/skills/yt/reference.md
+  DRIFT: forge-knowledge/skills/yt/SKILL.md
+  DRIFT: forge-knowledge/skills/wiki-sync/SKILL.md
+  DRIFT: forge-knowledge/skills/weekly-research/workflow.js
+  DRIFT: forge-knowledge/skills/weekly-research/SKILL.md
+  DRIFT: forge-knowledge/skills/weekly-analyze/SKILL.md
+  DRIFT: forge-knowledge/skills/weekly-analyze/references/daily.md
+  DRIFT: forge-knowledge/skills/video-reference-guide/SKILL.md
+  DRIFT: forge-knowledge/skills/site-deep-analyze/workflow.js
+  DRIFT: forge-knowledge/skills/site-deep-analyze/SKILL.md
+  DRIFT: forge-knowledge/skills/site-deep-analyze/scripts/analysis-prompt-template.md
+  DRIFT: forge-knowledge/skills/learn/SKILL.md
+  DRIFT: forge-knowledge/skills/docx/scripts/md2docx.js
+  DRIFT: forge-knowledge/skills/docx/scripts/generate_plan.js
+  DRIFT: forge-knowledge/skills/daily-system-review/workflow.js
+  DRIFT: forge-knowledge/skills/daily-system-review/SKILL.md
+  DRIFT: forge-knowledge/skills/daily-system-review/scripts/wave1-workflow.js
+  DRIFT: forge-knowledge/skills/daily-system-review/reference/redundancy-scan.md
+  DRIFT: forge-knowledge/skills/article/SKILL.md
+  DRIFT: forge-knowledge/skills/article/references/gtc-and-comparison.md
+  DRIFT: forge-knowledge/commands/forge-find-item.md
+  DRIFT: forge-knowledge/agents/yt-video-analyst.md
+  DRIFT: forge-knowledge/agents/yt-research-followup.md
+  DRIFT: forge-knowledge/agents/fact-checker.md
+  DRIFT: forge-knowledge/agents/article-analyst.md
+  DRIFT: forge-knowledge/agents/academic-researcher.md
+DRIFT_forge-knowledge=26

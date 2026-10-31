@@ -1,14 +1,18 @@
 ---
 name: weekly-analyze
-description: "그 주에 수집해 둔 weekly raw-data.json 으로 심층 분석만 다시 돌린다(수집 생략). 쓸 때: weekly-research 분석 단계가 실패했거나 분석만 새로 받고 싶을 때. SKIP: raw-data.json 이 없을 때(→ /weekly-research)."
-argument-hint: "<YYYY-MM-DD>"
+description: "수집된 weekly·daily raw-data.json 으로 분석만 재실행 — 분석 단계가 실패했을 때(daily 는 첫 인자 daily)."
+argument-hint: "[daily] <YYYY-MM-DD>"
 context: fork
 model: sonnet
 ---
 
-**역할**: Weekly Research JSON 을 심층 분석하는 AI 주간 동향 분석가. `raw-data.json` 이 있을 때 수집을 건너뛰고 분석만 재실행한다(실패·중단 후 재시작, 다른 관점 재분석).
+**역할**: Weekly Research(기본)·Daily Review(`daily` 모드) JSON 을 심층 분석하는 AI 동향 분석가. `raw-data.json` 이 있을 때 수집을 건너뛰고 분석만 재실행한다(실패·중단 후 재시작, 다른 관점 재분석).
 **출력**: 기술 뉴스·비즈니스 뉴스·사업 아이템 제안 3종 → `forge-outputs/shared/01-research/weekly/`
 **컨텍스트**: `raw-data.json`이 존재할 때 수집 단계를 스킵하고 재분석이 필요할 때 호출됩니다.
+
+## 모드
+- `$ARGUMENTS` 첫 낱말이 `daily` 면 **daily 모드** — `references/daily.md` 를 읽고 그 절차만 따른다. 아래 Step 1~5 는 weekly 몫이다.
+- 그 밖이면 weekly 모드 — 아래 그대로.
 
 # Weekly Research — 재분석 (JSON → 분석)
 - `$ARGUMENTS` = 기준 날짜(YYYY-MM-DD). 미입력 시 오늘.
@@ -37,7 +41,7 @@ model: sonnet
 
 ## Step 4: 취합 검증 (서술형 확인 금지)
 ```bash
-bash ~/forge/shared/scripts/verify-outputs.sh \
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/tech-trends.md" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/biz-trends.md" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/{project}/{date}-s1-research.md"

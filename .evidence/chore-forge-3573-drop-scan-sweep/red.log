@@ -1,0 +1,13 @@
+# red — forge-plugins origin/develop e726c0f 판
+version=0.7.26
+hook refs=6 끊김=[]
+옛 스킬 폴더=['harness-legacy-scan', 'external-harness-sweep']
+harness-diet 모드 파일=0/4
+FAIL
+rc=1
+
+## H1 plugin-hook-timeout.test.sh 복원 (red: 정규식이 hook_entry 를 못 읽음)
+```text
+  FAIL  상한을 쓰는 등록 훅 0개 — 이 검사가 헛돈다
+결과: PASS=0 FAIL=1
+```

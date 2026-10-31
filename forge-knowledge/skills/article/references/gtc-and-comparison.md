@@ -13,18 +13,18 @@
 ## Step 2.85 — GTC-1·2·3 읽을 파일 목록
 
 **GTC-1: 관련성 필터** — 기사에서 언급된 도구/서비스가 우리 시스템에서 실제 사용 중인지:
-- Read: `~/forge/.mcp.json`, `~/.claude.json` (MCP 서버 목록)
-- Read: `~/forge/forge-workspace.json` (활성 프로젝트)
-- Glob: `~/.claude/skills/*/SKILL.md`, `~/forge/.claude/agents/*.md`
+- Read: `${FORGE_ROOT:-$HOME/forge}/.mcp.json`, `$HOME/.claude.json` (MCP 서버 목록)
+- Read: `${FORGE_ROOT:-$HOME/forge}/forge-workspace.json` (활성 프로젝트)
+- Glob: `$HOME/.claude/skills/*/SKILL.md`, `${FORGE_ROOT:-$HOME/forge}/.claude/agents/*.md`
 - **미사용 도구에 대한 High+ 제안** → 영향도 Low로 강제 + "미사용" 표기
 
 **GTC-2: 기구현 확인** — 기사의 제안/패턴이 이미 존재하는지:
-- Glob: `~/forge/.github/workflows/*.yml`, `~/forge/.claude/skills/*/SKILL.md`, `~/forge/.claude/hooks/*.sh`
-- Glob: `~/forge/.claude/rules/*.md`, `~/.claude/rules/*.md`
+- Glob: `${FORGE_ROOT:-$HOME/forge}/.github/workflows/*.yml`, `${FORGE_ROOT:-$HOME/forge}/.claude/skills/*/SKILL.md`, `${FORGE_ROOT:-$HOME/forge}/.claude/hooks/*.sh`
+- Glob: `${FORGE_ROOT:-$HOME/forge}/.claude/rules/*.md`, `$HOME/.claude/rules/*.md`
 - **이미 구현된 기능 제안 시** → 비교 매트릭스에 "이미 적용" 표기, 제안에서 제거
 
 **GTC-3: 핵심 커버리지** — Forge/Forge Dev 파이프라인 현황을 실제 파일로 확인:
-- Read: `~/forge/forge-workspace.json` → 활성 프로젝트 + gate-log 위치
+- Read: `${FORGE_ROOT:-$HOME/forge}/forge-workspace.json` → 활성 프로젝트 + gate-log 위치
 - Read: 각 프로젝트의 `gate-log.md` → 현재 Gate
 
 

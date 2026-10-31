@@ -1,28 +1,18 @@
 # AD-96-MVP Hook Contract (SSoT)
 
-> 이 표가 HOOKS_ALLOWLIST + settings.json + 각 hook 명세의 단일 진실 원천.
-> 변경 시 3 source 동기화 의무.
+> 2026-10-18 실측: 이 표의 훅 11개 중 파일이 남은 것은 H7(`pixel-diff-gate.sh`) 하나다. 나머지(H1~H3·H6·H9·H10·H26~H28·helper)는
+> #1358(훅 정리 · 안 쓰는 훅 84개 삭제)에서 지웠고 `HOOKS_ALLOWLIST`·`settings.json` 에도 없다 — 그 행은 이 표에서 뺐다.
 
-## MVP 10 Gates + 1 Helper
+## 남은 게이트 1
 
-| Hook ID | 파일 | 종류 | 트리거 이벤트 | settings.json | HOOKS_ALLOWLIST | Input | Output | Fixture |
-|---------|------|------|-------------|:---:|:---:|-------|--------|---------|
-| H1 | `qa-6w-validate.sh` | gate | Phase D→E (phase-d) / Phase E→F (phase-f) 진입 직전 Bash | - | ✓ | `<plan-path> <phase>` | exit 0/2 | `6w-phase-{d,f}-{complete,missing-*}.md` |
-| H2 | `qa-artifact-frontend.sh` | gate | Phase E a4 후 (UI 버그) Bash | - | ✓ | `<artifacts_dir> <bug_N> <phase>` | exit 0/2 | `artifacts-{complete,missing-tablet}/` |
-| H3 | `qa-artifact-backend.sh` | gate | Phase E a4 후 (API/DB 버그) Bash | - | ✓ | `<artifacts_dir> <bug_N>` | exit 0/2 | `be-logs-{complete,missing-db}/` |
-| H6 | `vision-evaluator-required.sh` | gate | Phase F 진입 직전 (UI) Bash | - | ✓ | `<reviews_dir> <bug_N>` | exit 0/2 | `vision-{pass,fail}.json` |
-| H7 | `pixel-diff-gate.sh` | gate | Phase E a4 후 Bash | - | ✓ | `<diff_json> [threshold]` | exit 0/2/**3** | `pixel-diff-{ok,over}.json` |
-| H9 | `healer-log-read-required.sh` | gate | PreToolUse Edit/Write (healer ctx) | Edit\|Write | ✓ | stdin JSON + `CLAUDE_AGENT_OUTPUT` + read-log jsonl | exit 0/2 | `healer-output-{with,without}-readconfirmed.txt` |
-| H10 | `bug-fix-plan-schema.sh` | gate | PreToolUse Write `*bug-fix-plan*.md` | Write | ✓ | stdin JSON (file content) | exit 0/2 | `plan-{valid,missing-component}.md` |
-| H26 | `scenarios-required.sh` | gate | Phase A→B 전환 Bash | - | ✓ | `<scenarios-path>` | exit 0/2 | `scenarios-{exists,missing}.md` |
-| H27 | `scenarios-coverage-8.sh` | gate | Phase B 진입 직전 Bash | - | ✓ | `<scenarios-path>` | exit 0/2 | `scenarios-{8covered,missing-security}.md` |
-| H28 | `scenarios-parallel-exec.sh` | gate | Phase B 실행 시작 Bash | - | ✓ | `<scenarios-path> <mode> [spawn-json]` | exit 0/2 | `spawn-{parallel,serial-violation}.json` |
-| helper | `healer-read-tracker.sh` | helper | PreToolUse Read (sha256 수집) | Read | ✓ | stdin JSON | exit 0 always | (sha256 read-log jsonl에 append) |
+| Hook ID | 파일 | 종류 | 트리거 이벤트 | Input | Output | Fixture |
+|---------|------|------|-------------|-------|--------|---------|
+| H7 | `pixel-diff-gate.sh` | gate | Phase E a4 후 Bash | `<diff_json> [threshold]` | exit 0/2/**3** | `pixel-diff-{ok,over}.json` |
 
 ### H7 exit code 계약 (2026-08-06 — `exit 3` 신설)
 
 > ⚠️ 다른 게이트는 전부 `0/2` 인데 H7 만 3-값이다. 이 표를 SSoT 로 읽는 호출자가
-> `exit 3` 을 모르면, `phase-gate.sh` 의 `set -e` 에서 **phase 전체가 중단**되는 새 경로를 못 본다.
+> `exit 3` 을 모르면 측정이 깨진 것을 FAIL 로 읽는다(옛 디스패처 `phase-gate.sh` 는 #2692 에서 삭제).
 
 | code | 의미 | 호출자가 해야 할 일 |
 |:---:|---|---|
@@ -34,8 +24,7 @@
 
 ## Cross-reference
 
-- `~/forge/dev/scripts/forge-sync.mjs` HOOKS_ALLOWLIST: 11종 (10 gate + 1 helper)
-- `~/.claude/settings.json` PreToolUse: H9(Edit|Write) / H10(Write) / helper(Read)
+- `pixel-diff-gate.sh` 는 `HOOKS_ALLOWLIST`·`settings.json` 에 없다 — qa 단계가 Bash 로 직접 부른다.
 - (구 `_ad97-pending/`: H4/H5/H8/H11~H25/H29 — AD-97 미진입 스텁) → 2026-09-24 아카이브(#1012). 복원: `git checkout archive/ad97-pending-20260924 -- .claude/hooks/_ad97-pending`
 
 ## bug-fix-plan.md 필수 필드 (H10 검증)
