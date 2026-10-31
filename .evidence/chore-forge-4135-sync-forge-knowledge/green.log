@@ -10,3 +10,9 @@ $ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-knowledge 
 바뀐 파일: forge-knowledge/skills/daily-system-review/scripts/wave1-workflow.js forge-knowledge/skills/daily-system-review/workflow.js forge-knowledge/skills/docx/scripts/generate_plan.js forge-knowledge/skills/docx/scripts/md2docx.js forge-knowledge/skills/site-deep-analyze/workflow.js forge-knowledge/skills/weekly-research/workflow.js 
 DRIFT_forge-knowledge(고친 스크립트 --verify)=0
 \${소문자변수} 꼴로 깨진 .js: 0건
+
+# 다시 동기화 (2026-10-31 · develop + #113 head 합친 뒤) — forge develop 44614f446
+# develop(97eddab)·#113(226c120) 합침 충돌 없음 · 재동기화 1파일(skills/learn/SKILL.md)
+$ env FORGE_ROOT=<forge develop 44614f446> PLUGIN_ROOT=. python3 scripts/sync-from-forge.py (#119 판) → forge-knowledge 폴더만 남김
+$ python3 scripts/sync-from-forge.py --verify | grep -c 'DRIFT: forge-knowledge/'
+forge-knowledge DRIFT=0

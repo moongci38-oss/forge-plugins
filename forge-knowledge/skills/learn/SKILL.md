@@ -47,7 +47,7 @@ for line in sys.stdin:
 ---
 
 ## 코드/디버깅/리뷰/분석 교훈 = `learnings.sh` 헬퍼 경유만
-code-reviewer·forge-pge·investigate·forge-fix·codebase-analyzer 의 교훈은 **learnings.jsonl 에만** 저장(forge-vault/Obsidian 금지). **리치 스키마 + `$HOME/.claude/scripts/learnings.sh` 경유만** — inline grep/sed/python·shell JSON 조합 금지.
+code-reviewer·investigate·forge-fix·codebase-analyzer 의 교훈은 **learnings.jsonl 에만** 저장(forge-vault/Obsidian 금지). **리치 스키마 + `$HOME/.claude/scripts/learnings.sh` 경유만** — inline grep/sed/python·shell JSON 조합 금지.
 
 ### 경로
 - `GLOBAL_LEARNINGS` = `${FORGE_ROOT:-$HOME/forge}/.claude/learnings.jsonl` (크로스-프로젝트)
