@@ -53,7 +53,7 @@ advisor 스폰 모델 = `MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts
 - RED = 리포트 증상에 대응하는 관측(`red.symptom_observed`). 정적 코드 관찰은 `hypothesis` — RED 자격 없음.
 - 프로덕션 결함 vs 테스트/mock drift(최근 커밋이 계약을 의도적으로 바꿨고 프로덕션은 정상) 판별 — drift 면 ③ 대상 = 테스트/mock. 게임 확률·무보상 경로는 기획 테이블 실측 전 버그 단정 금지.
 - AMBIGUOUS(가설 미수렴) → advisor T1 후 `/investigate`. SIMPLE 은 스폰 안 함.
-- ▶ **게이트 R**: 기존 시험 편집은 `fix-test-edit-guard.sh` 가 막는다(새 시험만 · 고치려면 이슈 본문 `테스트 수정 허용: <파일> — <이유>` + 사람 서명 · #3757). 소스 Edit 전 축별 RED 오라클(ui 는 screenshot+console.json+network.json 실측)은 기계 차단이 없으니 스스로 먼저 남긴다.
+- ▶ **게이트 R**: 버그 재현은 새 시험으로 더한다 — 기존 시험을 고치면 `fix-test-edit-guard.sh` 가 알림 1줄만 내고(막지 않는다) cr-risk-tier 가 그 PR 을 full-gate 로 올려 qa 가 시험 약화를 판정한다(#4080). 소스 Edit 전 축별 RED 오라클(ui 는 screenshot+console.json+network.json 실측)은 기계 차단이 없으니 스스로 먼저 남긴다.
 **② 리포트** — 6하원칙 `bug-fix-plan.md` + RED 증거 첨부 + current-bug 포인터. fop.json 헤더 `evidence_tier`(`runtime`|`code+db`|`code-only`) + `provenance`(실행 환경·네트워크 1줄), runtime 아니면 "런타임 증거 없음 — 근거등급 하향" 명기([STOP] 아님).
 **③ 수정**
 - advisor T2(다파일 교차의존·계약 변경·healer MANUAL-ONLY) · T4(data migration·DELETE·결제 — 사용자 [STOP] 게이트에 조언 포함).
@@ -77,7 +77,7 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
     | 분류 | 조건 | 처리 |
     |---|---|---|
     | deterministic-syntax | 컴파일·타입·오탈자 · 변경 파일 ≤2 | 자동수정 + 재컴파일 |
-    | **test-expectation** | 기대값·fixture·mock 불일치 · 로직 변경 없음 | **자동수정 금지 — 사람 [STOP]** · 기존 시험 수정은 사람 서명 면제만(`fix-test-edit-guard.sh` · #3757 — 가드는 가지가 `fix/*` 이거나 가지 이름 `<종류>/<N>-…` 의 이슈 N 이 버그일 때 켜진다) |
+    | **test-expectation** | 기대값·fixture·mock 불일치 · 로직 변경 없음 | **자동수정 금지 — 사람 [STOP]** · 기존 시험 수정은 사람이 [STOP] 에서 정한 뒤에만 · 그 PR 은 full-gate(qa 가 시험 약화 판정 · #4080) |
     | config-drift | 설정 키/값만 | 자동수정(설정 파일만) · `.env*` 커밋 금지 |
     | **logic-guard** | 비즈니스 로직·상태 전이 · 변경 파일 >2 | **자동수정 금지 — 사람 [STOP]** + 근본 원인 확정 |
   - 되돌림은 **내가 넣은 것만**(⛔ `git checkout -- <path>`): 수정 전 사본·파일별 패치(`docs/bug_report/artifacts/<BUG-ID>-patch/`)를 남기고 실패 시 `patch -R` 로 내 패치만 역적용 · 어긋나면 덮어쓰지 말고 [STOP].

@@ -49,7 +49,7 @@ $ARGUMENTS
    - **심각 ≥1 → intent 를 고치고 단계 7 로 간다** — `/prd-review` 를 다시 부르지 않는다. 고칠 수 없는 심각 → **[STOP]**
 7. **검토 — /forge-review --stage plan (권고 · 1회)**:
    - `/forge-review --stage plan --target <intent 파일 경로>` — 1회. FAIL 지적은 intent 에 반영하고 진행한다(다시 부르지 않는다). 결과: `forge-outputs/docs/reviews/plan/{date}-{slug}.{md,json}`
-8. **intent 승인 관문 안내**(`STEP.md` 4번): `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/intent-approval-check.sh" <owner/name> <이슈 번호>` — `/prd` 는 rc ≠ 0 이어도 진행하고 "intent 가 아직 미승인 — `/forge-spec` 전에 사람 서명 필요(`STEP.md` 4번 서명 꼴)" 1줄만 알린다.
+8. **intent 승인 안내**(`STEP.md` 4번): 승인 = 사람이 intent 이슈에 쓴 승인·결정 문장(총괄 반영) — `/prd` 는 승인 전이어도 진행하고 "intent 가 아직 미승인 — `/forge-spec` 전에 사람 승인 문장 필요" 1줄만 알린다(사람 키 서명은 없앴다 — #4080).
 9. **(Human 요청 시만) PPT 변환**: `/pptx` 스킬로 .pptx 생성
 10. **저장**: intent 폴더 = 그 프로젝트 레포의 `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-dirs.py" --project-root <레포> --kind intent`(기본 `docs/00-intent` · 레포 `.claude/readonly-session.json` `planning_dirs` 로 바꾼다 · rc 2 = 판정 불가 → [STOP]) — 그 아래 `<YYYY-MM-DD>-<slug>.md` + `.html`(`STEP.md` 3번) 저장
     - 커밋(저장 뒤 마지막에): `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/planning-commit.sh" --repo <레포> --message "docs(intent): {project} intent"`(기획 폴더 변경만 pathspec 커밋 · push 는 하지 않는다 · 트레일러는 커밋 규칙대로 `--message` 에). 읽기 세션은 커밋하지 않는다(거부 rc 2) — 다음 쓰기·겸용 세션 `/forge-start` §0b 가 같은 명령으로 커밋한다.

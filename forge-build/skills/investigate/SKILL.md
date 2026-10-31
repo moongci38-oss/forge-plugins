@@ -12,7 +12,7 @@ model: sonnet
 > 위치: `/forge-fix` ① 조사·재현 스테이지(독립 호출도 가능). **철칙: 근본 원인을 특정하기 전에는 수정하지 않는다.**
 > 사용: `/investigate "로그인 후 세션이 유지되지 않는 문제"`
 
-**Workflow**: RAG(Explore) → Investigate(소스+gitnexus) → Analyze(가설 2개+) → Verify → [STOP] human gate. Stage 4+5 는 gate 후 healer/forge-pge 위임.
+**Workflow**: RAG(Explore) → Investigate(소스+gitnexus) → Analyze(가설 2개+) → Verify → [STOP] human gate. Stage 4+5 는 gate 후 healer/forge-fix 위임.
 `Workflow({ script: Bash("cat $HOME/.claude/skills/investigate/workflow.js"), args: { issue, target, skipVerify } })` — skipVerify=true 면 Stage 3 skip(가설 목록만). `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 이면 직접 실행.
 
 ## 참조 (필요 시 Read)

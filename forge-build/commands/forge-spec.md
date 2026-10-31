@@ -23,7 +23,7 @@ Spec 작성 단독 실행(옛 `/sdd` Phase 0~2). 이 파일이 정본. Phase 세
 Spec 은 **무엇**을 적는다. 그 앞의 **왜**는 `intent.md` 가 갖는다 — 그래서 이 단계가 Spec 의 첫 입력이다.
 ⚠️ intent.md 는 CLAUDE.md 처럼 자동으로 읽히지 않는다 — **여기서 명시해 읽어야 한다**.
 
-절차 = `${FORGE_ROOT:-$HOME/forge}/docs/intent/STEP.md` 를 Read 해 따른다 — 찾기(`planning-dirs.py --kind intent` · 옛 자리 포함) · 없으면 5칸으로 먼저 만들기 · **`bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/intent-approval-check.sh <owner/name> <이슈 번호>`(intent 파일이면 `<파일> --issue <N>`) rc ≠ 0 이면 Spec 을 쓰기 전에 [STOP]**(사람 서명 승인 관문 · `상태:` 칸은 판정에 쓰지 않는다 · 기획서·계획서와 달리 여기서는 진행하지 않는다 · intent 파일 승인문은 `file=` 칸이 있어야 한다 · 출력에 `INTENT_SIGNERS_MISSING` 이 있으면(rc 2 · 이 PC 에 허용 목록이 없다) 사람에게 "허용 목록 만들기(#3758 사람 확인)"를 요청하고 멈춘다 · #3758) · 자명한 작은 버그는 1줄 기록. 찾은 intent 는 Spec 의 "왜"(배경·목표·성공 기준·범위 밖) 근거로 삼고 Spec 머리말에 `intent: <경로>` 1줄로 인용한다.
+절차 = `${FORGE_ROOT:-$HOME/forge}/docs/intent/STEP.md` 를 Read 해 따른다 — 찾기(`planning-dirs.py --kind intent` · 옛 자리 포함) · 없으면 5칸으로 먼저 만들기 · **intent 이슈에 사람이 쓴 승인·결정 문장(총괄 반영)이 없으면 Spec 을 쓰기 전에 [STOP]**(승인 관문 `STEP.md` 4번 · `상태:` 칸만으로는 승인이 아니다 · 기획서·계획서와 달리 여기서는 진행하지 않는다 · 사람 키 서명은 없앴다 — #4080) · 자명한 작은 버그는 1줄 기록. 찾은 intent 는 Spec 의 "왜"(배경·목표·성공 기준·범위 밖) 근거로 삼고 Spec 머리말에 `intent: <경로>` 1줄로 인용한다.
 
 근거: Anthropic AI-Native SDLC 플레이북(2026-08-21) `intent.md → spec.md → plan.md` 체인 · 5개 섹션 원문. 분석 원장 → `forge-outputs/01-research/videos/analyses/2026-09-06-4kXsF2S5MNY-…-analysis.md`(팩트체크 1·2 ✅ 1차 소스 확인).
 검수 기준 사본 = 레포 루트 `REVIEW.md`(Pass1 버그 / Pass2 보안 / Pass3 spec·plan 준수).
