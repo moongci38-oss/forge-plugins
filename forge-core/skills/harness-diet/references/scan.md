@@ -1,16 +1,9 @@
----
-name: harness-legacy-scan
-description: "하네스 읽기전용 레거시 감사. 트리거: /harness-legacy-scan"
-disable-model-invocation: true
-model: sonnet
-allowed-tools: Read, Bash, Glob, Grep, Write
-argument-hint: [--scope rules|skills|hooks|all]
----
+# scan 모드 — 하네스 읽기전용 레거시 감사
 
-# harness-legacy-scan
+> `/harness-diet scan` 으로 불렸을 때만 읽는다 — 옛 `harness-legacy-scan` 스킬 본문을 옮겼다(#3573). 호출 블록 정본 = `../SKILL.md` `## 모드`.
 
 **역할**: Forge 하네스(rules/skills/hooks/agents/commands/CLAUDE.md) 슬림화 전용 읽기전용 감사기.  
-**컨텍스트**: `/harness-legacy-scan` 호출 시. 하네스가 비대해졌다고 느낄 때, context-tax 줄이고 싶을 때.  
+**컨텍스트**: `/harness-diet scan` 호출 시. 하네스가 비대해졌다고 느낄 때, context-tax 줄이고 싶을 때.  
 **출력**: 9섹션 스캔 리포트 + diet-queue.json.  
 **입력 신호**: 최근 harness-gaps 리포트(`reviews/*harness-gaps*.md` 최신 8개)를 스캔 전 자동 요약해 Lens 5/6/7에 주입 — 실발화 결함(반복 FP=과차단 근거)·긍정 확인(실효 입증=KEEP 근거)을 정적 추정보다 우선 (2026-07-17 배선, fail-open).
 **텔레메트리 신호(참고, 대체 아님)**: `~/.claude.json`의 네이티브 skillUsage/pluginUsage 카운터(`shared/scripts/skill-telemetry.py`)를 스캔 전 1회 조회해 Lens 3(스킬 품질)·Lens 4(제품 중복)에 주입 — 기존 3경로 배선측정(skill-usage.py)의 보강 신호일 뿐이며 **이 운영자 이 머신 로컬 집계**라 팀 전체·타 환경 사용량은 반영하지 않는다. usage=0을 DELETE 근거로 쓰지 않는다 (2026-08-03 배선, fail-open).
@@ -19,7 +12,7 @@ argument-hint: [--scope rules|skills|hooks|all]
 
 - **전체 AI 시스템 능력 감사** → `system-audit` 사용 (12축 — 점수 10축 + 보안·군살 판정 축 + 중복, 단독 실측).  
   본 스킬은 하네스 슬림화(context tax / redundancy / 불필요 자산)만 대상. system-audit과 목적이 다르며 중복 인식하고 있음.
-- 실제 파일 수정 / hook·MCP 변경 → 본 스킬은 읽기전용. 수정은 `harness-diet` 사용.
+- 실제 파일 수정 / hook·MCP 변경 → 본 스킬은 읽기전용. 수정은 `/harness-diet` 기본(적용) 모드.
 - 긴급 보안 감사 → 보안 훅은 SAFETY-DETERRENT 분류로 보호되나, 별도 보안 리뷰가 더 적합.
 
 ## 의도 (§1 전문)
@@ -37,7 +30,7 @@ Forge 하네스는 지속적으로 누적된다:
 
 ```
 Workflow({
-  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-legacy-scan/workflow.js"),
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-diet/scan/workflow.js"),
   args: { outBase: Bash("echo ${FORGE_OUTPUTS:-$HOME/forge-outputs}"), codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") }   // codexModel = MCP 길 sol(#2026)
 })
 ```
