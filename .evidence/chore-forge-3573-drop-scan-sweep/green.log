@@ -18,3 +18,12 @@ gate rc=0
 ## H1 짝 시험 — 고친 뒤(PR head · 226c1203f + 짝 시험)
   PASS  plugin-hook-timeout 시험 실재·통과
 rc=0
+
+## Leak Scan 오탐 줄 고침 — destructive-rules.sh 106행 주석 (forge#4135)
+고치기 전(acc20a469): sync-from-forge.py --scan-repo → rc=1 · LEAK_FILES=1 · forge-core/hooks/lib/destructive-rules.sh L106 (주석 예시 경로 · 실제 사용자명 아님)
+고친 꼴: 주석 예시의 사용자 자리를 `<...>` 자리표시자로 감쌈(RE_LEAK 가 건너뜀) · 코드·판정 로직 불변 · 1줄
+고친 뒤:
+```text
+SCAN_STATUS=ok  SCAN_ROOT=/tmp/h4-fp-pr113  LEAK_FILES=0  BINARY=0  UNREADABLE=0
+rc=0
+```
