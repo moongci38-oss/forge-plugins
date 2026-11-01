@@ -33,3 +33,9 @@
 - 시험이 헛돌 수 있나: 훅이 0개 잡히면 FAIL 하는 칸이 있어 옛 정규식 변이에서 실제로 FAIL(위).
 - 기대값 약화: 비교(t < need)와 칸은 그대로, 정규식만 넓힘.
 - 남은 구멍: 상한 인자가 다른 꼴(변수 등)로 바뀌면 0개 FAIL 로 드러남.
+
+## H1 짝 시험 `forge-core/hooks/plugin-hook-timeout-present.test.sh` (이름 `plugin-hook-timeout 시험 실재·통과`)
+- 왜 새 파일인가: 되살린 시험을 그대로 짝으로 삼으면 검수 head 사본에 그 파일이 옮겨져 PASS 가 된다(뒤집힘이 안 잡힌다). 그래서 "그 시험이 실재·통과하는가"를 재는 시험을 따로 둔다.
+- 검수 head 5b9ab8d8d 사본 → FAIL · rc=1(`red.log` 끝 · 대상 시험 없음) / PR head → PASS · rc=0(`green.log` 끝).
+- 변이: PR head 사본에서 시험 안 비교를 깨면(`plugin.json` main-write-guard timeout 60→10 · 위 mutation1) 내부 시험이 FAIL → 이 시험도 `시험이 FAIL` 로 FAIL.
+- 구멍: 대상 시험의 판정 내용은 보지 않고 rc 만 본다 — 내용 약화는 대상 시험 쪽 변이(위 mutation1·2)가 맡는다.
