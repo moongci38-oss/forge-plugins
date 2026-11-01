@@ -27,3 +27,8 @@ PASS 입구 work-plan → forge-work-plan 실림
 PASS 입구 qa → forge-qa 실림
 PASS 입구 prd-review → forge-prd-review 실림
 입구 3개 · 끊긴 입구 0개
+
+# 플러그인 develop 65fd5cbaf(#113·#119 스쿼시) 합침 뒤 재측정 — forge develop 9bcf9799f · 남은 PR 을 머지 순서로 합친 상태
+충돌 풀이: 충돌 파일은 이 PR 의 동기화 판 · marketplace.json 은 develop 판 + 이 플러그인 판
+STALE_REMAINING=0 · DRIFT_REMAINING=0 · 호환 입구 끊김 0 · LEAK_FILES=0 · plugin-release-gate GATE PASS
+sync-from-forge.test PASS=68 · prune FAIL=0 · leak-scan-wiring PASS · plugin-hook-timeout PASS=1
