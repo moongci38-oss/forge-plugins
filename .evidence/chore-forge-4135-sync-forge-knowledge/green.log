@@ -16,3 +16,8 @@ DRIFT_forge-knowledge(고친 스크립트 --verify)=0
 $ env FORGE_ROOT=<forge develop 44614f446> PLUGIN_ROOT=. python3 scripts/sync-from-forge.py (#119 판) → forge-knowledge 폴더만 남김
 $ python3 scripts/sync-from-forge.py --verify | grep -c 'DRIFT: forge-knowledge/'
 forge-knowledge DRIFT=0
+
+# 플러그인 develop 65fd5cbaf(#113·#119 스쿼시) 합침 뒤 재측정 — forge develop 9bcf9799f · 남은 PR 을 머지 순서로 합친 상태
+충돌 풀이: 충돌 파일은 이 PR 의 동기화 판 · marketplace.json 은 develop 판 + 이 플러그인 판
+STALE_REMAINING=0 · DRIFT_REMAINING=0 · 호환 입구 끊김 0 · LEAK_FILES=0 · plugin-release-gate GATE PASS
+sync-from-forge.test PASS=68 · prune FAIL=0 · leak-scan-wiring PASS · plugin-hook-timeout PASS=1
