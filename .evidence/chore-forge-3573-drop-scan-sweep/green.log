@@ -14,3 +14,7 @@ gate rc=0
 결과: PASS=1 FAIL=0
 ```
 ```
+
+## H1 짝 시험 — 고친 뒤(PR head · 226c1203f + 짝 시험)
+  PASS  plugin-hook-timeout 시험 실재·통과
+rc=0
