@@ -24,6 +24,11 @@ group: deploy
 - `targets` 없으면 env 노드 전체 = 단일 암묵 타깃(기존 `{ "staging": { method, script, repos[], remote } }` 무수정 유효).
 - `remote.envFile` 은 프로젝트 루트 기준 경로(멀티 레포는 루트 공유 `"../.env"` + 프로젝트별 키만 `envPrefix`). 머신 전역 단일 .env 통합 금지 · 시크릿 값 출력 금지.
 
+## 입구 표 — 빌드·배포 스크립트 (#4165)
+- 규칙 정본 = `dev-workflow-rules.md §Git`(배포 스크립트로만 · 손 단계 금지). 찾기: `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/deploy-entry.sh" <레포> <dev|stg|client_build|slack_post>` → 스크립트 경로 1줄(실행은 안 한다).
+- 칸 = 레포 `.github/issue-board.json` `deploy_scripts.{dev,stg,client_build,slack_post}`(레포 기준 상대경로) · dev·stg 는 없으면 위 `<env>.script`(method=script) · live·prod 는 받지 않는다(rc 2).
+- rc 3 = **스크립트 없음** → 손 단계로 대신하지 않는다 · 보고 + 그 프로젝트에 스크립트 만드는 이슈(`issue-new.sh`) · rc 4 = 경로 거부(레포 밖·`..`·링크 탈출) → [STOP]. 클라 빌드·슬랙 게시도 같은 꼴(슬랙은 준비된 MCP 가 있으면 그것).
+
 ## Step 0 — 파싱 + 라우팅 (fail-open)
 1. `stg` → `staging` 정규화 · `--reverse`/`--dry-run` 추출, 나머지 = 프로젝트 목록.
 2. `prod --reverse` → 인자 오류 안내 후 정지.
@@ -31,7 +36,7 @@ group: deploy
 
 | 상태 | 행동 |
 |------|------|
-| 파일 부재 / `<env>` 키 부재 | **GUIDE-STOP**(에러 아님) — "`<env>` 배포 미선언. deploy-config.json 에 노드 추가 필요." 단 dev·stg 브랜치 머지/승격은 Step 2 로 계속 가능 |
+| 파일 부재 / `<env>` 키 부재 | §입구 표 `deploy-entry.sh` rc 0 → 그 스크립트 실행(method=script 와 같음) · rc 3 → **GUIDE-STOP**(에러 아님) — "스크립트 없음 — `<env>` 배포 미선언." + 스크립트 만드는 이슈 단 dev·stg 브랜치 머지/승격은 Step 2 로 계속 가능 |
 | `method: "script"` | `<env>.script` 실행(인자 passthrough) |
 | `method: "workflow"` | `gh workflow run <env>.workflow --ref <branches.source>` |
 | 그 외 | GUIDE-STOP — 지원 method(`script`/`workflow`) 안내 |
@@ -78,7 +83,7 @@ group: deploy
 stg/prod 직전 정적 검증(WARN, kill-switch `FORGE_DEPLOY_LINT=off`, 규칙 미선언 시 skip):
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/deploy-workflow-lint.sh" .github/workflows [--rules <project-root>/.claude/deploy-lint-rules.json]`
 - ERROR findings 는 Human 에게 명시 후 진행 여부 확인(hard-BLOCK 아님).
-- 실행: `bash <env>.script [--dry-run] [--step=<name>] [--rollback [<ts>]]` 또는 `gh workflow run <env>.workflow --ref <branches.source>`
+- 실행: dev·stg = `bash <§입구 표 deploy-entry.sh 가 준 경로> [--dry-run] [--step=<name>] [--rollback [<ts>]]` · prod = 원래대로 `bash <prod.script>`(deploy-entry.sh 는 prod 를 rc 2 로 거부한다) 또는 `gh workflow run <env>.workflow --ref <branches.source>`
 - exit 0 → 성공 + `healthcheck` 결과 보고. 미선언이면 `헬스 미측정(unmeasured)` 명시(성공 집계 금지, [STOP] 아님).
 - exit ≠ 0 → [STOP] Human 에스컬레이션 — 에러 + 롤백 경로(`--rollback` 지원 시).
 - 자격증명은 프로젝트 `.env` 참조만 — 값 출력 금지.

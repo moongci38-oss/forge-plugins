@@ -32,6 +32,10 @@ jobs:
         run: |
           python3 scripts/sync-from-forge.py --scan-repo .
 
+      - name: Compat stubs have their target skills
+        run: |
+          bash scripts/compat-stub-targets.test.sh
+
       - name: Guard self-test
         run: |
           python3 scripts/sync-from-forge.test.py

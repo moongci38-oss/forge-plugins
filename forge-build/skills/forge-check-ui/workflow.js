@@ -214,7 +214,7 @@ const [staticCheck, a11y, responsive, screenMapping, sourceQuality] = await para
     log(`[a11y] ui-measure 실패(exit=${mech?.exitCode ?? (safeUrl ? '?' : 'url 거부')}) — LLM 추정 축 a11y-llm-review 로 폴백`)
     const res = await agent(
     // root-cause: Gemini 전면 철수(2026-09-07) — Lighthouse/Vision 레그를 Codex(현행 GPT-6 Sol)로 교체.
-    //   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+    //   계획서: \${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
     //   ⚠️ Astra 는 로컬 파일(리포트·스크린샷)을 절대경로로 직접 읽는다 — 인라인 불필요.
     `${RUBRIC_LIGHTHOUSE}\n\n검사 대상 URL: ${url}\n프로젝트 루트(절대경로 기준): ${projectRoot}\n` +
     `**mcp__codex__codex 실제 호출** (ToolSearch 로 스키마 선로드 필요) — Claude 자체 추론으로 점수 생성 금지:\n` +

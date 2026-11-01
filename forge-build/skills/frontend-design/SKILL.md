@@ -36,7 +36,7 @@ model: sonnet
 3. 둘 다 없으면 먼저 만들어 올 것을 안내 → 그래도 진행하면 "레퍼런스 없이 진행" 명시(게이트 1).
 4. 확보되면 pixel-perfect 구현(Phase 1~3) → `visual-loop` 로 구현 vs 레퍼런스 대조.
    캡처 PNG 없이 코드만 있으면 `시각 검증 미확인(unverified)` 으로 적고 PASS 를 주장하지 않는다.
-- ⛔ **Stitch MCP·Figma 사용·제안 금지**(Gemini 전면 철수). `~/.claude.json` 에 `stitch` 가 등록돼 있어도 사용 근거가 아니다.
+- ⛔ **Stitch MCP·Figma 사용·제안 금지**(Gemini 전면 철수). `$HOME/.claude.json` 에 `stitch` 가 등록돼 있어도 사용 근거가 아니다.
 - `{project-root}/DESIGN.md` 가 있으면 **생성시점 SSoT** — committed direction·토큰 계층·anti-slop 을 따른다(1순위 프롬프트에 포함).
 - 복잡한 요청(다중 화면·새 톤·취향 불명확)은 **Brainstorm-First**(시안 2~3개 → 선택 → 본구현) → `reference/aesthetics.md`.
 

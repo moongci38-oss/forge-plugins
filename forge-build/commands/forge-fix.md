@@ -39,7 +39,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" --c
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" decision --rec-id <rec_id> --decision <wave|teams|workflow|main>
 ```
 권고 시 `forge-core.md §병렬 실행` 4분법(충돌 판정 `fr-lanes.py`)으로 정하고 decision 1줄 기록(미기록 = 결측). 끄기 `FORGE_ESCALATION_GATE=off` · 실패 = fail-open.
-`workflow` 선택 시 `Workflow({ script: Bash("cat ~/.claude/skills/investigate/workflow.js"), args: { issue: "<증상 1줄>", target: ".", skipVerify: false } })` — 원인 규명까지만(재현·수정 단계에서 스크립트가 스스로 [STOP]). 반환 `status`: `ROOT_CAUSE_CONFIRMED` → `fixPlan` 들고 ③ · `HYPOTHESIS_UNVERIFIED` → [STOP] 원인 없이 수정 금지 · `HYPOTHESES_READY` → [STOP] 검증은 사람이 · 필드 부재 → [STOP] (fail-closed).
+`workflow` 선택 시 `Workflow({ script: Bash("cat $HOME/.claude/skills/investigate/workflow.js"), args: { issue: "<증상 1줄>", target: ".", skipVerify: false } })` — 원인 규명까지만(재현·수정 단계에서 스크립트가 스스로 [STOP]). 반환 `status`: `ROOT_CAUSE_CONFIRMED` → `fixPlan` 들고 ③ · `HYPOTHESIS_UNVERIFIED` → [STOP] 원인 없이 수정 금지 · `HYPOTHESES_READY` → [STOP] 검증은 사람이 · 필드 부재 → [STOP] (fail-closed).
 ## Step 0.2 — 소관 팀 + 팀 지식 (WARN 전용, 비차단)
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-fix` → `OWNER=<slug>[,…]` → `${FORGE_OUTPUTS:-$HOME/forge-outputs}/12-team-ops/members/<slug>/wisdom.md` 선독. 2팀+ = 접수 순서 지정(같은 파일 병렬 수정 금지). `OWNER=none`(이름표 `## 소유 도구` 미기재)·wisdom 부재·실패 = **건너뛴다**(fail-open, AD-168) — 소관은 이름표를 고쳐 정한다. 팀장 경유(버스)를 강제하지 않는다(`forge-session-bus.sh send <slug>` 판단은 사람·총괄). 판정 근거는 "커맨드 소유"다 — 파일 소유가 아니다.
 ## 4-스테이지 루프 (버그 1개든 N개든 동일)
@@ -53,7 +53,7 @@ advisor 스폰 모델 = `MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts
 - RED = 리포트 증상에 대응하는 관측(`red.symptom_observed`). 정적 코드 관찰은 `hypothesis` — RED 자격 없음.
 - 프로덕션 결함 vs 테스트/mock drift(최근 커밋이 계약을 의도적으로 바꿨고 프로덕션은 정상) 판별 — drift 면 ③ 대상 = 테스트/mock. 게임 확률·무보상 경로는 기획 테이블 실측 전 버그 단정 금지.
 - AMBIGUOUS(가설 미수렴) → advisor T1 후 `/investigate`. SIMPLE 은 스폰 안 함.
-- ▶ **게이트 R**: 기존 시험 편집은 `fix-test-edit-guard.sh` 가 막는다(새 시험만 · 고치려면 이슈 본문 `테스트 수정 허용: <파일> — <이유>` + 사람 서명 · #3757). 소스 Edit 전 축별 RED 오라클(ui 는 screenshot+console.json+network.json 실측)은 기계 차단이 없으니 스스로 먼저 남긴다.
+- ▶ **게이트 R**: 버그 재현은 새 시험으로 더한다 — 기존 시험을 고치면 `fix-test-edit-guard.sh` 가 알림 1줄만 내고(막지 않는다) cr-risk-tier 가 그 PR 을 full-gate 로 올려 qa 가 시험 약화를 판정한다(#4080). 소스 Edit 전 축별 RED 오라클(ui 는 screenshot+console.json+network.json 실측)은 기계 차단이 없으니 스스로 먼저 남긴다.
 **② 리포트** — 6하원칙 `bug-fix-plan.md` + RED 증거 첨부 + current-bug 포인터. fop.json 헤더 `evidence_tier`(`runtime`|`code+db`|`code-only`) + `provenance`(실행 환경·네트워크 1줄), runtime 아니면 "런타임 증거 없음 — 근거등급 하향" 명기([STOP] 아님).
 **③ 수정**
 - advisor T2(다파일 교차의존·계약 변경·healer MANUAL-ONLY) · T4(data migration·DELETE·결제 — 사용자 [STOP] 게이트에 조언 포함).
@@ -77,7 +77,7 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
     | 분류 | 조건 | 처리 |
     |---|---|---|
     | deterministic-syntax | 컴파일·타입·오탈자 · 변경 파일 ≤2 | 자동수정 + 재컴파일 |
-    | **test-expectation** | 기대값·fixture·mock 불일치 · 로직 변경 없음 | **자동수정 금지 — 사람 [STOP]** · 기존 시험 수정은 사람 서명 면제만(`fix-test-edit-guard.sh` · #3757 — 가드는 가지가 `fix/*` 이거나 가지 이름 `<종류>/<N>-…` 의 이슈 N 이 버그일 때 켜진다) |
+    | **test-expectation** | 기대값·fixture·mock 불일치 · 로직 변경 없음 | **자동수정 금지 — 사람 [STOP]** · 기존 시험 수정은 사람이 [STOP] 에서 정한 뒤에만 · 그 PR 은 full-gate(qa 가 시험 약화 판정 · #4080) |
     | config-drift | 설정 키/값만 | 자동수정(설정 파일만) · `.env*` 커밋 금지 |
     | **logic-guard** | 비즈니스 로직·상태 전이 · 변경 파일 >2 | **자동수정 금지 — 사람 [STOP]** + 근본 원인 확정 |
   - 되돌림은 **내가 넣은 것만**(⛔ `git checkout -- <path>`): 수정 전 사본·파일별 패치(`docs/bug_report/artifacts/<BUG-ID>-patch/`)를 남기고 실패 시 `patch -R` 로 내 패치만 역적용 · 어긋나면 덮어쓰지 말고 [STOP].
@@ -99,7 +99,7 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
 - 원문 에러·스택 · 최소 재현 · 연루 파일만(1홉) · 실패한 시도 기록 · 대용량 조사는 subagent 격리. 가설 3~5개 랭킹 → 한 변수씩 반증 → 모든 증상을 설명하는 가설만 채택(`rules-on-demand/bug-feedback-loop.md`). 회귀테스트는 수정과 독립된 방식으로 기대값 검증.
 ## DevTools 증거 번들 (surface=ui, RED·GREEN 각각)
 ```bash
-node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
+node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
   --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-{red|green} --phase {red|green} \
   [--actions <인터랙션 시퀀스 json경로>]
 ```

@@ -184,7 +184,7 @@ if (useMatrix) {
     `Phase A0 — QA 리소스 해석. app="${appArg || ''}" domains="${domainsArg || ''}" accounts="${accountsArg || ''}". ` +
     `워크스페이스 루트의 qa-config(.claude/qa-config.json 또는 docs/qa/qa-config.json(qa-setup 생성 경로) ` +
     `또는 workspace 루트 동일 파일 — 이 우선순위로 탐색, 스키마: ` +
-    `~/forge/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
+    `\${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/reference.md §qa-config 스키마)가 있으면 그 apps/domains/accounts 블록을 사용하라. ` +
     `없으면 프로젝트 실측으로 도메인 자동열거(dev-spec 디렉토리 목록 또는 App Router 파일트리 apps/web/src/app/ 등)를 ` +
     `fallback으로 시도하되, 그마저 불가하면 domains=${JSON.stringify(scopeCsv.length ? scopeCsv : ['full'])} ` +
     `그대로 유지(graceful fallback, guideStop=false)하라. ` +
@@ -480,7 +480,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   // ── Phase F: Validate (버그별 Claude code-reviewer 1회 + RED→GREEN 증거) ─────────
   phase('Validate')
   // root-cause: 검수 다이어트 §A1·§A2 (사람 결정 2026-09-16 "A B 다 적용해") —
-  //   계획서 정본 ~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md.
+  //   계획서 정본 \${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md.
   //   같은 변경을 Codex 가 3번 이상 봤다(버그별 cr-code + stage 4종 + Phase F Codex cr-final + /forge-pr cr-final).
   //   → 여기서는 **Codex 를 부르지 않는다.** 버그별 Claude code-reviewer(opus) 1회 + RED→GREEN 증거 확인만,
   //     교차 검수는 Phase G 가 부르는 /forge-pr cr-final 이 한 번 한다.

@@ -1,5 +1,5 @@
 // root-cause: investigate Stage 0~3 = RAG→조사→분석→가설 pipeline() 컨텍스트 격리. 계획서 P2-7.
-// Stage 4+5(재현+수정)는 human gate 후 별도 실행 (healer/forge-pge로 위임).
+// Stage 4+5(재현+수정)는 human gate 후 별도 실행 (healer/forge-fix로 위임).
 export const meta = {
   name: 'investigate',
   description: '버그 근본 원인 분석 Workflow — RAG 선검색→조사→분석→가설 검증 (컨텍스트 격리, [STOP] human gate)',
