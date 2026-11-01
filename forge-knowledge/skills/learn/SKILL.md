@@ -1,6 +1,6 @@
 ---
 name: learn
-description: "세션간 학습을 learnings.jsonl에 축적·검색. 시행착오 재발방지 필요시, 과거 동일문제 해결법 확인 시 사용."
+description: "learnings.jsonl 학습 축적·검색 — 같은 문제 해결법 확인 시 사용."
 context: fork
 model: haiku
 allowed-tools: Read, Bash, Glob, Grep

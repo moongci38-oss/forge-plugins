@@ -1,21 +1,40 @@
 ---
 name: harness-diet
-description: "legacy-scan 리포트의 low-risk 항목 적용. 트리거: /harness-diet"
+description: "하네스 군살 정리 — scan(읽기전용 감사)·sweep(외부 대조)·기본(low-risk 적용). 트리거: /harness-diet [scan|sweep]"
 disable-model-invocation: true
 model: sonnet
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
-argument-hint: "[--dry-run] [--queue <path-to-diet-queue.json>]"
+argument-hint: "[scan [--scope rules|skills|hooks|all] | sweep <url> [--name <slug>] [--seed <md>]] [--dry-run] [--queue <path-to-diet-queue.json>]"
 ---
 
 # harness-diet
 
-**역할**: harness-legacy-scan 이 만든 diet-queue.json 을 소비해 `diet_auto=true && risk=low` 항목만 자동 적용한다(medium/high 는 목록 반환 → Human 승인).
+**역할**: scan 모드가 만든 diet-queue.json 을 소비해 `diet_auto=true && risk=low` 항목만 자동 적용한다(medium/high 는 목록 반환 → Human 승인).
 **출력**: 7보고 섹션 (변경목록/이유/Before-After/diff요약/Claude행동변화/Human승인목록/smoke-test).
 **컨텍스트**: `/harness-diet` 호출 시. 반드시 scan 리포트를 먼저 검토·납득한 후 실행할 것.
 
+## 모드
+
+- `$ARGUMENTS` 첫 낱말이 `scan` 이면 **scan 모드** — 읽기 전용 레거시 감사(옛 `harness-legacy-scan`). `references/scan.md` 를 읽고 아래 scan 호출만 한다(파일을 고치지 않는다).
+- 첫 낱말이 `sweep` 이면 **sweep 모드** — 외부 하네스 레포 1:1 대조(옛 `external-harness-sweep`). `references/sweep.md` 를 읽고 아래 sweep 호출만 한다.
+- 그 밖이면 기본(적용) 모드 — 이 문서 나머지 그대로.
+
+```
+// scan
+Workflow({
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-diet/scan/workflow.js"),
+  args: { outBase: Bash("echo ${FORGE_OUTPUTS:-$HOME/forge-outputs}"), codexModel: Bash("bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh sol mcp 2>/dev/null") }   // codexModel = MCP 길 sol(#2026)
+})
+// sweep
+Workflow({
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/harness-diet/sweep/workflow.js"),
+  args: { target_url: "<외부 레포 git URL>", target_name: "<slug>", seed_path: "<1차분석 md 절대경로>" }   // target_url 만 필수
+})
+```
+
 ## 쓰지 말아야 할 때
 
-- scan 리포트를 검토하지 않은 상태 → 먼저 `harness-legacy-scan` 실행 + 리포트 확인.
+- scan 리포트를 검토하지 않은 상태 → 먼저 `/harness-diet scan` 실행 + 리포트 확인.
 - medium+ 위험 변경 자동 적용 → [STOP] 게이트 필수, Human 승인 후만.
 - hook/MCP/allowed-tools 변경 → 본 스킬 수정 불가.
 - 앱 코드/test/build/deploy 임의 실행 → 금지.

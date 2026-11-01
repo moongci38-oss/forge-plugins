@@ -1,10 +1,10 @@
-# R2 러너 분기 · shadow 분기 (구 `/cr-triple` 본문에서 이관 — #1378)
+# R2 러너 분기 · shadow 분기
 
 > `/forge-multi` 커맨드 §R2 가 가리키는 상세. 이 파일이 정본이다.
 
-# R2 러너 분기 — **기본 = new** (T8, 2026-09-24 · ENGINE 2.15.0 — 구 T6 "new 일 때만" 절을 본문 흐름으로 올렸다)
+# R2 러너 분기 — **기본 = new**
 
-**이 절이 러너 선택의 정본이다**(`/forge-pr`·`/cr-double`·`/forge-multi`·`forge-multi/SKILL.md`·`codex-review/SKILL.md` 는 여기를 가리킨다).
+**이 절이 러너 선택의 정본이다**(`/forge-pr`·`/forge-multi`·`forge-multi/SKILL.md`·`codex-review/SKILL.md` 는 여기를 가리킨다).
 - **기본(스위치 미설정) = new** — 샌드박스 밖에서 봉인한 번들을 `bundlePath` 로 넘긴다(아래 1~3).
 - **되돌리기 = `FORGE_CR_ENGINE_RUNNER=legacy` 한 줄**(재배포 불필요) — `cr-run.sh pre` 가 `runner=legacy` 한 줄만 내고, 이 커맨드가 args 에 `runner: 'legacy'` 를 **명시**로 싣는다.
   엔진(2.15.0)은 번들 없이 runner 를 빠뜨린 호출도 legacy 로 fail-open 하지만, 롤백은 명시 릴레이가 계약이다(번들 조각이 섞여 와도 명시 legacy 가 이긴다).
@@ -29,16 +29,15 @@
 - 재현: `bash shared/scripts/tests/cr-t8-default-switch.test.sh`(기본 new·롤백 한 줄·자동 폴백) · `bash shared/scripts/tests/cr-run.test.sh` · `bash shared/scripts/tests/cr-runner-branch.test.sh`(P절)
 - 폐기조건: T9(구 엔진 제거) 때 legacy 되돌리기·자동 폴백 서술을 지운다(분할 라운드가 R2 러너에 배선된 뒤).
 
-# shadow 분기 — `FORGE_CR_ENGINE_RUNNER=shadow` 일 때 (T7, 2026-09-24 · ENGINE 2.14.0)
+# shadow 분기 — `FORGE_CR_ENGINE_RUNNER=shadow` 일 때
 
-판정: `FORGE_CR_ENGINE_RUNNER=shadow` 일 때(위 §R2 1의 pre 가 `runner=shadow` 를 낸다 — 2.15.0 부터 미설정 기본은 new). **pre/post 는 부르지 않는다**(`cr-run.sh` 는 shadow 에서 no-op — 봉인이 필요 없다).
+판정: `FORGE_CR_ENGINE_RUNNER=shadow` 일 때(위 §R2 1의 pre 가 `runner=shadow` 를 낸다). **pre/post 는 부르지 않는다**(`cr-run.sh` 는 shadow 에서 no-op — 봉인이 필요 없다).
 - Workflow `args` 맨 끝에 `runner: 'shadow'` **한 키만** 붙인다(`bundle`·`bundlePath`·`reviewRunKey` 없음). 나머지는 legacy 흐름(위 Workflow 본문) 그대로다.
 - 엔진은 판정·머지를 legacy 와 **바이트 동일**하게 내고, 같은 레그 출력으로 new 경로 판정(classifyLegs → computeVerdict)만 계산해 payload `shadow_compare` 로 싣는다(레그·심부름 재실행 0).
 - 기록: `/forge-pr §3.0` 의 `cr-review-round.py record` 가 `${FORGE_OUTPUTS}/.claude/state/cr-shadow/<owner>__<repo>__pr-<N>-r<R>.json` 로 떨군다(rc·결정 무영향). 집계 = `python3 shared/scripts/cr-shadow-report.py`(rc 0 충족 · 1 불일치 · 2 판정 불가).
-- ⚠️ 이 절이 무력화되는 입력: record 를 안 거치는 호출(`/cr-triple` 단독 · PR 없는 final) — 비교는 payload 에만 남고 파일은 안 생긴다(표본에서 빠질 뿐 불일치로 오판되지는 않는다).
+- ⚠️ 이 절이 무력화되는 입력: record 를 안 거치는 호출(`/forge-multi` 단독 · PR 없는 final) — 비교는 payload 에만 남고 파일은 안 생긴다(표본에서 빠질 뿐 불일치로 오판되지는 않는다).
 - 재현: `bash shared/scripts/tests/cr-shadow.test.sh` · 폐기조건: T8 전환 뒤 구 엔진 제거(T9) 때 이 절을 지운다.
 `ROUND_ARGS` 는 **`/forge-pr` 가 cr-final 을 부를 때** `cr-review-round.py prepare` 로 만든 파일이다. 없으면 r1 전수 리뷰(종전 동작).
-`MACHINE_CHECKS` 는 같은 자리에서 `/forge-pr §3 (b)` 가 forge-lint·mutation-run 을 돌려 만든 `{ran, summary}` 파일이다(2026-09-16, ENGINE 2.4.0).
+`MACHINE_CHECKS` 는 같은 자리에서 `/forge-pr §3 (b)` 가 forge-lint·mutation-run 을 돌려 만든 `{ran, summary}` 파일이다.
 없으면 엔진이 제외 목록 없이 레그에게 전 축을 맡긴다 — 구멍은 없고 토큰만 더 쓴다.
 ⚠️ 이 키를 빠뜨리면 r2 도 무기억 전수 리뷰가 되어 **수렴 규칙이 조용히 꺼진다**(G-2 재발).
-Claude 레그는 **Fable 5.1**(2026-09-24 #1025 기본 — 옵션 없음). `--no-frontier` 로 kill-switch 를 켠 런만 Sonnet 으로 내려간다.

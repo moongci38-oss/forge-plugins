@@ -1,6 +1,6 @@
 ---
 name: video-reference-guide
-description: "게임 영상(mp4/YouTube)을 프레임 분석해 연출 구현 가이드를 만든다. 사용자가 영상으로 게임 연출·이펙트 분석을 요청할 때 사용한다."
+description: "게임 영상 프레임 분석 → 연출 구현 가이드 — 영상 연출 분석을 요청할 때."
 context: fork
 model: sonnet
 ---

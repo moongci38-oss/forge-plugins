@@ -13,7 +13,7 @@ description: "반복 자동화 루프 제작 — '자동으로 돌게 해줘'·'
 | 3종은 재사용 함수 | `same_issue` · `oscillation` · `plateau` | `export function` |
 | 5종은 inline 패턴 명세 | `rubric_all_pass` · `max_cycles` · `budget_advisory` · `security_crit` · `regression` | 주석 명세(§1-a~e) — workflow.js 에 직접 복사 |
 
-- 실호출: `same_issue` 만(`healer`·`forge-implement`·`forge-pge`). 미배선 사유 → `healer-reference.md`·`forge-pge/reference.md`.
+- 실호출: `same_issue` 만(`healer`·`forge-implement`). 미배선 사유 → `healer-reference.md`.
 - 회귀 테스트: `bash shared/scripts/tests/loop-kernel.test.sh`
 - SKIP: `/migration-audit`(DB 전용), 1회성 단순 검사.
 

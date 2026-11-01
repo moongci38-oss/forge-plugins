@@ -51,8 +51,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-qa
 - 판정 근거는 "커맨드 소유"이지 파일 소유가 아니다.
 
 ## Phase 0 — Readiness 판정 (P5 구현 완료 확인)
-→ 공통 헬퍼: `/readiness-gate` (진입 계약 4요소)
-- 4요소: **구현 코드**(P5 소스 존재) · **시나리오 정의**(스펙·FR 기반 기술 가능) · **서버 기동**(앱 실행 가능) · **QA 스코프**(대상 기능·범위 특정 가능)
+- 4요소: **구현 코드**(P5 소스 존재) · **시나리오 정의**(스펙·FR 기반 기술 가능 — spec 없는 일은 이슈 본문 `## 확인 방법`과 intent 영향 칸이 원천 · 결과 경로는 PR `## 검증` 의 AC 증거 줄 · #3739) · **서버 기동**(앱 실행 가능) · **QA 스코프**(대상 기능·범위 특정 가능)
 
 - 전부 ok → **PASS**(qa 스킬 호출 진행)
 - 구현코드·서버기동 absent → **GUIDE-STOP**(`forge-qa-readiness-{date}.md` 출력 후 정지). P5(`forge-implement`) 미완료 → "P5 구현 완료 후 재호출"

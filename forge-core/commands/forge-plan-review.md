@@ -37,11 +37,6 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 - YAGNI 위반 (불필요한 기능)
 - 보안 갭 (Spec 단계에서 식별 가능한 것)
 
-## 비용
-
-`codex-review.md §단축 래퍼 공통` 정본.
-
 ## 관련
 
-- 본명령: `/codex-review --stage plan`
 - 정책: `~/forge/dev/rules-on-demand/codex-review-policy.md`

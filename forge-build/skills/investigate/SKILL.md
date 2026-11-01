@@ -61,18 +61,18 @@ LEARN_BY=investigate bash ~/.claude/scripts/learnings.sh load bug-fix-pattern 2>
 조사 완료 상태: DONE | DONE_WITH_CONCERNS | BLOCKED
 근본 원인: <1줄>
 확인 명령: <재현 명령>
-다음 단계: <healer 위임 | 추가 정보 요청 | 에스컬레이션>
+다음 단계: <`/forge-fix` ③ 수정에 넘김 | 추가 정보 요청 | 에스컬레이션>
 ```
 
 ## Stage 4: 재현 테스트 (Prove-It) — Stage 3 검증 없이 진입 금지. 재현 테스트 작성 → 실행 → **반드시 FAIL** 확인(PASS면 테스트 무효) 후에만 Stage 5. 템플릿 `§Stage 4`.
 - **blast-radius 게이트**: 수정 예상 >5 파일이면 중단 — Human 범위 확인 또는 scope 축소.
 
-## Stage 5: 수정 (템플릿 `§Stage 5`) — 수정 후 재현 테스트 PASS + 기존 테스트 전체 PASS.
+## Stage 5: 수정 넘김 — 이 스킬은 고치지 않는다(머리말 철칙). Stage 4 재현 테스트(FAIL)와 수정 계획을 `/forge-fix` ③ 수정에 넘긴다(옛 healer 스킬 흡수 · #3737 · 템플릿 `§Stage 5` 는 ③ 이 쓴다). 아래 가드는 넘긴 뒤 ③ 의 재진입에도 그대로 센다.
 - **3-fix 에스컬레이션**: 재진입마다 attempt+1. 3+ → 즉시 STOP, Stage 2 가설 전면 재검토 + architecture proposal, Human 승인.
 - **토큰 캡**: Stage 진입마다 `INVESTIGATE_TOKEN_CAP`(기본 300000) 추정 도달 시 `[STOP] INVESTIGATE_TOKEN_CAP={cap} 도달. Stage {N} 진입 취소.` + 증거·가설·마지막 결과 반환. (추정은 보조, 결정론 bound = max-cycles)
 - **oscillation 가드**: 연속 2회 "## 근본 원인" 1줄(소문자, 앞 120자) 동일 + 테스트 FAIL → `[OSCILLATION]`, Stage 2 재진입 금지, STATUS: BLOCKED, handover 에 경위+마지막 근본 원인 기록. 3-fix 와 독립(attempt 2 에서도 발화).
 
-## Stage 6: 버그 로그 저장 (Stage 5 후 필수)
+## Stage 6: 버그 로그 저장 (Stage 5 넘김 후 필수)
 - `forge-outputs/01-research/bugs/{project}/{YYYY-MM-DD}-{slug}.md` (템플릿 `reference.md §Stage 6`) — rag-search 인덱싱 대상.
 ```bash
 bash ~/.claude/scripts/learnings.sh append --category bug-fix-pattern \
@@ -87,12 +87,12 @@ REPO=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-
   OPENAI_API_KEY="" timeout 180 bash ~/forge/shared/scripts/rag/rag-exec.sh project_knowledge_sync.py --project "$REPO" 2>&1 | grep '^PROJECT_KNOWLEDGE_SYNC=' || echo "PROJECT_KNOWLEDGE_SYNC=no-result"
 ```
 
-**Stage 7 — Codex bugfix 리뷰** (권고, 자동은 `CODEX_REVIEW_AUTO_STAGES` 에 `bugfix`|`all` 일 때만): `/codex-review --stage bugfix --target <patch file or PR-N>` — 우회 패치·회귀·재현 적정성·부작용. blocking 아님(WARN/FAIL → 사용자 컨펌). 결과 `forge-outputs/docs/reviews/bugfix/{date}-{slug}.{md,json}`. 실패 시 [[pev-self-correction]].
+**Stage 7 — Codex bugfix 리뷰** (권고, 자동은 `CODEX_REVIEW_AUTO_STAGES` 에 `bugfix`|`all` 일 때만): `/forge-review --stage bugfix --target <patch file or PR-N>` — 우회 패치·회귀·재현 적정성·부작용. blocking 아님(WARN/FAIL → 사용자 컨펌). 결과 `forge-outputs/docs/reviews/bugfix/{date}-{slug}.{md,json}`. 실패 시 [[pev-self-correction]].
 
 ## 최종 상태 선언
 ```
-[investigate] STATUS: DONE | 근본 원인: <1줄> | 수정 커밋: <hash>
+[investigate] STATUS: DONE | 근본 원인: <1줄> | 넘긴 곳: /forge-fix ③
 [investigate] STATUS: DONE_WITH_CONCERNS | 사유: <Codex WARN 항목 / 임시 패치 이유>
 [investigate] STATUS: BLOCKED | 사유: <Human gate 필요 이유> | 권고: <다음 액션>
 ```
-DONE = Stage 5 성공(재현 테스트 PASS) + Stage 6 저장 완료 / DONE_WITH_CONCERNS = Codex WARN·blast-radius 5↑·임시 패치 / BLOCKED = Stage 4 [STOP]·3회 실패·설계 개입. 둘 다 handover `§발견한 이슈` 기록.
+DONE = 근본 원인 확정 + Stage 4 재현 테스트 FAIL 확인 + 수정 계획을 ③ 에 넘김 + Stage 6 저장 완료 / DONE_WITH_CONCERNS = Codex WARN·blast-radius 5↑·임시 패치 / BLOCKED = Stage 4 [STOP]·3회 실패·설계 개입. 둘 다 handover `§발견한 이슈` 기록.

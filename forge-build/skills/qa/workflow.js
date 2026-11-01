@@ -487,7 +487,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
   //   구 표기(2026-09-16 폐기): CR_STAGES = ['bugfix','code','test','final'] 를 /forge-multi --stage 로 순차 실행
   //     + crMode==='on' 이면 agentType 'codex-critic' 으로 "Phase F Codex cr-final" 추가 실행.
   //   ⚠️ 무력화되는 입력: Phase G ship 에이전트가 /forge-pr 을 건너뛰고 gh pr merge 를 직접 치면
-  //     이 변경은 교차 검수를 한 번도 받지 않는다(남는 방어선 = PreToolUse qa-event-router cr-final 증거 게이트).
+  //     이 변경은 교차 검수를 한 번도 받지 않는다(남는 기계 방어선 없음 — qa-event-router cr-final 증거 게이트는 #2692 에서 삭제).
   //   폐기조건: Codex 한도가 병목이 아니게 되거나 /qa 경유 머지의 사후 결함이 반복되면 사람이 재결정.
   //   crMode 인자는 하위호환으로 받기만 한다(no-op).
   if (crMode !== 'degrade') log(`[F] crMode=${crMode} 는 2026-09-16 부터 no-op — 교차 검수는 /forge-pr cr-final 한 번`)
@@ -528,7 +528,7 @@ async function runOne({ scope, appId, accounts, exhaustive, tag }) {
       `wiki-sync nohup background. prUrl="" + merged=false 반환.`
     // root-cause: 검수 다이어트 §A1 (사람 결정 2026-09-16) — PR 생성·교차 검수·머지는 /forge-pr 한 곳에서 한다.
     //   구 표기 "G: gh pr create 직접 … 9개 조건 충족 시 gh pr merge --squash --delete-branch" 는 2026-09-16 폐기.
-    //   ⚠️ 무력화되는 입력: 에이전트가 이 지시를 무시하고 gh pr merge 를 직접 치는 경우(남는 방어선 = PreToolUse cr-final 증거 게이트).
+    //   ⚠️ 무력화되는 입력: 에이전트가 이 지시를 무시하고 gh pr merge 를 직접 치는 경우(남는 기계 방어선 없음 — PreToolUse cr-final 증거 게이트(qa-event-router)는 #2692 에서 삭제).
     //   폐기조건: /forge-pr 이 머지 판정 단일 진입점이 아니게 되면 재검토.
     : `Phase G+H — /forge-pr 경유 PR + 교차 검수(cr-final 1회) + CI + develop 머지 + 지식 축적. 브랜치: ${branchResult.branch}.${appNote} ` +
       `G: /forge-pr 을 실행한다(base=develop, head=${branchResult.branch}). gh pr create·gh pr merge 를 직접 부르지 마라 — ` +

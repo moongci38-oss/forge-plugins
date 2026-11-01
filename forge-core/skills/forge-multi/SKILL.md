@@ -1,7 +1,9 @@
 ---
 name: forge-multi
-description: "멀티 레그 검수(Claude+Codex). 트리거: /forge-multi, plan/spec 저장 후."
+description: "멀티 레그 검수(Claude+Codex) — 수동 전용. 트리거: /forge-multi."
 ---
+
+> 부르는 때: `/forge-multi` **수동 전용 — 자동 호출처 없음(2026-10-27 · #3897)** — work-plan 계획서 자동 검수(#3608)는 Codex 4관점(`review-4lens.sh`)으로 옮겼다 · Spec 저장 뒤는 제안 1줄만(/forge-spec — 사람이 고르면). description 은 45토큰 상한(desc-list-budget D3)이라 여기 적는다.
 
 > 헬퍼·로그·증거 경로는 옛 이름 `cr-multi` 를 그대로 쓴다(`cr-multi-triage.py`·`cr-multi-calls.jsonl`·`docs/reviews/cr-multi/`) — 개명 금지.
 
@@ -40,7 +42,7 @@ Workflow({
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
-- `CLAUDE_CODE_DISABLE_WORKFLOWS=1` → Agent 패턴 fallback. **R2 러너**(기본 new, 되돌리기 `FORGE_CR_ENGINE_RUNNER=legacy`): 절차 정본 `forge-multi/reference/r2-runner.md`. `cr-run.sh pre` rc≠0 → Workflow 금지 · args 끝에 `...RUNNER_ARGS` 병합(`bundlePath` 만, 번들 인라인 금지) · `runner=new` 면 뒤에 `cr-run.sh post --wf-run <runId>`(rc≠0 = 결과 무효) · `legacy`/`shadow` 는 args 끝에 `runner` 한 키만, post 없음(`forge-multi/reference/r2-runner.md §shadow`).
+- `CLAUDE_CODE_DISABLE_WORKFLOWS=1` → Agent 패턴 fallback. **R2 러너**(기본 new, 되돌리기 `FORGE_CR_ENGINE_RUNNER=legacy`): 절차 정본 `forge-multi/reference/r2-runner.md`(pre·병합·post · `§shadow`).
 - `crTestCtx`: `'auto'`(기본, `risk_level=LOW` 면 생략) · `'on'` · `'off'`. GitNexus `test_files` 를 `[변경 코드를 덮는 기존 테스트 — 의도된 계약이다]` 블록으로 동봉(파일당 200줄·총 2000줄, 절단 사실 명시, 실패 fail-open).
 ## learnings 배경 주입 (수동 opt-in)
 `args.learningsContext` — 사고 재발 의심 검수에서만 켠다. 이 jq 만 사용(임의 텍스트 금지 · 상한 8,000자, 절단 명시):
@@ -77,11 +79,11 @@ jq -r 'select(.status != "superseded")
 원장  : ${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-evidence/emit-log.jsonl
 포맷: {legs[{worker,score,summary,issue_count,critical,high}], mode, expected_legs, stage, run_id, head_sha} + provenance {emitted_by, emitted_at, head_sha_at, wf_run_id, wf_finished_at, repo_root}
 ```
-- `head_sha` = 훅이 `git -C <repoRoot> rev-parse HEAD` 로 취득 → `qa-event-router.sh` cr-final 바인딩이 소비(없으면 WARN, `FORGE_CR_EVIDENCE_STRICT=1` 이면 차단). 판정 = `codex-gate-enforce.sh` 가 `review-evidence-verdict.py --compute`.
+- `head_sha` = 훅이 `git -C <repoRoot> rev-parse HEAD` 로 취득 → 증거에 싣는다. 판정 SSoT = `review-evidence-verdict.py --compute`.
 - 발행 조건: stage ∈ {code,test,bugfix,final} + `status=completed` + `repoRoot` + 종료 1시간 이내(`CR_EVIDENCE_MAX_AGE_S`). 같은 `wf_run_id` 재발행 금지 · 같은 slug/stage 는 더 새 런일 때만 교체 · 발행/스킵/실패/off 전부 원장 1줄. Stop 등록 = `bash shared/scripts/register-forge-hooks.sh`.
 - kill-switch `FORGE_CR_EVIDENCE_EMIT=off`(fail-open). 게이트 stage 충족은 forge-multi 경유만(`/codex-review` 래퍼 불가). 자동 게이트 기본 off(`CODEX_REVIEW_AUTO_STAGES`).
 
-**보안**: Secret 사전 스캔 · `CR_MULTI_AUTO=off` 기본 · 감사 로그 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-multi-calls.jsonl`.
+**보안**: Secret 사전 스캔 · 감사 로그 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/cr-multi-calls.jsonl`.
 ## 운영 규칙
 - **No-Pause**: 레그를 중간 Human 확인 없이 연속 실행. BLOCKED 판정 때만 [STOP].
 - **Plateau**(사람 끄개로 r2 를 연 흐름에서만 — 평소 라운드 상한은 1 · #2594): 연속 2라운드 진전 <5점 → B AD-50 override(Human 승인) / C 폐기 / D 단순화(권고) · "한 번 더 본다" 는 선택지에 없다. 가드 `shared/scripts/cr-multi-plateau-guard.py`.

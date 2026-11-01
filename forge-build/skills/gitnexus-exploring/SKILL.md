@@ -1,6 +1,6 @@
 ---
 name: gitnexus-exploring
-description: "Use when understanding how code works, tracing execution flows, or exploring unfamiliar codebase. Ex: \"How does X work?\", \"What calls this?\", \"Show me the auth flow\""
+description: "Use when understanding how code works, tracing execution flows, exploring unfamiliar codebase, or debugging why something fails. Ex: \"How does X work?\", \"What calls this?\", \"Why is X failing?\", \"Trace this bug\""
 ---
 
 # Exploring Codebases with GitNexus
@@ -76,3 +76,24 @@ gitnexus_context({name: "validateUser"})
    → Outgoing: validateCard, chargeStripe, saveTransaction
 4. Read src/payments/processor.ts for implementation details
 ```
+
+## Debugging
+
+Use the same workflow when the question is "why does X fail?" — start `gitnexus_query` from the error text or symptom, then `gitnexus_context` on the suspect.
+
+| Symptom              | GitNexus Approach                                          |
+| -------------------- | ---------------------------------------------------------- |
+| Error message        | `gitnexus_query` for error text → `context` on throw sites |
+| Wrong return value   | `context` on the function → trace callees for data flow    |
+| Intermittent failure | `context` → look for external calls, async deps            |
+| Performance issue    | `context` → find symbols with many callers (hot paths)     |
+| Recent regression    | `detect_changes` to see what your changes affect           |
+
+Custom call chain trace when processes are not enough:
+
+```cypher
+MATCH path = (a)-[:CodeRelation {type: 'CALLS'}*1..2]->(b:Function {name: "validatePayment"})
+RETURN [n IN nodes(path) | n.name] AS chain
+```
+
+Confirm the root cause by reading the source files — the graph points to suspects, it does not prove the bug.

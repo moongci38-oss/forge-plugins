@@ -4,156 +4,24 @@
 
 ## 목차
 
-**필요한 절만 골라 읽는다** — 408줄이라 통째로 열면 그 세션 예산을 그만큼 먹는다.
+**필요한 절만 골라 읽는다** — 268줄이라 통째로 열면 그 세션 예산을 그만큼 먹는다.
 
 | 절 | 언제 읽나 |
 |---|---|
-| [§Step 4.5 종합 적용 계획 보고서 형식](#step-45-종합-적용-계획-보고서-형식) | 여러 영상의 적용 계획서를 쓸 때 |
-| [§출력 형식 전체 템플릿](#출력-형식-전체-템플릿) | 개별 영상 분석 리포트를 쓰기 직전 |
 | [§Step 2.85 — Ground Truth Check (GTC)](#step-285--ground-truth-check-gtc) | 시스템 비교분석 **직전** |
-| [§Step 4.7 — 적대적 검수 (cr-triple 2레그)](#step-47--적대적-검수-cr-triple-2레그) | 적용 계획서를 만들었을 때만 |
 | [§검증 게이트 합성 룰 + 독립 Evaluator](#검증-게이트-합성-룰--독립-evaluator) | 게이트를 돌릴 때 |
 | [§Step 3.5 — 타임스탬프 검증 게이트](#step-35--타임스탬프-검증-게이트) | 분석 저장 직후 |
 | [§Step 4.9 — HTML 대시보드 생성](#step-49--html-대시보드-생성) | 대시보드를 만들 때 |
+| [§헤드리스 실행](#헤드리스-실행) | 사람 없이(cron·텔레그램) /yt 를 돌릴 때 |
 
 > 근거: `skill-creator` SKILL.md — 100줄 초과 reference 에는 목차를 둔다.
 > 폐기조건: 이 파일이 100줄 이하로 줄면 목차를 뺀다.
 
 ---
 
-## §Step 4.5 종합 적용 계획 보고서 형식
-
-```markdown
-# 종합 적용 계획 보고서
-> 분석 영상: {영상 제목 목록} | 작성일: {date}
-
-## 핵심 요약
-{2-3문장: 이번 영상들에서 공통적으로 도출된 우리 시스템 개선 방향}
-
-## 영상별 주요 인사이트 종합
-| 영상 | 핵심 제안 | 우리 시스템 적용 여부 |
-|------|---------|:-----------------:|
-| 영상1 제목 | 핵심 제안 요약 | 적용/부분/미적용 |
-
-## 현재 시스템 대비 갭 분석
-| 기능/패턴 | 영상 출처 | 우리 현황 | 갭 | 영향도 | 난이도 |
-|----------|---------|---------|:--:|:----:|:----:|
-
-## 꼭 필요한 적용 항목 (선별 기준: 영향도 High + 실현 가능)
-
-### P0 — 즉시 적용 (이번 주)
-- **[시스템]** 기능명: 현황 → 변경 내용 → 기대 효과
-
-### P1 — 단기 (이번 달)
-- **[시스템]** 기능명: 현황 → 변경 내용 → 기대 효과
-
-### P2 — 중기 (다음 분기)
-- **[시스템]** 기능명: 현황 → 변경 내용 → 기대 효과
-
-## 제외 항목 (이유 포함)
-| 항목 | 제외 이유 |
-|------|---------|
-| ... | 이미 적용됨 / 영향도 낮음 / 리소스 대비 효과 낮음 |
-
-## 실행 체크리스트
-- [ ] P0 항목 (담당: Business/Portfolio/게임 프로젝트)
-- [ ] P1 항목
-
-## 참고 영상
-{각 영상 URL 및 분석 파일 경로}
-```
-
-## §출력 형식 전체 템플릿
-
-```markdown
-# {title}
-> {channel} | {published} | {view_count} views | {duration}
-> 원본: https://youtu.be/{video_id}
-> 자막: {자막 유형} (신뢰도 {등급})
-
-## TL;DR
-(1-2문장)
-
-## 카테고리
-{category} | #{tags}
-
-## 핵심 포인트
-1. **포인트** [🕐 MM:SS](url?t=seconds)
-...
-
-## 댓글 인사이트
-> 상위 댓글 {N}개 분석 (총 {총댓글수})
-
-### 커뮤니티 반응 패턴
-- **동의/확인**: ...
-- **이견/반론**: ...
-- **보충 정보**: ...
-
-### 주목할 댓글
-> "댓글 내용" — 작성자 👍 N
-
-## 설명란 자료 요약
-| # | 링크 | 유형 | 핵심 내용 |
-|:-:|------|:----:|---------|
-| 1 | [제목](url) | 공식문서/블로그/논문 | ... |
-
-## 비판적 분석
-
-### 주장 1: "{핵심 주장}"
-- **제시된 근거**: ...
-- **근거 유형**: 실증/경험/의견
-- **한계**: ...
-- **반론/대안**: ...
-
-## 팩트체크 대상
-- **주장**: "..." | **검증 필요 이유**: ... | **검증 방법**: ...
-
-## 팩트체크 결과
-| # | 주장 | 판정 | 근거 |
-|:-:|------|:----:|------|
-| 1 | "..." | ✅/⚠️/❌/❓ | 출처 + 요약 |
-
-## 웹 리서치 결과
-| 주제 | 출처 | 핵심 인사이트 | 영상과의 관계 |
-|------|------|-------------|:-----------:|
-| ... | [제목](url) | ... | 일치/보완/반박 |
-
-## 시스템 비교 분석
-| 제안/발견 | 우리 현황 | 갭 | 영향도 | 난이도 |
-|----------|---------|:--:|:----:|:----:|
-| ... | 이미 적용/부분/미적용 | 구체적 갭 | H/M/L | H/M/L |
-
-## 필수 개선 제안
-
-### P0 — 즉시 적용 가능
-- **[시스템]** [개선 내용]: [현재 문제] → [제안] → [기대 효과]
-
-### P1 — 이번 주
-- ...
-
-### P2 — 이번 달
-- ...
-
-## 실행 가능 항목
-- [ ] 항목 (적용 대상: Portfolio/게임 프로젝트/Business 명시)
-
-## 관련성
-- **Portfolio**: N/5 — 이유
-- **게임 프로젝트**: N/5 — 이유
-- **비즈니스**: N/5 — 이유
-
-## 핵심 인용
-> "원문" — 발표자
-
-## 추가 리서치 필요
-- 주제 (검색 키워드: `keyword1`, `keyword2`)
-```
-
 ## §Step 2.85 — Ground Truth Check (GTC)
 
 > SKILL.md 의 해당 Step 을 **실제로 돌릴 때** Read 한다.
-> (2026-08-28 이동 — 절차 원문 그대로.)
-
 
 시스템 비교분석 **직전에** 아래 4단계 검증을 수행하여 Step 2.9의 입력을 정확하게 만든다.
 
@@ -202,136 +70,59 @@
 
 ---
 
-## §Step 4.7 — 적대적 검수 (cr-triple 2레그)
-
-> **적용 계획서를 만든 경우에만** Read 한다. 계획서가 없으면 이 Step 자체를 건너뛴다.
-> (2026-08-28 이동 — 절차 원문 그대로.)
-
-
-**적용 대상**: Step 4-2 의 개별 `-apply-plan.md`. 분석 리포트(`-analysis.md`)·비교 리포트
-(`-comparison.md`) = **대상 X** (콘텐츠 분석 ≠ Spec/Plan).
-
-> **2026-08-27 Human 지시로 `codex-review`(단일 Codex 레그) → `cr-triple`(당시 3레그)로 승격.**
-> 한 벤더만 보면 그 벤더의 맹점을 그대로 통과시킨다. 서로 다른 벤더가 각각 읽고 교차하면
-> 한 모델이 놓친 것을 다른 모델이 집는다.
-> **현행(2026-09-17~) = 2벤더 교차 2레그**: Claude(Opus 5) + Codex(GPT-5.6 Sol), effort 는 `cr-risk-tier.sh` 등급별.
-> ⚠️ 구 표기 "Claude(Fable 5.1) + Codex(GPT-6 Astra), effort=xhigh"(2026-09-07~09-16)는 2026-09-17 폐기 — 최고급은 advisor 전용(사람 지시).
-> 구 3레그의 Gemini 레그는 전면 철수로 폐지됐다(정본 `model-routing.md §검수 2레그`).
-> 위 "3레그" 는 승격 **당시**의 구성이다 — 경위 기록이라 지우지 않고 시점을 명시한다.
-> ⚠️ 다만 이 구조는 **완화 장치이지 무편향 보장이 아니다**(`cr-multi/SKILL.md §self-referential bias`).
-
-**Skip 조건**
-- 인자: `/yt <입력> --skip-cr-plan`
-- apply-plan 부재 (비기술 카테고리 → Step 4 자체 skip → 이 절도 자동 skip)
-
-⚠️ **게이트는 `--cr` 하나다.** 검수는 **2벤더 교차 2레그**(Claude Opus 5.5 + Codex GPT-6 Sol)인데,
-팀 기본값 `FORGE_AUTO_CR=degrade` 때문에 그냥 부르면 **Codex 레그가 빠져 1레그가 된다** —
-**`--cr on` 을 명시**해야 2레그가 온전히 뜬다. 전역 기본값은 건드리지 않는다
-(정본 `model-routing.md §검수 2레그` — 2026-08-22 승인의 효력은 검수 기본값으로 한정된다).
-⚠️ 2026-09-12 정정: 구 서술은 "3레그"였고 죽은 줄번호(`model-routing.md:27`)를 인용했다.
-3레그·Gemini 레그는 2026-09-07 폐지됐고, 그 줄번호에는 해당 내용이 없다.
-⚠️ 구 `CODEX_REVIEW_AUTO_STAGES` 게이트는 이 절에 **더 이상 관여하지 않는다**(codex-review 를 안
-부른다). 그 env 는 다른 stage 용으로 남아 있다.
-
-**호출**
-
-```bash
-[ "$SKIP_CR_PLAN" = "1" ] && exit 0
-PLAN_FILE="docs/planning/active/plans/${date}-${title_slug}-apply-plan.md"
-[ -f "$PLAN_FILE" ] || exit 0
-```
-
-```
-/forge-multi "$PLAN_FILE" --stage plan --cr on
-```
-
-**판정 소비** — 결과는 **Workflow 반환값**(`verdict` / `issues[]` / `degraded`)에서 읽는다.
-⚠️ 파일을 `jq` 로 파싱하지 마라 — 구 `docs/reviews/{stage}/{slug}-cr-multi.json` 발행은
-2026-07-24 에 폐지됐고 지금 그 경로를 쓰는 코드는 없다.
-
-| verdict | 행동 |
-|---|---|
-| `PASS` | 종결, 다음 단계 진행 |
-| `WARN` (high·critical 0건) | 계획서에 지적 요약 1줄 기록 후 진행 |
-| `WARN` (high·critical 1건 이상) | **[STOP]** 사용자 검토 — 자동 fix 금지 |
-| `FAIL` | **[STOP]** 사용자 검토 |
-| `INVALID_INPUT` | **판정이 아니다.** PASS/WARN/FAIL 어느 쪽으로도 집계하지 않는다. `issues[].code`(`too_large`·`not_found`·`content_mismatch`·`rate_limited`)대로 입력을 고쳐 **1회 재호출**하고(`rate_limited` 는 나누지 말고 한도가 풀린 뒤 같은 인자로), 그래도 실패하면 `검수 미판정` 으로 기록만 하고 진행한다. `score` 는 `null` 이니 인용하지 마라 |
-
-`degraded: true` 로 돌아왔으면 **레그가 빠진 채 나온 판정**이다 — 어느 레그가 빠졌는지 함께 기록한다.
-2레그가 아니면 "2벤더 교차검수를 했다"고 쓰지 않는다.
-
-⚠️ **이 방어가 무력화되는 입력**: 비기술 영상·기사는 apply-plan 이 아예 없어 조용히 통과한다.
-리포트 **본문**의 품질은 이 절이 아니라 Step 2.83(반박/대안 병렬 검증)·Step 2.88(추가 리서치
-즉시 해소)·eval-rubric 이 맡는다.
-
----
-
 ## §검증 게이트 합성 룰 + 독립 Evaluator
 
 > 게이트를 **돌릴 때** Read 한다.
-> (2026-08-28 이동 — 발화 순서·프롬프트 원문 그대로.)
 
-### 호출 순서 합성 룰 (cr-triple + eval-rubric)
+### 호출 순서 합성 룰 (Step 4.7 검수 + eval-rubric)
 
-본 스킬은 두 개의 독립 검증 게이트를 모두 발화한다. 순서·결과 합성은 다음 룰을 따른다.
+두 검증을 모두 돌린다. 순서·결과 합성은 다음 룰을 따른다 — 검수 호출·판정 처리의 정본은 SKILL.md Step 4.7.
 
 ### 발화 순서 (강제)
 
 ```
 1. analysis md 저장 (01-research/videos/analyses/{slug}-analysis.md)
-2. /forge-multi "{apply-plan 경로}" --stage plan --cr on   (2레그 adversarial — Step 4.7)
+2. /forge-review --stage final --target <analysis.md 절대경로> --mode multi -- --allow-unbound-final   (적대적 검수 — Step 4.7 · 분석문 대상)
 3. /eval-rubric --target {analysis 경로} (다축 정량 채점)
-4. 두 결과를 eval_cases.jsonl 별도 라인으로 append (skill 필드로 구분)
-   - skill="yt-codex" + skill="yt-rubric"
+4. eval_cases.jsonl 에 EC-yt-{N} 1줄 append
 ```
 
 순서 이유:
-- cr-triple = blocking 잠재 (FAIL·WARN+high 시 사용자 게이트). 먼저 통과해야 후속 의미.
+- Step 4.7 검수 = 막을 수 있다(FAIL·`hasCrit` → [STOP]). 먼저 통과해야 뒤가 의미 있다.
 - eval-rubric = 정량 점수만 (자동 차단 X). 항상 마지막.
 
 ### 결과 합성 룰
 
-두 게이트 결과를 조합해 종합 verdict 를 정한다.
-
-| cr-triple 결과 | eval-rubric 결과 | 종합 verdict | 처리 |
-|-----------|----------------|------------|------|
+| Step 4.7 검수 | eval-rubric 결과 | 종합 verdict | 처리 |
+|---|---|---|---|
 | PASS | PASS | **PASS** | 종결 |
-| PASS | WARN (≤1축 0점) | **WARN** | rationale 사용자 알림 |
-| PASS | FAIL (≥2축 0점) | **WARN** | 사용자 결정 게이트 (적용 전) |
-| WARN | * | **WARN** | cr-triple WARN 우선 + rubric 보조 |
-| FAIL (c=0,h=0) | * | **WARN** | L-31 적용. rubric 으로 보강 |
-| FAIL (c≥1 또는 h≥1) | * | **FAIL [STOP]** | 사용자 검토 의무 (자동 fix X) |
+| PASS | WARN (≤1축 0점) | **WARN** | rationale 를 보고에 |
+| PASS | FAIL (≥2축 0점) | **WARN** | 0점 축을 보고에 명시 (eval-rubric 은 자동 차단 X) |
+| WARN | * | **WARN** | 검수 WARN 우선 + rubric 보조 |
+| FAIL · `hasCrit=true` | * | **FAIL [STOP]** | 고치고 보고 — 다시 검수하지 않는다 |
+| `INVALID_INPUT` · `content_integrity=lost` | * | 판정 아님 | 쪼개 재호출 ("통과" 금지) |
 
 ### 영역 차이 (왜 둘 다 필요한가)
 
 | 검증 | 영역 | 강점 | 약점 |
-|------|------|------|------|
-| cr-triple (2레그) | adversarial extension | 벤더 교차로 동일 모델 맹점 보완 (Claude Opus 5.5 · Codex GPT-6 Sol) | 정량 점수 X |
+|---|---|---|---|
+| Step 4.7 검수 (`/forge-multi` 2레그) | 적대적 검수 | 벤더 교차(Claude·Codex)로 한 모델의 맹점 보완 | 정량 점수 X |
 | eval-rubric | 다축 정량 | clarity/consistency/completeness/safety 4축 점수 | 모델 동일 (자체 편향 가능) |
 
-**상호 보완**: cr-triple 이 못 잡는 정량 측면 = eval-rubric 보강. eval-rubric 이 못 잡는 적대적 견제 = cr-triple 보강.
-
-⚠️ 2026-08-28 정정: 이 두 표는 구 `§호출 순서 합성 룰 상세` 절에서 흡수했다. 그 절은
-`codex-review | 단일 레그` 로 남아 있어 Step 4.7 의 cr-triple(당시 3레그) 과 모순이었고, 헤딩도
-이 절과 중복이었다(`### 결과 합성 룰` · `### eval_cases.jsonl 표기`).
-재현: `grep -E '^#{2,4} ' .claude/skills/yt/reference.md | sort | uniq -d` → 0건.
+**상호 보완**: 검수가 못 잡는 정량 측면 = eval-rubric 보강. eval-rubric 이 못 잡는 적대적 견제 = 검수 보강.
 
 ### 비활성 조건
 
-- `EVAL_RUBRIC_AUTO=off` → eval-rubric만 스킵, cr-triple은 진행
-- `--skip-cr-plan` 인자 → cr-triple만 스킵, eval-rubric은 진행
-- 둘 다 스킵: `--skip-cr-plan` + `EVAL_RUBRIC_AUTO=off` 동시 적용
+- `EVAL_RUBRIC_AUTO=off` → eval-rubric 기록만 생략(fail-open), Step 4.7 검수는 진행
+- Step 4.7 검수를 끄는 인자는 없다 (`--skip-cr-plan` 은 끌 대상이 없다)
 
 ### eval_cases.jsonl 표기
 
-두 결과 모두 누적 (별도 라인, skill 필드로 구분: `yt-codex` / `yt-rubric`).
+결과 1줄 — case_id `EC-yt-{N}` (표기·split 정본 = `eval-rubric/references/skill-integration.md`).
 
 ```json
-{"case_id":"EC-yt-codex-1","skill":"yt-codex","target":"apply-plan.md","verdict":"PASS",...}
-{"case_id":"EC-yt-rubric-1","skill":"yt-rubric","target":"analysis.md","verdict":"WARN","scores":{...},...}
+{"case_id":"EC-yt-1","skill":"yt","target":"<analysis.md>","verdict":"WARN","scores":{...},...}
 ```
-
-> 출처: AD-19 (eval-rubric 시스템 통합) + AD-21 (warn 기본). 합성 룰 = 본 작업 (2026-05-11).
 
 ---
 
@@ -366,7 +157,7 @@ echo "lint rc=$?"
 | 3 | ACHCE 축 태그 1개 이상 | 태그 표기를 찾으면 PASS | 못 찾았을 때만(UNDECIDED) |
 | 4 | 인덱스 등록(`append_index_record.py`) 실행 기록 | 등록 완료·실패 기록을 찾으면 PASS | 못 찾았을 때만(UNDECIDED) |
 
-⚠️ ③④를 **못 찾았다고 FAIL 로 찍지 않는다** — 이 리포트 템플릿(§보고서 형식)에 그 자리가 없어
+⚠️ ③④를 **못 찾았다고 FAIL 로 찍지 않는다** — 리포트 형식(SKILL.md §출력 형식)에 그 자리가 없어
 표기 관행이 고정돼 있지 않다. 없는 관행을 근거로 떨어뜨리면 매번 거짓 FAIL 이 난다.
 재현: `bash shared/scripts/tests/skill-report-lint.test.sh` · 역변조: 같은 명령 `--mutation`
 근거: 2026-09-17 스킬 LLM→프로그램 전수조사(G2) · 선례 `audit-report-structure-lint.py`
@@ -405,8 +196,6 @@ Agent(
 ## §Step 3.5 — 타임스탬프 검증 게이트
 
 > 리포트 저장 직후, 파생물(대시보드·학습노트)을 만들기 **전에** Read 한다.
-> (2026-08-28 이동 — 검증 명령 원문 그대로.)
-
 
 쉽게 말하면 **책 인용에 적은 페이지 번호를 책을 펴서 맞춰보는 단계**다. 이 스킬은 오래
 `[🕐 MM:SS](…?t=N)` 링크를 붙이면서 그 숫자를 트랜스크립트와 한 번도 대조하지 않았다.
@@ -447,8 +236,6 @@ python3 ~/forge/shared/scripts/yt-timestamp-verify.py \
 ## §Step 4.9 — HTML 대시보드 생성
 
 > 대시보드를 **만들 때** Read 한다.
-> (2026-08-28 이동 — 생성 절차·템플릿 경로 원문 그대로.)
-
 
 analysis md(+ comparison + apply-plan, 존재 시)를 단일 HTML 대시보드로 변환한다.
 
@@ -468,3 +255,7 @@ python3 ~/forge/shared/scripts/report_to_html.py \
 **산출물 사후 정정 시**: .md 수정 후 반드시 위 `report_to_html.py` 명령으로 HTML 재생성할 것.
 md만 고치면 `dashboard.html` 이 silent stale 상태가 됨(false fact 잔존).
 stale 여부 확인: `python3 ~/forge/shared/scripts/yt-analyzer/yt-sync-check.py {date} {video_id}` (exit 1 = stale, exit 0 = OK).
+
+## §헤드리스 실행
+
+사람 없이(cron·텔레그램 등 손 한 줄) 돌릴 때: `bash ~/forge/shared/scripts/yt-headless.sh '<YouTube URL>'` — URL 만 받고(아니면 rc 64) 허용 도구를 못박은 `claude -p "/yt <URL>"` 1회. 상시 서비스 아님 · 로그 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/yt-headless.log` · 부를 명령만 보기 `--dry-run` (#2450).
