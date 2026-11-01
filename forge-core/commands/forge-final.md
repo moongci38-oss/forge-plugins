@@ -74,6 +74,6 @@ $0.00 (ChatGPT 구독 3계정, gpt-6.1-sol(CLI ≥0.160.0 · 구 CLI 는 gpt-6-s
 ## 관련
 
 - 본명령: `/codex-review --stage final --effort high --blocking`
-- Forge Dev P7 Check 7-X 통합 지점이지만 **자동 호출 기본 off** — `CODEX_REVIEW_AUTO_STAGES` 에 `final` 을 넣거나 `all` 이어야 게이트가 돈다(`.claude/hooks/codex-gate-enforce.sh`). 평소엔 **수동 호출 전용**. 자동 트리거 훅은 없다.
+- Forge Dev P7 Check 7-X 통합 지점이지만 **수동 호출 전용**이다 — 자동 게이트는 없다 — 그것을 읽던 훅 `codex-gate-enforce.sh` 는 #2692 에서 지웠다(등록 0 · #1424).
 - `/forge-pr §Step 3` 의 cr-final(= `/forge-multi`)은 **다른 레인** — 이 스위치와 무관하게 돈다.
-- 정책: `~/forge/dev/rules-on-demand/codex-review-policy.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules-on-demand/codex-review-policy.md`

@@ -66,9 +66,7 @@ claude plugin install forge-core
 | `cr-multi` | Multi-LLM 병렬 코드 검수 오케스트레이터 | `/cr-multi`, `/cr-double`, `/cr-triple` |
 | `forge-loop-maker` | Generic goal-feedback refinement loop scaffold | 반복 개선 태스크 |
 | `rag-search` | forge-outputs 벡터+BM25 하이브리드 의미 검색 | `/rag-search` |
-| `harness-legacy-scan` | 레거시 하네스 패턴·중복·과대 전역컨텍스트 읽기전용 감사 | `/harness-legacy-scan` |
-| `harness-diet` | harness-legacy-scan low-risk 항목 정리 적용 | `/harness-diet` |
-| `external-harness-sweep` | 외부 하네스 레포(gstack/gsd/superpowers/gbrain) 1:1 sweep | `/external-harness-sweep` |
+| `harness-diet` | 하네스 군살 정리 — `scan`(읽기전용 레거시 감사)·`sweep`(외부 하네스 레포 1:1 대조)·기본(low-risk 항목 적용) | `/harness-diet [scan\|sweep]` |
 | `system-audit` | Forge 전체 시스템 ACHCE 6축 통합 감사 | `/system-audit` |
 | `audit-agentic` | 에이전틱 AI 역량 감사 (자율성·도구·MAS) | `/audit-agentic` |
 | `audit-context` | 컨텍스트 엔지니어링 역량 감사 (RAG·메모리) | `/audit-context` |
@@ -161,9 +159,7 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 
 | 스킬 | 설명 |
 |------|------|
-| `harness-legacy-scan` | 낡은 룰·중복·과대 전역컨텍스트·넓은 Skill·불필요 Hook/MCP를 읽기전용으로 분류 |
-| `harness-diet` | harness-legacy-scan low-risk 항목만 적용(CLAUDE.md 축소·절차→Skill 이동·삭제후보 archive) |
-| `external-harness-sweep` | 외부 하네스/스킬 레포(gstack/gsd/superpowers/gbrain)를 Forge와 1:1 대조해 adoption matrix 생성 |
+| `harness-diet` | `scan` = 낡은 룰·중복·과대 전역컨텍스트·넓은 Skill·불필요 Hook/MCP를 읽기전용으로 분류 · `sweep <url>` = 외부 하네스/스킬 레포를 Forge와 1:1 대조해 adoption matrix 생성 · 기본 = scan 의 low-risk 항목만 적용(CLAUDE.md 축소·절차→Skill 이동·삭제후보 archive) — 옛 `harness-legacy-scan`·`external-harness-sweep` 을 합침 |
 
 ### AI 감사 시스템 7종 (v0.6.0 흡수, 구 forge-audit)
 
@@ -247,9 +243,7 @@ QA/버그/마이그레이션 전용 루프 이외의 **새 도메인**에서 wor
 
 | 커맨드 | 설명 |
 |--------|------|
-| `/harness-legacy-scan` | Forge 하네스 읽기전용 레거시 감사 |
-| `/harness-diet` | low-risk 항목만 정리 적용 |
-| `/external-harness-sweep` | 외부 하네스 레포 1:1 source sweep |
+| `/harness-diet [scan\|sweep]` | `scan` 읽기전용 레거시 감사 · `sweep` 외부 하네스 레포 1:1 source sweep · 기본 low-risk 항목만 정리 적용 |
 
 ### AI 감사 커맨드 (v0.6.0 흡수)
 
@@ -372,9 +366,7 @@ forge-core/
 │   ├── cr-multi/            — Multi-LLM 검수 오케스트레이터
 │   ├── forge-loop-maker/    — Generic refinement loop scaffold
 │   ├── rag-search/          — 하이브리드 RAG 검색
-│   ├── harness-legacy-scan/ — 레거시 하네스 감사 (구 forge-harness)
-│   ├── harness-diet/        — low-risk 하네스 정리 적용
-│   ├── external-harness-sweep/ — 외부 하네스 레포 1:1 sweep
+│   ├── harness-diet/        — 하네스 정리(scan 감사·sweep 외부 대조·low-risk 적용)
 │   ├── system-audit/        — ACHCE 6축 통합 감사 (구 forge-audit)
 │   ├── audit-agentic/       — 에이전틱 AI 역량 감사
 │   ├── audit-context/       — 컨텍스트 엔지니어링 감사

@@ -1,0 +1,23 @@
+# 고치기 전 — plugins develop eab6681bd · forge develop 7c372a34e
+STALE_REMAINING=0  (forge 에서 지웠는데 플러그인에 남은 것 — --prune 으로 지운다)
+DRIFT_REMAINING=20
+  DRIFT: forge-core/skills/forge-multi/SKILL.md
+  DRIFT: forge-core/skills/eval-rubric/SKILL.md
+  DRIFT: forge-core/commands/forge-start.md
+  DRIFT: forge-core/commands/forge-multi.md
+  DRIFT: forge-core/rules/dev-workflow-rules.md
+  DRIFT: forge-build/skills/guide/SKILL.md
+  DRIFT: forge-build/skills/forge-qa/SKILL.md
+  DRIFT: forge-build/skills/screenshot-analyze/workflow.js
+  DRIFT: forge-build/skills/forge-check-ui/workflow.js
+  DRIFT: forge-build/skills/forge-check-security/SKILL.md
+  DRIFT: forge-build/skills/codex-review/SKILL.md
+  DRIFT: forge-build/commands/prd.md
+  DRIFT: forge-build/commands/forge-spec.md
+  DRIFT: forge-build/commands/forge-pr.md
+  DRIFT: forge-build/commands/forge-implement.md
+  DRIFT: forge-build/commands/forge-fix.md
+  DRIFT: forge-build/agents/healer.md
+  DRIFT: forge-build/agents/cto-advisor.md
+  DRIFT: forge-knowledge/skills/site-deep-analyze/workflow.js
+  DRIFT: forge-design/skills/visual-loop/workflow.js

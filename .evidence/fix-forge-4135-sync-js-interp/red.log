@@ -1,0 +1,10 @@
+# forge#4135 sync-from-forge.py js_mode — 고치기 전(base origin/main 516f993) + 새 시험 ⑪-g
+$ python3 scripts/sync-from-forge.test.py | grep -E "⑪|PASS="
+  PASS  ⑪-a ~/forge-outputs 가 ${…}-outputs 로 쪼개지지 않는다
+  PASS  ⑪-b ~/forge-outputs 는 제 이름의 변수로 치환된다
+  PASS  ⑪-c 평범한 ~/forge 는 그대로 치환된다(회귀 없음)
+  PASS  ⑪-d 변환 산출물이 ESM 으로 실제 파싱된다
+  PASS  ⑪-e js_mode 치환이 멱등이다
+  FAIL  ⑪-g 원래 JS 보간까지 이스케이프했다  log(`차단: \${host} \${FORGE_ROOT:-$HOME/forge}/a`)
+  PASS  ⑪-f 비-JS 대상은 이스케이프 없이 종전 그대로
+PASS=67  FAIL=1  SKIP=0

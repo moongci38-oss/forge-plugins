@@ -8,7 +8,6 @@ model: sonnet
 
 > ⚠️ **태스크 미수신 시 즉시 반환**: 구현 대상(무엇을·어디에)이 브리프에 없으면 더 읽지 말고
 > "대상 미수신 — 구현할 화면/컴포넌트와 경로를 명시해 재호출해달라" 1줄만 반환하고 종료한다. 추측으로 예시 UI 를 만들지 않는다.
-> (기계 검사: `subagent-brief-lint.sh` 가 스폰 시점에 빈 브리프를 WARN 한다.)
 
 **하는 일**: Generic AI 미학("AI slop")을 피한, 실제로 동작하는 production 수준 프론트엔드 코드(HTML/CSS/JS·React 등)를 만든다.
 **언제**: 웹 컴포넌트·페이지·랜딩·대시보드·React 컴포넌트·HTML/CSS 구현 또는 UI 스타일링 요청 시.
@@ -37,7 +36,7 @@ model: sonnet
 3. 둘 다 없으면 먼저 만들어 올 것을 안내 → 그래도 진행하면 "레퍼런스 없이 진행" 명시(게이트 1).
 4. 확보되면 pixel-perfect 구현(Phase 1~3) → `visual-loop` 로 구현 vs 레퍼런스 대조.
    캡처 PNG 없이 코드만 있으면 `시각 검증 미확인(unverified)` 으로 적고 PASS 를 주장하지 않는다.
-- ⛔ **Stitch MCP·Figma 사용·제안 금지**(Gemini 전면 철수). `~/.claude.json` 에 `stitch` 가 등록돼 있어도 사용 근거가 아니다.
+- ⛔ **Stitch MCP·Figma 사용·제안 금지**(Gemini 전면 철수). `$HOME/.claude.json` 에 `stitch` 가 등록돼 있어도 사용 근거가 아니다.
 - `{project-root}/DESIGN.md` 가 있으면 **생성시점 SSoT** — committed direction·토큰 계층·anti-slop 을 따른다(1순위 프롬프트에 포함).
 - 복잡한 요청(다중 화면·새 톤·취향 불명확)은 **Brainstorm-First**(시안 2~3개 → 선택 → 본구현) → `reference/aesthetics.md`.
 

@@ -43,7 +43,7 @@ export FORGE_GAME_PROJECT_ROOT="/path/to/your/unity-project/src"
 
 ### ⚠️ `${NOTION_DB_ID}`는 환경변수가 아닙니다 — 직접 채워야 합니다
 
-`daily-analyze`·`daily-system-review`·`weekly-research`의 SKILL.md에는 업로드 대상이
+`daily-system-review`·`weekly-research`의 SKILL.md에는 업로드 대상이
 `https://www.notion.so/${NOTION_DB_ID}`로 적혀 있습니다. **이 저장소가 공개라 원래 있던 실제 DB
 식별자를 지운 자리**이며, **이 이름의 환경변수를 읽는 코드는 없습니다**
 (`grep -rn NOTION_DB_ID` — 문서 URL 줄에만 나옵니다). `export`해도 아무 일도 일어나지 않습니다.

@@ -1,22 +1,30 @@
 ---
 description: Codex 2차 리뷰 — `codex-review` 스킬 진입점(stage 분기).
-argument-hint: "--stage <plan|analysis|code|test|final|bugfix> --target <path|PR#> [--effort low|medium|high|xhigh] [--blocking] [--cr <on|degrade|off>] [--sol|--terra|--luna]"
+argument-hint: "--stage <plan|analysis|code|test|final|bugfix|yt-apply-plan|article-apply-plan|phase1-validate> --target <file|dir|PR#> [--mode single|multi] [--lens security|ui|perf|tests|traceability [--exec]] [-- <넘길 인자>] [--effort low|medium|high|xhigh] [--blocking] [--cr <on|degrade|off>] [--sol|--terra|--luna]"
 group: verify
 ---
 
 # /codex-review
 
-수동 슬래시 인터페이스. 자동 레인은 `skills/codex-review/SKILL.md`(기본 off — `CODEX_REVIEW_AUTO_STAGES`). 나눠 맡는다 — 인자·stage 표·포커스 = 스킬 `§인자` · 실제 호출 절차(Step) = 여기(#2470).
+수동 슬래시 인터페이스. 자동 레인은 `skills/codex-review/SKILL.md`(기본 off — `CODEX_REVIEW_AUTO_STAGES`). 나눠 맡는다 — 인자·stage 표·포커스 = 스킬 `§인자` · 실제 호출 절차(Step) = 여기(#2470). 처음 쓰는 사람용 한 장 = `docs/guides/codex-review-usage.html`.
 Claude 1차 리뷰에 Codex **단일 레인** 2차 리뷰를 추가한다(2벤더 교차는 `/forge-multi`). ⛔ `mcp__codex__codex` 직접 호출 금지 — 기록(`docs/reviews/`)·cap=1·stage rubric(`prompts/codex-review-*.md`)이 빠진다.
 단축 래퍼: `/forge-plan-review` `/forge-analysis-review` `/forge-code-review` `/forge-test-review` `/forge-final` `/forge-bug-review`. 선결: codex CLI 설치 + `codex` /login(ChatGPT OAuth).
 ## 인자
 인자 표·stage 목록·stage별 포커스 정본 = `skills/codex-review/SKILL.md §인자`(#2470 — 여기 다시 적지 않는다).
 ## 절차
-### Step 1 — 입력 (code/final 은 merge-base 기준, 실패 시 fail-closed)
+### Step 1 — 갈래 · 입력 (code/final 은 merge-base 기준, 실패 시 fail-closed)
 ```bash
+[[ "$STAGE" == "spec" ]] && STAGE=plan   # #3638 spec 은 plan 에 합쳤다 — 옛 이름은 호환 입구
+S="${FORGE_ROOT:-$HOME/forge}/shared/scripts"
+# 갈래(#3638): --mode multi → /forge-multi · --lens → 관점 엔진. codex-single 이 아니면 CALL 을 알리고 끝낸다(그 입구를 이어서 부른다)
+R=$(bash "$S/codex-review-route.sh" --stage "$STAGE" --mode "${MODE:-single}" ${LENS:+--lens "$LENS"} ${LENS_EXEC:+--exec} \
+  ${TARGET:+--target "$TARGET"} ${PASS:+-- $PASS}) || exit 2   # 5a: 위임 갈래는 대상·넘길 인자를 CALL 에 그대로 싣는다
+ENGINE=$(sed -n 's/^ENGINE=//p' <<<"$R")
+[[ "$ENGINE" == codex-single ]] || { echo "[codex-review] 갈래 $ENGINE → $(sed -n 's/^CALL=//p' <<<"$R")"; exit 0; }
+IN_DIR="$(mktemp -d)"
 case "$STAGE" in
   plan|analysis|test|bugfix|yt-apply-plan|article-apply-plan|phase1-validate)
-    [[ -f "$TARGET" ]] || exit 1; INPUT=$(cat "$TARGET") ;;
+    I=$(python3 "$S/codex-review-input.py" --target "$TARGET" --out-dir "$IN_DIR") || exit 1 ;;
   code|final)
     BASE="${REVIEW_BASE:-develop}"; BASE_DRIFT_NOTE=""
     if [[ "$TARGET" =~ ^PR-([0-9]+)$ ]]; then INPUT=$(gh pr diff "${BASH_REMATCH[1]}")
@@ -26,9 +34,14 @@ case "$STAGE" in
       if [[ -f "$TARGET" ]]; then INPUT=$(git diff "$MB" HEAD -- "$TARGET"); else INPUT=$(git diff "$MB" HEAD); fi
       DRIFT=$(git rev-list --count "$MB".."$BASE" 2>/dev/null || echo 0)
       [[ "${DRIFT:-0}" -gt 0 ]] && BASE_DRIFT_NOTE="base drift: \`$BASE\` 가 merge-base 이후 ${DRIFT}커밋 앞서 있다. 그 커밋들은 이 변경의 일부가 아니며 위 diff 에 포함돼 있지 않다 — 결함으로 보고하지 말 것."
-    fi ;;
+    fi
+    printf '%s\n' "$INPUT" > "$IN_DIR/target.diff"
+    I=$(python3 "$S/codex-review-input.py" --diff-file "$IN_DIR/target.diff" --out-dir "$IN_DIR/out") || exit 1 ;;
 esac
+CHUNKS=$(sed -n 's/^CHUNKS=//p' <<<"$I"); INPUT=$(cat "$(sed -n 's/^CHUNK_1=//p' <<<"$I")")
+echo "[codex-review] $(sed -n 's/^KIND=//p' <<<"$I") · 파일 $(sed -n 's/^FILES=//p' <<<"$I") · 제외 $(sed -n 's/^EXCLUDED=//p' <<<"$I") · 조각 $CHUNKS (제외 목록: $(sed -n 's/^EXCLUDED_LIST=//p' <<<"$I"))"
 ```
+입력은 `codex-review-input.py` 가 만든다(#3638 폴더 검수 5조건): 파일·폴더·diff 모두 받고, 민감 경로(재무·법무·`.env`·키 파일)·`node_modules`·`.evidence`·생성물·바이너리는 **보내기 전에** 빼서 제외 목록에 남긴다. rc 1 = 보낼 것이 없다(전부 제외) → 중단. `CHUNKS` 가 2 이상이면(상한 `CODEX_REVIEW_MAX_BYTES` · 기본 200000) 조각 수를 알리고 **`CHUNK_<i>` 마다** `INPUT` 을 바꿔 Step 2~6 을 돈다 — Step 3~6 의 `--target` 은 `part<i>-$(basename "$TARGET")` 로 줘서 기록이 덮이지 않게 한다. Step 7 은 조각 중 하나라도 FAIL 이면 FAIL.
 ### Step 1.5~1.6 — 게이트(auto-stage · --cr · skip 패턴) + 분석 doc auto-route
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-review-gate.sh" --stage "$STAGE" --target "$TARGET" --cr "${CR_ARG:-}"` → `RUN`·`STAGE`·`REASON`.
 `RUN=0` → `[codex-review] <REASON> → 생략` 출력 후 exit 0(`CODEX_REVIEW_AUTO_STAGES` 기본 off · `--cr off|degrade` · `CODEX_REVIEW_SKIP_PATTERNS`, plan 계열은 skip 우회). `RUN=1` → 출력 `STAGE` 로 교체해 진행(plan + frontmatter `stage:` analysis|backlog|runbook → analysis; 끄기 `CODEX_REVIEW_NO_AUTOROUTE=1`). rc 2 = 판정 불가 → 중단·보고.
@@ -75,7 +88,6 @@ fi
 ## 단축 래퍼 공통 (#2288)
 `/forge-{analysis,bug,code,plan,test}-review` 5개가 똑같이 들고 있던 단락의 정본이다 — 래퍼에는 이 절을 가리키는 1줄만 둔다(감사 2026-10-09 중복 축 C023).
 - **개명**: 구 이름 `/cr-analysis`·`/cr-bug`·`/cr-code`·`/cr-plan`·`/cr-test` 는 2026-09-07 개명했다. 헬퍼 스크립트 파일명·감사로그·증거 경로(`cr-evidence/`)는 **그대로 둔다** — 쌓인 증거가 그 이름으로 묶여 있어서다. 간판만 바꾸고 배달 주소를 바꾸면 옛 증거가 통째로 안 보이게 된다.
-- **모델**: **`codex:high`** 티어(high effort · #2058) — 이 단일 리뷰 레인은 astra 를 쓰지 않는다. id·하향 스위치(`--terra`/`--luna`)·구 CLI 동작(#745 — 이 레인은 자동 폴백 없음)·구 표기 이력의 정본 = 위 §Step 2.
-- **비용**: $0.00 (ChatGPT 구독, gpt-6.1-sol(CLI ≥0.160.0 · 구 CLI 는 gpt-6-sol) — OAuth 호출 가능) / 비상 폴백(apikey 시): high effort 는 종량.
+- **모델**: **`codex:high`** 티어(high effort · #2058) — 이 단일 리뷰 레인은 astra 를 쓰지 않는다. id·하향 스위치(`--terra`/`--luna`)의 정본 = 위 §Step 2.
 근거: 감사 2026-10-09 M-8 · #2288 — 같은 단락 5벌이 따로 낡는다(#1139 C034 가 모델 줄만 줄였고 사본은 남았다).
 폐기조건: 옛 증거를 더 안 읽어도 되면 헬퍼 파일명까지 후속 개명하고 개명 줄을 지운다 · 래퍼가 없어지면 이 절도 지운다.

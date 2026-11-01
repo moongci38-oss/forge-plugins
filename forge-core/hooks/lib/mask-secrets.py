@@ -39,7 +39,7 @@ _REF = re.compile(r"""^\s*(?:['"]?\s*)?(?:\$\{?\w|\$\(|`)""")
 # 자격증명으로 취급할 변수/키 이름
 _SECRET_NAME = (
     r"(?:[A-Z0-9_]*(?:PASSWORD|PASSWD|PGPASSWORD|MYSQL_PWD|SECRET|TOKEN|"
-    r"API_?KEY|ACCESS_KEY|PRIVATE_KEY|AUTH)[A-Z0-9_]*)"
+    r"API_?KEY|ACCESS_KEY|PRIVATE_KEY|AUTH|_PWD(?![A-Z0-9])|_PASS(?![A-Z0-9])|CREDENTIALS?)[A-Z0-9_]*)"   # #3446: _PWD·_PASS·CREDENTIAL(S) — 밑줄 앞 꼴만(맨 PWD·PASS 는 아님)
 )
 
 # mysql 계열 클라이언트가 명령에 등장할 때만 `-p<값>` 을 비밀번호로 본다.
