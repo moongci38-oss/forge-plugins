@@ -33,7 +33,7 @@ group: review
 ## Step 1: 선행 조건 · Workflow 호출
 `claude mcp list | grep -E "^codex"` 로 MCP 등록 확인 후:
 ```js
-// CODEX_MODEL = Bash("~/forge/shared/scripts/model-registry-resolve.sh codex:<tier>") — tier 기본 'max'. `--codex-model <id>` 면 그 값 + EXPLICIT_CODEX=true
+// CODEX_MODEL = Bash("${FORGE_ROOT:-$HOME/forge}/shared/scripts/model-registry-resolve.sh codex:<tier>") — tier 기본 'max'. `--codex-model <id>` 면 그 값 + EXPLICIT_CODEX=true
 //   그 뒤 CODEX_MODEL = Bash(`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh" gate "$CODEX_MODEL"`) — MCP 길에서 못 부르는 칸(`--sol` 등)이면
 //   stderr 1줄(⚠️ … 대신 …)을 시작 전에 그대로 알리고 다음 칸으로 간다(#3271 · 수정자 경로 `_codex_gate` 와 같은 게이트)
 // CODEX_FALLBACK = Bash(`bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/codex-transport.sh" next "$CODEX_MODEL" mcp`) — rc 0 이면 그 id(레그가 한도·모델 미지원으로 죽으면 1번 내려갈 칸) · rc≠0 이면 '' + FALLBACK_NOTE='바닥 또는 사다리 밖(rc=<n>)'
@@ -41,7 +41,7 @@ group: review
 // FRONTIER = ('--no-frontier' 있거나 Bash(`echo $FORGE_CR_FRONTIER`)=='off') ? false : true   (샌드박스에 process.env 없음 → 커맨드가 릴레이)
 // EXPLICIT_CODEX = 사용자가 --sol/--terra/--luna/--codex-model 을 실제로 준 경우만 true
 // DISSENT_DELTA = Bash(`echo $FORGE_CR_DISSENT_DELTA`) 양수면 그 값(기본 20, 표시 전용 — verdict 무관)
-// AUTHOR_VENDOR = Bash(`~/forge/shared/scripts/coder-attribution.sh author-vendor "$WORKTREE"`) — 'unknown' 이면 미전달(엔진 fail-closed)
+// AUTHOR_VENDOR = Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh author-vendor "$WORKTREE"`) — 'unknown' 이면 미전달(엔진 fail-closed)
 // ROUND_ARGS = --round-args 파일 JSON(실패 시 {}) · MACHINE_CHECKS = --machine-checks 파일 JSON `{ran,summary}`(실패 시 null)
 // CODEX_EFFORT·CR_TIER·CLAUDE_MODEL·LEGS(정수)·ALLOW_UNBOUND_FINAL = 해당 플래그 값, 없으면 null
 Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js"),
@@ -75,8 +75,8 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-multi-prepare.sh" "$TARGET
 - rc 3 = `ROUND=exhausted`(`--stage plan` 일 때만) — 원장 `forge-multi-plan-rounds.jsonl`(prepare 가 쓴다)에 같은 계획서의 **다른 내용** 라운드가 이미 있다(1장당 1라운드 · 같은 내용 다시 부르기는 같은 라운드 · #3666). 레그를 부르지 않는다.
 
 ## Step 4~5: 레그 병렬 호출 (계약 — 절차는 workflow.js)
-- **Codex 레그**(`--cr on` 시에만, degrade/off 면 skip·`[cr] codex-critic worker skipped` 로그): `mcp__codex__codex(prompt=<~/forge/.claude/prompts/cr-multi-codex.md, TARGET_FILE 치환>, cwd=<target dir>, sandbox="read-only", approval_policy="never", model="gpt-6-astra", config={"model_reasoning_effort": frontierOn ? "high" : (final ? "high" : "medium")})` → `$CODEX_OUT`. 서버가 거부하면 검수 미수행 → PASS 집계 금지, degrade.
-- **Claude 레그**(항상): `Agent(subagent_type="advisor-strategist", model="fable", prompt=<~/forge/.claude/prompts/cr-multi-opus.md, TARGET 치환>)` → `$OPUS_OUT`.
+- **Codex 레그**(`--cr on` 시에만, degrade/off 면 skip·`[cr] codex-critic worker skipped` 로그): `mcp__codex__codex(prompt=<${FORGE_ROOT:-$HOME/forge}/.claude/prompts/cr-multi-codex.md, TARGET_FILE 치환>, cwd=<target dir>, sandbox="read-only", approval_policy="never", model="gpt-6-astra", config={"model_reasoning_effort": frontierOn ? "high" : (final ? "high" : "medium")})` → `$CODEX_OUT`. 서버가 거부하면 검수 미수행 → PASS 집계 금지, degrade.
+- **Claude 레그**(항상): `Agent(subagent_type="advisor-strategist", model="fable", prompt=<${FORGE_ROOT:-$HOME/forge}/.claude/prompts/cr-multi-opus.md, TARGET 치환>)` → `$OPUS_OUT`.
 
 ## Step 6~7: Triage 합산 · Plateau
 ```bash
@@ -95,4 +95,4 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-multi-triage.sh" "$REVIEWS
 | **Combined** | 1.0 | **?** | **?** | **?** | **?** |
 
 산출물: `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/cr-multi/{DATE}-{slug}-v{N}-{codex.json,opus.json,report.md}`
-참조: 모드 룰 `~/.claude/rules-on-demand/multi-gate-review.md`
+참조: 모드 룰 `$HOME/.claude/rules-on-demand/multi-gate-review.md`

@@ -39,4 +39,4 @@ TARGET=$(echo "$ARGUMENTS" | sed 's/--cr[[:space:]]\+\S\+//g' | xargs)
 
 ## 관련
 
-- 정책: `~/forge/dev/rules-on-demand/codex-review-policy.md`
+- 정책: `${FORGE_ROOT:-$HOME/forge}/dev/rules-on-demand/codex-review-policy.md`

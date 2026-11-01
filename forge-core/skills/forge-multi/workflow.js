@@ -503,7 +503,7 @@ log(`[INFO] mode=${mode}(요청=${reqMode}) stage=${stage} crMode=${crMode} fron
 //   이 두 마커 사이를 소스에서 그대로 잘라 **실행**한다. 인라인 복제본이 아니라 실코드다.
 //   ⛔ 마커를 지우거나 사이를 비우면 그 테스트가 FAIL 한다 — 그게 이 마커의 유일한 목적이다.)
 if (retiredGeminiArg) {
-  log(`[WARN] geminiModel 인자를 받았지만 무시한다 — Gemini 레그는 2026-09-07 폐기됐다(2벤더 교차: Claude Opus 5 + OpenAI GPT-6 Astra). 커맨드 레이어가 아직 --gemini-max/GEMINI_MODEL 을 릴레이하고 있다면 그 머신이 미pull 이다 — 재현: git -C ~/forge log --oneline -1`)
+  log(`[WARN] geminiModel 인자를 받았지만 무시한다 — Gemini 레그는 2026-09-07 폐기됐다(2벤더 교차: Claude Opus 5 + OpenAI GPT-6 Astra). 커맨드 레이어가 아직 --gemini-max/GEMINI_MODEL 을 릴레이하고 있다면 그 머신이 미pull 이다 — 재현: git -C \${FORGE_ROOT:-$HOME/forge} log --oneline -1`)
 }
 if (reqMode === 'triple') {
   log(`[NOTICE] 3레그는 폐지됐습니다 — 2벤더 교차로 실행합니다 (Claude Opus 5.5 + OpenAI GPT-6 Astra). --mode 인자는 하위호환으로 계속 받지만 값과 무관하게 같은 2레그를 씁니다.`)
@@ -540,7 +540,7 @@ const MACHINE_CHECK_AXES = {
   'md-dup': '.md 헤더/본문 줄 중복',
   'rule-meta': 'rules*/ 새 절의 `근거:`·`폐기조건:` 존재',
   'claude-lines': 'CLAUDE.md 100줄 상한',
-  'pr-fields': 'PR 본문 5필드 헤더 존재',
+  'pr-fields': 'PR 본문 6필드 헤더 존재',
   'self-count': '자가대조 줄의 항목 수↔건수 일치',
   'mutation': '역변조(변이 러너) 판별력 — 소스를 손으로 변조해 테스트를 재실행하는 일',
   // 2.5.0: cr-machine-checks.sh(C1) 가 내는 기계 판정 축. ⚠️ `sec-paths`·`boundary` 는 여기 두지 않는다 — 판정이 아니라 **플래그**다(아래 MACHINE_FLAG_AXES).
@@ -4256,7 +4256,7 @@ function _machineVerifiedNote(ran, summary) {
     // 기계 검사 첨부 없음 = 제외 목록 없음. 비용 가드(손 역변조 금지·부재 1건)는 유지한다 — 그것까지 빼면 레그가
     //   변이를 손으로 돌리려 들고(토큰·시간·샌드박스 오염), 부재가 지적으로도 안 남아 구멍이 침묵한다.
     return MACHINE_NOTE_HEAD + ' 이 런에는 **기계 검사 결과가 첨부되지 않았다 — 제외 축 없음.**' +
-      ' 구문 오류·.md 줄 중복·rules*/ 근거/폐기조건·CLAUDE.md 100줄·PR 본문 5필드·자가대조 건수를 포함해 **전 축을 네가 본다**' +
+      ' 구문 오류·.md 줄 중복·rules*/ 근거/폐기조건·CLAUDE.md 100줄·PR 본문 6필드·자가대조 건수를 포함해 **전 축을 네가 본다**' +
       '(기계가 봤다고 가정하지 마라).' + execNote + MACHINE_NOTE_TAIL
   }
   const seen = ran.filter((k) => Object.prototype.hasOwnProperty.call(MACHINE_CHECK_AXES, k))
@@ -5215,7 +5215,7 @@ if (crRefute && dedupedIssues.length > 0) {
   if (killedFindings.length > 0) {
     await agent(
       `P-8 killed findings 감사 로그 append (생성 메시지 금지).\n` +
-      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','~/forge-outputs'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
+      `python3 -c "import json,time,os; p=os.path.expanduser(os.environ.get('FORGE_OUTPUTS','\${FORGE_OUTPUTS:-$HOME/forge-outputs}'))+'/.claude/audit/p8-refuted.jsonl'; data=json.loads(r'''${JSON.stringify(killedFindings)}'''); ts=time.time(); [open(p,'a').write(json.dumps({**f,'ts':ts,'event':'P8_KILLED','slug':'${_safe(slug)}'})+chr(10)) for f in data]"`,
       { model: 'haiku', label: 'p8-audit-killed', phase: 'Refute' }
     )
   }

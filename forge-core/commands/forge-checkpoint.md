@@ -16,7 +16,7 @@ group: ops
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-checkpoint-collect.sh" "$(pwd)"` — 항상 exit 0(fail-open). `*_ERROR:` 줄은 실패이지 0건이 아니다.
 - `session-record-audit.sh collect` 수집원 → 본문 각 절 1:1 반영(개수 정본 = `CHECKLIST_SECTIONS` 출력). 해당 없으면 `없음` 명시(절 생략 = FAIL).
 - **백그라운드 워커(live, `WORKER_WORKTREE=`)**: 1기당 브리프 영속 경로 + 생존 실측(`recent_changes`·`last_change`) + 재개 1줄. `WORKER_BRIEF_PERSISTED` ≠ `yes` 인 활성 워커 → 영속화 후에만 저장.
-- **세션 버스 워커(dormant, `~/.claude/state/session-bus.jsonl`)**: live 와 별개 · 사망 판정 미적용. `## 백그라운드 워커 생존` 안에 분리 표 `### 세션 버스 워커 (dormant — live 프로세스 아님)` — `| name | sid8 | cwd | 최종응답 | 인계 지시 |`(인계 지시 없으면 `-`). `BUS_WORKER_COUNT=0` → `없음`.
+- **세션 버스 워커(dormant, `$HOME/.claude/state/session-bus.jsonl`)**: live 와 별개 · 사망 판정 미적용. `## 백그라운드 워커 생존` 안에 분리 표 `### 세션 버스 워커 (dormant — live 프로세스 아님)` — `| name | sid8 | cwd | 최종응답 | 인계 지시 |`(인계 지시 없으면 `-`). `BUS_WORKER_COUNT=0` → `없음`.
 ## 2. 착지 경로 (계약 ⑤)
 위 출력 `CHECKPOINT_DIR=` = `$FORGE_OUTPUTS/.claude/checkpoints`(워크트리여도 동일, mkdir 완료) · `HANDOVER_DIR=` 는 §4 에 쓴다. `LANDING=fallback` = handover-landing.sh 부재/무응답 → 논리 경로.
 ## 2-b. 하네스 갭 후보(신규) — 직전 체크포인트(`CP_PREV`·`CP_SINCE`) 이후 미판정분만 표시(리포트 파일 안 씀)
@@ -24,7 +24,7 @@ group: ops
 ```bash
 python3 -c "
 import json, os, sys, datetime
-path = os.path.join(os.environ.get('FORGE_OUTPUTS', os.path.expanduser('~/forge-outputs')), '.claude', 'audit', 'hook-fp-telemetry.jsonl')
+path = os.path.join(os.environ.get('FORGE_OUTPUTS', os.path.expanduser('${FORGE_OUTPUTS:-$HOME/forge-outputs}')), '.claude', 'audit', 'hook-fp-telemetry.jsonl')
 hook = None
 for line in (open(path, encoding='utf-8', errors='replace') if os.path.isfile(path) else []):
     try: d = json.loads(line)
@@ -61,7 +61,7 @@ branch: {브랜치} ({repo 경로})
 - 이어서 각 절도 `## ` 제목으로(해당 없으면 "없음"): 팀장 위임 기록 (팀slug | 보낸 브리프 | 수신 응답 | 방 상태 dormant/live — 없으면 "없음") · 날짜 걸린 할 일 (미룬 일 — `YYYY-MM-DD | 1줄 | 출처`, 없으면 "없음") · 미완료 태스크 · 승인 대기([STOP]) · 미커밋 변경 · 열린 PR·브랜치 · 진행 중 백그라운드 작업 · learnings 미기록 misfire · 사용자 지시 미이행 · 백그라운드 워커 생존.
 - `### 바뀐 것`: 없으면 `- 바뀐 것: 없음` 한 줄(비우면 verify FAIL). `## 날짜 걸린 할 일`: 여기선 장부(`carry-ledger.md`)에 **판단으로는** 쓰지 않는다(이슈 닫힘이 근거인 줄은 `forge-core` 장부 줄(기계 닫기)) — 등록은 §6 재개 또는 `/forge-end` §4.
 - `## 사람 확인 카드`: **이미 끝낸 일** 중 사람이 봐야 할 것을 **전수 열거** — **별도 이슈(카드)를 만들지 않는다**(#2615 — 묶음 안이든 밖이든) · 그 일의 이슈 본문 `## 사람 확인` 절에 적고 `- 묶음 <마일스톤 이름> — #<이슈> \`## 사람 확인\` 절` 로(항목 머리 `[메인 PC]`·`[서브 PC]`·`[모든 PC]` + 굵은 제목 + 고친 것·해 볼 것·기대 · 별도 카드 없이 묶음 허브 본문 `## 테스트 요청` 절에 모인다 · #2307·#2364·#2585) · 묶음에 아직 못 넣은 일은 `- 묶음 미정 — #<이슈> \`## 사람 확인\` 절`(규약 `rules-on-demand/issue-board-standard.md §9-1`) — 기다리지 않는다. 답이 있어야 진행되면 `[승인 요청]`·`[결정 요청]` 카드로.
-- `## 결정 요청 카드`: 사람 답이 없으면 진행이 막히는 것만 `[결정 요청]` 카드(라벨 = `bash ~/forge/shared/scripts/decision-label.sh <owner/repo>` 가 고른 것 + `status:blocked` · 틀 §9-2)로. 본문에 "실행해 주세요" 류 문장이 있는데 두 절 어느 쪽에도 번호가 없으면 §4 verify FAIL.
+- `## 결정 요청 카드`: 사람 답이 없으면 진행이 막히는 것만 `[결정 요청]` 카드(라벨 = `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/decision-label.sh <owner/repo>` 가 고른 것 + `status:blocked` · 틀 §9-2)로. 본문에 "실행해 주세요" 류 문장이 있는데 두 절 어느 쪽에도 번호가 없으면 §4 verify FAIL.
 - `## 미완료 태스크`: **이 세션이 손댄 것만**(장부 `carry-ledger.py` `SEC_RE` 가 읽어 승격). 타 세션·타 프로젝트 항목은 `## 타 세션 상태 (참고 — 내 소유 아님)` 에 격리. 없으면 `- 없음` 한 줄(메타 문장 금지 — `NONE_RE` 통과해 할 일로 등록됨). ⛔ 절 제목 변경 금지. 정본 → `/forge-end` §3.
 - `## 보드 열린 이슈`: 이 PC·이 레포의 열린 이슈 번호를 **한 줄로** 나열(예 `#101 #104` · 사람 확인 카드 제외 · `gh api 'repos/<owner>/<repo>/issues?state=open&labels=pc:<PC>' --paginate --jq '.[]|select(.pull_request|not)|"#\(.number)"'`) — verify 의 보드 대조(`board-recount.sh` · #2447)가 이 절만 본다 · 장부로 옮기지 않는 절이라 남의 일도 여기 적는다(`## 미완료 태스크` 는 이 세션 것만) · 0건이면 `없음`.
 - `session:` 실값 확인 `echo "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"` · 둘 다 비면 `unknown`. 토큰·패스워드 기록 금지. 20~50줄.
