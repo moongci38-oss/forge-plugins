@@ -11,3 +11,7 @@ rc=1
   FAIL  상한을 쓰는 등록 훅 0개 — 이 검사가 헛돈다
 결과: PASS=0 FAIL=1
 ```
+
+## H1 짝 시험 — 고치기 전(qa 검수 head 5b9ab8d8d · 시험 파일만 옮겨 실행)
+  FAIL  plugin-hook-timeout 시험 실재·통과 — <사본>/forge-core/hooks/plugin-hook-timeout.test.sh 없음(지워졌다)
+rc=1
