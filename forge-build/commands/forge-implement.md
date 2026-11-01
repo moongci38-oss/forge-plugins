@@ -86,13 +86,13 @@ MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$COD
 - `VERDICT=continue`(rc 0) → `ISSUE_HASH=NEW_HASH` → `/forge-fix`(③ 수정 · 새 fixer 금지 — 옛 `/healer` 스킬은 #3737 로 흡수) → 실패 단계만 재실행. `KERNEL=fail` = 커널 실패(rc≠0·빈 출력) → 로컬 비교만(fail-open).
 **4a-1/4b.** UI FR 완료 전 self-check(loading/empty/error/partial 4상태 · 키보드·focus·aria-live · 실제 길이 데이터 · DESIGN.md 토큰·anti-slop) 후 **Check 5.8 Spec-Conformance E2E**(필수; SDD 체인이면 직후 P6 qa 가 충족):
 - 직전 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/assert-db-isolation.sh"` — `DB_ISOLATION: WARN` 이면 격리 DB 로 바꾸고 재확인(`FORGE_DB_ISOLATION_ENFORCE=1` = 차단).
-- `/qa --diff-aware --scope={구현 FR/파일}`(standalone 은 인라인, 가능하면 별도 subagent 격리). UI + DESIGN.md 면 `/forge-review --lens ui` advisory(`docs/qa/design-check.jsonl`, `FORGE_DESIGN_CHECK` off 가능).
+- `/forge-qa --diff-aware --scope={구현 FR/파일}`(standalone 은 인라인, 가능하면 별도 subagent 격리). UI + DESIGN.md 면 `/forge-review --lens ui` advisory(`docs/qa/design-check.jsonl`, `FORGE_DESIGN_CHECK` off 가능).
 - FR별 판정은 `/forge-review --lens traceability`(`docs/qa/fr-verdict.json`) 재사용, 증거 = db_query·렌더·F12 번들. 완료 바: Health Score 70+ AND 기능성 즉시-FAIL 0, 미달 → [STOP] 재작업. 환경 불가 → GUIDE-STOP(침묵 금지). 게이트 티어는 qa 상속([STOP] 클래스).
 **4c. Verifier(완료 보고 직전 · 필수 · #3762)**: `Agent(subagent_type:"verifier")` 를 새 컨텍스트로 부른다 — 입력 = AC(spec 이 있으면)·이슈 `## 확인 방법`·기계 산출 diff(`git diff origin/develop...HEAD`)만(구현 의도·시도 이력은 넘기지 않는다). 바뀐 동작 1개 + 이웃 흐름 2개를 실제로 돌려 보고만 한다(고치지 않는다). 보고의 `VERIFIER:` 줄과 불일치 목록을 PR 본문 `## 검증` 에 붙인다 · `MISMATCH` 면 [STOP] 고친 뒤 4c 를 다시.
 **5.** exit 0
 
 ## 구현 노트 (spec 역방향)
-spec 이 예상 못한 제약 → `${spec_file%.md}.impl-notes.md` 에 1줄 append(spec 본문 수정 금지): `- [FR-00N] {제약} | 근거: {명령·파일·출력} | 영향: spec-변경필요 | 구현 내 수용`. 같은 FR 에 `spec-변경필요` 2건+ → 완료보고에 `⚠️ FR-00N: 구현 노트 {n}건이 spec 변경 필요를 지시 → /qa Phase C.5 재조정 권고`. 소비 = `/qa` Phase C.5(`spec-code-discriminate.sh` 는 안 읽음).
+spec 이 예상 못한 제약 → `${spec_file%.md}.impl-notes.md` 에 1줄 append(spec 본문 수정 금지): `- [FR-00N] {제약} | 근거: {명령·파일·출력} | 영향: spec-변경필요 | 구현 내 수용`. 같은 FR 에 `spec-변경필요` 2건+ → 완료보고에 `⚠️ FR-00N: 구현 노트 {n}건이 spec 변경 필요를 지시 → /forge-qa Phase C.5 재조정 권고`. 소비 = `/forge-qa` Phase C.5(`spec-code-discriminate.sh` 는 안 읽음).
 
 ## Node-Repair (환경 파손)
 진단 `node --version && npm --version` · `ls node_modules/.bin/ | head -5` → R-1 `rm -rf node_modules && npm ci` · R-2 `rm -rf node_modules package-lock.json && npm install`(lockfile 손상) · R-3 `npm cache clean --force && npm ci` · R-4 `pip install -r requirements.txt` · R-5 `rm -rf .next dist build .cache && npm run build`. 복구 후 RED-2 재실행.

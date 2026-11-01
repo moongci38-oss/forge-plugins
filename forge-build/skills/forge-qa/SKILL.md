@@ -12,14 +12,14 @@ model: sonnet
 > **보조 파일**: `reference.md`·`scripts/`·`workflow.js`·`MVP-CONTRACT.md`·`eval_cases.jsonl` 은 옛 폴더 `.claude/skills/qa/` 에 그대로 있다 — 이 본문의 상대 경로는 그 폴더 기준이다.
 
 **역할**: QA 오케스트레이터. Phase A~H 를 메인 컨텍스트에서 순서대로 실행. 시나리오 출처 = Spec FR(없으면 legacy 동작) — **코드 역산 금지**. qa = 발견 전용, 수정·검수는 Lane A(`/forge-fix`) 위임. 교차 검수는 `/forge-pr` cr-final 한 번뿐(qa 가 Codex 를 직접 부르지 않는다).
-**트리거**: P5 Check P5.7-X PASS 후 자동 또는 `/qa`. **출력**: `docs/qa/YYYY-MM-DD-final-qa-report.md` + `docs/qa/baseline.json` + PR(develop 자동 머지).
+**트리거**: P5 Check P5.7-X PASS 후 자동 또는 `/forge-qa`. **출력**: `docs/qa/YYYY-MM-DD-final-qa-report.md` + `docs/qa/baseline.json` + PR(develop 자동 머지).
 **원칙**: 서브에이전트 1레벨만(중첩 금지) · DB 변이 테스트 = 트랜잭션 롤백 or 매 사이클 seed 재주입 · **소스 Read 로 동작 추론 금지** — 실행·화면·로그·HTTP 응답으로만 판정(코드 리뷰는 `/code-review`).
 
 ## 사용법
 ```
-/qa [--scope=full|<domain>|"<glob>"] [--spec auth.md] [--cycle 1] [--diff-aware]
-/qa --migration --legacy http://HOST:PORT     # 패리티 모드
-/qa --mode=uat --scope={domain}               # B~D 스킵, docs/qa/uat-scenarios.md 필요, uat-tracking.md 누적, 첫 진입 시 --cycle 1 smoke 선행
+/forge-qa [--scope=full|<domain>|"<glob>"] [--spec auth.md] [--cycle 1] [--diff-aware]
+/forge-qa --migration --legacy http://HOST:PORT     # 패리티 모드
+/forge-qa --mode=uat --scope={domain}               # B~D 스킵, docs/qa/uat-scenarios.md 필요, uat-tracking.md 누적, 첫 진입 시 --cycle 1 smoke 선행
 /forge-qa --app=all|<id> --domains=all|<id,..> --accounts=<id,..> --exhaustive   # 4축(전부 optional)
 ```
 - 단일 알려진 버그 = `/forge-fix "<버그>"`. workflow 인자 `mode=hotfix` 는 Phase B(시나리오)·C(발견)를 건너뛰고 한 번만 돈다(단일 파일 가드 → `reference.md §Hotfix 상세`). `--cr` 는 받아도 무시(no-op).

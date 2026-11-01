@@ -7,7 +7,7 @@ group: review
 
 > 헬퍼 스크립트명·증거 경로(`cr-evidence/`)는 구 이름 `cr-multi` 유지.
 > **수동 전용 — 자동 호출처 없음(2026-10-27 · #3897).** work-plan 계획서 자동 검수는 Codex 4관점(`review-4lens.sh`)이다 — `codex-review`·`forge-review` 의 multi 방식도 수동 입구로만 남는다.
-> **절차 SSoT = `skills/forge-multi/workflow.js`.** 이 커맨드는 진입점(인자 파싱·릴레이)이다.
+> **절차 SSoT = `shared/cr-engine/workflow.js`.** 이 커맨드는 진입점(인자 파싱·릴레이)이다.
 
 ## 사용법
 ```
@@ -44,7 +44,7 @@ group: review
 // AUTHOR_VENDOR = Bash(`${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh author-vendor "$WORKTREE"`) — 'unknown' 이면 미전달(엔진 fail-closed)
 // ROUND_ARGS = --round-args 파일 JSON(실패 시 {}) · MACHINE_CHECKS = --machine-checks 파일 JSON `{ran,summary}`(실패 시 null)
 // CODEX_EFFORT·CR_TIER·CLAUDE_MODEL·LEGS(정수)·ALLOW_UNBOUND_FINAL = 해당 플래그 값, 없으면 null
-Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js"),
+Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/shared/cr-engine/workflow.js"),
            args: { slug: SLUG, targetPath: TARGET_PATH, mode: MODE, stage: STAGE, crMode: CR_MODE, repoRoot: REPO_ROOT,
                    ...(AUTHOR_VENDOR && AUTHOR_VENDOR !== 'unknown' ? { authorVendor: AUTHOR_VENDOR } : {}),
                    ...((FRONTIER !== false || EXPLICIT_CODEX) ? { codexModel: CODEX_MODEL } : {}),
@@ -63,7 +63,7 @@ Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-mul
 
 - `crMode` 는 값(`on|cross|degrade|off`)을 싣는다 — `--no-codex` 는 `degrade` 로 정규화.
 - **FRONTIER===false 면 CODEX_MODEL 을 싣지 않는다**(명시 지정 제외) — 실으면 브레이크가 반쪽이 된다.
-- **R2 러너 분기**(정본 `.claude/skills/forge-multi/reference/r2-runner.md`): `cr-run.sh pre` rc≠0 이면 Workflow 를 부르지 않는다 · args 끝에 `...RUNNER_ARGS`(`bundlePath` 만, 번들 인라인 금지) · `runner=new` 면 Workflow 뒤 `cr-run.sh post --wf-run <runId>`(rc≠0 = 결과 무효) · `runner=legacy`/`shadow`(`FORGE_CR_ENGINE_RUNNER`)면 `runner` 한 키만, post 없음.
+- **R2 러너 분기**(정본 `shared/cr-engine/reference/r2-runner.md`): `cr-run.sh pre` rc≠0 이면 Workflow 를 부르지 않는다 · args 끝에 `...RUNNER_ARGS`(`bundlePath` 만, 번들 인라인 금지) · `runner=new` 면 Workflow 뒤 `cr-run.sh post --wf-run <runId>`(rc≠0 = 결과 무효) · `runner=legacy`/`shadow`(`FORGE_CR_ENGINE_RUNNER`)면 `runner` 한 키만, post 없음.
 
 ## Step 2~3: 산출물 경로 · Secret 사전 스캔
 ```bash

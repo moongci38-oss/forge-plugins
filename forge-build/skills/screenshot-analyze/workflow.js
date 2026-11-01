@@ -38,7 +38,7 @@ const prompt = `${intent}. 이미지: ${imagePath}. description + elements + iss
 //   codex:high 의 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high). 사다리가 바뀌면 여기도 함께 고친다.
 // 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 codex:max(gpt-6-astra) 기본값 폐기 → sol · effort high(분석 레인, 게이트 아님).
 //   ⚠️ 무력화되는 입력: 호출자가 args.codexModel 로 최고급 id 를 넘기면 그대로 쓴다(사람 override).
-//   (#1971 2026-10-04) gpt-6-sol → gpt-6.1-sol. 짝 테스트 = forge-multi/tests/vision-codex-default.test.mjs (registry codex:high 대조).
+//   (#1971 2026-10-04) gpt-6-sol → gpt-6.1-sol. 짝 테스트 = cr-engine/tests/vision-codex-default.test.mjs (registry codex:high 대조).
 const codexModel = _a?.codexModel || 'gpt-6.1-sol'
 
 // ── Phase 1: Analyze (Codex(sol) Vision → Claude 자체 분석 fallback) ────────

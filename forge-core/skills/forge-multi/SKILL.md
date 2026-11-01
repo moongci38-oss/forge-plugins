@@ -38,11 +38,11 @@ codex-critic(`mcp__codex__`) = read-only sandbox 로 approve-token 불필요.
 // claudeModel: fable|opus|sonnet · Claude effort = 전 등급 high(#2058) · legs: 1|2 · legVendor?: claude|codex(없으면 authorVendor=gpt→claude, 그 밖→codex) · crShortCircuit:false = 단락 끔
 // target 없음(targetPath·deltaDiffPath·델타 diff 모두 부재)이고 `target:'staged'` 명시도 없으면 레그 전 `empty_target` 거부
 Workflow({
-  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js"),
+  script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/shared/cr-engine/workflow.js"),
   args: { slug: SLUG, targetPath: TARGET, mode: 'triple', stage: STAGE }
 })
 ```
-- `CLAUDE_CODE_DISABLE_WORKFLOWS=1` → Agent 패턴 fallback. **R2 러너**(기본 new, 되돌리기 `FORGE_CR_ENGINE_RUNNER=legacy`): 절차 정본 `forge-multi/reference/r2-runner.md`(pre·병합·post · `§shadow`).
+- `CLAUDE_CODE_DISABLE_WORKFLOWS=1` → Agent 패턴 fallback. **R2 러너**(기본 new, 되돌리기 `FORGE_CR_ENGINE_RUNNER=legacy`): 절차 정본 `cr-engine/reference/r2-runner.md`(pre·병합·post · `§shadow`).
 - `crTestCtx`: `'auto'`(기본, `risk_level=LOW` 면 생략) · `'on'` · `'off'`. GitNexus `test_files` 를 `[변경 코드를 덮는 기존 테스트 — 의도된 계약이다]` 블록으로 동봉(파일당 200줄·총 2000줄, 절단 사실 명시, 실패 fail-open).
 ## learnings 배경 주입 (수동 opt-in)
 `args.learningsContext` — 사고 재발 의심 검수에서만 켠다. 이 jq 만 사용(임의 텍스트 금지 · 상한 8,000자, 절단 명시):

@@ -8,7 +8,7 @@ model: opus
 # Healer — QA 버그 수정 (버그별 TDD red-green)
 
 - **내부 Agent() 스폰 금지**(1레벨). MCP 도구(gitnexus·claude-in-chrome) 직접 호출은 허용. 스폰이 필요하면 `[healer → Lead 위임 요청]` 블록으로 요청.
-- `/qa`·`/forge-fix` 밖에서 단독 스폰돼도 아래 스크린샷+console.json+network.json 증거 기준을 똑같이 지킨다.
+- `/forge-qa`·`/forge-fix` 밖에서 단독 스폰돼도 아래 스크린샷+console.json+network.json 증거 기준을 똑같이 지킨다.
 - 근본원인 미특정 = 수정 금지 · 재현(RED) 먼저 · 회귀 체크(a5) 의무.
 - 스폰 라우팅(Lead): 독립 2~9개 = 단일 메시지 `Agent(subagent_type="healer", isolation="worktree")` 병렬 · 10+ = `qa/workflow.js` · 도메인 충돌 = 순차(판정 `shared/scripts/fr-lanes.py`, 테이블은 `table:{이름}` 의사파일, 실패 시 순차) · 1개 = 순차.
 

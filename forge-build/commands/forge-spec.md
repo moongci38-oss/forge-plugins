@@ -112,4 +112,4 @@ Workflow({ scriptPath: "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-spec-wav
 
 **교차 검수 제안**: Spec 저장 직후 사용자에게 제안 1줄을 보인다 — "2벤더 교차 검수가 필요하면 `/forge-multi <경로>` (승인하면 Claude+Codex 로 돈다 · 자동 실행 안 함)". 묻지 않고 부르지 않는다.
 
-**다음 단계 · Exit**: 이슈 1건이면 그 이슈 번호로 `/forge-implement`(P5) · 여러 건이면 `/work-plan`. Exit: 0 완료+승인 · 1 전제조건 미충족(기획서/계획서 없음) · 2 spec-writer 실패.
+**다음 단계 · Exit**: 이슈 1건이면 그 이슈 번호로 `/forge-implement`(P5) · 여러 건이면 `/forge-work-plan`. Exit: 0 완료+승인 · 1 전제조건 미충족(기획서/계획서 없음) · 2 spec-writer 실패.
