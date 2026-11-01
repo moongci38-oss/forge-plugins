@@ -1,6 +1,6 @@
 ---
 name: style-forge
-description: "참조 에셋에서 화풍을 뽑아 style-guide.md 를 만든다(또는 LoRA 파인튜닝). 쓸 때: 게임 에셋 생성(/game-asset-generate) 전에 스타일 기준이 없을 때. SKIP: 시각 에셋 작업이 아닐 때, 참조 이미지가 없을 때, 유효한 style-guide.md 가 이미 있을 때."
+description: "참조 에셋 → 화풍 style-guide.md — 게임 에셋 생성 전 스타일 기준이 없을 때."
 context: fork
 model: sonnet
 ---
@@ -52,7 +52,6 @@ command -v codex >/dev/null 2>&1 || { echo "[STOP] codex CLI 미설치 — Mode 
 [ -z "$REPLICATE_API_TOKEN" ] && echo "[STOP] REPLICATE_API_TOKEN 미설정" && exit 1
 ```
 - Mode A: `codex` CLI **0.153.4 이상**(`screenshot-analyze` 의존, `codex --version`). 미만이면 `ASTRA_MODEL=gpt-6-astra` override 가 HTTP 400.
-- Vision 용 `codex-critic` approve-worker 토큰 선발행이 별도로 필요(`screenshot-analyze/SKILL.md`).
 - Mode B: `REPLICATE_API_TOKEN`(Replicate MCP 의존).
 
 입력 검증(Mode A 진입 시):
@@ -74,7 +73,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/generate-image-codex.sh" \
   --output "<절대경로>/asset.png"
 ```
 
-`/game-asset-generate` 는 아카이브됨 — 호출하지 않는다.
+`/game-asset-generate` 는 없다(2026-09-27 #1370 삭제 · 되돌림 태그 `archive/pre-purge-20260927` · 되살리기는 #2135 B) — 호출하지 않는다. 이미지 생성은 GPT Image(Codex `image_gen`).
 
 ## 주의사항
 

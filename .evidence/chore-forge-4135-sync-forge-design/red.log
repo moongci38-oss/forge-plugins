@@ -1,0 +1,9 @@
+# forge#4135 forge-design 고치기 전 — base 5b9ab8d8d934b09ecfb3f5f42194b1c20dece476 · forge develop c70d79959
+$ FORGE_ROOT=<forge develop> PLUGIN_ROOT=<worktree> python3 scripts/sync-from-forge.py --verify | grep 'DRIFT: forge-design/'
+  DRIFT: forge-design/skills/visual-loop/workflow.js
+  DRIFT: forge-design/skills/visual-loop/SKILL.md
+  DRIFT: forge-design/skills/style-forge/SKILL.md
+  DRIFT: forge-design/commands/generate-image.md
+  DRIFT: forge-design/commands/forge-design-review.md
+  DRIFT: forge-design/commands/clip.md
+DRIFT_forge-design=6
