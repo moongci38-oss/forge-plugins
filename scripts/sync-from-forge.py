@@ -165,9 +165,11 @@ REDACTIONS = _load_redactions()
 #     · 보통 문자열 안 → JS 는 모르는 이스케이프의 백슬래시를 버리므로 결과가 같다.
 #   ⚠️ 무력화되는 입력: 주석 안에서는 백슬래시가 눈에 보인다(표시만 어색, 동작 무관).
 def transform_line(line: str, js_mode: bool = False) -> str:
+    # 이스케이프는 변환이 **만든** `${…}` 에만 — 원래 있던 JS 보간 `${x}` 까지 바꾸면 번들이 깨진다(forge#4135)
+    esc = (lambda r: r.replace('${', '\\${')) if js_mode else (lambda r: r)
     for literal, replacement in REDACTIONS:
-        line = line.replace(literal, replacement)
-    line = RE_NOTION_ID.sub(r'\1${NOTION_DB_ID}', line)
+        line = line.replace(literal, esc(replacement))
+    line = RE_NOTION_ID.sub(lambda m: m.group(1) + esc('${NOTION_DB_ID}'), line)
     # 윈도우 드라이브 **구간만** 원형 보존하고 나머지는 평소대로 치환한다.
     out = []
     for is_drive, seg in _split_drive_spans(line):
@@ -175,18 +177,14 @@ def transform_line(line: str, js_mode: bool = False) -> str:
             out.append(seg)            # 윈도우 표기 원형 유지 — 이 면제가 존재하는 이유
             continue
         # 순서 중요: 더 긴 이름(`~/forge-outputs`)을 먼저 먹어야 `~/forge` 규칙이 그것을 쪼개지 않는다.
-        seg = RE_FORGE_OUTPUTS.sub('${FORGE_OUTPUTS:-$HOME/forge-outputs}', seg)
-        seg = RE_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', seg)
+        seg = RE_FORGE_OUTPUTS.sub(lambda m: esc('${FORGE_OUTPUTS:-$HOME/forge-outputs}'), seg)
+        seg = RE_FORGE.sub(lambda m: esc('${FORGE_ROOT:-$HOME/forge}'), seg)
         seg = RE_CLAUDE.sub('$HOME/.claude', seg)
-        seg = RE_HOME_FORGE.sub('${FORGE_ROOT:-$HOME/forge}', seg)
+        seg = RE_HOME_FORGE.sub(lambda m: esc('${FORGE_ROOT:-$HOME/forge}'), seg)
         seg = RE_HOME_CLAUDE.sub('$HOME/.claude', seg)
         seg = RE_HOME_ANY.sub('$HOME', seg)
         out.append(seg)
-    res = ''.join(out)
-    if js_mode:
-        # 이미 이스케이프된 것은 건드리지 않는다(멱등) — `\${` 앞에 백슬래시를 또 붙이지 않는다.
-        res = re.sub(r'(?<!\\)\$\{', r'\\${', res)
-    return res
+    return ''.join(out)
 
 def transform_content(content: str, js_mode: bool = False) -> str:
     return ''.join(transform_line(l, js_mode) for l in content.splitlines(keepends=True))
