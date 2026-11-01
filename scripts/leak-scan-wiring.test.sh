@@ -3,7 +3,7 @@
 #   왜: forge#4135 할 일 2 가 새 시험 sync-from-forge-prune.test.py 를 더하고 CI 'Guard self-test' 에 안 걸어
 #   CI 가 그 시험을 한 번도 안 돌렸다(forge-plugins #120 qa H1). 새 시험을 더하면 이 시험이 배선 누락을 FAIL 로 낸다.
 set -u
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 Y="$ROOT/.github/workflows/leak-scan.yml"
 F=0
 for t in "$ROOT"/scripts/*.test.py; do

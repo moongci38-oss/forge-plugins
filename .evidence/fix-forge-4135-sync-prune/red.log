@@ -12,3 +12,8 @@ $ grep -c sync-from-forge-prune.test.py .github/workflows/leak-scan.yml
   FAIL  CI 미배선: scripts/sync-from-forge-prune.test.py
   FAIL  scripts 시험 전부 CI 배선
 rc=1
+
+# finding-tests 짝(qa H1) — 시험을 scripts/ 옆으로 옮긴 뒤(tests/ 는 공개 관문이 막는다) · 검수 head 5925c7234 사본에 시험 파일만 옮겨 실행
+  FAIL  CI 미배선: scripts/sync-from-forge-prune.test.py
+  FAIL  scripts 시험 전부 CI 배선
+rc=1

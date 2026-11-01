@@ -33,3 +33,7 @@ FAIL=2
 ## qa BLOCKING H1 — CI 배선
 - 되돌림(배선 줄 삭제) = 고치기 전 판: grep 결과 0(0 이면 CI 가 새 시험을 안 돈다) · 이 PR: 1
 - 짝 시험 `scripts/tests/leak-scan-wiring.test.sh`: 검수 head rc=1(`  FAIL  scripts 시험 전부 CI 배선`) → PR head rc=0
+
+## 시험 위치 옮김(forge#4331 뒤)
+- `scripts/tests/leak-scan-wiring.test.sh` → `scripts/leak-scan-wiring.test.sh` · ROOT 계산 한 단계 · leak-scan.yml 줄 · 빈 scripts/tests/ 없음
+- 재측정: 검수 head 5925c7234 rc=1(`  FAIL  CI 미배선: scripts/sync-from-forge-prune.test.py`) · PR head rc=0
