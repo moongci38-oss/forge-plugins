@@ -88,6 +88,7 @@ MODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$COD
 - 직전 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/assert-db-isolation.sh"` — `DB_ISOLATION: WARN` 이면 격리 DB 로 바꾸고 재확인(`FORGE_DB_ISOLATION_ENFORCE=1` = 차단).
 - `/qa --diff-aware --scope={구현 FR/파일}`(standalone 은 인라인, 가능하면 별도 subagent 격리). UI + DESIGN.md 면 `/forge-review --lens ui` advisory(`docs/qa/design-check.jsonl`, `FORGE_DESIGN_CHECK` off 가능).
 - FR별 판정은 `/forge-review --lens traceability`(`docs/qa/fr-verdict.json`) 재사용, 증거 = db_query·렌더·F12 번들. 완료 바: Health Score 70+ AND 기능성 즉시-FAIL 0, 미달 → [STOP] 재작업. 환경 불가 → GUIDE-STOP(침묵 금지). 게이트 티어는 qa 상속([STOP] 클래스).
+**4c. Verifier(완료 보고 직전 · 필수 · #3762)**: `Agent(subagent_type:"verifier")` 를 새 컨텍스트로 부른다 — 입력 = AC(spec 이 있으면)·이슈 `## 확인 방법`·기계 산출 diff(`git diff origin/develop...HEAD`)만(구현 의도·시도 이력은 넘기지 않는다). 바뀐 동작 1개 + 이웃 흐름 2개를 실제로 돌려 보고만 한다(고치지 않는다). 보고의 `VERIFIER:` 줄과 불일치 목록을 PR 본문 `## 검증` 에 붙인다 · `MISMATCH` 면 [STOP] 고친 뒤 4c 를 다시.
 **5.** exit 0
 
 ## 구현 노트 (spec 역방향)

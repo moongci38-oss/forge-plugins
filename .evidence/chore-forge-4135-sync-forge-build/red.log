@@ -37,3 +37,19 @@ $ FORGE_ROOT=<forge develop> PLUGIN_ROOT=<worktree> python3 scripts/sync-from-fo
   DRIFT: forge-build/agents/healer.md
   DRIFT: forge-build/agents/cto-advisor.md
 DRIFT_forge-build=36
+
+# forge develop 20bc142ac 재측정 — 사슬 7개를 합친 상태
+# 고치기 전 — 사슬 7개 합친 상태 bfedcb2 · forge develop 20bc142ac
+STALE_REMAINING=0  (forge 에서 지웠는데 플러그인에 남은 것 — --prune 으로 지운다)
+DRIFT_REMAINING=5
+  DRIFT: forge-build/skills/work-plan/SKILL.md
+  DRIFT: forge-build/skills/qa/SKILL.md
+  DRIFT: forge-build/skills/prd-review/SKILL.md
+  DRIFT: forge-build/commands/forge-qa.md
+  DRIFT: forge-build/commands/forge-implement.md
+
+# 호환 입구 시험 — 새 이름 스킬이 없을 때
+FAIL 입구 prd-review → forge-prd-review 없음(<임시>/forge-build/skills/forge-prd-review)
+FAIL 입구 work-plan → forge-work-plan 없음(<임시>/forge-build/skills/forge-work-plan)
+FAIL 입구 qa → forge-qa 없음(<임시>/forge-build/skills/forge-qa)
+입구 3개 · 끊긴 입구 3개

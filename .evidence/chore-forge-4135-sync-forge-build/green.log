@@ -17,3 +17,13 @@ DRIFT_forge-build(고친 스크립트 --verify)=0
 $ env FORGE_ROOT=<forge develop 44614f446> PLUGIN_ROOT=. python3 scripts/sync-from-forge.py (#119 판) → forge-build 폴더만 남김
 $ python3 scripts/sync-from-forge.py --verify | grep -c 'DRIFT: forge-build/'
 forge-build DRIFT=0
+
+# 고친 뒤 — 사슬 합친 상태 · forge develop 20bc142ac
+STALE_REMAINING=0  (forge 에서 지웠는데 플러그인에 남은 것 — --prune 으로 지운다)
+DRIFT_REMAINING=0
+
+# 호환 입구 시험
+PASS 입구 work-plan → forge-work-plan 실림
+PASS 입구 qa → forge-qa 실림
+PASS 입구 prd-review → forge-prd-review 실림
+입구 3개 · 끊긴 입구 0개
