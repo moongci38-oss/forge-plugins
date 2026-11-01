@@ -19,7 +19,7 @@
       "description": "Forge 지식·리서치 — learn/memory-manage/wiki-sync/rag-search + article/yt/site-deep-analyze. forge-tools MCP(ADR-174 unified_search).",
       "source": "./forge-knowledge",
       "category": "productivity",
-      "version": "0.2.26"
+      "version": "0.2.27"
     },
     {
       "name": "forge-build",

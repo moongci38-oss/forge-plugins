@@ -41,7 +41,7 @@ model: sonnet
 
 ## Step 4: 취합 검증 (서술형 확인 금지)
 ```bash
-bash ~/forge/shared/scripts/verify-outputs.sh \
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/tech-trends.md" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/biz-trends.md" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/{project}/{date}-s1-research.md"

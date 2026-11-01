@@ -11,7 +11,7 @@ group: research
 > 설명 원문(#3691 목록 예산으로 줄이며 여기로 옮김): 비즈니스 아이템 후보를 5 신호로 검증해 실패 위험 최소화(--hunt <주제>로 지식자산 3층 기반 발굴도 가능). Reject 룰 4 + Moat 4종 + Mike Hill 5 원칙 + 카테고리별 옵션. 산출물은 Obsidian forge-vault 적재. 50p+ 시장 리포트는 Opus 5.5 subagent 로 격리 분석(§모델 라우팅).
 
 후보 1줄 → 중복체크 → Reject 4 → 카테고리 → 5 신호 → 반증 → 1페이지 → [STOP] Human 승인 → Obsidian 적재.
-검색 폴백: `brave-search` → `tavily` → `exa` → `WebSearch`. 가용성은 그 세션에서 실제 호출로 판정(등록 확인: `python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude.json')));print(list(d['mcpServers']))"`). 전부 실패 → 신호 수집 FAIL 보고 + 수동 Kill 결정. 앱마켓 데이터는 이 체인 대신 `market-scan.mjs`.
+검색 폴백: `brave-search` → `tavily` → `exa` → `WebSearch`. 가용성은 그 세션에서 실제 호출로 판정(등록 확인: `python3 -c "import json,os;d=json.load(open(os.path.expanduser('$HOME/.claude.json')));print(list(d['mcpServers']))"`). 전부 실패 → 신호 수집 FAIL 보고 + 수동 Kill 결정. 앱마켓 데이터는 이 체인 대신 `market-scan.mjs`.
 
 ## 후보 자격 (전 단계 적용)
 - **제0원칙**: 우리가 실사용자가 아닌 도메인(간호·정비·농장 등 직업 니치) 제외 → 후보 영역 = **AI 에이전트·개발 도구**. 예외: 팀원이 그 업을 실제로 아는 후보.
@@ -81,7 +81,7 @@ node "$S/market-scan.mjs" reviews <appId> --num=30      # 낮은 별점 리뷰 =
 **Step 4.5 — 반증 탐색(필수)**: `"<후보>" failed OR "shut down" OR "no traction"` · `"<후보>" 실패 OR 단점 site:reddit.com OR site:news.ycombinator.com` + 경쟁자 지배력·부정 반응·기술/규제 리스크 → `evidence/counter-case.md`(쿼리 · counter-findings · `verdict: CONFIRMED|CONTESTED|UNVERIFIED` · `## 출처`). CONTESTED → **[STOP]** validated-item 에 counter-findings 명시, Human 이 읽고 수용해야만 `pass`(사유 `decision-log.md`). UNVERIFIED → 사유 명시 후 진행.
 - **너무 빨리 모두 통과하면**(5 신호가 전부 ✅) 반대 근거 탐색을 1회 더 한다 — 가장 강한 반대 시나리오 1개를 `evidence/counter-case.md` `## 조기 합의 반박` 에 (#3297 · roast-room)
 
-**Step 5 — `validated-item.md`**: 템플릿 `~/forge/.claude/templates/validated-item.md` 로 작성(카테고리·Reject 표·5 신호 표·Moat·반증 결과·종합 판정·Kill Criteria·선택 30일 프로토콜·Obsidian 링크). borderline/Reject 경계일 때만 GO/NO-GO advisor(리졸버 경유, advisory·non-blocking).
+**Step 5 — `validated-item.md`**: 템플릿 `${FORGE_ROOT:-$HOME/forge}/.claude/templates/validated-item.md` 로 작성(카테고리·Reject 표·5 신호 표·Moat·반증 결과·종합 판정·Kill Criteria·선택 30일 프로토콜·Obsidian 링크). borderline/Reject 경계일 때만 GO/NO-GO advisor(리졸버 경유, advisory·non-blocking).
 - **망할 위험**(되돌릴 수 없는 손실·현금 고갈·법적 위험)이 근거와 함께 1건이라도 있으면 종합 판정은 GO 대신 **조건부 GO** — 해소 조건을 `## 종합 판정` 에 적는다 (#3297 · roast-room)
 **Step 5.5 — 게이트 실행 가능성**: Kill Criteria·검증 방법이 3인·주5-10h·광고비0·지역·무명 조건에서 실행 가능한가. 인터뷰 N명·베타 50명·유료 A/B 같은 실행 불가 게이트 → 공개 데이터 마이닝 / 무료 출시 후 계측 / 경쟁사 이탈 분석으로 교체.
 

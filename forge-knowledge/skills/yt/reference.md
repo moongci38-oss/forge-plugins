@@ -26,7 +26,7 @@
 시스템 비교분석 **직전에** 아래 4단계 검증을 수행하여 Step 2.9의 입력을 정확하게 만든다.
 
 **GTC-1: 관련성 필터** — 영상에서 언급된 도구/서비스가 우리 시스템에서 실제 사용 중인지 확인
-- Read: `.mcp.json`, `~/.claude.json` (MCP 서버 목록)
+- Read: `.mcp.json`, `$HOME/.claude.json` (MCP 서버 목록)
 - Read: `forge-workspace.json` (활성 프로젝트)
 - Glob: `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`
 - 영상의 도구/서비스 언급을 위 파일에서 검색
@@ -34,7 +34,7 @@
 
 **GTC-2: 기구현 확인** — 영상의 제안/패턴이 이미 우리 시스템에 존재하는지 확인
 - Glob: `.github/workflows/*.yml` (GitHub Actions)
-- **Grep(내용 검색) 필수 — Glob(파일명 목록)만으로 "미적용" 단정 금지**: 각 제안 역량의 키워드로 `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `.claude/scripts/**`, `~/forge/shared/scripts/**`, `~/.claude/rules*/*.md` **내용**을 Grep한다. (근본원인: 스킬명만 보고 역량을 놓치는 false gap — 실사례 2026-07-03 playwright-parallel-test/visual-loop/healer, promote-learnings.sh 누락)
+- **Grep(내용 검색) 필수 — Glob(파일명 목록)만으로 "미적용" 단정 금지**: 각 제안 역량의 키워드로 `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `.claude/scripts/**`, `${FORGE_ROOT:-$HOME/forge}/shared/scripts/**`, `$HOME/.claude/rules*/*.md` **내용**을 Grep한다. (근본원인: 스킬명만 보고 역량을 놓치는 false gap — 실사례 2026-07-03 playwright-parallel-test/visual-loop/healer, promote-learnings.sh 누락)
 - **증거 원장(evidence ledger) 강제**: 비교 매트릭스의 어떤 행을 `미적용/부재/갭`으로 라벨하려면 그 행마다 기록 — `검색 위치` / `grep 쿼리` / `검토한 히트` / `왜 불충분` / `최종 라벨`. 원장 없는 `미적용` 행 금지. grep 히트 있으면 `기구현` 또는 `부분적용(차이 명시)`로 라벨.
 - **`미적용` 라벨은 3축 중 2축 이상을 통과해야 한다 (2026-08-18 추가)**: 원장 5칸이 다 차 있어도 **쿼리가 상류 어휘 하나뿐이면 결론이 틀릴 수 있다.** 우리가 그 역량을 **다른 이름으로 부르고 있으면** 그 이름으로는 아무것도 안 잡히기 때문이다. 그래서 아래 셋 중 **둘 이상**에서 0건일 때만 `미적용`으로 라벨한다.
   | 축 | 무엇을 찾나 | 이름을 몰라도 되나 |
@@ -202,7 +202,7 @@ Agent(
 실측 오차 최대 **-5573초(92분)** — 드리프트가 아니라 그냥 깨진 인용이다.
 
 ```bash
-python3 ~/forge/shared/scripts/yt-timestamp-verify.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-timestamp-verify.py \
   "{outputsRoot}/01-research/videos/analyses/{date}-{video_id}-{slug}-analysis.md" --apply
 ```
 
@@ -229,7 +229,7 @@ python3 ~/forge/shared/scripts/yt-timestamp-verify.py \
   ⚠️ `2` 를 "고칠 게 없었다"로 읽지 말 것. **안 본 것과 통과한 것은 다르다.**
   `2` 가 나오면 타임스탬프를 그대로 두되 완료 보고에 `타임스탬프 미검증` 을 적는다 — 침묵 금지.
 
-재현(도구 자체 회귀): `bash ~/forge/shared/scripts/yt-timestamp-verify.test.sh` → PASS 99 / FAIL 0
+재현(도구 자체 회귀): `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-timestamp-verify.test.sh` → PASS 99 / FAIL 0
 
 ---
 
@@ -241,7 +241,7 @@ analysis md(+ comparison + apply-plan, 존재 시)를 단일 HTML 대시보드�
 
 ```bash
 ANALYSIS="01-research/videos/analyses/{date}-{video_id}-{slug}-analysis.md"
-python3 ~/forge/shared/scripts/report_to_html.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py \
   "${ANALYSIS%-analysis.md}-dashboard.html" --title "YT 분석 — {title}" \
   --subtitle "{channel}" \
   "$ANALYSIS" \
@@ -254,8 +254,8 @@ python3 ~/forge/shared/scripts/report_to_html.py \
 
 **산출물 사후 정정 시**: .md 수정 후 반드시 위 `report_to_html.py` 명령으로 HTML 재생성할 것.
 md만 고치면 `dashboard.html` 이 silent stale 상태가 됨(false fact 잔존).
-stale 여부 확인: `python3 ~/forge/shared/scripts/yt-analyzer/yt-sync-check.py {date} {video_id}` (exit 1 = stale, exit 0 = OK).
+stale 여부 확인: `python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analyzer/yt-sync-check.py {date} {video_id}` (exit 1 = stale, exit 0 = OK).
 
 ## §헤드리스 실행
 
-사람 없이(cron·텔레그램 등 손 한 줄) 돌릴 때: `bash ~/forge/shared/scripts/yt-headless.sh '<YouTube URL>'` — URL 만 받고(아니면 rc 64) 허용 도구를 못박은 `claude -p "/yt <URL>"` 1회. 상시 서비스 아님 · 로그 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/yt-headless.log` · 부를 명령만 보기 `--dry-run` (#2450).
+사람 없이(cron·텔레그램 등 손 한 줄) 돌릴 때: `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-headless.sh '<YouTube URL>'` — URL 만 받고(아니면 rc 64) 허용 도구를 못박은 `claude -p "/yt <URL>"` 1회. 상시 서비스 아님 · 로그 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/.claude/audit/yt-headless.log` · 부를 명령만 보기 `--dry-run` (#2450).

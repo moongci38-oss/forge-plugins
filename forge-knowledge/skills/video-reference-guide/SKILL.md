@@ -28,7 +28,7 @@ model: sonnet
 `analyze-video.sh` 로 Codex CLI 프레임 분석을 실행한다. 로컬 파일은 절대경로로 직접 전달, YouTube 등 페이지 URL 은 스크립트가 `yt-dlp` 로 먼저 내려받는다. output-file 이 이미 있으면 모델을 호출하지 않는다(캐시).
 
 ```bash
-bash ~/.claude/scripts/analyze-video.sh \
+bash $HOME/.claude/scripts/analyze-video.sh \
   "{VIDEO_PATH}" \
   "docs/assets/video-refs/{YYYY-MM-DD}-{REF_NAME}-analysis.md" \
   "{ANALYSIS_FOCUS에 맞는 상세 프롬프트}"
@@ -94,6 +94,6 @@ Agent(subagent_type="general-purpose", model="sonnet", prompt="""
 
 ## 환경·주의
 
-- Codex CLI **0.156.1 이상** + 구독 인증(`auth_mode=chatgpt`, API 키 불필요) · `yt-dlp`(`pipx install yt-dlp`) · Python 3 · curl · `~/.claude/scripts/analyze-video.sh`
+- Codex CLI **0.156.1 이상** + 구독 인증(`auth_mode=chatgpt`, API 키 불필요) · `yt-dlp`(`pipx install yt-dlp`) · Python 3 · curl · `$HOME/.claude/scripts/analyze-video.sh`
 - 분석은 Codex 구독 사용량 소비 — 불필요한 반복 분석 금지. 비공개 YouTube 영상은 다운로드 불가라 분석 불가.
 - 로컬 파일은 이 머신을 떠나지 않는다. 그래도 미공개 게임플레이·NDA 베타·내부 플레이테스트 영상은 사용자 확인 후 분석하고, 가능하면 공개된 레퍼런스로 대체한다.

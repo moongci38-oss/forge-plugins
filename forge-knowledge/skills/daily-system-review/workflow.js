@@ -73,7 +73,7 @@ const [tierAB, tierCD, sysSnap, forge, constraint] = await parallel([
     { model: 'sonnet', label: 'forge-internal', phase: 'Collect', schema: TIER_SCHEMA }
   ),
   () => agent(
-    `Constraint Drift 감사 (AD-120): ~/.claude/override-rate.log 읽어 5%+ WARN 감지. ` +
+    `Constraint Drift 감사 (AD-120): $HOME/.claude/override-rate.log 읽어 5%+ WARN 감지. ` +
     `hook bypass 패턴 확인.`,
     { model: 'sonnet', label: 'constraint-drift', phase: 'Collect', schema: TIER_SCHEMA }
   ),

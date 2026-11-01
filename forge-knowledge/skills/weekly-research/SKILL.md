@@ -14,7 +14,7 @@ model: sonnet
 
 ## ⛔ 우리 하네스 상태를 쓸 때 (CRITICAL)
 - "우리 시스템은 이렇다"는 `harness_probe()` 출력을 인용한다. 실행하지 않은 명령을 근거로 적지 않는다.
-- 답 못 하는 항목은 `측정 불가(도구 없음)` — "없음"·"미설정" 단정 금지(못 본 것 ≠ 없는 것). 클라우드 실행 시 `~/forge` 밖 읽기·임의 셸 없음.
+- 답 못 하는 항목은 `측정 불가(도구 없음)` — "없음"·"미설정" 단정 금지(못 본 것 ≠ 없는 것). 클라우드 실행 시 `${FORGE_ROOT:-$HOME/forge}` 밖 읽기·임의 셸 없음.
 
 ## 인자·산출물
 `$ARGUMENTS` = 기준 날짜(YYYY-MM-DD, 미입력 시 오늘). `WK=${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}`
@@ -32,11 +32,11 @@ model: sonnet
 **Wave 0** — `Glob("${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/weekly/{date}/raw-data.json")`. 존재 → 수집 스킵, `/weekly-analyze {date}` 흐름(raw-data + 검색 보강 → `weekly-research-analyst` 스폰, `.claude/skills/weekly-analyze/SKILL.md`). 미존재 → Wave 0.5부터.
 **Wave 0.5** — 직전 7일 daily 계획서의 `## Weekly 이관 항목`을 `carryover-items.md`로 수집(유일한 수집자, 이후 단계는 읽기만). fail-open. 헤더 계약 `/^## Weekly (심층 분석 )?이관 항목([ (]|$)/`(daily-triage-lint.py 와 공유)은 스크립트 안에 있다.
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/weekly-research-carryover.sh" "$ARGUMENTS"` → `STATUS=ok|skipped|error`·`COUNT`·`CARRY`. rc 0 = 수집(0건 포함)·DATE 미지정 스킵 · rc 2 = 파일 못 씀(판정 불가). 어느 쪽이든 멈추지 않고 Wave 1로 — `[weekly Wave0.5] carryover: {COUNT}개 daily` 1줄 보고.
-**Workflow 분기** — 기본: `Workflow({ script: Bash("cat ~/.claude/skills/weekly-research/workflow.js") })`. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 또는 Workflow 실패 시 아래 Wave 1~3 직접 실행.
+**Workflow 분기** — 기본: `Workflow({ script: Bash("cat $HOME/.claude/skills/weekly-research/workflow.js") })`. `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 또는 Workflow 실패 시 아래 Wave 1~3 직접 실행.
 **Wave 1 (Agent 병렬, 단일 메시지)** — carryover-items.md가 비어있지 않으면 "지난주 daily 이관 항목 우선 반영" 지시와 함께 Read 대상으로 포함. 모든 워커는 리포트 저장 외에 **원시 소스 목록**(쿼리·URL·제목·발행일·신뢰도 근거)을 반환한다.
 - **A (haiku) 기술 뉴스** / **B (haiku) 비즈니스 뉴스**: `references/wave1-collect-detail.md §Subagent A`·`§Subagent B` 프롬프트 항목을 Read해 그대로 넣는다 → `tech-trends.md`·`biz-trends.md`.
 - **C (sonnet) 사업 아이템**: 기준 날짜 `$ARGUMENTS` +
-  - 거래 시장 우선: 마켓 표면(Play·App Store·Chrome·Shopify·WordPress·AppSumo·Product Hunt·로컬 스토어) 3개+ 실조회, 못 본 곳 `미조회(사유)`, 국가 명시. 정본 `~/.claude/commands/forge-find-item.md §마켓 표면 체크리스트`
+  - 거래 시장 우선: 마켓 표면(Play·App Store·Chrome·Shopify·WordPress·AppSumo·Product Hunt·로컬 스토어) 3개+ 실조회, 못 본 곳 `미조회(사유)`, 국가 명시. 정본 `$HOME/.claude/commands/forge-find-item.md §마켓 표면 체크리스트`
   - 후보 입장권 = 가격·거래량 근사(설치·리뷰·LTD·랭킹) 중 2개+ 마켓 리스팅 직접 실측. ⛔ 기사·리스티클은 근거 불인정(배경만)
   - 검색: `site:apps.shopify.com`·`site:play.google.com`·`site:appsumo.com` 우선, 통증은 `site:reddit.com` 보완
   - ⛔ TAM/SAM/SOM 금지 → JTBD → 경쟁 3 비교 → Moat 4종 중 1+ → MVP wedge → 매출 산술(단가×고객 수). 가설 3개 → 1개 선정 + 로드맵(MVP·스택·타임라인). 기준: 1인 개발자 내달 1,000만원+
@@ -52,7 +52,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/source-modality-critic.py" --
 마켓 표면 행은 아이템·수익화 산출물에만(tech-trends 제외). rc 1이면 `references/wave1-collect-detail.md §Wave 1.5 재검색 절차 · [신뢰도 낮음] 플래그 · critic 1줄 출력`(판정표 `§Wave 1.5 판정 기준 표`)을 Read해 2라운드 재검색, 미달이면 `[신뢰도 낮음]` 플래그 후 진행(차단 X). 결과 1줄은 Wave 2 보고에.
 **Wave 2 (Lead 취합)**
 ```bash
-bash ~/forge/shared/scripts/verify-outputs.sh "$WK/tech-trends.md" "$WK/biz-trends.md" \
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/verify-outputs.sh "$WK/tech-trends.md" "$WK/biz-trends.md" \
   "${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/projects/{project}/{date}-s1-research.md"   # 절대경로만
 python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/gtc_check.py" --report "$WK/tech-trends.md" --report "$WK/biz-trends.md"
 ```
@@ -67,7 +67,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/gtc_check.py" --report "$WK/t
 
 **Wave 2.7 대시보드** (PASS 또는 FAIL(AUTO-PROCEED) 후)
 ```bash
-python3 ~/forge/shared/scripts/report_to_html.py "$WK/dashboard.html" --title "Weekly Research — {date}" \
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/report_to_html.py "$WK/dashboard.html" --title "Weekly Research — {date}" \
   --subtitle "기술 동향 + 비즈니스 동향 + 사업 아이템" "$WK/tech-trends.md" "$WK/biz-trends.md"
 ```
 **Wave 3 (인덱스 + 블로그)** — `references/wave25-wave3.md §Wave 3` Read. Step 0(무조건, 블로그보다 먼저) `index.json`에 회차 등록 → 블로그 발행(실패해도 경고 후 스킵). 완료 게이트: `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/weekly-index-gate.sh" "{date}"` rc=0이어야 완료(1=등록 누락·2=판정 불가).

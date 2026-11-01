@@ -1,6 +1,6 @@
 // root-cause: site-deep-analyze Phase 2(정적) + Phase 3(Vision) = 독립 → parallel() 병렬화. 계획서 P2-6.
 // root-cause: Vision 벤더 전환(2026-09-07) — Gemini 전면 철수로 Vision 레그를 Codex(GPT-6 Astra → 2026-09-17 개정 GPT-6 Sol)로 교체.
-//   계획서: ~/forge-outputs/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
+//   계획서: \${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-06-gpt6-astra-pro-plan-proposal.md §W1-②
 //   ⚠️ Astra 는 스크린샷을 **절대경로로 직접 읽는다** — 인라인 불필요.
 export const meta = {
   name: 'site-deep-analyze',
@@ -429,7 +429,7 @@ log(`[Semantic] languages=${semanticResult?.languages?.join(',')}`)
 phase('Output')
 const outputResult = await agent(
   `site-deep-analyze Phase 5 산출물 생성. slug="${gateResult?.slug}". ` +
-  `저장 경로: ~/forge-outputs/05-design/site-analysis/${gateResult?.slug}/. ` +
+  `저장 경로: \${FORGE_OUTPUTS:-$HOME/forge-outputs}/05-design/site-analysis/${gateResult?.slug}/. ` +
   // root-cause: finalStaticResult(coverage-loop 보완) + 신규 fan-out 결과 포함 (deep-research a+e)
   `정적 분석 (coverage-loop 보완): ${JSON.stringify(finalStaticResult)}. ` +
   `페이지 유형 분석: ${JSON.stringify(pageTypeResult)}. ` +
@@ -447,7 +447,7 @@ const outputResult = await agent(
   `verifyResult.verifiedComponents 항목은 (selector: <selector_evidence>) 증거 표기.\n` +
   `- analysis-report.md 상단(영감 고지 직후): 추론검증 요약 섹션 추가 — verifyResult.summary 내용 인용.\n` +
   `생성 파일: analysis-report.md(첫줄 영감 재구현 고지 필수) + style-guide.md + components.md + api-schema.json + reconstruction-spec.md. ` +
-  `Phase 6: 다음 액션 안내(/prd 참고 자료 / wiki-sync). ` +
+  `Phase 6: 다음 액션 안내(/forge-spec 화면·시안 참고 자료 / wiki-sync). ` +
   `outputDir + analysisReportPath + styleGuidePath + componentsPath + reconstructionSpecPath 반환.`,
   { model: 'opus', label: 'output:generate', phase: 'Output', schema: OUTPUT_SCHEMA }
 )
