@@ -39,3 +39,5 @@ jobs:
       - name: Guard self-test
         run: |
           python3 scripts/sync-from-forge.test.py
+          python3 scripts/sync-from-forge-prune.test.py
+          bash scripts/leak-scan-wiring.test.sh

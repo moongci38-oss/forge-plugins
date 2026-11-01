@@ -14,7 +14,7 @@ Scope: only files that exist in BOTH forge SSoT and a plugin bundle subdir
 (skills/commands/agents/rules). Never deletes plugin-only files. Never adds new files
 (reports additions separately, does not create them).
 """
-import argparse, os, re, sys, hashlib
+import argparse, os, re, shutil, subprocess, sys, hashlib
 
 _HOME = os.path.expanduser("~")
 FORGE_ROOT = os.environ.get("FORGE_ROOT", os.path.join(_HOME, "forge")) + "/.claude"
@@ -366,6 +366,51 @@ def iter_pairs():
                     forge_abs = os.path.join(forge_dir, rel)
                     yield plugin, sub, rel, forge_abs, plug_abs
 
+# ── forge#4135 할 일 2: 삭제 전파 ─────────────────────────────────────────────
+# 동기화는 "양쪽에 다 있는 파일"만 고친다 — forge 에서 지운 skill·명령·에이전트는 플러그인에 영영 남았다
+#   (2026-10-28 실측 13개). 플러그인 전용 항목과 가르는 기준 = forge **기록에 있었는데** 지금 없는 것.
+#   기록을 못 읽으면(git 없음·레포 아님) 판정하지 않는다 — 지우지도, STALE 로 세지도 않는다.
+PRUNE_SUBDIRS = ["skills", "commands", "agents"]
+
+
+def _forge_had(path):
+    repo = os.path.dirname(FORGE_ROOT)
+    try:
+        r = subprocess.run(["git", "-C", repo, "log", "-1", "--format=%h", "--",
+                            os.path.relpath(path, repo)], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0 and bool(r.stdout.strip())
+
+
+def iter_stale():
+    """Yield (표시 경로, 플러그인 절대경로) — forge 에서 지운 skill 폴더·명령·에이전트 파일."""
+    for plugin in PLUGINS:
+        for sub in PRUNE_SUBDIRS:
+            plug_dir = os.path.join(PLUGIN_ROOT, plugin, sub)
+            forge_dir = SUBDIR_SRC.get(sub, os.path.join(FORGE_ROOT, sub))
+            if not (os.path.isdir(plug_dir) and os.path.isdir(forge_dir)):
+                continue
+            for name in sorted(os.listdir(plug_dir)):
+                p = os.path.join(plug_dir, name)
+                if sub == "skills" and not os.path.isdir(p):
+                    continue
+                if sub != "skills" and not (os.path.isfile(p) and name.endswith(".md")):
+                    continue
+                f = os.path.join(forge_dir, name)
+                if not os.path.exists(f) and _forge_had(f):
+                    yield f"{plugin}/{sub}/{name}", p
+
+
+def report_stale():
+    stale = list(iter_stale())
+    print(f"STALE_REMAINING={len(stale)}  (forge 에서 지웠는데 플러그인에 남은 것 — --prune 으로 지운다)",
+          file=sys.stderr)
+    for rel, _ in stale:
+        print(f"  STALE: {rel}", file=sys.stderr)
+    return stale
+
+
 # ── G-1: inbound(안 오는 것) 가시화 ────────────────────────────────────────────
 # root-cause (2026-08-06): iter_pairs() 는 **플러그인 디렉터리를 walk** 하므로 정의상
 #   "양쪽에 다 있는 파일"만 본다. 그래서 forge SSoT 에 새 스킬이 생겨도 플러그인에 없으면
@@ -452,10 +497,22 @@ def main():
     ap.add_argument('--verify', action='store_true', help='report remaining drift, no writes')
     ap.add_argument('--inbound-all', action='store_true',
                     help='G-1: INBOUND_NOT_CARRIED 목록을 상한 없이 전량 출력한다')
+    ap.add_argument('--prune', action='store_true',
+                    help='forge#4135: forge 에서 지운 skill·명령·에이전트를 플러그인에서 지운다(동기화는 안 한다)')
     ap.add_argument('--scan-repo', metavar='ROOT', nargs='?', const=PLUGIN_ROOT,
                     help='G-3: sync 경로와 무관하게 추적 파일 전량에서 사설 절대경로를 찾는다 '
                          '(기본 ROOT=PLUGIN_ROOT). 발견 시 exit 1, 쓰기 없음.')
     args = ap.parse_args()
+
+    # --prune 도 독립 모드다 — 지우기만 하고 동기화는 안 한다(목록은 --verify·동기화 출력의 STALE 줄로 먼저 본다).
+    if args.prune:
+        for rel, p in report_stale():
+            if os.path.isdir(p):
+                shutil.rmtree(p)
+            else:
+                os.remove(p)
+            print(f"  PRUNED: {rel}")
+        return 0
 
     # --scan-repo 는 sync 를 돌리지 않는 독립 모드다 — 쓰기가 없으므로 CI/pre-commit 에서 안전하다.
     if args.scan_repo:
@@ -565,6 +622,7 @@ def main():
             print(f"  DRIFT: {d}")
         # G-1: DRIFT 는 '양쪽에 다 있는 파일'만 센다. 분모를 함께 내지 않으면 0 이 완전성으로 읽힌다.
         report_inbound(limit=None if args.inbound_all else 10)
+        report_stale()
         return 0 if not (drift_remaining or leaked) else 1
 
     total = sum(len(v) for v in changed.values())
@@ -582,6 +640,7 @@ def main():
     # 위 목록은 "플러그인에만 있는 것"이다. 그 대칭인 "forge 에만 있는 것"이 없으면
     # 사람은 한쪽 방향만 보고 동기화가 끝났다고 판단한다(G-1).
     report_inbound(limit=None if args.inbound_all else 10)
+    report_stale()
 
     # exit code 로도 드러낸다 — 파이프라인이 stderr 를 안 읽어도 실패가 전달돼야 한다.
     return 1 if leaked else 0
