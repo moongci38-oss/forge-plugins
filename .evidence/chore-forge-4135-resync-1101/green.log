@@ -1,0 +1,9 @@
+# 고친 뒤 — 재동기화
+STALE_REMAINING=0  (forge 에서 지웠는데 플러그인에 남은 것 — --prune 으로 지운다)
+DRIFT_REMAINING=0
+입구 3개 · 끊긴 입구 0개
+PASS=68  FAIL=0  SKIP=0
+prune FAIL=0
+  PASS  scripts 시험 전부 CI 배선
+SCAN_STATUS=ok  SCAN_ROOT=/tmp/h4-fp4  LEAK_FILES=0  BINARY=0  UNREADABLE=0
+✅ GATE PASS

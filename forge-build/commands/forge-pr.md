@@ -8,7 +8,7 @@ model: sonnet
 # /forge-pr
 
 브랜치를 PR 로 올리고, 기계 검사를 통과하면 **검수 1라운드** 뒤 develop 에 머지한다.
-**완료 = 테스트 통과 + blocking(CRITICAL·HIGH) 0.** (`dev-workflow-rules.md §운영 규칙`)
+**완료 기준 = `dev-workflow-rules.md §운영 규칙 1`**(blocking = CRITICAL·HIGH) — 머지는 그 일부다.
 **예산 — 넘으면 멈추고 보고한다**: 실행 방식·동시 수 = `dev-workflow-rules.md §운영 규칙 2` · 검수는 **PR 당 1번**(1라운드 · 재검수 없음 — 고친 뒤 기계 검사 줄로 확인 · §4 판정 · #2243).
 
 ## 0. 준비
@@ -110,7 +110,7 @@ bash shared/scripts/gh-q.sh --wait=90 api "repos/$R/issues/<N>/comments" -q .htm
 bash shared/scripts/pr-verdict-gate.sh <N>                     # 최신 판정 확인(경고만)
 bash shared/scripts/pr-merge.sh <N> --squash --delete-branch   # ⚠️ **총괄 세션만** — 방은 이 줄을 실행하지 않는다(아래)
 ```
-- **고위험(full-gate) PR 은 사람 승인 1번이 있어야 머지된다** — 승인은 그 PR 코멘트 `답변: A`(또는 `A로 승인`·`승인`) · head 커밋 뒤 것만 · 새 `[승인 요청]` 이슈는 만들지 않는다(관문이 PR 에 요청 코멘트를 단다 · AI 는 승인 꼴 코멘트를 달지 않는다 · `pr-human-approval-check.sh` 머리말 · #4274).
+- **코드 PR 은 사람 승인을 묻지 않는다** — qa 판정(검수 대상일 때)과 기계 검사 fail=0 이면 머지한다(#4430). 사람에게 묻는 일은 `issue-board-human.md §9` 승인 요청 줄.
 
 - **코드 PR 은 증거 3종을 커밋하고 판정 코멘트에 그 경로를 적는다** — `.evidence/<브랜치 / 를 - 로>/` 에 `red.log`(수정 전 FAIL) · `green.log`(수정 후 PASS) · `mutation.md`(바꾼 줄을 되돌려 테스트 FAIL + `## 자기 적대` 3항목+). 없으면 `pr-merge.sh` 의 증거 관문(`pr-evidence-check.sh` · #1618)이 머지를 거부한다. `.md` 만 바꾼 PR 은 면제.
 

@@ -133,7 +133,7 @@ const oracleManifestPath = `${projectRoot}/.specify/oracle-manifest.json`
 //   codex:high 현행 id 를 코드 기본값으로 둔다. SSoT = shared/config/model-registry.json (codex.tiers.high).
 // 2026-09-17 사람 지시 "advisor 에서만 최고급 모델 사용해" — 구 표기 codex:max(gpt-6-astra) 기본값 폐기 → sol · effort high(UI 품질 게이트 · #2058 검수 레그 high).
 //   ⚠️ 무력화되는 입력: 호출자가 args.codexModel 로 최고급 id 를 넘기면 그대로 쓴다(사람 override).
-//   (#1971 2026-10-04) gpt-6-sol → gpt-6.1-sol. 짝 테스트 = forge-multi/tests/vision-codex-default.test.mjs (registry codex:high 대조).
+//   (#1971 2026-10-04) gpt-6-sol → gpt-6.1-sol. 짝 테스트 = cr-engine/tests/vision-codex-default.test.mjs (registry codex:high 대조).
 const codexUiModel = _a?.codexModel || 'gpt-6.1-sol'
 
 // 변경 파일 목록 지시 — static(ui-static-check)·source-quality(ui-a11y-lint) 두 실행기가 같은 문장을 쓴다(#2387).

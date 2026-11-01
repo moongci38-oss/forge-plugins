@@ -18,10 +18,10 @@ description: "Codex 2차 리뷰(stage 9종 — §인자) — 명시 호출 때 �
 
 ## Workflow 통합
 단독 호출 = 현행. forge-multi Workflow 흡수 가능(mode='double'):
-`Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-multi/workflow.js"), args: { targetPath, mode: 'double', stage, repoRoot } })`
+`Workflow({ script: Bash("cat ${FORGE_ROOT:-$HOME/forge}/shared/cr-engine/workflow.js"), args: { targetPath, mode: 'double', stage, repoRoot } })`
 - ⚠️ `repoRoot`(검수 대상 레포 절대경로, 보통 `git rev-parse --show-toplevel` 또는 워크트리 절대경로) 필수 — 빠지면 레그가 CWD 기준으로 잘못된 파일을 본다.
-- R2 러너(기본 new, 되돌리기 `FORGE_CR_ENGINE_RUNNER=legacy`): 정본 `forge-multi/reference/r2-runner.md`. `cr-run.sh pre --target <레포 상대경로>` `rc≠0` 이면 Workflow 호출 안 함 · 번들은 `bundlePath` 만(인라인 금지) · args 끝에 `...RUNNER_ARGS` · `runner=new` 면 Workflow 뒤 `cr-run.sh post --wf-run <runId>`(`rc≠0` = 결과 무효) · `runner=legacy`(자동 폴백 포함)·`shadow` 면 args 끝에 `runner` 한 키만, post 없음.
-- `FORGE_CR_ENGINE_RUNNER=shadow` → `runner: 'shadow'` 만(판정 불변, 기록은 `/forge-pr` record, 정본 `forge-multi/reference/r2-runner.md §shadow`) · `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식.
+- R2 러너(기본 new, 되돌리기 `FORGE_CR_ENGINE_RUNNER=legacy`): 정본 `cr-engine/reference/r2-runner.md`. `cr-run.sh pre --target <레포 상대경로>` `rc≠0` 이면 Workflow 호출 안 함 · 번들은 `bundlePath` 만(인라인 금지) · args 끝에 `...RUNNER_ARGS` · `runner=new` 면 Workflow 뒤 `cr-run.sh post --wf-run <runId>`(`rc≠0` = 결과 무효) · `runner=legacy`(자동 폴백 포함)·`shadow` 면 args 끝에 `runner` 한 키만, post 없음.
+- `FORGE_CR_ENGINE_RUNNER=shadow` → `runner: 'shadow'` 만(판정 불변, 기록은 `/forge-pr` record, 정본 `cr-engine/reference/r2-runner.md §shadow`) · `CLAUDE_CODE_DISABLE_WORKFLOWS=1` 시 기존 방식.
 
 ## Quick Start
 ```

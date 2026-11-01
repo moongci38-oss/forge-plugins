@@ -44,9 +44,9 @@ $ARGUMENTS
      - 어느 관점이든 **망할 위험**(되돌릴 수 없는 손실·현금 고갈·법적 위험)을 근거와 함께 짚으면 최적안 판정은 "조건부" 이하 — 그 위험을 해소할 조건을 함께 적는다 (#3297 · roast-room)
    - `agent-meeting-template.md` 형식 비교표 + 선택 근거 → intent `## 사업 근거` 아래 `### 에이전트 회의 결과`(사업 근거 절이 없는 변경이면 선택 근거 1~3줄을 `## Proposed outcome` 아래). 충돌 해소 불가 → **[STOP]**
    - 산출물: `<intent 폴더>/<YYYY-MM-DD>-<slug>.md` + 같은 이름 `.html`(`STEP.md` 1·3번)
-6. **검토 — [MANDATORY — 건너뛰기 금지] /prd-review 5관점 검토**: 5단계 intent 완성 직후 반드시 실행. (조각 P5 — #3738 뒤 이 단계를 "intent 검토"로 다시 맞춘다 · 그때까지 아래 그대로)
+6. **검토 — [MANDATORY — 건너뛰기 금지] /forge-prd-review 5관점 검토**: 5단계 intent 완성 직후 반드시 실행. (조각 P5 — #3738 뒤 이 단계를 "intent 검토"로 다시 맞춘다 · 그때까지 아래 그대로)
    - 입력: 5단계 intent(옛 제품 보강이면 그 PRD 도). 사업·디자인/UX·개발·QA·보안 5관점 동시 검토 → 지적마다 등급(심각/주의/제안)·해결안 1줄 · 결과 `<intent 이름>-review.md` + intent 머리 요약 3줄. 심각 0건 → 단계 7
-   - **심각 ≥1 → intent 를 고치고 단계 7 로 간다** — `/prd-review` 를 다시 부르지 않는다. 고칠 수 없는 심각 → **[STOP]**
+   - **심각 ≥1 → intent 를 고치고 단계 7 로 간다** — `/forge-prd-review` 를 다시 부르지 않는다. 고칠 수 없는 심각 → **[STOP]**
 7. **검토 — /forge-review --stage plan (권고 · 1회)**:
    - `/forge-review --stage plan --target <intent 파일 경로>` — 1회. FAIL 지적은 intent 에 반영하고 진행한다(다시 부르지 않는다). 결과: `forge-outputs/docs/reviews/plan/{date}-{slug}.{md,json}`
 8. **intent 승인 안내**(`STEP.md` 4번): 승인 = 사람이 intent 이슈에 쓴 승인·결정 문장(총괄 반영) — `/prd` 는 승인 전이어도 진행하고 "intent 가 아직 미승인 — `/forge-spec` 전에 사람 승인 문장 필요" 1줄만 알린다(사람 키 서명은 없앴다 — #4080).

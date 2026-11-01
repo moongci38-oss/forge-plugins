@@ -47,7 +47,7 @@ bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/forge-check-security/scripts/chec
 | CRITICAL | S1 / S2 고위험 / S14 path traversal·SSRF | FAIL — Phase 1 즉시 [STOP], CRITICAL 항목 Human 에게 명시 |
 | HIGH | S2 중위험 / S3 / S6·S7 / S8 / S10~S13 / S14 저위험 | WARN — PR 본문에 HIGH 목록 추가, Phase 4 Human 확인 후 머지 |
 | MEDIUM·LOW | S4 / S5 / S9 / S15 · 경고성 패턴 | 리포트만 |
-/qa Phase 1 T6 에서 서브에이전트로 호출(1레벨). FAIL → 즉시 [STOP] · WARN → Phase 4 확인 · PASS → 계속.
+/forge-qa Phase 1 T6 에서 서브에이전트로 호출(1레벨). FAIL → 즉시 [STOP] · WARN → Phase 4 확인 · PASS → 계속.
 
 ## 3. 리포트 (docs/qa/security/<branch-slug>.md)
 
