@@ -109,7 +109,6 @@ ALLOWED_SCRIPTS = {
     "md-to-docx.py": FORGE_ROOT / "shared/scripts/md-to-docx.py",
     "rag-search.py": FORGE_ROOT / "shared/scripts/rag/search.py",
     "workspace-build.sh": FORGE_ROOT / "shared/scripts/rag/workspace-build.sh",
-    "wiki-sync.sh": FORGE_ROOT / "shared/scripts/wiki-sync.sh",
 }
 
 # 접근 금지 경로
@@ -305,6 +304,23 @@ def _validate_commit_message(message: str) -> None:
         raise ValueError("git_commit: null byte in message")
 
 
+def _dedupe_trailers(message: str) -> str:
+    """같은 `Co-Authored-By:` 줄이 여러 번이면 처음 것만 남긴다(#1891). 다른 줄은 건드리지 않는다.
+
+    서버는 꼬리표를 붙이지 않는다 — 어떤 모델이 만든 커밋인지는 호출자만 안다. 여기서는 호출자가
+    같은 줄을 거듭 넣은 것만 줄인다. '같은 줄' = 앞뒤 공백을 뗀 글자가 같은 것(이름이 다르면 다른 꼬리표다).
+    """
+    seen, out = set(), []
+    for line in message.split("\n"):
+        key = line.strip()
+        if key.lower().startswith("co-authored-by:"):
+            if key in seen:
+                continue
+            seen.add(key)
+        out.append(line)
+    return "\n".join(out)
+
+
 def _validate_commit_files(files: list) -> None:
     # root-cause: files에 '../' 포함 시 프로젝트 외부 파일 스테이징 가능 (path traversal)
     for f in (files or []):
@@ -424,7 +440,9 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
 
     Args:
         project: 프로젝트명 또는 절대 경로
-        message: 커밋 메시지 (Conventional Commits 형식 권장)
+        message: 커밋 메시지 (Conventional Commits 형식 권장). 그대로 커밋한다 — 서버는 꼬리표를 붙이지 않는다.
+            꼬리표는 호출자가 적는다: `Co-Authored-By: Claude <그 커밋을 만든 모델명> <noreply@anthropic.com>`
+            (같은 꼬리표 줄이 여러 번이면 한 번만 남긴다)
         files: 커밋할 파일 목록 (None이면 변경된 파일 전체)
     """
     project_paths = {
@@ -448,7 +466,8 @@ def git_commit(project: str, message: str, files: Optional[list[str]] = None) ->
         subprocess.run(["git", "add", "-A"], cwd=cwd, check=True, timeout=30)
 
     # Commit
-    full_message = f"{message}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"  # root-cause: model version bump — trailer identity → Sonnet 5 (D1)
+    # #1891(사람 결정 2026-10-03): 꼬리표를 붙이지 않는다 — 종전 고정 문자열은 누가 부르든 같은 모델로 귀속시켰다.
+    full_message = _dedupe_trailers(message)
     result = subprocess.run(
         ["git", "commit", "-m", full_message],
         cwd=cwd, capture_output=True, text=True, timeout=60
@@ -612,6 +631,7 @@ def unified_search(
     top_k: int = 5,
     context_filter: Optional[str] = None,
     include_code: bool = False,
+    scope: str = "knowledge",
 ) -> str:
     """통합 지식 검색 — 공용 DB(pgvector) 검색 + AllowListGuard 필터.
 
@@ -623,13 +643,17 @@ def unified_search(
         top_k: 결과 수 (기본 5)
         context_filter: 도메인 태그 필터 (예: 'research', 'wiki', 'marketing')
         include_code: True 시 GitNexus 코드 심볼 검색 포함 (별도 라우팅, RRF 제외)
+        scope: 'knowledge'(기본 — 운영 기록 제외 · rag_search 와 같다) | 'ops'(운영 기록만) | 'all'(전부)
     """
     # root-cause: ADR-174 Phase 2 unified_search 라우터 진입점
+    if scope not in ("knowledge", "ops", "all"):
+        return f"ERROR: scope must be knowledge/ops/all, got '{scope}'"
     if _knowledge_closed():
         return _knowledge_closed()
     sys.path.insert(0, str(FORGE_ROOT / "shared/scripts/rag"))
     try:
         from knowledge_store import KnowledgeStore
+        from display_path import display_path  # 출처 표시는 홈 머리 뗀 상대 경로(#3659)
     except ImportError as e:
         return f"ERROR: knowledge_store 로드 실패 — {e}"
 
@@ -639,7 +663,7 @@ def unified_search(
     try:
         ks = KnowledgeStore.from_config()
         found = ks.search(
-            query, top_k=top_k * 2, context_filter=context_filter
+            query, top_k=top_k * 2, context_filter=context_filter, scope=scope
         )
         results_lists.append(found)
     except Exception as e:
@@ -665,11 +689,16 @@ def unified_search(
 
     lines = []
     for i, r in enumerate(deduped, 1):
-        lines.append(f"[{i}] {r.get('file_path', '?')}")
+        lines.append(f"[{i}] {display_path(r.get('file_path', '?'))}")
         if r.get("text"):
             lines.append(f"    {r['text'][:200]}")
         if r.get("score") is not None:
             lines.append(f"    score={r['score']:.4f}")
+    try:  # 관련 엔티티(#1767) — 저장소가 위키 결과에 붙여 준 칸을 search.py 와 같은 절로 덧붙인다
+        import related_entities
+        lines.extend(related_entities.text_lines(related_entities.collect(deduped)))
+    except ImportError:
+        pass
 
     # GitNexus 별도 라우팅 (RRF 제외)
     if include_code:

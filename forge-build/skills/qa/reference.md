@@ -402,14 +402,6 @@ route_map(gitnexus) 시드는 **route-centric** — "구현된 라우트"만 열
 - **판정**: 데이터 행이 렌더되는 화면 + 상호작용 후 백엔드 호출 0 → **WARN 버그**("mock 미배선 의심 — 활성 메뉴가 가짜 데이터 노출"). placeholder(빈 화면/'준비중')와 구분: placeholder는 행이 없거나 명시적 안내, mock은 그럴듯한 데이터 행을 렌더.
 - **fail-open**: `network_delta` 신호 부재·비-데이터 화면(정적 안내/폼 only)·판정 모호 → 기존 PASS 유지(비차단, WARN 신설 아님·hard-BLOCK 아님). AD-168 정합.
 
-### D2d — stale-base preflight (Phase A, WARN-only)
-
-forge-implement preflight와 동일하게 Phase A에서 base(develop) 신선도를 확인한다(비차단):
-```bash
-git fetch origin develop 2>/dev/null && git rev-list --left-right --count origin/develop...HEAD
-```
-behind(좌측 카운트) ≥ 10 → **WARN**: "현재 브랜치가 origin/develop 대비 {behind}커밋 뒤처짐 — git rebase origin/develop 권장". fetch 실패·원격 없음 = **fail-open silent skip**(그대로 진행).
-
 ---
 
 ### T3: DB 데이터 검증
@@ -509,7 +501,7 @@ Agent(
     """
 )
 ```
-이 게이트의 advisor 모델은 `advisor-spawn-guard.sh resolve` 출력을 따른다(기본 **Fable 5.1** · 대체 `gpt-5.6-sol`). 2026-08-12 이전 "Opus(비-Fable)" 고정은 폐기.
+이 게이트의 advisor 모델은 `advisor-spawn-guard.sh resolve` 출력을 따른다(기본 **Fable 5.1** · 대체 `gpt-5.6-sol`).
 
 ---
 
@@ -551,7 +543,7 @@ Agent(
 
 ### 공통 규약 (Q1/Q2)
 
-- 모델 = `advisor-spawn-guard.sh resolve` 출력을 따른다(기본 Fable 5.1 · 대체 `gpt-5.6-sol`). 2026-08-12 이전 문구는 "Opus 고정(리졸버 호출 불필요)"이었으나 `advisor-strategist` 기본이 Fable 로 바뀌어 폐기했다. 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
+- 모델 = `advisor-spawn-guard.sh resolve` 출력을 따른다(기본 Fable 5.1 · 대체 `gpt-5.6-sol`). 출력이 `gpt-*` 면 Agent 대신 `mcp__codex__codex`(read-only).
 - advisory only: `[STOP]` 해제·자동재시도·최종판정 불가.
 - 저빈도 고위험 지점에만 스폰 — 매 시나리오·매 버그마다 스폰 금지(비용 방지).
 - non-blocking: advisor 스폰 실패/미가용 시에도 해당 [STOP]·판단은 그대로 Human에게 진행(advisor는 augmentation, 하드 의존 아님).
@@ -586,7 +578,7 @@ healer 분담: 병렬 | 순차
 
 **evaluator-contract.json 자동 생성**:
 ```bash
-python3 ~/forge/.claude/skills/qa/scripts/contract-gen.py \
+python3 ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/contract-gen.py \
   --plan docs/qa/{date}-bug-fix-plan.md \
   --scenarios docs/qa/scenarios-filtered.md \
   --scope {scope}
@@ -700,48 +692,18 @@ fi
 
 ### Phase F — 버그별 Claude code-reviewer 1회 + RED→GREEN 증거 (2026-09-16 현행)
 
-> **검수 다이어트 §A1·§A2 (사람 결정 2026-09-16 "A B 다 적용해")** — 계획서 정본 `~/forge-outputs/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md`.
+> **검수 다이어트 §A1·§A2 (사람 결정 2026-09-16 "A B 다 적용해")** — 계획서 정본 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/11-platform/pipelines/plans/2026-09-16-review-diet-plan.md`.
 > Phase F 는 **Codex 를 부르지 않는다.** 수정된 버그마다 `Agent(subagent_type="code-reviewer", model:"opus")` 1회 +
 > RED→GREEN 증거(healer.log a0/a4 · TEST_PROOF · 웹=실브라우저 · 데이터=실DB 행) 확인만 한다(`workflow.js §Phase F`).
 > 교차 검수는 Phase G 의 `/forge-pr` cr-final 이 **한 번** 한다.
-> - 구 표기(아래 "cr 검수 큐 소비" 절 — `cr-trigger-run.py` 로 `bugfix|code|test|final` 4 stage 자동 실행)는 **2026-09-16 폐기**.
->   러너·큐 자체는 **수동 호출용으로 남아 있다** — `/qa` 가 자동으로 소비하지 않는다.
-> - 후속 정리(2026-09-16 같은 날): `qa-event-router.sh §cr-trigger` 훅은 **더 이상 큐를 적재하지 않고**, `cr-trigger-run.py` 는
->   남은 pending 줄을 **실행 없이 retired 로 닫는다**(Codex 재호출 경로 없음). 아래 "(구) Phase F" 절의 러너 설명은 역사 기록이다.
-> - ⚠️ 무력화되는 입력: 훅·러너의 **옛 판본**이 남은 머신(`git pull`·`forge-sync sync` 전) — 거기선 큐가 쌓이고 러너가 Codex 를 부른다.
 > - 폐기조건: Codex 한도가 병목이 아니게 되거나 `/qa` 경유 머지의 사후 결함이 반복되면 사람이 재결정.
-
-### (구) Phase F — cr 검수 큐 소비 (2026-09-16 폐기 — 수동 호출 전용으로 보존)
-
-⚠️ **2026-09-07 정정**: 이 자리에 있던 것은 **주석뿐인 파이썬 블록**이었다 — 큐를 열어
-`pending` 을 찾은 뒤 할 일을 `# 1. /forge-bug-review ...` 처럼 **주석으로만** 적어 두고 끝났다.
-즉 문서상으로는 4단계 자동 검수가 있었지만 **실행하는 코드가 레포에 0건**이었다.
-실측(2026-09-07): `~/forge` 와 `~/forge-outputs` 의 큐에 2026-07-04 부터 **두 달 넘게
-pending 으로 방치된 줄 5건**, `cr-bug`·`cr-test` 는 증거 디렉터리조차 생긴 적이 없다.
-주문서만 뽑고 주방에 넘기는 사람이 없었던 셈이다. 이제 그 주방장이 있다.
-
-```bash
-# 무엇을 돌릴지 먼저 본다(큐를 바꾸지 않는다)
-python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py" --dry-run
-
-# 실제 소비 — stage 별 검수를 실행하고, 증거가 착지했는지 확인한 뒤 상태를 done/failed 로 되쓴다
-python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py"
-```
-
-- stage 어휘는 `bugfix | code | test | final` 이다(커맨드 이름이 아니라 **인자**).
-  증거 디렉터리·머지 게이트 루프·큐가 전부 이 어휘를 쓴다.
-- 러너는 **증거 파일을 직접 쓰지 않는다.** 발행자는 `cr-evidence-emit.py` 하나뿐이고,
-  러너의 일은 **실행시키기**와 **착지 확인**이다. 착지가 없으면 `done` 으로 적지 않는다.
-- 끄는 법: `FORGE_CR_RUNNER=off` · 실행자 교체: `FORGE_CR_RUNNER_EXEC='<명령>'`
-  (stage 는 `$CR_STAGE`, 증거 경로는 `$CR_EVIDENCE_DIR` 환경변수로 들어온다)
 
 ### Phase G — `/forge-pr` 경유 PR + 교차 검수 1회 + develop 머지
 
-> 2026-09-16 검수 다이어트 §A1(사람 결정): 구 표기 `gh pr create` 직접 → `codex-cr-final.sh "${PR_BODY_PATH}"` → `gh pr merge --squash --delete-branch`
-> 는 **2026-09-16 폐기**. `/qa` 는 `gh pr create`·`gh pr merge` 를 직접 부르지 않는다 — PR·cr-final·머지 판정은 `/forge-pr`(원장 rc=0)가 한다.
+> `/qa` 는 `gh pr create`·`gh pr merge` 를 직접 부르지 않는다 — PR·cr-final·머지 판정은 `/forge-pr`(원장 rc=0)가 한다.
 > `scripts/codex-cr-final.sh` 는 **수동 호출용으로 남아 있다**(자동 호출 0).
 > `FORGE_AUTO_CR=on` 머지 게이트의 근거도 같은 날 `docs/reviews/codex-final/*.json` → **cr 원장(`cr-review-round.py`) 마지막 결정 = merge** 로 바뀌었다
-> (원장·PR 번호가 없으면 WARN 통과). 구 표기 "on 모드는 codex-final 증거를 요구해 막힌다" 는 2026-09-16 폐기.
+> (원장·PR 번호가 없으면 WARN 통과).
 > ⚠️ 무력화되는 입력: 원장이 merge 를 적은 뒤 커밋을 더 얹은 PR — 게이트는 reviewed_sha 와 HEAD 를 대조하지 않는다(`/forge-pr §2.7b` 가 본다).
 > 폐기조건: `/forge-pr` 이 머지 판정 단일 진입점이 아니게 되면 재검토.
 
@@ -749,7 +711,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/cr-trigger-run.py"
 # PR 본문 = final-qa-report. 생성·교차 검수·머지 판정은 /forge-pr 이 한다.
 /forge-pr   # base=develop, head=${QA_BRANCH}, body=docs/qa/${DATE}-final-qa-report.md
 
-bash ~/forge/.claude/skills/qa/scripts/ci-wait.sh "${QA_BRANCH}"   # CI FAIL 패턴 진단 보조
+bash ${FORGE_ROOT:-$HOME/forge}/.claude/skills/qa/scripts/ci-wait.sh "${QA_BRANCH}"   # CI FAIL 패턴 진단 보조
 git checkout develop && git pull
 git worktree prune
 ```
@@ -826,7 +788,7 @@ for (bug_id, branch) in completed_parallel_results_in_order:
 | Phase E a1 | a0 결과 | Why_root_cause append | healer |
 | Phase E a4 | 수정 코드 | after(GREEN) 3장 + Vision evaluator 위임 요청 | healer |
 | Phase E Vision | GREEN 6장 + expected | vision JSON (`docs/qa/reviews/visual/`) | Lead (Vision evaluator subagent) |
-| Phase F | bug-fix-plan.md + vision JSON + healer.log(RED/GREEN) | 버그별 code-reviewer 판정(CR_SCHEMA) | `code-reviewer` 에이전트(opus) — 구 표기 "cr-* agents" 는 2026-09-16 폐기 |
+| Phase F | bug-fix-plan.md + vision JSON + healer.log(RED/GREEN) | 버그별 code-reviewer 판정(CR_SCHEMA) | `code-reviewer` 에이전트(opus) |
 | Phase G | Phase F 전 버그 PASS/WARN | `/forge-pr`(cr-final 1회 + CI + 원장 rc=0 머지) | qa orchestrator → `/forge-pr` |
 | Phase H | 완료 PR | metrics.jsonl + wiki-sync | qa orchestrator |
 

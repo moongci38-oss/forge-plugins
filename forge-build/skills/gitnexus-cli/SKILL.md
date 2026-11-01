@@ -29,7 +29,7 @@ Run from the project root. This parses all source files, builds the knowledge gr
 
 **⚠️ CLAUDE.md 재주입:** `analyze`(플래그 없이)는 `<!-- gitnexus:start -->…<!-- gitnexus:end -->` 블록을 매번 다시 쓴다. 마커가 자기 줄로 남아 있지 않으면 교체 대신 파일 끝에 새 블록을 덧붙여 `git pull --ff-only` 를 막는다.
 - `--skip-agents-md` 가 이를 피하는 유일한 지속 수단이다. 단일 스위치라 CLAUDE.md·AGENTS.md 재생성을 함께 끈다(AGENTS.md 심볼 수만 갱신하는 플래그 없음) — 쓸지는 레포별 사람 판단이며 이 스킬의 기본값이 아니다.
-- PostToolUse 훅(`~/.claude/hooks/gitnexus/gitnexus-hook.cjs`)은 제안만 출력하고 analyze 를 돌리지 않는다. forge 추적 파일이 아니므로 고치지 않는다.
+- PostToolUse 훅(`$HOME/.claude/hooks/gitnexus/gitnexus-hook.cjs`)은 제안만 출력하고 analyze 를 돌리지 않는다. forge 추적 파일이 아니므로 고치지 않는다.
 
 ### status — Check index freshness
 

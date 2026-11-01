@@ -26,7 +26,7 @@ reasoning_context: 현재 추론 단계를 `[...]` 로 쿼리 앞에 붙이면 �
 ## Step 1: 공용 DB 연결 확인
 
 ```bash
-bash ~/forge/shared/scripts/t3-check.sh    # T3_OK | T3_DOWN reason=… | T3_SKIP (연결만 본다 — 색인 건수는 안 나온다)
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/t3-check.sh    # T3_OK | T3_DOWN reason=… | T3_SKIP (연결만 본다 — 색인 건수는 안 나온다)
 ```
 
 - 인덱스는 공용 DB 하나다(로컬 `.rag-index` 는 걷었다 #1763). 공용 DB 가 안 되면 검색이 위키 파일 직접 검색으로 내려가고 stderr 에 안내 1줄이 나온다 — 그 줄이 보이면 결과에 "공용 색인 미사용"을 명시한다(침묵 금지).
@@ -35,7 +35,7 @@ bash ~/forge/shared/scripts/t3-check.sh    # T3_OK | T3_DOWN reason=… | T3_SKI
 
 검색(입구는 이것 하나 — 위키 결과에는 관련 엔티티가 붙는다):
 ```bash
-bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --top-k {N} --mode {hybrid|vector|bm25}
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --top-k {N} --mode {hybrid|vector|bm25}
 ```
 
 | 옵션 | 뜻 |
@@ -56,18 +56,18 @@ bash ~/forge/shared/scripts/rag/rag-exec.sh search.py "{검색어}" --top-k {N} 
 | 위키 대체 | `⚠️ 검색 계층: 위키 파일 직접 검색(`<경로>`) —` <사유> `· 팀 공유 인덱스와 다른 결과입니다` |
 | 없음 | `⚠️ 검색 계층: 없음 —` <사유> `· 위키 폴더 없음(결과 0건)` (`--scope ops` 는 공용 DB 에만 있다) |
 
-정책 정본 `~/forge/docs/RAG-SHARED-DB-POLICY.md` · 동작 정본 `shared/scripts/rag/search.py`.
+정책 정본 `${FORGE_ROOT:-$HOME/forge}/docs/RAG-SHARED-DB-POLICY.md` · 동작 정본 `shared/scripts/rag/search.py`.
 
 ## 인덱스 관리
 
 ```bash
-bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants [--rebuild]
-bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research
-bash ~/forge/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/09-grants [--rebuild]
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research
+bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/rag-exec.sh index.py ${FORGE_OUTPUTS:-$HOME/forge-outputs}
 ```
 색인은 공용 DB 에만 쓴다 — 공용 DB 주소가 없으면 안내 1줄 뒤 건너뛴다.
 
-구성: LlamaIndex · 임베딩 multilingual-e5-small(384차원, 로컬) · 청크 512/overlap 50 · md/txt/json/docx/pdf. 요구: Python 3.10+ · `pip install -r ~/forge/shared/scripts/rag/requirements.txt`.
+구성: LlamaIndex · 임베딩 multilingual-e5-small(384차원, 로컬) · 청크 512/overlap 50 · md/txt/json/docx/pdf. 요구: Python 3.10+ · `pip install -r ${FORGE_ROOT:-$HOME/forge}/shared/scripts/rag/requirements.txt`.
 
 ## AI 행동 규칙
 

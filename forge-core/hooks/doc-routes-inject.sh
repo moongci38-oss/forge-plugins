@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # doc-routes-inject.sh — 상황에 맞는 지침 절을 **훅이 넣어 준다** (#2808)
 #
-# 왜: 지침 문서(rules-on-demand 등)는 모델이 기억해서 찾아 읽어야 했다. 14일 동안 16개가 한 번도 안 읽혔고,
-#   머지 관문 규약은 어느 지침에도 없어 관문 4개에 시행착오로 막혔다(점검 2026-10-14 rules-on-demand-size-and-reach).
+# 왜: 지침 문서(rules-on-demand 등)는 모델이 기억해서 찾아 읽어야 해 잘 안 읽힌다.
 #   그래서 정본 표 1개(shared/config/doc-routes.tsv)를 세 지점에서 읽어, 맞는 상황이면 "문서§절 + 꼭 알 것 1줄"을 넣는다.
 #     SessionStart      모든 세션에 "상황 → 문서" 색인(표의 session `*` 행) · 팀장 방(FORGE_BUS_FROM)이면 그 역할 절(`room=<정규식>` 행)
 #     UserPromptSubmit  요청·버스 브리프 문구가 prompt 행 정규식과 맞으면
@@ -12,19 +11,19 @@
 #   - 같은 세션에 같은 절(표 3칸 값)은 1번만 — 상태 파일 ${XDG_RUNTIME_DIR:-/tmp}/forge-doc-routes-<uid>/<세션 id>.
 #     색인 줄은 따로 센다(색인에 나온 문서라도 그 상황이 오면 꼭 알 것 1줄을 넣는다).
 #     SessionStart source=compact|clear 면 그 세션 기록을 비운다(맥락이 지워졌으니 다시 넣는다) · resume 은 그대로 둔다.
-#   - 상한: 한 번에 6줄 · 한 줄 200자 · 전체 1200자. 줄 수로 잘린 행은 기록하지 않아 다음 매칭 때 들어간다.
+#   - 상한: 한 번에 6줄(색인 줄은 세지 않는다) · 한 줄 200자 · 전체 1200자. 줄 수로 잘린 행은 기록하지 않아 다음 매칭 때 들어간다.
 #   - 매칭은 대소문자 무시 정규식(python re). 깨진 정규식 줄은 그 줄만 건너뛴다.
 # 끄기: FORGE_DOC_ROUTES=off (kill-switch 1개) · 시험 주입구: FORGE_DOC_ROUTES_FILE=<표 경로>
 # fail-open: 표 없음·python3 없음·깨진 입력·상태 폴더를 못 씀 → 조용히 rc 0(상태 폴더가 없으면 중복 막기만 빠진다). 아무것도 막지 않는다.
 # 배선: 프로젝트 레인 .claude/settings.json(세 이벤트) · 다른 프로젝트 = register-forge-hooks.sh REQUIRED(PROJECT_DEDUP 꼴 — forge 세션은 프로젝트 레인만 돈다)
-#   · 플러그인 사용자 = forge-core 플러그인 plugin.json 등록은 2단계(플러그인 레포) 예정 — 세 이벤트 · 인자 --via-plugin · 설정에 등록이 있으면 침묵(#2825)
+#   · 플러그인 사용자 = forge-core 플러그인 plugin.json — 세 이벤트 · 인자 --via-plugin · 설정에 등록이 있으면 침묵(#2825)
 # ⚠️ 무력화되는 입력: 표에 없는 말로 요청하면 안 넣는다(정규식이 아는 낱말만) · Bash 명령을 변수로 조립하면(`S=pr-merge.sh; bash $S`) 못 본다 ·
 #   상태 폴더가 남의 것·심링크면 중복 막기를 끈다(같은 절이 매번 들어갈 수 있다 — 넘치지 않게 상한은 그대로).
 # 재현: bash shared/scripts/tests/doc-routes-inject.test.sh
 # 폐기조건: 하네스가 상황별 문서 주입을 자체 기능으로 제공하면 지운다.
 
 [ "${FORGE_DOC_ROUTES:-on}" = off ] && exit 0
-# 플러그인 사본(#2825) — forge-core 플러그인이 `bash "${CLAUDE_PLUGIN_ROOT}/hooks/doc-routes-inject.sh" --via-plugin` 으로 걸 예정(2단계 · 플러그인 레포 plugin.json).
+# 플러그인 사본(#2825) — forge-core 플러그인이 `bash "${CLAUDE_PLUGIN_ROOT}/hooks/doc-routes-inject.sh" --via-plugin` 으로 건다.
 #   전역(register-forge-hooks.sh)·프로젝트 레인 등록이 있으면 그쪽이 돌므로 플러그인 사본은 침묵한다(두 번 넣지 않게).
 #   왜 상태 파일 중복 막기로 안 되나: 같은 이벤트의 훅들은 **동시에** 돈다 — 둘 다 상태를 쓰기 전에 읽어 둘 다 넣는다
 #   (compact 때는 둘 다 기록을 비운다). 왜 register 쪽에서 건너뛰지 않나: 등록은 갱신할 때 한 번이라 그 뒤 플러그인을
@@ -37,12 +36,13 @@ if [ "${1:-}" = --via-plugin ]; then
   done
 fi
 _dr_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# 표 찾기: 주입구 → 원본 레포 옆(../../shared) → ~/forge 클론. 미러(~/.claude/hooks)·플러그인 캐시 사본은 옆에 표가 없다(#2816 검수 HIGH 1 · #2825).
+# 표 찾기: 주입구 → 원본 레포 옆(../../shared) → ~/forge 클론. 미러(~/.claude/hooks)·플러그인 캐시 사본은 옆에 표가 없다(#2825).
 _dr_tsv="${FORGE_DOC_ROUTES_FILE:-$_dr_here/../../shared/config/doc-routes.tsv}"
 [ -n "${FORGE_DOC_ROUTES_FILE:-}" ] || [ -f "$_dr_tsv" ] || _dr_tsv="${FORGE_ROOT:-$HOME/forge}/shared/config/doc-routes.tsv"
 [ -f "$_dr_tsv" ] || exit 0
 command -v python3 >/dev/null 2>&1 || exit 0
-_dr_in="$(cat)"
+_HDL_D="${BASH_SOURCE[0]%/*}"; [ "$_HDL_D" = "${BASH_SOURCE[0]}" ] && _HDL_D=.; [ -f "$_HDL_D/lib/hook-deadline.sh" ] && . "$_HDL_D/lib/hook-deadline.sh"   # #3279-6 공통 입구 — 입력 읽기만(막지 않는 훅이라 시간 상한 hook_entry 는 걸지 않는다)
+unset HOOK_INPUT _HOOK_INPUT_READ; declare -F hook_read_input >/dev/null && hook_read_input 2>/dev/null || HOOK_INPUT="$(cat)"; _dr_in="$HOOK_INPUT"
 
 # 빠른 길 — PreToolUse 는 Bash 호출마다 돈다. 표의 bash 정규식을 하나로 묶어 입력 원문에 한 번 대 보고, 안 걸리면 python 을 띄우지 않는다.
 #   원문(JSON)은 명령을 그대로 담고 있어 여기서 안 걸리면 아래 정밀 판정에서도 안 걸린다(따옴표가 \" 로 바뀌는 정도의 차이만 있다).
@@ -140,7 +140,6 @@ if state:
 head = ("[문서 길잡이] 상황 → 문서 (그 상황이 오면 그 절만 읽는다)" if trig == "session"
         else "[문서 길잡이] 지금 하는 일에 맞는 지침 절 — 필요하면 읽고 진행한다")
 # 방 역할 행을 색인보다 먼저 — 색인 줄은 줄 수 상한(MAX_LINES)에 세지 않는다(표의 `*` 행 수가 곧 상한이고 전체 1200자는 그대로 건다).
-#   종전엔 색인 6행이 상한 6을 다 먹어 팀장 방 역할 절이 잘렸다(PR #2816 qa HIGH).
 picked.sort(key=lambda p: p[0].startswith("index:"))
 out, used, total, counted = [], [], len(head), 0
 for rec, line in picked:

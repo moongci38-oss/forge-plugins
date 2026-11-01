@@ -1,11 +1,11 @@
 ---
-description: "같은 세션 계속 — /compact 전 경량 체크포인트 저장 + 기록 무누락 게이트. 트리거: /forge-checkpoint, 토큰 70~90% 경고 (구 /checkpoint 개명)."
+description: "같은 세션 계속 — /compact 전 경량 체크포인트 저장 + 기록 무누락 게이트. 트리거: /forge-checkpoint, 토큰 70~90% 경고."
 group: ops
 ---
 
 # /forge-checkpoint
 
-같은 세션에서 컨텍스트 정리가 필요할 때: 저장 → `/compact` → **같은 세션에서 이어서 진행**. 3분법: 새로 연다 `/forge-start` · **계속 쓴다(정리만) `/forge-checkpoint` ↔ 짝 `/compact`** · 완전히 닫는다 `/forge-end`.
+같은 세션에서 컨텍스트 정리가 필요할 때: 저장 → `/compact` → **같은 세션에서 이어서 진행**.
 - `/clear` 는 짝이 아니다. 무관한 새 작업 전환만 `/forge-end` → `/clear` → `/forge-start`.
 - 90%+ 또는 마일스톤 완료 → `/forge-end`. compact 없이 반복 호출되면: `"/compact를 잊으셨습니다 — checkpoint의 짝은 compact입니다."`
 - **순수 state snapshot** — 코드 수정·파일 생성(체크포인트 파일 제외)·명령 실행 금지(아래 스크립트 제외). learnings append 도 안 한다(`## learnings 미기록 misfire` 절에 적는다).
@@ -16,7 +16,7 @@ group: ops
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-checkpoint-collect.sh" "$(pwd)"` — 항상 exit 0(fail-open). `*_ERROR:` 줄은 실패이지 0건이 아니다.
 - `session-record-audit.sh collect` 수집원 → 본문 각 절 1:1 반영(개수 정본 = `CHECKLIST_SECTIONS` 출력). 해당 없으면 `없음` 명시(절 생략 = FAIL).
 - **백그라운드 워커(live, `WORKER_WORKTREE=`)**: 1기당 브리프 영속 경로 + 생존 실측(`recent_changes`·`last_change`) + 재개 1줄. `WORKER_BRIEF_PERSISTED` ≠ `yes` 인 활성 워커 → 영속화 후에만 저장.
-- **세션 버스 워커(dormant, `~/.claude/state/session-bus.jsonl`)**: live 와 별개 · 사망 판정 미적용. `## 백그라운드 워커 생존` 안에 분리 표 `### 세션 버스 워커 (dormant — live 프로세스 아님)` — `| name | sid8 | cwd | 최종응답 | 인계 지시 |`(인계 지시 없으면 `-`). `BUS_WORKER_COUNT=0` → `없음`.
+- **세션 버스 워커(dormant, `$HOME/.claude/state/session-bus.jsonl`)**: live 와 별개 · 사망 판정 미적용. `## 백그라운드 워커 생존` 안에 분리 표 `### 세션 버스 워커 (dormant — live 프로세스 아님)` — `| name | sid8 | cwd | 최종응답 | 인계 지시 |`(인계 지시 없으면 `-`). `BUS_WORKER_COUNT=0` → `없음`.
 ## 2. 착지 경로 (계약 ⑤)
 위 출력 `CHECKPOINT_DIR=` = `$FORGE_OUTPUTS/.claude/checkpoints`(워크트리여도 동일, mkdir 완료) · `HANDOVER_DIR=` 는 §4 에 쓴다. `LANDING=fallback` = handover-landing.sh 부재/무응답 → 논리 경로.
 ## 2-b. 하네스 갭 후보(신규) — 직전 체크포인트(`CP_PREV`·`CP_SINCE`) 이후 미판정분만 표시(리포트 파일 안 씀)
@@ -24,7 +24,7 @@ group: ops
 ```bash
 python3 -c "
 import json, os, sys, datetime
-path = os.path.join(os.environ.get('FORGE_OUTPUTS', os.path.expanduser('~/forge-outputs')), '.claude', 'audit', 'hook-fp-telemetry.jsonl')
+path = os.path.join(os.environ.get('FORGE_OUTPUTS', os.path.expanduser('${FORGE_OUTPUTS:-$HOME/forge-outputs}')), '.claude', 'audit', 'hook-fp-telemetry.jsonl')
 hook = None
 for line in (open(path, encoding='utf-8', errors='replace') if os.path.isfile(path) else []):
     try: d = json.loads(line)
@@ -59,9 +59,9 @@ branch: {브랜치} ({repo 경로})
 - 바뀐 것: {옛 이름} → {새 이름} · 발효: {develop 반영됨 | PR #N 브랜치만 | 미러 sync 필요} · 재현: {명령}
 ```
 - 이어서 각 절도 `## ` 제목으로(해당 없으면 "없음"): 팀장 위임 기록 (팀slug | 보낸 브리프 | 수신 응답 | 방 상태 dormant/live — 없으면 "없음") · 날짜 걸린 할 일 (미룬 일 — `YYYY-MM-DD | 1줄 | 출처`, 없으면 "없음") · 미완료 태스크 · 승인 대기([STOP]) · 미커밋 변경 · 열린 PR·브랜치 · 진행 중 백그라운드 작업 · learnings 미기록 misfire · 사용자 지시 미이행 · 백그라운드 워커 생존.
-- `### 바뀐 것`: 없으면 `- 바뀐 것: 없음` 한 줄(비우면 verify FAIL). `## 날짜 걸린 할 일`: 여기선 장부(`carry-ledger.md`)에 쓰지 않는다 — 등록은 §6 재개 또는 `/forge-end` §4.
+- `### 바뀐 것`: 없으면 `- 바뀐 것: 없음` 한 줄(비우면 verify FAIL). `## 날짜 걸린 할 일`: 여기선 장부(`carry-ledger.md`)에 **판단으로는** 쓰지 않는다(이슈 닫힘이 근거인 줄은 `forge-core` 장부 줄(기계 닫기)) — 등록은 §6 재개 또는 `/forge-end` §4.
 - `## 사람 확인 카드`: **이미 끝낸 일** 중 사람이 봐야 할 것을 **전수 열거** — **별도 이슈(카드)를 만들지 않는다**(#2615 — 묶음 안이든 밖이든) · 그 일의 이슈 본문 `## 사람 확인` 절에 적고 `- 묶음 <마일스톤 이름> — #<이슈> \`## 사람 확인\` 절` 로(항목 머리 `[메인 PC]`·`[서브 PC]`·`[모든 PC]` + 굵은 제목 + 고친 것·해 볼 것·기대 · 별도 카드 없이 묶음 허브 본문 `## 테스트 요청` 절에 모인다 · #2307·#2364·#2585) · 묶음에 아직 못 넣은 일은 `- 묶음 미정 — #<이슈> \`## 사람 확인\` 절`(규약 `rules-on-demand/issue-board-standard.md §9-1`) — 기다리지 않는다. 답이 있어야 진행되면 `[승인 요청]`·`[결정 요청]` 카드로.
-- `## 결정 요청 카드`: 사람 답이 없으면 진행이 막히는 것만 `[결정 요청]` 카드(라벨 = `bash ~/forge/shared/scripts/decision-label.sh <owner/repo>` 가 고른 것(human-decision · 옛 needs-decision 만 있는 레포는 그것 · 둘 다 없으면 만든다 #2310) + `status:blocked` · 틀 §9-2)로. 본문에 "실행해 주세요" 류 문장이 있는데 두 절 어느 쪽에도 번호가 없으면 §4 verify FAIL.
+- `## 결정 요청 카드`: 사람 답이 없으면 진행이 막히는 것만 `[결정 요청]` 카드(라벨 = `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/decision-label.sh <owner/repo>` 가 고른 것 + `status:blocked` · 틀 §9-2)로. 본문에 "실행해 주세요" 류 문장이 있는데 두 절 어느 쪽에도 번호가 없으면 §4 verify FAIL.
 - `## 미완료 태스크`: **이 세션이 손댄 것만**(장부 `carry-ledger.py` `SEC_RE` 가 읽어 승격). 타 세션·타 프로젝트 항목은 `## 타 세션 상태 (참고 — 내 소유 아님)` 에 격리. 없으면 `- 없음` 한 줄(메타 문장 금지 — `NONE_RE` 통과해 할 일로 등록됨). ⛔ 절 제목 변경 금지. 정본 → `/forge-end` §3.
 - `## 보드 열린 이슈`: 이 PC·이 레포의 열린 이슈 번호를 **한 줄로** 나열(예 `#101 #104` · 사람 확인 카드 제외 · `gh api 'repos/<owner>/<repo>/issues?state=open&labels=pc:<PC>' --paginate --jq '.[]|select(.pull_request|not)|"#\(.number)"'`) — verify 의 보드 대조(`board-recount.sh` · #2447)가 이 절만 본다 · 장부로 옮기지 않는 절이라 남의 일도 여기 적는다(`## 미완료 태스크` 는 이 세션 것만) · 0건이면 `없음`.
 - `session:` 실값 확인 `echo "${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"` · 둘 다 비면 `unknown`. 토큰·패스워드 기록 금지. 20~50줄.
@@ -70,12 +70,13 @@ branch: {브랜치} ({repo 경로})
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/session-record-audit.sh" verify "{체크포인트 경로}"`
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/handover-manager.sh" refresh-index-dir "$HANDOVER_DIR" || true`
 `VERIFY=FAIL` → 지목 절 보완 후 재실행. **PASS 전 `/compact` 안내 금지.** (INDEX 는 기계 생성 — 수동 편집 금지) `VERIFY=FAIL(LEDGER_NO_ISSUE=N)` → `LEDGER_HINT` 명령으로 맞춘 뒤 재실행.
-## 5. 안내 출력 — `체크포인트 저장: {경로} (기록 무누락 게이트 PASS 8/8)` / `이제 /compact 실행하세요. compact 후 "계속"/"resume" 입력하면 이어갑니다.` · 이 세션에서 대형 스킬(15KB+) 2개+ 호출 시 대신: "세션을 닫고 새 세션에서 /forge-start 하세요 — 미소비 체크포인트를 자동 감지·복원합니다."
+## 5. 안내 출력 — `체크포인트 저장: {경로} (기록 무누락 게이트 PASS)` / `이제 /compact 실행하세요. compact 후 "계속"/"resume" 입력하면 이어갑니다.` · 이 세션에서 대형 스킬(15KB+) 2개+ 호출 시 대신: "세션을 닫고 새 세션에서 /forge-start 하세요 — 미소비 체크포인트를 자동 감지·복원합니다."
+- **목표(`/goal`)가 걸린 세션**: 저장 뒤 `/goal clear` → `/compact` → 다시 `/goal <목표>` 순서로 안내한다 — 목표 Stop 훅이 응답 끝내기를 막아 `/compact` 가 들어가지 않는다(#3418).
 ## 6. 재개 ("계속"/"resume"/"이어서")
 1. **[소유 검증]** `CHECKPOINT_LATEST` 는 전역 최신일 뿐 — 대조 없이 복원하면 남의 것을 오복원한다.
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/forge-checkpoint-resume.sh" "$(pwd)"` → `CP=` 가 복원 대상(빈값 = "체크포인트 없음 — 처음부터"). `CP_OWNERSHIP`: `own` 내 것 · `switched` 타 세션 것 건너뛰고 미소비 내 것으로 교체 · `nosid`/`nofield` fail-open(WARN 줄 그대로 보고) · `none` 없음. 항상 exit 0.
 2. 브랜치 불일치 → "⚠️ 브랜치 불일치" 경고 후 계속. uncommitted 변경은 경고만(덮어쓰기 금지).
 3. "다음 스텝" 1번부터 그대로 출력 후 실행. `## 날짜 걸린 할 일` 이 "없음"이 아니면 항목마다 장부 등록 → 나온 `ID=C-NNNN` 을 보고(`PROJECT_ID=UNKNOWN` 이면 등록 말고 pmo 로):
    `python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/carry-ledger.py" add "<1줄>" --source "<출처>" --until <날짜> --project "$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/scope-root.sh" project-id "$PWD" | sed -n 's/^PROJECT_ID=//p')"`
-   이슈는 기본으로 만든다(#1927 — 열린 `#N` 연결 → 같은 장부 ID 재사용 → 생성 · 미래 날짜면 시작일 이슈). 레포를 못 정하면 rc≠0 + 사유(장부에는 남는다) — 보고에 옮긴다. 이슈가 맞지 않는 일만 `--no-issue "<사유>"`.
+   이슈는 기본으로 만든다. 레포를 못 정하면 rc≠0 + 사유(장부에는 남는다) — 보고에 옮긴다. 이슈가 맞지 않는 일만 `--no-issue "<사유>"`.
 4. 복원 완료 시 `touch "${CP}.consumed"`.

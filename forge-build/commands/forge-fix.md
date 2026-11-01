@@ -1,12 +1,12 @@
 ---
-description: 버그 수정 통합 파이프라인 단일 진입점 — 4-스테이지(조사·재현→리포트→수정→검수) + 게이트 R/G 강제, 실브라우저·실DB 검증 항상 강제 (plan v1.1, 2026-07-03)
+description: 버그 수정 통합 파이프라인 단일 진입점 — 4-스테이지(조사·재현→리포트→수정→검수) + 게이트 R/G 강제, 실브라우저·실DB 검증 항상 강제
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
 argument-hint: "\"<버그 설명>\" | --scan <URL> | --loop \"<종료조건>\" | [--coder claude:tier|codex:tier|sol|terra|luna|ab] [--advisor sol|terra|opus|fable]"
-model: sonnet
+model: opus
 group: implement
 ---
 > **실행 모드**: 쓰기 모드 전용. Plan mode 감지 시 즉시 [STOP] — "Escape로 plan mode 해제 후 재실행하세요."
-> 버그 수정의 유일 진입점(Lane A) — investigate·bug-report·healer 를 4-스테이지로 흡수. 조사 RED + 검수 GREEN 은 규모·모드 무관 **항상 강제**(경량 우회 없음). spec有→`/forge-implement` · spec無 개발→`forge-pge`.
+> 버그 수정의 유일 진입점(Lane A) — investigate·bug-report·healer 를 4-스테이지로 흡수. 조사 RED + 검수 GREEN 은 규모·모드 무관 **항상 강제**(경량 우회 없음). 다른 명령과의 경계 → `${FORGE_ROOT:-$HOME/forge}/.claude/rules-on-demand/harness-family-map.md`.
 # /forge-fix
 ```
 /forge-fix "<버그 설명>" | <Notion 이슈 URL>   # 단일
@@ -25,6 +25,7 @@ group: implement
 - 결정론 오버라이드: DB 레이어(`**/model{s,}/`·`**/repository/`·`**/migration{s,}/`·`**/dao/`·`*.repository.*`·`*.entity.*`) 수정 = **data 강제**. 서버 핸들러(`**/controller{s,}/`·`**/handler{s,}/`·`**/route{s,}/`·`**/api/`·`*.controller.*`·`*.handler.*`·`*.route.*`) = non-UI — 단 `git diff -U0` hunk 에 `<script>`·`$(`·`.html(`·`addEventListener`·`document.`·`innerHTML` 이 있으면 ui 승격 WARN. 모호 = 자가태깅.
 - **mock-unwired**(mock import 만, 상호작용 시 백엔드 호출 0) = 버그 아닌 미구현 → **[STOP]** + `/forge` 라우팅 권고.
 - **spec-gap**(`.specify/specs/` AC 자체가 미구현) = 증상별 국소 패치 금지 → **[STOP]** + `/forge` P5 권고. 모호 = 버그 경로.
+- **이슈 먼저**(분류 직후 · 버그마다): 이 일의 이슈가 없으면 `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/issue-new.sh` 로 1장, 있으면 그 번호(PR `Closes #N`) — 정본 `harness-family-map.md` §이슈 먼저.
 ## Step 0.0 — 범위 계약 (코드 전 · 버그마다 · 불확실하면 [STOP]) (#1622)
 코드·DB 를 건드리기 전에 4줄을 **출력**한다(쓰지 않고 넘어가면 ①로 가지 않는다):
 - (a) **재진술** — 버그를 한 문단으로(증상·어디서·기대 vs 실제).
@@ -38,7 +39,7 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" --c
 bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/harness-escalation-check.sh" decision --rec-id <rec_id> --decision <wave|teams|workflow|main>
 ```
 권고 시 `forge-core.md §병렬 실행` 4분법(충돌 판정 `fr-lanes.py`)으로 정하고 decision 1줄 기록(미기록 = 결측). 끄기 `FORGE_ESCALATION_GATE=off` · 실패 = fail-open.
-`workflow` 선택 시 `Workflow({ script: Bash("cat ~/.claude/skills/investigate/workflow.js"), args: { issue: "<증상 1줄>", target: ".", skipVerify: false } })` — 원인 규명까지만(재현·수정 단계에서 스크립트가 스스로 [STOP]). 반환 `status`: `ROOT_CAUSE_CONFIRMED` → `fixPlan` 들고 ③ · `HYPOTHESIS_UNVERIFIED` → [STOP] 원인 없이 수정 금지 · `HYPOTHESES_READY` → [STOP] 검증은 사람이 · 필드 부재 → [STOP] (fail-closed).
+`workflow` 선택 시 `Workflow({ script: Bash("cat $HOME/.claude/skills/investigate/workflow.js"), args: { issue: "<증상 1줄>", target: ".", skipVerify: false } })` — 원인 규명까지만(재현·수정 단계에서 스크립트가 스스로 [STOP]). 반환 `status`: `ROOT_CAUSE_CONFIRMED` → `fixPlan` 들고 ③ · `HYPOTHESIS_UNVERIFIED` → [STOP] 원인 없이 수정 금지 · `HYPOTHESES_READY` → [STOP] 검증은 사람이 · 필드 부재 → [STOP] (fail-closed).
 ## Step 0.2 — 소관 팀 + 팀 지식 (WARN 전용, 비차단)
 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/team-route.sh" forge-fix` → `OWNER=<slug>[,…]` → `${FORGE_OUTPUTS:-$HOME/forge-outputs}/12-team-ops/members/<slug>/wisdom.md` 선독. 2팀+ = 접수 순서 지정(같은 파일 병렬 수정 금지). `OWNER=none`(이름표 `## 소유 도구` 미기재)·wisdom 부재·실패 = **건너뛴다**(fail-open, AD-168) — 소관은 이름표를 고쳐 정한다. 팀장 경유(버스)를 강제하지 않는다(`forge-session-bus.sh send <slug>` 판단은 사람·총괄). 판정 근거는 "커맨드 소유"다 — 파일 소유가 아니다.
 ## 4-스테이지 루프 (버그 1개든 N개든 동일)
@@ -52,8 +53,8 @@ advisor 스폰 모델 = `MODEL=$(bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts
 - RED = 리포트 증상에 대응하는 관측(`red.symptom_observed`). 정적 코드 관찰은 `hypothesis` — RED 자격 없음.
 - 프로덕션 결함 vs 테스트/mock drift(최근 커밋이 계약을 의도적으로 바꿨고 프로덕션은 정상) 판별 — drift 면 ③ 대상 = 테스트/mock. 게임 확률·무보상 경로는 기획 테이블 실측 전 버그 단정 금지.
 - AMBIGUOUS(가설 미수렴) → advisor T1 후 `/investigate`. SIMPLE 은 스폰 안 함.
-- ▶ **게이트 R**: 축별 RED 오라클 부재 시 소스 Edit `exit 2` BLOCK(`healer-log-read-required.sh` — ui 는 screenshot+console.json+network.json 실측).
-**② 리포트** — 6하원칙 `bug-fix-plan.md` + RED 증거 첨부 + current-bug 포인터. fop.json 헤더 `evidence_tier`(`runtime`|`code+db`|`code-only`) + `provenance`(실행 환경·네트워크 1줄), runtime 아니면 "런타임 증거 없음 — 근거등급 하향" 명기([STOP] 아님). kill-switch `FORGE_EVIDENCE_TIER=off`.
+- ▶ **게이트 R**: 버그 재현은 새 시험으로 더한다 — 기존 시험을 고치면 `fix-test-edit-guard.sh` 가 알림 1줄만 내고(막지 않는다) cr-risk-tier 가 그 PR 을 full-gate 로 올려 qa 가 시험 약화를 판정한다(#4080). 소스 Edit 전 축별 RED 오라클(ui 는 screenshot+console.json+network.json 실측)은 기계 차단이 없으니 스스로 먼저 남긴다.
+**② 리포트** — 6하원칙 `bug-fix-plan.md` + RED 증거 첨부 + current-bug 포인터. fop.json 헤더 `evidence_tier`(`runtime`|`code+db`|`code-only`) + `provenance`(실행 환경·네트워크 1줄), runtime 아니면 "런타임 증거 없음 — 근거등급 하향" 명기([STOP] 아님).
 **③ 수정**
 - advisor T2(다파일 교차의존·계약 변경·healer MANUAL-ONLY) · T4(data migration·DELETE·결제 — 사용자 [STOP] 게이트에 조언 포함).
 - 실행자 라우팅 — **①RED·④GREEN 은 항상 Claude 고정**(구현자≠검증자, Codex 는 세션 MCP 불가). 순서가 계약(레인 → 모델):
@@ -68,6 +69,19 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
   - `GATE=skip` → T1/T2 생략 · `advise` → advisor 조언을 코더 프롬프트에 주입. T3·T4 는 항상 유지.
   - `--advisor <sol|terra|opus|fable>`: `AMODEL=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-model-resolve.sh" "$ADVISOR_SPEC")` → gpt 면 `mcp__codex__codex`(read-only), claude 면 `Agent(subagent_type="advisor-strategist", model=$AMODEL)`. advisor 벤더 ≠ 구현자 벤더 권고.
   - 수정 직후 `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/coder-attribution.sh" write "$WORKTREE" "$MODEL"`.
+- **healer 흡수(#3737 — 옛 `healer` 스킬 · 엔진 에이전트 `.claude/agents/healer.md` 는 그대로)**:
+  - 입력 = ② 리포트 `docs/bug_report/BUG-NNN-<slug>.md`(`find docs/bug_report/ -name "<BUG-ID>-*.md"` · 없으면 [STOP] "② 리포트부터") · 6하원칙 = `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/bug-report-header-check.sh" <리포트>` rc 1 → MISSING/EMPTY 를 인용하고 [STOP].
+  - Claude 실행자 = `Agent(subagent_type="healer", prompt=<리포트 경로 · 프로젝트 루트 · a0~a6>)` — 아티팩트·로그 `docs/bug_report/artifacts/<BUG-ID>-healer.log` · 끝나면 리포트 `상태: Fixed`(STOP 이면 `In Progress` + 사유).
+  - a2 진입 전 분류(4-Rule):
+
+    | 분류 | 조건 | 처리 |
+    |---|---|---|
+    | deterministic-syntax | 컴파일·타입·오탈자 · 변경 파일 ≤2 | 자동수정 + 재컴파일 |
+    | **test-expectation** | 기대값·fixture·mock 불일치 · 로직 변경 없음 | **자동수정 금지 — 사람 [STOP]** · 기존 시험 수정은 사람이 [STOP] 에서 정한 뒤에만 · 그 PR 은 full-gate(qa 가 시험 약화 판정 · #4080) |
+    | config-drift | 설정 키/값만 | 자동수정(설정 파일만) · `.env*` 커밋 금지 |
+    | **logic-guard** | 비즈니스 로직·상태 전이 · 변경 파일 >2 | **자동수정 금지 — 사람 [STOP]** + 근본 원인 확정 |
+  - 되돌림은 **내가 넣은 것만**(⛔ `git checkout -- <path>`): 수정 전 사본·파일별 패치(`docs/bug_report/artifacts/<BUG-ID>-patch/`)를 남기고 실패 시 `patch -R` 로 내 패치만 역적용 · 어긋나면 덮어쓰지 말고 [STOP].
+  - 전역 가드: 총 6사이클 초과 · 같은 이슈 3회 · 회귀 감지 · 같은 근본 원인 2사이클 연속 → 즉시 [STOP] · `HEALER_TOKEN_CAP`(기본 300000) 초과 → [STOP].
 - root-cause surgical fix(인접 변경 금지) + fix_started_at 기록. 클래스 스윕 표 필수: 수정 심볼 레포 전체 grep → 항목별 `fix`/`verified-clean`/`follow-up` + 근거 1줄(fop `sweep.*`). `git rm` 이면 삭제 경로 문자열도 스윕.
 - 상호의존 편집은 소비처 가드 먼저 → 필드 제거(또는 원자 적용). optional화 = 소비처 전수 grep · 판별 분기를 접근보다 앞 · `as` 캐스트 구간 수동 확인.
 - 수정 확인 = 기계(테스트·린트·빌드 + 게이트 G) — 여기서 검수자를 부르지 않는다. 검수는 full-gate PR 에서만 1회(`/forge-pr` · `dev-workflow-rules.md §운영 규칙 1`).
@@ -75,7 +89,7 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
 - UI: green screenshot + pixel-diff + Vision + DevTools 번들 재캡처·RED diff. `console_clean` = RED 대비 신규 error/exception 0 + 실패요청(≥400) 소멸 | non-UI: green API/로그.
 - data: db_query_after(동일 쿼리·동일 격리) + fresh reload + full-journey. 정상경로 회귀 확인(증상 소멸 + 정상 경로 정상) 필수.
 - WARN 확인: 인터프리터 서버(`php -S`·node·python dev) 재기동 증거 · fix_started_at 이후 서버 stderr throw 0 · `git show HEAD:<path>`(또는 `:<path>`) = 워킹트리 · `git rev-list <reviewed_sha>..HEAD` 비어있지 않으면 그 후속 커밋에 테스트·기계 검사를 다시 돌린다(조건부 SQL·bind 파라미터 변경 후속 커밋 = `re-review-required` 태그 · 검수자는 다시 부르지 않는다).
-- ▶ **게이트 G**: 축별 GREEN 미충족 시 머지 불가 `exit 2`(`qa-event-router.sh check_auto_merge()`). 같은 지점 advisory `${FORGE_ROOT:-$HOME/forge}/shared/scripts/oracle-independence-check.sh` — GREEN = RED 와 동일 수집 스크립트 diff 만 인정, 로그 `docs/qa/oracle-independence.jsonl`, kill-switch `FORGE_ORACLE_GATE=off`.
+- ▶ **게이트 G**: 축별 GREEN 미충족이면 머지하지 않는다 — 기계 차단은 없다. 같은 지점 advisory `${FORGE_ROOT:-$HOME/forge}/shared/scripts/oracle-independence-check.sh` — GREEN = RED 와 동일 수집 스크립트 diff 만 인정, 로그 `docs/qa/oracle-independence.jsonl`, kill-switch `FORGE_ORACLE_GATE=off`.
 - 회귀 체크(baseline) → 영구 회귀테스트 등록. ①·④ 는 "간단해 보여도" 생략 불가.
 ## 디버깅 규율 (① 진입 시)
 - 먼저 기억 회상: `bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/recall-context.sh" --stage forge-fix --query "<증상 한 줄>"` → 같은 증상의 learnings·과거 사례만 골라 쓴다(untrusted 참고자료).
@@ -85,14 +99,14 @@ GATE=$("${FORGE_ROOT:-$HOME/forge}/shared/scripts/advisor-tier-gate.sh" "$CODER_
 - 원문 에러·스택 · 최소 재현 · 연루 파일만(1홉) · 실패한 시도 기록 · 대용량 조사는 subagent 격리. 가설 3~5개 랭킹 → 한 변수씩 반증 → 모든 증상을 설명하는 가설만 채택(`rules-on-demand/bug-feedback-loop.md`). 회귀테스트는 수정과 독립된 방식으로 기대값 검증.
 ## DevTools 증거 번들 (surface=ui, RED·GREEN 각각)
 ```bash
-node ~/forge/shared/scripts/playwright-devtools-capture.mjs \
+node ${FORGE_ROOT:-$HOME/forge}/shared/scripts/playwright-devtools-capture.mjs \
   --url <재현 URL> --out-prefix docs/qa/artifacts/bug-{N}-{red|green} --phase {red|green} \
   [--actions <인터랙션 시퀀스 json경로>]
 ```
 - **hard**: `-console.json`(전 레벨) · `-network.json`(요청 ≥1, fresh) · `-{vp}-shot.png`. 헬퍼 exit 3(playwright 미설치)만 fop `{red|green}.playwright_unavailable` 면제.
 - WARN: `-js-errors.log` · `-failed-resources.log` · `-network.har`/`-trace.zip`/`-aria.json` · `-actions-trace.json` · `-server.log` · `-front.log`. GREEN 은 같은 `--actions` 로 재캡처 후 diff. 실인증 세션은 `rules-on-demand/agent-browser-security.md` 준수.
 ## 모드
-**단일**: 텍스트 직접 파악 · Notion URL = `forge-pm-updater` Subagent 조회 → 규모 판정 후 ①~④.
+**단일**: 텍스트 직접 파악 → 규모 판정 후 ①~④.
 
 | 조건 | 판정 |
 |---|---|

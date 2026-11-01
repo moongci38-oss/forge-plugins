@@ -73,7 +73,7 @@ const [tierAB, tierCD, sysSnap, forge, constraint] = await parallel([
     { model: 'sonnet', label: 'forge-internal', phase: 'Collect', schema: TIER_SCHEMA }
   ),
   () => agent(
-    `Constraint Drift 감사 (AD-120): ~/.claude/override-rate.log 읽어 5%+ WARN 감지. ` +
+    `Constraint Drift 감사 (AD-120): $HOME/.claude/override-rate.log 읽어 5%+ WARN 감지. ` +
     `hook bypass 패턴 확인.`,
     { model: 'sonnet', label: 'constraint-drift', phase: 'Collect', schema: TIER_SCHEMA }
   ),
@@ -111,7 +111,7 @@ await agent(
   `tech_verify=${techVerify?.verdict} sys_verify=${sysVerify?.verdict}. ` +
   `Critical/Breaking 항목 최상단 배치. ` +
   // M3 WARN 다이제스트 (2026-07-16): 리포트 §2 '우리 시스템 현황' 앞에 실행 결과 3줄 삽입, 실패 시 1줄 비차단
-  `리포트 §2에 Bash(bash \${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.sh) 출력 3줄을 '### 2.0 WARN 다이제스트'로 포함(실패 시 '생성 실패(비차단)' 1줄).`,
+  `리포트 §2에 Bash(bash \${FORGE_ROOT:-$HOME/forge}/shared/scripts/warn-digest.sh) 출력 3줄(+ '팀장 wisdom 정지:'·'위키 승인 대기:' 줄이 있으면 그 줄까지)을 '### 2.0 WARN 다이제스트'로 포함(실패 시 '생성 실패(비차단)' 1줄).`,
   { model: 'opus', label: 'synthesize', phase: 'Synthesize' }
 )
 log('Synthesize 완료')

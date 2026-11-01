@@ -1,7 +1,8 @@
 ---
 name: ui-quality-checker
-description: Check 8.6 UI/UX 품질 검증 — 정적 분석 + Lighthouse/a11y MCP 연동
+description: Check 8.6 UI/UX 품질 검증 — 정적 분석 + 실측(ui-measure.sh — axe-core·LCP·CLS)
 tools: Read, Grep, Glob
+model: sonnet
 ---
 
 > **응답 간결성**: 번호 목록 + 핵심 사실. 장황한 설명·반복·메타 코멘트 금지. 항목당 2문장 이내, 전체 300토큰 이하.
@@ -22,7 +23,7 @@ tools: Read, Grep, Glob
 
 - 변경된 프론트엔드 파일 목록 (*.tsx, *.jsx, *.css, *.scss)
 - Spec 파일 (UI 섹션 참조)
-- dev 서버 URL (선택 — Lighthouse 연동 시)
+- dev 서버 URL (선택 — U-6 실측 시)
 - **기계 축 판정 JSON** (`checkId: "check-8.6-mechanical"`) — 호출자가 스폰 **전에**
   `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/ui-a11y-lint.sh --root <프로젝트> -- <변경 파일...>` 를 돌려 넣어 준다.
 
@@ -46,9 +47,10 @@ U-2·U-4 는 `eslint-plugin-jsx-a11y`, U-5 는 grep 이 먼저 잰다. U-1·U-3�
 | U-5 모션 | Warning | Framer Motion `animate`/`transition` 시 `prefers-reduced-motion` 체크 · CSS 는 `@media (prefers-reduced-motion: reduce)` · Lenis `lerp: 1` fallback |
 | U-7 WCAG 2.2 | Warning | Focus Not Obscured(2.4.11) · Target Size ≥24×24px(2.5.8) · Dragging 단일 포인터 대체(2.5.7) · Focus outline ≥3px |
 
-### U-6: Lighthouse 런타임 검증 (선택 — dev 서버 실행 중일 때만, 미실행 시 전체 SKIP)
-- Accessibility score >= 90 (mcp__lighthouse-web__get_accessibility_score)
-- Performance score >= 70 (mcp__lighthouse-web__get_performance_score)
+### U-6: 런타임 실측 (선택 — dev 서버 실행 중일 때만, 미실행 시 전체 SKIP)
+- 호출자가 `bash ${FORGE_ROOT:-$HOME/forge}/shared/scripts/ui-measure.sh <dev 서버 URL>` 출력 JSON 한 줄을 넣어 준다(이 에이전트는 Bash 가 없다 · #3984).
+- `ok:true` → `verdict`(critical·serious 위반 = FAIL · moderate·LCP>2500ms·CLS>0.1 = WARN)와 `axe`·`lcp_ms`·`cls` 를 **그대로** 옮긴다 — 다시 판정하지 마라.
+- `ok:false`·JSON 없음 → U-6 SKIP + `reason` 1줄(점수를 추정해 채우지 않는다).
 - a11y 상세 감사 (mcp__a11y__audit_webpage)
 
 ## 출력 형식

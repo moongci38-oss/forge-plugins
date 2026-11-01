@@ -1,7 +1,7 @@
 {
   "name": "forge-core",
-  "version": "0.7.26",
-  "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(harness-legacy-scan/diet/external-sweep) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
+  "version": "0.7.28",
+  "description": "Forge 시스템 핵심 — 세션관리·cr-multi·rag-search·advisor + 하네스 정리(harness-diet — scan·sweep 모드) + 감사(system-audit 6축·ACHCE 5축·migration-audit). 통합 공통 기반.",
   "author": {
     "name": "forge"
   },
@@ -26,11 +26,6 @@
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-placement-advisory.sh\"",
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/doc-routes-inject.sh\" --via-plugin",
             "timeout": 5
           }
@@ -38,16 +33,6 @@
       }
     ],
     "PreToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/brain-placement-guard.sh\"",
-            "timeout": 10
-          }
-        ]
-      },
       {
         "matcher": "Bash",
         "hooks": [

@@ -19,7 +19,7 @@ group: ops
 
 ## 왜 껐나
 
-- 조직 원칙 **"모든 모델은 구독으로만"** (정본 `~/.claude/rules/model-routing.md`).
+- 조직 원칙 **"모든 모델은 구독으로만"** (정본 `$HOME/.claude/rules/model-routing.md`).
 - `shared/scripts/generate-image.py` 는 `OPENAI_API_KEY` 로 `v1/images/generations` 를 직접 호출한다 = **종량 과금**.
 - 2026-09-07 Gemini 전면 철수도 같은 축(종량 벤더 제거)의 결정이었다. 원칙이 한쪽에만 적용돼 있던 상태를 맞춘 것이다.
 

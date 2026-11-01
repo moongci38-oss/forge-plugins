@@ -1,6 +1,6 @@
 # 감사 스킬 공통 원문 (audit-common)
 
-> **소비처 2곳**: `system-audit`(전 절) · `external-harness-sweep`(§저장 경로 앵커만 — #1185 r2 에서 분리해 옮겼다)
+> **소비처 2곳**: `system-audit`(전 절) · `harness-diet` sweep 모드(옛 `external-harness-sweep` · §저장 경로 앵커만 — #1185 r2 에서 분리해 옮겼다)
 > (각 `SKILL.md` 가 이 파일의 절을 가리키며 **실행 전 Read** 를 지시한다).
 > 이력: 원래 개별 감사 스킬 5종(`audit-*`)과 축 에이전트 5종이 함께 쓰던 공통 원문이었다(#1139 C001 — drift 방지).
 > 둘 다 삭제됐고(#1374) system-audit 은 단독 실측으로 바뀌었다(#1415, 2026-09-28) — 개별 스킬 전용이던 §AUDIT_TOKEN_CAP 도 그때 뺐다.
@@ -11,10 +11,10 @@
 
 > **저장 경로 앵커 (2026-08-04 정정)**: 아래 경로는 반드시 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/`
 > 로 시작한다. 앵커 없이 `docs/reviews/...` 로 쓰면 **cwd 에 따라 착지 레포가 갈린다** —
-> `~/forge/docs/reviews` 와 `~/forge-outputs/docs/reviews` 가 **둘 다 실재**하기 때문이다.
-> 실사고(2026-08-03): cwd 가 `~/forge` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
+> `${FORGE_ROOT:-$HOME/forge}/docs/reviews` 와 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews` 가 **둘 다 실재**하기 때문이다.
+> 실사고(2026-08-03): cwd 가 `${FORGE_ROOT:-$HOME/forge}` 인 세션이 감사 리포트를 프로젝트 repo 안에 떨궈
 > `forge-core.md §경로`("하네스 개선 리포트는 프로젝트 repo 안 금지")를 위반했다.
-> 실측 근거: 정본 레인 `~/forge-outputs/docs/reviews/audit/` 16건 vs 오착지 `~/forge/…` 1건
+> 실측 근거: 정본 레인 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/docs/reviews/audit/` 16건 vs 오착지 `${FORGE_ROOT:-$HOME/forge}/…` 1건
 > (2026-08-04 관측).
 
 ## Evaluator 핵심 원칙

@@ -1,0 +1,34 @@
+# forge#4135 forge-build 고친 뒤 — forge develop c70d79959 · 0.4.31 → 0.4.32
+$ … --verify | grep -c 'DRIFT: forge-build/'
+DRIFT_forge-build=0
+# 지운 것(forge 에서 지워진 것): forge-build/skills/forge-pge 
+없음(OK): forge-build/skills/forge-pge
+$ bash ~/forge/shared/scripts/plugin-release-gate.sh /tmp/h4-fp-forge-build | tail -2
+=== 결과 ===
+✅ GATE PASS
+
+# 다시 동기화 — 고친 sync-from-forge.py(forge-plugins PR #119 · JS 원래 보간 보존) · forge develop c70d79959
+바뀐 파일: forge-build/skills/canary/workflow.js forge-build/skills/forge-check-security/workflow.js forge-build/skills/forge-check-ui/workflow.js forge-build/skills/investigate/workflow.js forge-build/skills/qa/workflow.js forge-build/skills/screenshot-analyze/workflow.js forge-build/skills/spec-compliance-checker/workflow.js 
+DRIFT_forge-build(고친 스크립트 --verify)=0
+\${소문자변수} 꼴로 깨진 .js: 0건
+
+# 다시 동기화 (2026-10-31 · develop + #113 head 합친 뒤) — forge develop 44614f446
+# develop(97eddab)·#113(226c120) 합침 충돌 없음
+$ env FORGE_ROOT=<forge develop 44614f446> PLUGIN_ROOT=. python3 scripts/sync-from-forge.py (#119 판) → forge-build 폴더만 남김
+$ python3 scripts/sync-from-forge.py --verify | grep -c 'DRIFT: forge-build/'
+forge-build DRIFT=0
+
+# 고친 뒤 — 사슬 합친 상태 · forge develop 20bc142ac
+STALE_REMAINING=0  (forge 에서 지웠는데 플러그인에 남은 것 — --prune 으로 지운다)
+DRIFT_REMAINING=0
+
+# 호환 입구 시험
+PASS 입구 work-plan → forge-work-plan 실림
+PASS 입구 qa → forge-qa 실림
+PASS 입구 prd-review → forge-prd-review 실림
+입구 3개 · 끊긴 입구 0개
+
+# 플러그인 develop 65fd5cbaf(#113·#119 스쿼시) 합침 뒤 재측정 — forge develop 9bcf9799f · 남은 PR 을 머지 순서로 합친 상태
+충돌 풀이: 충돌 파일은 이 PR 의 동기화 판 · marketplace.json 은 develop 판 + 이 플러그인 판
+STALE_REMAINING=0 · DRIFT_REMAINING=0 · 호환 입구 끊김 0 · LEAK_FILES=0 · plugin-release-gate GATE PASS
+sync-from-forge.test PASS=68 · prune FAIL=0 · leak-scan-wiring PASS · plugin-hook-timeout PASS=1

@@ -21,7 +21,7 @@ license: Complete terms in LICENSE.txt
 예시마다 "처음부터 하면 무엇을 매번 다시 하나"를 보고 `scripts/`(매번 다시 쓰는 코드·결정론 작업) · `references/`(매번 다시 찾는 스키마·문서) · `assets/`(출력에 쓰는 템플릿) 목록을 정한다. 예시 → `references/principles.md §5`.
 
 ### Step 3. 배치 결정 + 초기화
-**먼저 전역/로컬을 정한다.** *"두 번째 프로젝트에서도 그대로 쓰이나?"* 예 → 전역(`~/forge/.claude/skills/`, `forge-sync sync` 로 미러·팀원 전파) · 아니오/모르겠다 → 로컬(그 레포 `.claude/skills/`). 전역은 description 이 모든 세션에 상주하고 강등이 승격보다 비싸다 — 애매하면 로컬. 그레이존 5사례·되돌리는 법 → `references/placement-global-vs-local.md`.
+**먼저 전역/로컬을 정한다.** *"두 번째 프로젝트에서도 그대로 쓰이나?"* 예 → 전역(`${FORGE_ROOT:-$HOME/forge}/.claude/skills/`, `forge-sync sync` 로 미러·팀원 전파) · 아니오/모르겠다 → 로컬(그 레포 `.claude/skills/`). 전역은 description 이 모든 세션에 상주하고 강등이 승격보다 비싸다 — 애매하면 로컬. 그레이존 5사례·되돌리는 법 → `references/placement-global-vs-local.md`.
 
 이미 있는 스킬을 고치는 경우 이 단계는 건너뛴다. 스캐폴딩 스크립트는 없다 — 손으로 만든다:
 ```bash
@@ -46,7 +46,7 @@ description: "<트리거 조건 + 한 줄 요약 — Claude가 이 필드만 보
 ### Step 4.5. evals.json (필수)
 `<skill>/evals/evals.json` — `evals` 배열 **최소 3개**(id 1·2·3), 각 항목 `id`·`prompt`(10자 이상)·`expected_output`·`expectations`(3개 이상). 범주: ① happy path ② 경계·edge ③ FAIL/WARN 판정. 형식·네거티브 케이스 → `references/evals-templates.md`.
 ```bash
-python3 ~/forge/shared/scripts/validate-evals.py structure    # PASS 확인 후 다음 단계
+python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/validate-evals.py structure    # PASS 확인 후 다음 단계
 ```
 
 ### Step 4.6. eval-rubric 통합 (조건부 강제)

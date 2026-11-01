@@ -4,7 +4,7 @@ description: 코드 변경사항 리뷰. 코드 작성 후 자동으로 사용.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit, NotebookEdit
 model: opus
-memory: project
+memory: user
 skills:
   - code-quality-rules
 ---
@@ -54,7 +54,8 @@ bash "${FORGE_ROOT:-$HOME/forge}/shared/scripts/code-reviewer-learn.sh" load
 - **영향 범위**: 코드 파일(.py .ts .js .mjs)이 바뀌면 GitNexus `impact` 로 바뀐 심볼의 영향을 재고 보고에 `영향 범위: gitnexus impact <심볼 n개 → 영향 m개>` 1줄(색인 없으면 `영향 범위: 색인 없음`) — 선택표 `tool-rules.md` 레포 지도 · #1949.
 - **보안(Critical)**: SQL 문자열 조합(DAO 필수) · 하드코딩 비밀번호/API 키/DB 정보 · 입력 검증 누락
 - **품질(Warning)**: 네이밍 · 가독성·중복 · Manager 싱글톤 변경 시도 **성능(Warning)**: N+1 · 불필요 루프·메모리 누수 · 버퍼 풀링 미사용(TCP) **빌드/설정·에러(Suggestion)**: Release `NOX_ENCRYPT_PACKET` · DEBUG 전처리기 의존 · 환경별 설정 · 예외 처리 누락 · null 체크
-- **Spec 정합**: 변경 → FR/AC 역추적, Spec 기능 누락(category `spec`, Critical 가능), scope creep. `.specify/specs/*.md` 또는 `forge-outputs/docs/planning/active/*.md` 대조.
+- **Spec 정합**: 변경 → FR/AC 역추적, Spec 기능 누락(category `spec`, Critical 가능), scope creep. 대조 대상: Spec `.specify/specs/*.md` · 기획 패키지(`planning-dirs.py --project-root <레포> --kind plan`) · intent(`planning-dirs.py --project-root <레포> --kind intent` · 옛 자리 `docs/intent/*.md` 도 본다) · 작업계획서(`work-plan-lint.py --plan-dir`). 구현이 plan 과 달라졌으면 같은 PR 에서 plan(계획서·Spec)을 고쳤는지 본다 — 안 고쳤으면 category `spec` High(계획서가 다른 레포 — forge 작업계획서는 forge-outputs — 면 그 레포의 짝 커밋으로 갈음).
+- **AC 증거**(#3735): spec 의 AC 마다 PR `## 검증` 에 이 PR 의 `.evidence/…` 경로 + 다시 돌릴 명령이 있어야 한다 — 증거 없는 AC = FAIL(문구 `AC 미충족`) · AC 가 다루는 동작이 diff 에 아예 없으면 Critical · 일부만 충족하면 High(category `spec`). 줄의 꼴은 기계 검사 `ac` 축이 먼저 본다 — 여기서는 그 증거가 AC 를 실제로 증명하는지 판단한다.
 ## 출력
 1. **Markdown 리포트**: Critical | Warning | Suggestion 순, 각 이슈 = 파일:라인 + 설명 + 수정 제안(코드 예시). 변경 10+ 파일 또는 Critical 2+ → 위험도 색상 HTML 리포트 추가 `forge-outputs/docs/reviews/claude/code/{date}-{slug}.html`.
 2. **JSON 사이드카 (필수, silent skip 금지)** — `forge-outputs/docs/reviews/claude/{stage}/{YYYY-MM-DD}-{slug}.json`, `stage`=`code`, `slug`=대상 파일(확장자 제거, `/`→`-`) 또는 PR-N.
