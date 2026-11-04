@@ -63,7 +63,7 @@ python3 "${FORGE_ROOT:-$HOME/forge}/shared/scripts/gtc_check.py" --report "$WK/t
 
 **Wave 2.5~2.55** — `references/wave25-wave3.md §Wave 2.5`·`§Wave 2.55`를 Read해 실행(검수 대상 SSoT도 거기).
 - 2.5: Lead 컨텍스트를 공유하지 않는 독립 Evaluator 필수 → PASS / FAIL(AUTO-PROCEED).
-- 2.55: **사람이 지정할 때만** 돈다(기본 회차는 건너뜀 · `model-routing.md` — 검수는 full-gate 만 · Codex 검수 레그는 사람 지정 때만). 지정되면 cr-triple 2벤더 교차 2레그(`--cr on`). **비차단** — 지적은 리포트 말미 `## 검수 지적`에 적고 진행([STOP] 없음). `content_integrity=lost`·`INVALID_INPUT` = 검수 미수행 → 대상 쪼개 재호출. `concept-notes-writer`(학습노트)는 스폰하지 않는다.
+- 2.55: **사람이 지정할 때만** 돈다(기본 회차는 건너뜀 · `model-routing.md` — 검수는 full-gate 만 · Codex 검수 레그는 사람 지정 때만). 지정되면 Codex 단독 1레그(`--cr on` · 못 돌면 Claude 1명 대체). **비차단** — 지적은 리포트 말미 `## 검수 지적`에 적고 진행([STOP] 없음). `content_integrity=lost`·`INVALID_INPUT` = 검수 미수행 → 대상 쪼개 재호출. `concept-notes-writer`(학습노트)는 스폰하지 않는다.
 
 **Wave 2.7 대시보드** (PASS 또는 FAIL(AUTO-PROCEED) 후)
 ```bash
