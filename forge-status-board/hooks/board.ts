@@ -43,6 +43,7 @@ type Room = {
   name: string; axis: string; project: string; mode: string | null; mine?: boolean; state: string | null; issues: number[] | null
   assigned?: number[] | null; last_turn_min?: number | null; idle_min?: number | null   // #3796 — 옛 스크립트엔 없다
   last_turn: string | null; ctx_pct: number | null; ctx_tokens: number | null
+  ctx_window?: number | null   // 실제 컨텍스트 창(board-rooms.py · 버스 turn 줄) — 없으면 '창 ?'
   tok_out: number | null; tok_in_new: number | null; calls: number | null
   tools_top?: [string, number][] | null
   icon?: unknown   // #3753 직무 아이콘(이름표 icon: 칸 · 조각 ③) — 없으면 안 그린다
@@ -50,6 +51,10 @@ type Room = {
 }
 // 방 교체 기준(forge-session-bus.sh ROLLOVER_PREEMPT_TOKENS 기본 200000) — 그 숫자 대비 지금 점유
 export const ROLLOVER_TOKENS = 200000
+// 만 단위(22만) — 사람이 읽는 토큰 수 · 1만 미만은 소수 한 자리
+const man = (n: number): string => (n >= 10000 ? `${Math.round(n / 10000)}만` : `${Math.round(n / 1000) / 10}만`)
+// 교체 문턱(20만)을 넘은 방의 경고 글 — 막대 뒤에 경고 색으로(사람 요청 2026-11-04 · 문턱 % 를 주 숫자로 쓰지 않는다)
+export const OVER_TEXT = `교체 문턱 넘음(${man(ROLLOVER_TOKENS)})`
 
 export function kTok(n: number): string {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`
@@ -71,17 +76,26 @@ const modeKo = (m: string | null): string => (m === 'read' ? '읽기' : m === 'w
 // 멈춤 = 도는 중(send 락을 쥠)인데 세션 기록이 STUCK_MIN 분 넘게 안 바뀜 — 맨 위 · 강조
 export const STUCK_MIN = 15
 const TITLE_MAX = 40
-export type Ctx = { bar: string; pct: number; tone: 'success' | 'warning' | 'error' }
+export type Ctx = { bar: string; pct: number; tone: 'success' | 'warning' | 'error'; over: boolean }
 // call = 굵게 그릴 부름 이름 · 부름이 방 이름과 다르면 방 이름(name)을 뒤에 작게(흐리게) 한 번 더
 export type Card = { mark: string; icon: string; call: string; name: string; stuck: boolean; head: string; now: string; meta: string; ctx: Ctx | null }
 
-// #3753 컨텍스트 막대 — 교체 기준(ROLLOVER_TOKENS) 대비 · 8칸 · 색 단계 초록 <50 · 노랑 50~80 · 빨강 80+ (넘쳐도 막대는 8칸 · 숫자는 그대로)
+// 컨텍스트 막대 — 실제 창(ctx_window · 대부분 100만) 대비(사람 요청 2026-11-04 · 종전 #3753 은 교체 문턱 20만 대비) ·
+//   8칸 · 색 단계 초록 <50 · 노랑 50~80 · 빨강 80+ (넘쳐도 막대는 8칸 · 숫자는 그대로) · over = 교체 문턱(ROLLOVER_TOKENS) 넘음.
+//   창을 모르면 null(막대 없음 — 글은 ctxText 가 '창 ?' 로 쓴다).
 const BAR_W = 8
-export function ctxBar(tokens: number | null | undefined): Ctx | null {
-  if (typeof tokens !== 'number' || !Number.isFinite(tokens) || tokens < 0) return null
-  const pct = Math.floor((tokens * 100) / ROLLOVER_TOKENS)
+const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+export function ctxBar(tokens: number | null | undefined, window: number | null | undefined): Ctx | null {
+  if (!num(tokens) || tokens < 0 || !num(window) || window <= 0) return null
+  const pct = Math.floor((tokens * 100) / window)   // MUT-CTX-WINDOW
   const fill = Math.min(BAR_W, Math.round((pct * BAR_W) / 100))
-  return { bar: '█'.repeat(fill) + '░'.repeat(BAR_W - fill), pct, tone: pct >= 80 ? 'error' : pct >= 50 ? 'warning' : 'success' }   // MUT-CTX-TONE
+  return { bar: '█'.repeat(fill) + '░'.repeat(BAR_W - fill), pct, tone: pct >= 80 ? 'error' : pct >= 50 ? 'warning' : 'success', over: tokens >= ROLLOVER_TOKENS }   // MUT-CTX-TONE
+}
+// 카드 CTX 글 — 'CTX ██░░░░░░ 22% (22만/100만)' · 창 모름 'CTX 22만/창 ?' · 문턱 넘으면 ' · 교체 문턱 넘음(20만)'
+function ctxText(tokens: number | null | undefined, window: number | null | undefined, ctx: Ctx | null): string {
+  if (!num(tokens) || tokens < 0) return `CTX ${NA}`
+  const over = tokens >= ROLLOVER_TOKENS ? ` · ${OVER_TEXT}` : ''   // MUT-CTX-OVER
+  return ctx && num(window) ? `CTX ${ctx.bar} ${ctx.pct}% (${man(tokens)}/${man(window)})${over}` : `CTX ${man(tokens)}/창 ?${over}`
 }
 // 카드 사이 구분선(글 회신·패널 같은 줄)
 export const DIVIDER = '─'.repeat(24)
@@ -135,13 +149,13 @@ export function roomCards(r: Ran, issues?: Ran): Card[] | null {
     const turn = typeof m.last_turn_min === 'number' ? ago(m.last_turn_min) : (m.last_turn ?? '없음')
     const icon = iconOf(m.icon)
     const call = typeof m.callname === 'string' && m.callname.trim() !== '' && !/\n/.test(m.callname) ? m.callname.trim() : m.name   // MUT-CALL-FALLBACK
-    const ctx = ctxBar(m.ctx_tokens)   // #3753 CTX % 자리를 막대로(교체 기준 20만 대비)
+    const ctx = ctxBar(m.ctx_tokens, m.ctx_window)   // CTX 막대 = 실제 창 대비(사람 요청 2026-11-04)
     return {
       ord: ORDER[st] ?? 4,
       card: {
         mark, icon, call, name: m.name, stuck, head: `${mark} ${icon ? `${icon} ` : ''}${nameText(call, m.name)} · ${label}${m.mine ? ' · 이 세션이 연 방' : ''}`,
         now: nowLine(m, list), ctx,
-        meta: `마지막 턴 ${turn} · CTX ${ctx ? `${ctx.bar} ${ctx.pct}%` : NA} · ${m.axis} · ${modeKo(m.mode)}`,
+        meta: `마지막 턴 ${turn} · ${ctxText(m.ctx_tokens, m.ctx_window, ctx)} · ${m.axis} · ${modeKo(m.mode)}`,
       },
     }
   })
@@ -156,6 +170,16 @@ function roomHead(r: Ran): { head: string[]; tail: string[] } | null {
   const head = got.basis ? `방 ${n}개 — ${got.basis} · 공통 방은 늘` : `방 ${n}개(프로젝트 ${got.project} · 공통)`
   const unk = got.mode_unknown && got.mode_unknown.length ? [`모드 ${NA} 방 ${got.mode_unknown.length}개(모드 기록 없는 옛 방 · 위 목록에서 뺐다): ${got.mode_unknown.join(', ')}`] : []
   return { head: [head], tail: unk }
+}
+
+// 사람 요청(2026-11-04 · Refs #4191) 카드 2열 종대 — 패널 몸통이 TWO_COL_MIN 칸 이상이면 한 줄에 2장(왼쪽·오른쪽 · 순서 그대로) ·
+//   좁거나 폭을 모르면 1장씩(종전). 카드 안 줄은 그대로 · 넘치는 줄 끝은 패널이 자른다(truncate-end).
+export const TWO_COL_MIN = 96
+export function cardRows(cards: Card[], cols: number | null | undefined): Card[][] {
+  const per = typeof cols === 'number' && cols >= TWO_COL_MIN ? 2 : 1   // MUT-TWO-COL
+  const out: Card[][] = []
+  for (let i = 0; i < cards.length; i += per) out.push(cards.slice(i, i + per))
+  return out
 }
 
 // 글로 된 카드(명령 회신·시험용) — 첫 카드 앞 빈 줄 1개 · 카드 사이 구분선(#3753)

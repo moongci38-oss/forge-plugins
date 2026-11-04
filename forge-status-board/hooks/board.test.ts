@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { DIVIDER, boardLines, ctxBar, ghBudget, ghPerHour, kTok, rateLimited, refreshSec, roomCards, roomLines, roomsArgv, statusSummary, tokenLines, toolLines } from './board'
+import { DIVIDER, OVER_TEXT, TWO_COL_MIN, boardLines, cardRows, ctxBar, ghBudget, ghPerHour, kTok, rateLimited, refreshSec, roomCards, roomLines, roomsArgv, statusSummary, tokenLines, toolLines } from './board'
 
 const ok = (stdout: string) => ({ exitCode: 0, stdout })
 
@@ -70,7 +70,7 @@ describe('방·토큰 패널(#3622 ①③)', () => {
     const got = roomLines(rooms([room({}), room({ name: 'dev-forge', axis: '프로젝트', mode: 'write', state: '도는 중', issues: null, last_turn: null, ctx_pct: null, ctx_tokens: null })]), iss([]))
     expect(got[0]).toBe('방 2개(프로젝트 forge · 공통)')
     expect(got.slice(1, 5)).toEqual(['', '● dev-forge · 도는 중', '  대기', '  마지막 턴 없음 · CTX 판정 불가 · 프로젝트 · 쓰기'])
-    expect(got.slice(5)).toEqual([DIVIDER, '○ harness · 쉬는 중', '  대기', '  마지막 턴 10-24 05:12 · CTX ██░░░░░░ 25% · 공통 · 모드 판정 불가'])   // #3753 카드 사이 구분선 · CTX 막대(교체 기준 20만 대비)
+    expect(got.slice(5)).toEqual([DIVIDER, '○ harness · 쉬는 중', '  대기', '  마지막 턴 10-24 05:12 · CTX ░░░░░░░░ 5% (5만/100만) · 공통 · 모드 판정 불가'])   // #3753 카드 사이 구분선 · CTX 막대(실제 창 100만 대비 — 사람 요청 2026-11-04)
   })
   test('#3753 머리줄 = 거른 기준 · 이 세션이 연 방 표시 · 모드 판정 불가 방은 따로 줄', () => {
     const r = ok(JSON.stringify({ project: 'forge', all: false, basis: '프로젝트 forge · 쓰기 세션 · 이 세션이 연 방 먼저', mode_unknown: ['dev-old'],
@@ -126,7 +126,7 @@ describe('#3796 방 카드 — 지금 하는 일 1개', () => {
     expect(heads).toEqual(['⚠ d-stuck · 멈춤 22분', '● c-run · 도는 중', '○ a-rest · 쉬는 중', '✕ b-cut · 끊김'])
     expect(got.filter(l => l === '').length).toBe(1)   // 첫 카드 앞 빈 줄 1개
     expect(got.filter(l => l === DIVIDER).length).toBe(3)   // #3753 카드 사이 구분선
-    expect(got[got.indexOf('⚠ d-stuck · 멈춤 22분') + 2]).toBe('  마지막 턴 40분 전 · CTX ██░░░░░░ 25% · 공통 · 모드 판정 불가')
+    expect(got[got.indexOf('⚠ d-stuck · 멈춤 22분') + 2]).toBe('  마지막 턴 40분 전 · CTX ░░░░░░░░ 5% (5만/100만) · 공통 · 모드 판정 불가')
   })
   test('카드 자료(패널 테두리용) — 멈춤만 강조 표시', () => {
     const c = roomCards(rooms([room({ name: 'x', state: '도는 중', idle_min: 15 }), room({ name: 'y' })]), iss([]))
@@ -260,15 +260,15 @@ test('④ GitHub 한도 응답이면 재시도 없이 멈춘다', async ($, on) 
 
 // #3753 조각 ② — 컨텍스트 막대 · 머리줄 요약 · 카드 구분선 · 직무 아이콘 자리 · 좁은 패널에서 안 꺾임
 describe('#3753 조각 ② 상황판 다듬기', () => {
-  test('컨텍스트 막대 — 교체 기준 20만 대비 · 색 단계 초록 <50 · 노랑 50~80 · 빨강 80+ · 넘쳐도 막대는 8칸', () => {
-    expect(ctxBar(50000)).toEqual({ bar: '██░░░░░░', pct: 25, tone: 'success' })
-    expect(ctxBar(98000)).toEqual({ bar: '████░░░░', pct: 49, tone: 'success' })
-    expect(ctxBar(100000)).toEqual({ bar: '████░░░░', pct: 50, tone: 'warning' })
-    expect(ctxBar(158000)).toEqual({ bar: '██████░░', pct: 79, tone: 'warning' })
-    expect(ctxBar(160000)).toEqual({ bar: '██████░░', pct: 80, tone: 'error' })
-    expect(ctxBar(250000)).toEqual({ bar: '████████', pct: 125, tone: 'error' })
-    expect(ctxBar(null)).toBe(null)
-    const c = roomCards(rooms([room({ ctx_tokens: 170000 }), room({ name: 'b', ctx_tokens: null })]), iss([]))
+  test('컨텍스트 막대 — 창 대비(여기선 창 20만) · 색 단계 초록 <50 · 노랑 50~80 · 빨강 80+ · 넘쳐도 막대는 8칸', () => {
+    expect(ctxBar(50000, 200000)).toEqual({ bar: '██░░░░░░', pct: 25, tone: 'success', over: false })
+    expect(ctxBar(98000, 200000)).toEqual({ bar: '████░░░░', pct: 49, tone: 'success', over: false })
+    expect(ctxBar(100000, 200000)).toEqual({ bar: '████░░░░', pct: 50, tone: 'warning', over: false })
+    expect(ctxBar(158000, 200000)).toEqual({ bar: '██████░░', pct: 79, tone: 'warning', over: false })
+    expect(ctxBar(160000, 200000)).toEqual({ bar: '██████░░', pct: 80, tone: 'error', over: false })
+    expect(ctxBar(250000, 200000)).toEqual({ bar: '████████', pct: 125, tone: 'error', over: true })
+    expect(ctxBar(null, 200000)).toBe(null)
+    const c = roomCards(rooms([room({ ctx_tokens: 170000, ctx_window: 200000 }), room({ name: 'b', ctx_tokens: null })]), iss([]))
     expect(c?.map(k => k.ctx?.tone ?? null)).toEqual(['error', null])
     expect(c?.[1].meta).toContain('CTX 판정 불가')
   })
@@ -315,7 +315,7 @@ test('#3753 패널 — 막대는 색 칠한 글 · 카드 사이 구분선 · �
   })
   const texts = await ui.findAll({ type: 'Text' })
   const bars = texts.filter(t => /^[█░]{8}$/.test(t.text))
-  expect(bars.map(t => [t.text, t.props.color])).toEqual([['███████░', 'error'], ['█░░░░░░░', 'success']])
+  expect(bars.map(t => [t.text, t.props.color])).toEqual([['█░░░░░░░', 'success'], ['░░░░░░░░', 'success']])   // 100만 창 대비(18만 → 18% · 2만 → 2%)
   expect(texts.filter(t => t.text === DIVIDER).length).toBe(1)
   const head = texts.find(t => t.text.startsWith('○ 🔍'))
   expect(head?.props.wrap).toBe('truncate-end')
@@ -326,6 +326,94 @@ test('#3753 패널 — 막대는 색 칠한 글 · 카드 사이 구분선 · �
   expect(texts.some(t => t.text === ' q')).toBe(false)
   expect(texts.find(t => t.text.startsWith('마지막 턴'))?.props.wrap).toBe('truncate-end')
   expect(texts.find(t => t.text === '대기')?.props.wrap).toBe('truncate-end')
+  await ui.unmount()
+  await $.command.run({ command: 'forge-board', args: 'stop' })
+})
+
+// 사람 요청(2026-11-04 · Refs #4191) — 방 카드 2열 종대 · 좁은 패널은 1열
+describe('카드 2열 — 넓으면 한 줄에 2장 · 좁으면 1열', () => {
+  test('줄 묶기 — 순서 그대로(도는 중 먼저) 왼쪽·오른쪽 · 좁거나 폭 모름은 1장씩', () => {
+    const c = roomCards(rooms([room({ name: 'a' }), room({ name: 'b', state: '도는 중', idle_min: 1 }), room({ name: 'c' })]), iss([])) ?? []
+    expect(cardRows(c, TWO_COL_MIN).map(r => r.map(k => k.name))).toEqual([['b', 'a'], ['c']])
+    expect(cardRows(c, TWO_COL_MIN - 1).map(r => r.map(k => k.name))).toEqual([['b'], ['a'], ['c']])
+    expect(cardRows(c, undefined).map(r => r.length)).toEqual([1, 1, 1])
+  })
+})
+
+async function mountBoard($: Parameters<Parameters<typeof test>[1]>[0], on: Parameters<Parameters<typeof test>[1]>[1], cols: number) {
+  mock.env(on, { FORGE_ROOT: '/f' })
+  mock.clock(on, { now: 40_000_000 })
+  const body = JSON.stringify({ project: 'forge', all: false, rooms: [room({ name: 'p' }), room({ name: 'q' }), room({ name: 'r' })] })
+  on('process.run', async (_$, e) => {
+    const cmd = e.argv.join(' ')
+    const out = cmd.startsWith('gh pr list') ? '[]' : cmd.endsWith('issue-owner.sh pc') ? 'pc:PC-A' : cmd.startsWith('gh issue list') ? '[]' : cmd.includes('board-rooms.py') ? body : ''
+    return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  on('ui.status', async () => ({ value: undefined }))
+  await $.command.run({ command: 'forge-board' })
+  return $.ui.mount({
+    plugin: 'forge-status-board', component: 'Pane', requestId: 'forge-status-board', surface: 'terminal',
+    props: { title: '총괄 상황판', isFocused: false, bodyColumns: cols, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
+  })
+}
+
+test('패널 넓은 폭 — 카드 3장이 2줄(2장 + 1장) · 줄 사이 구분선 1개', async ($, on) => {
+  const ui = await mountBoard($, on, 120)
+  const boxes = await ui.findAll({ type: 'Box' })
+  expect(boxes.filter(b => b.props.flexDirection === 'row').length).toBe(2)
+  expect(boxes.filter(b => b.props.borderStyle === 'round' && b.props.width === '50%').length).toBe(3)
+  expect((await ui.findAll({ type: 'Text' })).filter(t => t.text === DIVIDER).length).toBe(1)
+  await ui.unmount()
+  await $.command.run({ command: 'forge-board', args: 'stop' })
+})
+
+test('패널 좁은 폭 — 1열(종전 그대로) · 카드 사이 구분선 2개', async ($, on) => {
+  const ui = await mountBoard($, on, 60)
+  const boxes = await ui.findAll({ type: 'Box' })
+  expect(boxes.filter(b => b.props.flexDirection === 'row').length).toBe(0)
+  expect(boxes.filter(b => b.props.borderStyle === 'round').length).toBe(3)
+  expect(boxes.filter(b => b.props.width === '50%').length).toBe(0)
+  expect((await ui.findAll({ type: 'Text' })).filter(t => t.text === DIVIDER).length).toBe(2)
+  await ui.unmount()
+  await $.command.run({ command: 'forge-board', args: 'stop' })
+})
+
+// 사람 요청(2026-11-04 · Refs #4191) — CTX 막대는 실제 창(ctx_window · 대부분 100만) 대비 · 교체 문턱(20만)은 넘었을 때 경고 1개
+describe('CTX 막대 — 창 대비 · 교체 문턱은 경고', () => {
+  test('100만 창에 22만 → 22% (22만/100만) · 문턱 넘음 경고 · 15만이면 경고 없음', () => {
+    expect(ctxBar(220000, 1000000)).toEqual({ bar: '██░░░░░░', pct: 22, tone: 'success', over: true })
+    const c = roomCards(rooms([room({ name: 'a', ctx_tokens: 220000 }), room({ name: 'b', ctx_tokens: 150000 })]), iss([])) ?? []
+    expect(c[0].meta).toContain('CTX ██░░░░░░ 22% (22만/100만) · ' + OVER_TEXT)
+    expect(OVER_TEXT).toBe('교체 문턱 넘음(20만)')
+    expect(c[1].meta).toContain('CTX █░░░░░░░ 15% (15만/100만) · ')
+    expect(c[1].meta).not.toContain('교체 문턱')
+  })
+  test('창 크기를 모르면 막대 없이 토큰과 창 ? · 문턱 경고는 그대로', () => {
+    const c = roomCards(rooms([room({ name: 'a', ctx_tokens: 220000, ctx_window: null })]), iss([])) ?? []
+    expect(c[0].ctx).toBe(null)
+    expect(c[0].meta).toContain('CTX 22만/창 ? · 교체 문턱 넘음(20만)')
+  })
+})
+
+test('패널 — 문턱 넘음 경고는 경고 색 글', async ($, on) => {
+  mock.env(on, { FORGE_ROOT: '/f' })
+  mock.clock(on, { now: 50_000_000 })
+  const body = JSON.stringify({ project: 'forge', all: false, rooms: [room({ name: 'p', ctx_tokens: 220000 })] })
+  on('process.run', async (_$, e) => {
+    const cmd = e.argv.join(' ')
+    const out = cmd.startsWith('gh pr list') ? '[]' : cmd.endsWith('issue-owner.sh pc') ? 'pc:PC-A' : cmd.startsWith('gh issue list') ? '[]' : cmd.includes('board-rooms.py') ? body : ''
+    return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  on('ui.status', async () => ({ value: undefined }))
+  await $.command.run({ command: 'forge-board' })
+  const ui = await $.ui.mount({
+    plugin: 'forge-status-board', component: 'Pane', requestId: 'forge-status-board', surface: 'terminal',
+    props: { title: '총괄 상황판', isFocused: false, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
+  })
+  const texts = await ui.findAll({ type: 'Text' })
+  expect(texts.find(t => t.text === OVER_TEXT)?.props.color).toBe('warning')
   await ui.unmount()
   await $.command.run({ command: 'forge-board', args: 'stop' })
 })
