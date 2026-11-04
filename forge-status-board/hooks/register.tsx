@@ -9,7 +9,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import {
-  DIVIDER, boardView, ghBudget, ghPerHour, guardArgv, issueArgv, nameText, pcArgv, pcLabel, prArgv, rateLimited, refreshSec, roomsArgv, statusSummary, viewLines,
+  DIVIDER, OVER_TEXT, TWO_COL_MIN, boardView, cardRows, ghBudget, ghPerHour, guardArgv, issueArgv, nameText, pcArgv, pcLabel, prArgv, rateLimited, refreshSec, roomsArgv, statusSummary, viewLines,
 } from './board'
 import type { Ran, View } from './board'
 
@@ -106,13 +106,17 @@ export const register: Register = on => {
         {v.head.map(line => (
           <Text wrap={cut}>{line}</Text>
         ))}
-        {v.cards.map((c, i) => {
+        {cardRows(v.cards, e.props.bodyColumns).map((row, i) => {
+          // 사람 요청(2026-11-04 · Refs #4191) 넓으면 한 줄에 카드 2장(각 50%) · 좁으면 1장씩(종전 꼴) · 구분선은 줄 사이
+          const two = (e.props.bodyColumns ?? 0) >= TWO_COL_MIN   // 마지막 홀수 카드도 50% — 왼쪽 열에 줄 맞춤
+          const cardsJsx = row.map(c => {
           const pre = `${c.mark} ${c.icon ? `${c.icon} ` : ''}`
-          const [m0, m1] = c.ctx ? [c.meta.slice(0, c.meta.indexOf(c.ctx.bar)), c.meta.slice(c.meta.indexOf(c.ctx.bar) + c.ctx.bar.length)] : [c.meta, '']
+          // 교체 문턱 넘음 글은 경고 색(사람 요청 2026-11-04) — 창을 몰라 막대가 없어도 같다
+          const k = c.meta.indexOf(OVER_TEXT)
+          const [rest, over, m2] = k >= 0 ? [c.meta.slice(0, k), OVER_TEXT, c.meta.slice(k + OVER_TEXT.length)] : [c.meta, '', '']
+          const [m0, m1] = c.ctx ? [rest.slice(0, rest.indexOf(c.ctx.bar)), rest.slice(rest.indexOf(c.ctx.bar) + c.ctx.bar.length)] : [rest, '']
           return (
-            <Box flexDirection="column">
-              {i > 0 ? <Text dimColor wrap={cut}>{DIVIDER}</Text> : null}
-              <Box flexDirection="column" borderStyle="round" paddingX={1} {...(c.stuck ? { borderColor: 'warning' } : {})}>
+              <Box flexDirection="column" borderStyle="round" paddingX={1} {...(two ? { width: '50%' } : {})} {...(c.stuck ? { borderColor: 'warning' } : {})}>
                 <Text wrap={cut} {...(c.stuck ? { color: 'warning' } : {})}>
                   {pre}
                   <Text weight="bold">{c.call}</Text>
@@ -124,8 +128,16 @@ export const register: Register = on => {
                   {m0}
                   {c.ctx ? <Text color={c.ctx.tone}>{c.ctx.bar}</Text> : null}
                   {m1}
+                  {over ? <Text color="warning">{over}</Text> : null}
+                  {m2}
                 </Text>
               </Box>
+          )
+          })
+          return (
+            <Box flexDirection="column">
+              {i > 0 ? <Text dimColor wrap={cut}>{DIVIDER}</Text> : null}
+              {two ? <Box flexDirection="row">{cardsJsx}</Box> : cardsJsx}
             </Box>
           )
         })}
