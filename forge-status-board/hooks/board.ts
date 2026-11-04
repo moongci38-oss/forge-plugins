@@ -100,7 +100,10 @@ function ctxText(tokens: number | null | undefined, window: number | null | unde
 // 카드 사이 구분선(글 회신·패널 같은 줄)
 export const DIVIDER = '─'.repeat(24)
 // 직무 아이콘 — 짧은 글자(4자 이하 · 빈칸 없음)만 · 상태 표시와 같은 글자는 버린다(헷갈리지 않게)
-const STATE_MARKS = ['●', '○', '⚠', '✕', '?']
+// #4717 ③ 상태 배지 — 🟢 도는 중 · 💤 쉬는 중 · 🛑 멈춤 · ⚠️ 끊김 · ❔ 모름 (옛 글자도 아이콘으로 받지 않는다)
+const BADGE = { run: '🟢', rest: '💤', stuck: '🛑', cut: '⚠️', unknown: '❔' }
+const STATE_MARKS = [...Object.values(BADGE), '●', '○', '⚠', '✕', '?']
+const modeBadge = (m: string | null): string => (m === 'write' ? ' ✍️' : m === 'read' ? ' 👀' : '')   // #4717 ③ 모드 배지 · MUT-MODE-BADGE
 const iconOf = (v: unknown): string =>
   typeof v === 'string' && v !== '' && !/\s/.test(v) && Array.from(v).length <= 4 && !STATE_MARKS.includes(v) ? v : ''   // MUT-ICON-GUARD
 type Issue = { number: number; title: string; labels: string[] }
@@ -144,7 +147,7 @@ export function roomCards(r: Ran, issues?: Ran): Card[] | null {
   const cards = got.rooms.map(m => {
     const stuck = m.state === '도는 중' && typeof m.idle_min === 'number' && m.idle_min >= STUCK_MIN   // MUT-STUCK
     const st = stuck ? '멈춤' : (m.state ?? '')
-    const mark = stuck ? '⚠' : m.state === '도는 중' ? '●' : m.state === '쉬는 중' ? '○' : m.state === '끊김' ? '✕' : '?'
+    const mark = stuck ? BADGE.stuck : m.state === '도는 중' ? BADGE.run : m.state === '쉬는 중' ? BADGE.rest : m.state === '끊김' ? BADGE.cut : BADGE.unknown
     const label = stuck ? `멈춤 ${m.idle_min}분` : (m.state ?? `상태 ${NA}`)
     const turn = typeof m.last_turn_min === 'number' ? ago(m.last_turn_min) : (m.last_turn ?? '없음')
     const icon = iconOf(m.icon)
@@ -153,7 +156,7 @@ export function roomCards(r: Ran, issues?: Ran): Card[] | null {
     return {
       ord: ORDER[st] ?? 4,
       card: {
-        mark, icon, call, name: m.name, stuck, head: `${mark} ${icon ? `${icon} ` : ''}${nameText(call, m.name)} · ${label}${m.mine ? ' · 이 세션이 연 방' : ''}`,
+        mark, icon, call, name: m.name, stuck, head: `${mark} ${icon ? `${icon} ` : ''}${nameText(call, m.name)}${modeBadge(m.mode)} · ${label}${m.mine ? ' · 이 세션이 연 방' : ''}`,
         now: nowLine(m, list), ctx,
         meta: `마지막 턴 ${turn} · ${ctxText(m.ctx_tokens, m.ctx_window, ctx)} · ${m.axis} · ${modeKo(m.mode)}`,
       },
@@ -167,7 +170,7 @@ function roomHead(r: Ran): { head: string[]; tail: string[] } | null {
   if (!got) return null
   const n = got.rooms.length
   // #3753 머리줄 = 거른 기준(스크립트 basis) · 옛 스크립트(basis 없음)는 종전 문구
-  const head = got.basis ? `방 ${n}개 — ${got.basis} · 공통 방은 늘` : `방 ${n}개(프로젝트 ${got.project} · 공통)`
+  const head = got.basis ? `방 ${n}개 — ${got.basis} · 둘 다 쓰는 방(mode=both·기록 없는 공통 방)은 늘` : `방 ${n}개(프로젝트 ${got.project} · 공통)`
   const unk = got.mode_unknown && got.mode_unknown.length ? [`모드 ${NA} 방 ${got.mode_unknown.length}개(모드 기록 없는 옛 방 · 위 목록에서 뺐다): ${got.mode_unknown.join(', ')}`] : []
   return { head: [head], tail: unk }
 }
@@ -195,7 +198,7 @@ export function roomLines(r: Ran, issues?: Ran): string[] {
 // #3753 머리줄 1줄 요약 — 멈춤은 도는 중과 따로 센다 · 열린 PR 은 이미 읽은 gh pr list 수
 function summaryLine(cards: Card[], prs: number | null): string {
   const n = (mark: string) => cards.filter(c => c.mark === mark).length
-  return `도는 중 ${n('●')} · 쉬는 중 ${n('○')} · 멈춤 ${n('⚠')} · 열린 PR ${prs === null ? NA : prs}`   // MUT-SUMMARY-STUCK
+  return `도는 중 ${n(BADGE.run)} · 쉬는 중 ${n(BADGE.rest)} · 멈춤 ${n(BADGE.stuck)} · 열린 PR ${prs === null ? NA : prs}`   // MUT-SUMMARY-STUCK
 }
 
 export function tokenLines(r: Ran): string[] {
