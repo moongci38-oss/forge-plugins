@@ -1,0 +1,8 @@
+# green — 같은 측정 · git rm 4파일 + forge-core 0.7.29 뒤
+ABSENT: forge-core/skills/forge-multi
+ABSENT: forge-core/commands/forge-multi.md
+tracked files: 0
+JSON OK: .claude-plugin/marketplace.json
+JSON OK: forge-core/.claude-plugin/plugin.json
+  "version": "0.7.29",
+      "version": "0.7.29"

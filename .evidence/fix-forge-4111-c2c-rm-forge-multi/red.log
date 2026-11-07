@@ -1,0 +1,8 @@
+# red — origin/main 31ecc2f · 지우기 전 (사본 경로 존재 확인 + json 구문)
+EXISTS: forge-core/skills/forge-multi
+EXISTS: forge-core/commands/forge-multi.md
+tracked files: 4
+JSON OK: .claude-plugin/marketplace.json
+JSON OK: forge-core/.claude-plugin/plugin.json
+  "version": "0.7.28",
+      "version": "0.7.28"
