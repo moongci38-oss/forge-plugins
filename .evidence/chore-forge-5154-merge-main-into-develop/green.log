@@ -1,0 +1,10 @@
+# green — 합친 커밋 97354e2 뒤
+$ git rev-list --count HEAD..origin/main
+0
+$ git diff --stat origin/main HEAD   (main 대비 = #128 만)
+ .claude-plugin/marketplace.json (forge-core 0.7.29) · forge-core/.claude-plugin/plugin.json · forge-multi 4파일 삭제 · .evidence/fix-forge-4111-c2c-rm-forge-multi/ 3
+ 9 files changed, 45 insertions(+), 5574 deletions(-)
+$ git diff --stat origin/develop HEAD   (develop 대비 = #126·#127 만)
+ 17 files changed, 127 insertions(+), 56 deletions(-)
+$ python3 json.load × 4 (marketplace · forge-core · forge-knowledge · forge-status-board plugin.json) → OK
+versions: {'forge-core': '0.7.29', 'forge-knowledge': '0.2.28', 'forge-build': '0.4.32', 'forge-design': '0.2.21', 'forge-status-board': '0.4.0'}

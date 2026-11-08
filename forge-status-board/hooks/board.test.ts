@@ -69,16 +69,16 @@ describe('방·토큰 패널(#3622 ①③)', () => {
   test('방 카드 — 모드 칸이 없으면(#3614 전) 판정 불가 · 마지막 턴·CTX', () => {
     const got = roomLines(rooms([room({}), room({ name: 'dev-forge', axis: '프로젝트', mode: 'write', state: '도는 중', issues: null, last_turn: null, ctx_pct: null, ctx_tokens: null })]), iss([]))
     expect(got[0]).toBe('방 2개(프로젝트 forge · 공통)')
-    expect(got.slice(1, 5)).toEqual(['', '● dev-forge · 도는 중', '  대기', '  마지막 턴 없음 · CTX 판정 불가 · 프로젝트 · 쓰기'])
-    expect(got.slice(5)).toEqual([DIVIDER, '○ harness · 쉬는 중', '  대기', '  마지막 턴 10-24 05:12 · CTX ░░░░░░░░ 5% (5만/100만) · 공통 · 모드 판정 불가'])   // #3753 카드 사이 구분선 · CTX 막대(실제 창 100만 대비 — 사람 요청 2026-11-04)
+    expect(got.slice(1, 5)).toEqual(['', '🟢 dev-forge ✍️ · 도는 중', '  대기', '  마지막 턴 없음 · CTX 판정 불가 · 프로젝트 · 쓰기'])
+    expect(got.slice(5)).toEqual([DIVIDER, '💤 harness · 쉬는 중', '  대기', '  마지막 턴 10-24 05:12 · CTX ░░░░░░░░ 5% (5만/100만) · 공통 · 모드 판정 불가'])   // #3753 카드 사이 구분선 · CTX 막대(실제 창 100만 대비 — 사람 요청 2026-11-04)
   })
   test('#3753 머리줄 = 거른 기준 · 이 세션이 연 방 표시 · 모드 판정 불가 방은 따로 줄', () => {
     const r = ok(JSON.stringify({ project: 'forge', all: false, basis: '프로젝트 forge · 쓰기 세션 · 이 세션이 연 방 먼저', mode_unknown: ['dev-old'],
       rooms: [room({ name: 'dev-w', axis: '프로젝트', mode: 'write', mine: true }), room({ mode: 'write' })] }))
     const got = roomLines(r, iss([]))
-    expect(got[0]).toBe('방 2개 — 프로젝트 forge · 쓰기 세션 · 이 세션이 연 방 먼저 · 공통 방은 늘')
-    expect(got[2]).toBe('○ dev-w · 쉬는 중 · 이 세션이 연 방')
-    expect(got[6]).toBe('○ harness · 쉬는 중')
+    expect(got[0]).toBe('방 2개 — 프로젝트 forge · 쓰기 세션 · 이 세션이 연 방 먼저 · 둘 다 쓰는 방(mode=both·기록 없는 공통 방)은 늘')
+    expect(got[2]).toBe('💤 dev-w ✍️ · 쉬는 중 · 이 세션이 연 방')
+    expect(got[6]).toBe('💤 harness ✍️ · 쉬는 중')
     expect(got[got.length - 1]).toBe('모드 판정 불가 방 1개(모드 기록 없는 옛 방 · 위 목록에서 뺐다): dev-old')
   })
 })
@@ -122,15 +122,15 @@ describe('#3796 방 카드 — 지금 하는 일 1개', () => {
       room({ name: 'a-rest', state: '쉬는 중' }), room({ name: 'b-cut', state: '끊김' }), room({ name: 'c-run', state: '도는 중', idle_min: 3 }),
       room({ name: 'd-stuck', state: '도는 중', idle_min: 22, last_turn_min: 40 }),
     ]), iss([]))
-    const heads = got.filter(l => /^[●○⚠✕?] /.test(l))
-    expect(heads).toEqual(['⚠ d-stuck · 멈춤 22분', '● c-run · 도는 중', '○ a-rest · 쉬는 중', '✕ b-cut · 끊김'])
+    const heads = got.filter(l => /^(🟢|💤|🛑|⚠️|❔) /.test(l))
+    expect(heads).toEqual(['🛑 d-stuck · 멈춤 22분', '🟢 c-run · 도는 중', '💤 a-rest · 쉬는 중', '⚠️ b-cut · 끊김'])
     expect(got.filter(l => l === '').length).toBe(1)   // 첫 카드 앞 빈 줄 1개
     expect(got.filter(l => l === DIVIDER).length).toBe(3)   // #3753 카드 사이 구분선
-    expect(got[got.indexOf('⚠ d-stuck · 멈춤 22분') + 2]).toBe('  마지막 턴 40분 전 · CTX ░░░░░░░░ 5% (5만/100만) · 공통 · 모드 판정 불가')
+    expect(got[got.indexOf('🛑 d-stuck · 멈춤 22분') + 2]).toBe('  마지막 턴 40분 전 · CTX ░░░░░░░░ 5% (5만/100만) · 공통 · 모드 판정 불가')
   })
   test('카드 자료(패널 테두리용) — 멈춤만 강조 표시', () => {
     const c = roomCards(rooms([room({ name: 'x', state: '도는 중', idle_min: 15 }), room({ name: 'y' })]), iss([]))
-    expect(c?.map(k => [k.mark, k.name, k.stuck])).toEqual([['⚠', 'x', true], ['○', 'y', false]])
+    expect(c?.map(k => [k.mark, k.name, k.stuck])).toEqual([['🛑', 'x', true], ['💤', 'y', false]])
     expect(roomCards(null, iss([]))).toBe(null)
   })
   test('토큰 표는 기본 접기 — 머리 1줄만 · tokens 일 때만 펼친다', () => {
@@ -282,7 +282,7 @@ describe('#3753 조각 ② 상황판 다듬기', () => {
   })
   test('직무 아이콘 자리 — icon 칸이 있으면 이름 앞 · 없으면 안 그린다 · 상태 표시(●○⚠)와 같은 글자나 긴 글은 버린다', () => {
     const c = roomCards(rooms([room({ name: 'g', icon: '🔧' }), room({ name: 'h' }), room({ name: 'i', icon: '○' }), room({ name: 'j', icon: 'rm -rf x' })]), iss([]))
-    expect(c?.map(k => k.head)).toEqual(['○ 🔧 g · 쉬는 중', '○ h · 쉬는 중', '○ i · 쉬는 중', '○ j · 쉬는 중'])
+    expect(c?.map(k => k.head)).toEqual(['💤 🔧 g · 쉬는 중', '💤 h · 쉬는 중', '💤 i · 쉬는 중', '💤 j · 쉬는 중'])
     expect(c?.map(k => k.icon)).toEqual(['🔧', '', '', ''])
   })
   test('#3753 조각 ③ 첫 줄 = 부름 이름 + 방 이름(작게) · 부름이 방 이름과 같거나 없으면 한 번만', () => {
@@ -291,7 +291,7 @@ describe('#3753 조각 ② 상황판 다듬기', () => {
       room({ name: 'lonely', callname: 'lonely' }), room({ name: 'old' }), room({ name: 'bad', callname: '' }), room({ name: 'odd', callname: 7 }),
     ]), iss([]))
     expect(c?.map(k => k.head)).toEqual([
-      '○ 🔧 정비장 harness · 쉬는 중', '○ 개발장@forge·쓰기 dev-forge · 쉬는 중', '○ lonely · 쉬는 중', '○ old · 쉬는 중', '○ bad · 쉬는 중', '○ odd · 쉬는 중',
+      '💤 🔧 정비장 harness · 쉬는 중', '💤 개발장@forge·쓰기 dev-forge · 쉬는 중', '💤 lonely · 쉬는 중', '💤 old · 쉬는 중', '💤 bad · 쉬는 중', '💤 odd · 쉬는 중',
     ])
     expect(c?.map(k => k.call)).toEqual(['정비장', '개발장@forge·쓰기', 'lonely', 'old', 'bad', 'odd'])
   })
@@ -317,9 +317,9 @@ test('#3753 패널 — 막대는 색 칠한 글 · 카드 사이 구분선 · �
   const bars = texts.filter(t => /^[█░]{8}$/.test(t.text))
   expect(bars.map(t => [t.text, t.props.color])).toEqual([['█░░░░░░░', 'success'], ['░░░░░░░░', 'success']])   // 100만 창 대비(18만 → 18% · 2만 → 2%)
   expect(texts.filter(t => t.text === DIVIDER).length).toBe(1)
-  const head = texts.find(t => t.text.startsWith('○ 🔍'))
+  const head = texts.find(t => t.text.startsWith('💤 🔍'))
   expect(head?.props.wrap).toBe('truncate-end')
-  expect(head?.text).toBe('○ 🔍 검수장 p · 쉬는 중')   // #3753 조각 ③ 부름 굵게 + 방 이름 흐리게
+  expect(head?.text).toBe('💤 🔍 검수장 p · 쉬는 중')   // #3753 조각 ③ 부름 굵게 + 방 이름 흐리게
   expect(texts.find(t => t.text === '검수장')?.props.weight).toBe('bold')
   expect(texts.find(t => t.text === ' p')?.props.dimColor).toBe(true)
   expect(texts.find(t => t.text === 'q')?.props.weight).toBe('bold')   // 부름 없음 → 방 이름 한 번만(굵게)
