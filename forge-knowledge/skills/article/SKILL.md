@@ -60,9 +60,9 @@ fact-checker `❓`·2.82 미달·1.5 미개봉 링크·2.87 미개봉·"추가 �
 ### Step 3 — 분석 리포트 저장: `01-research/articles/{YYYY-MM-DD}/{date}-{domain}-{title-slug}-analysis.md` — §출력 형식 구조로.
 ### Step 4.7 — 적대적 검수 (분석 리포트 대상)
 ```
-/forge-review --stage analysis --target <analysis.md 절대경로> --cr on
+/forge-review --stage final --target <analysis.md 절대경로> --mode multi -- --allow-unbound-final
 ```
-- `--cr on` 빼지 마라(없으면 게이트가 검수를 건너뛴다 · 통과 아님) · `PASS|WARN` → 진행 · `FAIL` → **[STOP]** 고치고 보고(다시 검수하지 않는다) · Codex 한도·오류 = 판정 아님("통과" 금지) → 같은 대상으로 Claude 1명 대체(`Agent(subagent_type="code-reviewer")` · #4219) · 보고에 `검수 벤더: claude`.
+- `--allow-unbound-final` 빼지 마라 · ~15KB 초과면 나눠 호출 · `PASS|WARN` → 진행 · `FAIL`·`hasCrit` → **[STOP]** 고치고 보고(다시 검수하지 않는다) · `INVALID_INPUT`·`content_integrity=lost` = 판정 아님, 쪼개 재호출("통과" 금지) · `degraded=true` → 보고에 명시.
 ### Step 4.85 — HTML 대시보드 (없으면 발행기가 기사를 건너뜀)
 ```bash
 ANALYSIS="{outputsRoot}/01-research/articles/{date}/{date}-{domain}-{title-slug}-analysis.md"

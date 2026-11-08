@@ -19,7 +19,7 @@
       "description": "Forge 지식·리서치 — learn/memory-manage/wiki-sync/rag-search + article/yt/site-deep-analyze. forge-tools MCP(ADR-174 unified_search).",
       "source": "./forge-knowledge",
       "category": "productivity",
-      "version": "0.2.28"
+      "version": "0.2.27"
     },
     {
       "name": "forge-build",
@@ -40,7 +40,7 @@
       "description": "총괄 상황판(읽기 전용 모드) — /forge-board 가 열린 PR · 이 PC 일감 · 관리 가드 상태 · 팀장 방을 패널에 보여 준다. 도구 호출 훅 없음 — 차단 훅을 건드리지 않는다(forge#4191).",
       "source": "./forge-status-board",
       "category": "productivity",
-      "version": "0.4.0"
+      "version": "0.2.0"
     }
   ]
 }

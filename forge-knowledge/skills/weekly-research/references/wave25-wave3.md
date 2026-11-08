@@ -5,7 +5,7 @@
 
 ## 목차
 - Wave 2.5 — 독립 Evaluator subagent
-- Wave 2.55 — 적대적 검수 (**Codex 단독 1레그**, 계획서 전용 · **비차단** · **사람이 지정할 때만**)
+- Wave 2.55 — 적대적 검수 (cr-triple **2벤더 교차 2레그**, 계획서 전용 · **비차단** · **사람이 지정할 때만**)
 - Wave 3 — 블로그 발행
 
 ---
@@ -84,32 +84,43 @@ PASS 확인 후 Wave 2.7(HTML 대시보드) → Wave 3(블로그 발행)으로 �
 
 ---
 
-## Wave 2.55 (적대적 검수 — **Codex 단독 1레그**, 계획서 전용 · 2026-08-27 Human 지시 · #4111)
+## Wave 2.55 (적대적 검수 — cr-triple **2벤더 교차 2레그**, 계획서 전용 · 2026-08-27 Human 지시)
 
 **언제**: 사람이 지정할 때만 돈다 — 기본 회차는 건너뛴다. 정본 `model-routing.md`(검수는 full-gate 만 · Codex 검수 레그는 사람 지정 때만)가 아래 2026-08-27 지시를 대신한다(사람 결정 2026-10-18).
 **대상**: `01-research/projects/{project}/{date}-s1-research.md`
 **대상 아님**: `tech-trends.md`·`biz-trends.md`(뉴스 리포트)·`stock-trends.md` — 이건 리포트 **본문**이고, 본문 품질은 Wave 2.5 Evaluator 와
-커버리지 게이트가 맡는다. plan 검수 루브릭은 코드·계획서용이라 본문에 걸면 오탐이 는다.
+커버리지 게이트가 맡는다. cr-triple 은 코드·계획서용 루브릭이라 본문에 걸면 오탐이 는다.
 
-왜 한 벤더인가: 사람 결정(2026-10-27 · #3897) "forge-multi 말고 codex 검수만, 적대적 검수를 2개 모델로 돌릴 필요 없다"(daily 형제와 같다 · #4111).
-Codex 한 레그가 읽는다(모델은 `forge-review` 엔진 기본값).
+왜 벤더를 가르나: 한 벤더만 보면 그 벤더의 맹점을 그대로 통과시킨다.
+Claude(Opus 5.5)와 Codex(**gpt-6.1-sol** — CLI ≥0.160.0 · 구 CLI 는 `gpt-6-sol`)가 각각 읽고 교차하면 한 모델이 놓친 것을 다른 모델이 집는다.
+⚠️ 구 표기 "Claude(Fable 5.1)·Codex(gpt-6-astra)" 는 2026-09-17 폐기 — 사람 지시 "advisor 에서만 최고급 모델 사용해"(레그 모델은 `cr-risk-tier.sh` 등급이 정한다).
+⚠️ 완화 장치이지 무편향 보장이 아니다(`cr-multi/SKILL.md §self-referential bias`).
+⚠️ **구 표기 "3레그 — Claude·Codex(gpt-5.6-sol)·Gemini" 는 2026-09-12 폐기.** 2026-09-07 Gemini
+전면 철수로 3레그 구성 자체가 없고, Codex 레그 기본값은 그 뒤 astra 를 거쳐 2026-09-17 `gpt-5.6-sol` 이 됐다(astra 폐기 — advisor 전용)
+(정본 `model-routing.md §검수 2레그`). 3레그를 기대하고 결과를 읽으면 레그 수를 오독한다.
 
 **호출**
 
 ```
-/forge-review --stage plan --target "01-research/projects/{project}/{date}-s1-research.md" --cr on
+/forge-review --stage plan --target "01-research/projects/{project}/{date}-s1-research.md" --mode multi -- --cr on
 ```
 
-⚠️ **`--cr on` 을 빼면 검수가 돌지 않는다.** 게이트가 자동 stage 꺼짐(`CODEX_REVIEW_AUTO_STAGES` 기본 off)으로 건너뛴다 —
-레그가 하나뿐이라 건너뛰면 검수 0 이다. 전역 기본값은 건드리지 않는다.
+⚠️ **`--cr on` 을 빼면 교차 검증이 성립하지 않는다.** 팀 기본값 `FORGE_AUTO_CR=degrade` 가
+Codex 레그를 통째로 빼는데, 레그가 2개뿐이라 하나를 빼면 **Claude 단독**이 되어 자기검토가 된다
+(`forge-multi` 가 `quorumFail` → `verdict=FAIL` 로 받는다). **전역 기본값은 건드리지 않는다** —
+이 Wave 안에서만 `--cr on` 을 명시한다.
+⚠️ 구 표기 "(`model-routing.md:27` 범위 제한)" 은 2026-09-12 폐기 — **그 줄에 그런 내용이 없다.**
+실측: `sed -n '27p' dev/global-rules/model-routing.md` → `## Advisor/Worker 위임 규율` 헤더 ·
+`grep -c 'FORGE_AUTO_CR' dev/global-rules/model-routing.md` → **0**.
+daily 형제 파일에서 복사돼 온 낡은 줄번호였다. 줄번호 포인터는 위쪽에 줄이 끼면 조용히 어긋난다.
 
 **판정 소비 — 이 Wave 는 비차단(WARN-first)이다**
 
 | verdict | 행동 |
 |---|---|
-| `PASS` | 계획서 말미에 `검수: Codex PASS` 1줄 기록 |
+| `PASS` | 계획서 말미에 `검수: cr-triple PASS` 1줄 기록 |
 | `WARN` / `FAIL` | 지적 항목(severity·요지)을 계획서 말미 `## 검수 지적` 섹션에 적고 **진행한다** |
-| Codex 한도·오류 | 판정이 아니다 — 집계 금지. Claude 1명 대체(`Agent(subagent_type="code-reviewer")` · #4219) · 계획서 말미에 `검수 벤더: claude` · 그것도 못 돌면 `검수 미판정` 기록 후 진행 |
+| `INVALID_INPUT` | 판정이 아니다 — 집계 금지. 입력 고쳐 1회 재호출, 실패하면 `검수 미판정` 기록 후 진행 |
 
 ⛔ **[STOP] 게이트를 걸지 않는다.** 이 파이프라인은 cron 이 무인으로 돌린다(daily 화~일 09:00 ·
 weekly 월요일). 사람이 없는 자리에서 멈추면 그날 리포트가 통째로 안 나온다 — 검수 결과를

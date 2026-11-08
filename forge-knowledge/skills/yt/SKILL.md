@@ -55,12 +55,12 @@ TL;DR(1~2문장) · 카테고리(tech/ai·tech/web·tech/gamedev·business/start
 ### Step 3 — 리포트 저장 → 3.5 타임스탬프 검증 (파생물 전): 저장 직후 **Read** `reference.md §Step 3.5 타임스탬프 검증 게이트` 후 실행(`python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-timestamp-verify.py <analysis.md>`).
 ### Step 4.7 — 적대적 검수 (분석 리포트 대상)
 ```
-/forge-review --stage analysis --target <analysis.md 절대경로> --cr on
+/forge-review --stage final --target <analysis.md 절대경로> --mode multi -- --allow-unbound-final
 ```
-- `--cr on` 빼지 마라 — 없으면 게이트가 검수를 건너뛴다(`RUN=0` · 통과 아님). 큰 문서는 입력기가 조각으로 나눈다.
-- `PASS|WARN` → 진행 · `FAIL` → **[STOP]** 고치고 보고(다시 검수하지 않는다) · 결과가 안 나오거나 형식이 깨지면 판정 아님("통과" 금지 — 아래 폴백) · `degraded` → 보고에 명시.
+- `--allow-unbound-final` 빼지 마라. ~15KB 초과면 `## 비판적 분석` 절과 나머지로 나눠 호출.
+- `PASS|WARN` → 진행 · `FAIL`/`hasCrit=true` → **[STOP]** 고치고 보고(다시 검수하지 않는다) · `INVALID_INPUT`/`content_integrity=lost` = 판정 아님, 쪼개 재호출("통과" 금지) · `degraded=true` → 보고에 명시.
 - **검수 전 작업 폴더 확인(#2448)**: 대상 `analysis.md` 가 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/videos/analyses/` 아래이고(forge 레포·옛 경로 아님) 같은 `video_id` 의 `-analysis.md`·`.json` 이 각 1개인지 `ls` 로 본다 — 어긋나면 바로잡고 검수한다(옛 경로 산출물로 검수·전달하지 않는다).
-- **Codex 한도·오류 폴백(#2448 · #4219)**: Codex 가 `rate_limited`·오류로 판정을 못 내면 **판정이 아니다** → 같은 대상으로 Claude 단독 1레그를 부른다(`Agent(subagent_type="code-reviewer")` · 프롬프트 = 분석문 절대경로 + 근거·추정 태그·범위 · 판정 `PASS|WARN|FAIL`) → 그 판정을 쓰고 이 영상을 `degraded`(Claude 단독 검수 — Codex 한도/오류)로 둔다. Claude 단독 `FAIL`/`hasCrit` 은 종전대로 **[STOP]**. **degraded 는 멈춤이 아니다** — 4.9 대시보드 · 4.95 · 4.97 텔레그램 · 5 색인까지 끝낸다(리포트 머리말·대시보드 상단·텔레그램 제목·색인 `review` 칸에 표기).
+- **Codex 한도·오류 폴백(#2448)**: Codex 레그가 `rate_limited`·오류·빠짐(`quorumFail`)이면 **판정이 아니다** → 같은 대상으로 Claude 단독 1레그를 다시 부른다(args 에 `legs: 1, legVendor: 'claude'`) → 그 판정을 쓰고 이 영상을 `degraded`(Claude 단독 검수 — Codex 한도/오류)로 둔다. Claude 단독 `FAIL`/`hasCrit` 은 종전대로 **[STOP]**. **degraded 는 멈춤이 아니다** — 4.9 대시보드 · 4.95 · 4.97 텔레그램 · 5 색인까지 끝낸다(리포트 머리말·대시보드 상단·텔레그램 제목·색인 `review` 칸에 표기).
 - **Claude 단독 레그도 한도·오류(#3522)**: 판정이 아니고 통과도 아니다 → 이 영상을 `pending`(검수 보류)으로 두고, `degraded` 와 같은 자리(리포트 머리말·대시보드 상단·텔레그램 제목·색인 `review` 칸)에 `검수 보류` 를 단다. **검수 보류는 멈춤이 아니다** — 4.9 · 4.95 · 4.97 · 5 를 끝낸 뒤 재개 목록 `${FORGE_OUTPUTS:-$HOME/forge-outputs}/01-research/videos/analyses/.pending-review.jsonl` 에 한 줄 덧붙인다: `{"video_id":"…","stage":"4.7","analysis_file":"<절대경로>","date":"YYYY-MM-DD"}`(숫자·경로만). 보고에도 명시.
 - **재개(`/yt --resume`)**: 사람이 부를 때만(자동 cron 없음). 목록의 영상마다 이 4.7 검수만 다시 돌리고, 통과하면 색인 `review` 칸만 `echo '{"video_id":"…","review":"full"}' | python3 ${FORGE_ROOT:-$HOME/forge}/shared/scripts/yt-analyzer/append_index_record.py` 로 갱신한 뒤 그 줄을 목록에서 뺀다. 텔레그램은 다시 보내지 않는다(4.97 재호출 금지). 또 한도면 줄을 그대로 둔다.
 ### Step 4.9 — HTML 대시보드: **Read** `reference.md §Step 4.9 HTML 대시보드 생성`.

@@ -28,10 +28,7 @@ async function run($: EngineInterface, argv: string[]): Promise<Ran> {
 
 async function collect($: EngineInterface): Promise<{ view: View; status: string; limited: boolean }> {
   const root = (await $.env.get('FORGE_ROOT')) || `${(await $.env.get('HOME')) ?? ''}/forge`
-  // #3753 이 세션 모드·이 세션이 연 방 · #4719 모드 환경에는 세션 id 환경변수가 비어 있다 — 엔진 $.session.id() 가 먼저, 환경변수는 폴백
-  let sid: string | undefined
-  try { sid = await $.session.id() } catch { sid = undefined }
-  sid = sid || (await $.env.get('CLAUDE_SESSION_ID')) || (await $.env.get('CLAUDE_CODE_SESSION_ID'))
+  const sid = (await $.env.get('CLAUDE_SESSION_ID')) || (await $.env.get('CLAUDE_CODE_SESSION_ID'))   // #3753 이 세션 모드·이 세션이 연 방
   const [prs, pc, guard, rooms] = await Promise.all([run($, prArgv()), run($, pcArgv(root)), run($, guardArgv(root)), run($, roomsArgv(root, sid))])
   const label = pcLabel(pc)
   const issues = label ? await run($, issueArgv(label)) : null
