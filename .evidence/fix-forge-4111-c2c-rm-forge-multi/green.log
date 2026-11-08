@@ -1,0 +1,9 @@
+# green — 같은 측정 · git rm 4파일 + forge-core 0.7.29 뒤
+# (base develop 으로 변경 · origin/develop 3f355f5 합침 뒤 다시 잼 — develop forge-core 0.7.28 + 1 = 0.7.29 · 다른 플러그인은 develop 값)
+ABSENT: forge-core/skills/forge-multi
+ABSENT: forge-core/commands/forge-multi.md
+tracked files: 0
+JSON OK: .claude-plugin/marketplace.json
+JSON OK: forge-core/.claude-plugin/plugin.json
+  "version": "0.7.29",
+      "version": "0.7.29"
