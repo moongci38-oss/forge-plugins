@@ -1,0 +1,10 @@
+# red — origin/main fc62fc3 · sync-from-forge.py --verify (FORGE_ROOT = forge origin/develop 27fcb5f68 .claude)
+범위 7파일 DRIFT:
+  DRIFT: forge-knowledge/skills/weekly-research/SKILL.md
+  DRIFT: forge-knowledge/skills/weekly-research/references/wave25-wave3.md
+  DRIFT: forge-knowledge/skills/article/reference.md
+  DRIFT: forge-knowledge/skills/article/SKILL.md
+  DRIFT: forge-knowledge/skills/yt/reference.md
+  DRIFT: forge-knowledge/skills/yt/SKILL.md
+  DRIFT: forge-knowledge/commands/forge-find-item.md
+DRIFT_REMAINING=40

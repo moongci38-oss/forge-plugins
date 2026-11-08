@@ -17,7 +17,7 @@
 
 ```
 1. analysis md 저장 (01-research/articles/{date}/{slug}-analysis.md)
-2. /forge-review --stage final --target <analysis.md 절대경로> --mode multi -- --allow-unbound-final   (적대적 검수 — Step 4.7 · 분석문 대상)
+2. /forge-review --stage analysis --target <analysis.md 절대경로> --cr on   (적대적 검수 — Step 4.7 · 분석문 대상)
 3. /eval-rubric --target {analysis 경로} (다축 정량 채점)
 4. eval_cases.jsonl 에 EC-article-{N} 1줄 append
 ```
@@ -41,7 +41,7 @@
 
 | 검증 | 영역 | 강점 | 약점 |
 |---|---|---|---|
-| Step 4.7 검수 (`/forge-multi` 2레그) | 적대적 검수 | 벤더 교차(Claude·Codex)로 한 모델의 맹점 보완 | 정량 점수 X |
+| Step 4.7 검수 (Codex 1레그 · 못 돌면 Claude 대체) | 적대적 검수 | 다른 회사 모델(Codex)이 읽어 쓴 모델의 맹점 보완 | 정량 점수 X |
 | eval-rubric | 다축 정량 | clarity/consistency/completeness/safety 4축 점수 | 모델 동일 (자체 편향 가능) |
 
 **상호 보완**: 검수가 못 잡는 정량 측면 = eval-rubric 보강. eval-rubric 이 못 잡는 적대적 견제 = 검수 보강.
