@@ -1,0 +1,7 @@
+# red — origin/develop 0e51f76 · origin/main 31ecc2f (합치기 전)
+$ git rev-list --count origin/develop..origin/main
+6
+$ git rev-list --left-right --count origin/develop...origin/main
+11	6
+# develop 은 fc62fc3(main) + #128 뿐 — `git diff --stat fc62fc3 origin/develop` = forge-core 9파일(#128)
+# main 은 fc62fc3 + #126(forge-knowledge 0.2.28) + #127(forge-status-board 0.4.0) — develop 에 없음
