@@ -1,0 +1,18 @@
+# green — 같은 측정 · forge-review 실은 뒤 (서버 파일 = forge origin/develop 14411f116 shared/mcp/forge-review-server.py 그대로)
+# 플러그인 사본을 stdio 로 띄워 initialize → tools/list → wiki_search 1번 (env 는 plugin.json 값을 HOME 펼쳐 그대로)
+JSON OK ×2 · forge-knowledge 0.2.29 / marketplace 0.2.29
+mcpServers: ['forge-review', 'forge-tools']
+FILE: mcp/forge-review-server.py
+forge-review-server.py tools: ['get_result', 'knowledge_search', 'list_results', 'wiki_search']
+forge-review-server.py wiki_search verdict: 조회함 results: 5
+
+# 팀 PC 마다 forge-review 가 기대는 forge 경로(pc-status.sh --check <PC> forge-has · PC 이름은 가림)
+# 경로: shared/scripts/rag/search.py · shared/scripts/rag/t3_url.py
+PC-1 · 있음 · 있음
+PC-2 · 판정불가 · 판정불가   (보고 5일 전 — 오래됨)
+PC-3 · 있음 · 있음
+PC-4 · 판정불가 · 판정불가   (보고 24일 전 — 오래됨)
+PC-5 · 있음 · 있음
+PC-6 · 있음 · 있음
+
+# plugin-release-gate.sh → ✅ GATE PASS (8항목 0건)

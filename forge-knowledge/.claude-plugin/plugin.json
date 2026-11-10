@@ -1,6 +1,6 @@
 {
   "name": "forge-knowledge",
-  "version": "0.2.28",
+  "version": "0.2.29",
   "description": "Forge 지식·리서치 레이어 — 학습(learn)·메모리(memory-manage)·위키(wiki-sync)·RAG 검색 + 외부 리서치(article/yt/site-deep-analyze). forge-tools MCP(ADR-174 unified_search).",
   "author": {
     "name": "forge"
@@ -26,6 +26,17 @@
         "stdio"
       ],
       "description": "ADR-174 unified_search 라우터 포함 — RAG 하이브리드 검색 (벡터+BM25), 위키 검색, 14종 워크스페이스 도구"
+    },
+    "forge-review": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/forge-review-server.py"
+      ],
+      "env": {
+        "FORGE_REVIEW_RAG_DIR": "${HOME}/forge/shared/scripts/rag"
+      },
+      "description": "검수 결과 조회 + 지식 검색(knowledge_search·wiki_search) — 읽기만 · forge-tools 검색 도구를 이어받는다(forge#4142)"
     }
   },
   "userConfig": {
