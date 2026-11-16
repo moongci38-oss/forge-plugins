@@ -60,7 +60,7 @@ export function kTok(n: number): string {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`
 }
 
-function parseRooms(r: Ran): { project: string; hours?: number; basis?: string; mode_unknown?: string[]; rooms: Room[] } | null {
+function parseRooms(r: Ran): { project: string; hours?: number; basis?: string; mode_unknown?: string[]; rooms: Room[]; split?: { line?: unknown } | null } | null {
   if (!r || r.exitCode !== 0) return null
   try {
     const v = JSON.parse(r.stdout)
@@ -170,7 +170,9 @@ function roomHead(r: Ran): { head: string[]; tail: string[] } | null {
   if (!got) return null
   const n = got.rooms.length
   // #3753 머리줄 = 거른 기준(스크립트 basis) · 옛 스크립트(basis 없음)는 종전 문구
-  const head = got.basis ? `방 ${n}개 — ${got.basis} · 둘 다 쓰는 방(mode=both·기록 없는 공통 방)은 늘` : `방 ${n}개(프로젝트 ${got.project} · 공통)`
+  // #4957 프로젝트 방·공통 방 나눔 줄(스크립트 split.line) — 없으면(옛 스크립트) 종전 그대로
+  const sp = got.split && typeof got.split.line === 'string' ? `(${got.split.line})` : ''
+  const head = got.basis ? `방 ${n}개${sp} — ${got.basis} · 둘 다 쓰는 방(mode=both·기록 없는 공통 방)은 늘` : `방 ${n}개(프로젝트 ${got.project} · 공통)`
   const unk = got.mode_unknown && got.mode_unknown.length ? [`모드 ${NA} 방 ${got.mode_unknown.length}개(모드 기록 없는 옛 방 · 위 목록에서 뺐다): ${got.mode_unknown.join(', ')}`] : []
   return { head: [head], tail: unk }
 }
